@@ -1664,6 +1664,7 @@ void LogScriptedLogicFrameSummary(
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
 {
+    const hl::common::LoggerStatistics logger_statistics = hl::common::Logger::Statistics();
     const auto find_path_node_canary =
         [&](std::string_view node_name)
         -> const hl::game_api::PathNodeMessageCanarySummary*
@@ -1814,6 +1815,12 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             + ", stopped_early=" + BoolToYesNo(summary.server_frame_loop.stopped_early)
             + ", final_time=" + std::to_string(summary.server_frame_loop.final_time)
             + ", any_seh=" + BoolToYesNo(summary.server_frame_loop.any_seh));
+    hl::common::Logger::Info(
+        hl::common::LogCategory::Summary,
+        "  - logger: repeat_suppressions="
+            + std::to_string(logger_statistics.suppressed_repeat_count)
+            + ", total_bytes_written="
+            + std::to_string(logger_statistics.total_bytes_written));
     if (!summary.server_frame_loop.stop_reason.empty())
     {
         hl::common::Logger::Info(
@@ -1984,6 +1991,16 @@ EntitySupportDecision ClassifyEntitySupport(std::string_view classname)
         return {true, false, {}};
     }
 
+    if (normalized == "trigger_relay")
+    {
+        return {false, true, "trigger_relay staged bootstrap deferred"};
+    }
+
+    if (normalized == "func_door")
+    {
+        return {false, true, "func_door runtime target audit deferred"};
+    }
+
     if (normalized == "ambient_generic")
     {
         return {false, true, "ambient sound support deferred"};
@@ -2065,7 +2082,8 @@ void RefreshRuntimeMapLogicFlags(RuntimeEntityRecord& record)
     record.can_emit_targets =
         EqualsIgnoreCase(record.classname, "trigger_auto")
         || EqualsIgnoreCase(record.classname, "multi_manager")
-        || EqualsIgnoreCase(record.classname, "scripted_sequence");
+        || EqualsIgnoreCase(record.classname, "scripted_sequence")
+        || EqualsIgnoreCase(record.classname, "trigger_relay");
     record.blocked_or_deferred =
         (record.deferred
             && record.map_logic_support_state != hl::game_api::MapLogicSupportState::kUseSupported)
@@ -3648,6 +3666,15 @@ struct MultiManagerOutputDefinition
     bool valid_delay = true;
 };
 
+struct TriggerRelayDispatchDefinition
+{
+    std::string target_name;
+    std::string kill_target_name;
+    float delay = 0.0f;
+    bool valid_delay = true;
+    int use_type = 1;
+};
+
 std::vector<MultiManagerOutputDefinition> CollectMultiManagerOutputs(
     const hl::game_api::detail::EntityDefinition& definition)
 {
@@ -3690,6 +3717,53 @@ std::vector<MultiManagerOutputDefinition> CollectMultiManagerOutputs(
             return left.order < right.order;
         });
     return outputs;
+}
+
+TriggerRelayDispatchDefinition CollectTriggerRelayDispatchDefinition(
+    const hl::game_api::detail::EntityDefinition& definition)
+{
+    TriggerRelayDispatchDefinition dispatch;
+    dispatch.use_type = ParseTriggerStateUseType(definition);
+
+    if (const std::string* target = FindLastKeyValue(definition, "target");
+        target != nullptr)
+    {
+        dispatch.target_name = TrimWhitespaceCopy(*target);
+    }
+
+    if (const std::string* killtarget = FindLastKeyValue(definition, "killtarget");
+        killtarget != nullptr)
+    {
+        dispatch.kill_target_name = TrimWhitespaceCopy(*killtarget);
+    }
+
+    if (const std::string* raw_delay = FindLastKeyValue(definition, "delay");
+        raw_delay != nullptr && !raw_delay->empty())
+    {
+        dispatch.valid_delay = ParseStrictFloat(*raw_delay, &dispatch.delay);
+        if (!dispatch.valid_delay)
+        {
+            dispatch.delay = 0.0f;
+        }
+    }
+
+    return dispatch;
+}
+
+const char* BootstrapUseTypeLabel(int use_type) noexcept
+{
+    switch (use_type)
+    {
+    case 0:
+        return "USE_OFF";
+    case 1:
+        return "USE_ON";
+    case 2:
+        return "USE_SET";
+    case 3:
+    default:
+        return "USE_TOGGLE";
+    }
 }
 
 bool ParseStrictFloat(std::string_view text, float* value)
@@ -3897,6 +3971,74 @@ const RuntimeEntityRecord* FindRuntimeRecordByTargetname(
         {
             return &record;
         }
+    }
+
+    return nullptr;
+}
+
+const RuntimeEntityRecord* FindRuntimeRecordByParseIndex(
+    const EngineShimState& state,
+    std::size_t parse_index)
+{
+    for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        if (record.parse_index == parse_index)
+        {
+            return &record;
+        }
+    }
+
+    return nullptr;
+}
+
+bool IsLiveRuntimeTargetRecord(const RuntimeEntityRecord& record) noexcept
+{
+    return record.edict_index >= 0
+        && record.in_use
+        && !record.removed
+        && (record.flags & FL_KILLME) == 0;
+}
+
+std::string BuildParsedRuntimeAuditDetail(const RuntimeEntityRecord& record)
+{
+    return "runtimeAudit parsed#" + std::to_string(record.parse_index)
+        + " edict#" + std::to_string(record.edict_index)
+        + " live=" + BoolToYesNo(IsLiveRuntimeTargetRecord(record))
+        + " inUse=" + BoolToYesNo(record.in_use)
+        + " removed=" + BoolToYesNo(record.removed)
+        + " deferred=" + BoolToYesNo(record.deferred)
+        + " support=" + std::string(RuntimeEntitySupportStateLabel(record.support_state))
+        + " lifecycle=" + std::string(RuntimeEntityLifecycleStateLabel(record.lifecycle_state))
+        + " note=" + (record.note.empty() ? std::string("<none>") : record.note);
+}
+
+const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTargetname(
+    const EngineShimState& state,
+    std::string_view target_name,
+    std::string_view classname_filter = {})
+{
+    if (target_name.empty())
+    {
+        return nullptr;
+    }
+
+    for (const hl::game_api::detail::EntityDefinition& definition :
+         state.entity_bootstrap.parsed_entities)
+    {
+        const std::string* definition_targetname = FindLastKeyValue(definition, "targetname");
+        if (definition_targetname == nullptr
+            || !EqualsIgnoreCase(*definition_targetname, target_name))
+        {
+            continue;
+        }
+
+        if (!classname_filter.empty()
+            && !EqualsIgnoreCase(definition.classname, classname_filter))
+        {
+            continue;
+        }
+
+        return &definition;
     }
 
     return nullptr;
@@ -4137,6 +4279,8 @@ bool ShouldTrackPathNodeDownstreamEntity(const RuntimeEntityRecord& record)
         || normalized == "monster_scientist"
         || normalized == "monster_sitting_scientist"
         || normalized == "func_tracktrain"
+        || normalized == "trigger_relay"
+        || normalized == "func_door"
         || normalized == "env_message"
         || normalized == "ambient_generic";
 }
@@ -4209,11 +4353,7 @@ PathNodeTargetProbe ProbePathNodeTargets(
             continue;
         }
 
-        const bool live_runtime_target =
-            record.edict_index >= 0
-            && record.in_use
-            && !record.removed
-            && (record.flags & FL_KILLME) == 0;
+        const bool live_runtime_target = IsLiveRuntimeTargetRecord(record);
         if (!live_runtime_target)
         {
             continue;
@@ -4252,9 +4392,181 @@ PathNodeTargetProbe ProbePathNodeTargets(
                 + " classname=" + classname
                 + " targetname=" + *definition_targetname);
         }
+
+        const RuntimeEntityRecord* parsed_runtime =
+            FindRuntimeRecordByParseIndex(state, definition.ordinal);
+        if (parsed_runtime == nullptr)
+        {
+            if (probe.resolved_target_details.size() < 8)
+            {
+                probe.resolved_target_details.push_back(
+                    "runtimeAudit parsed#" + std::to_string(definition.ordinal)
+                    + " runtimeRecordMissing");
+            }
+        }
+        else if (!IsLiveRuntimeTargetRecord(*parsed_runtime)
+            && probe.resolved_target_details.size() < 8)
+        {
+            probe.resolved_target_details.push_back(
+                BuildParsedRuntimeAuditDetail(*parsed_runtime));
+        }
     }
 
     return probe;
+}
+
+struct ParsedTriggerRelayBootstrapDispatchResult
+{
+    bool attempted = false;
+    bool handled = false;
+    bool deferred = false;
+    bool failed = false;
+    int synthetic_resolved_targets = 0;
+    std::string detail;
+    std::string required_subsystem;
+};
+
+ParsedTriggerRelayBootstrapDispatchResult TryDispatchParsedOnlyTriggerRelayBootstrap(
+    EngineShimState& state,
+    const hl::game_api::detail::PathNodeEventDispatchRequest& request,
+    float time,
+    float frametime,
+    hl::game_api::detail::MapLogicDispatcher& dispatcher,
+    const hl::game_api::detail::MapLogicDispatcherHooks& hooks)
+{
+    ParsedTriggerRelayBootstrapDispatchResult result;
+
+    const hl::game_api::detail::EntityDefinition* definition =
+        FindParsedTargetDefinitionByTargetname(state, request.message, "trigger_relay");
+    if (definition == nullptr)
+    {
+        return result;
+    }
+
+    result.attempted = true;
+
+    const RuntimeEntityRecord* runtime_record =
+        FindRuntimeRecordByParseIndex(state, definition->ordinal);
+    const TriggerRelayDispatchDefinition relay_dispatch =
+        CollectTriggerRelayDispatchDefinition(*definition);
+    const PathNodeTargetProbe target_probe =
+        ProbePathNodeTargets(state, relay_dispatch.target_name);
+    const PathNodeTargetProbe kill_probe =
+        ProbePathNodeTargets(state, relay_dispatch.kill_target_name);
+
+    bool target_queued = false;
+    bool target_dispatched = false;
+
+    if (!relay_dispatch.valid_delay)
+    {
+        result.deferred = true;
+        result.required_subsystem = "trigger_relay delay parsing/bootstrap validation";
+    }
+    else if (!relay_dispatch.kill_target_name.empty()
+        && (kill_probe.runtime_target_candidates > 0
+            || kill_probe.parsed_target_candidates > 0))
+    {
+        result.deferred = true;
+        result.required_subsystem = "safe staged killtarget removal semantics";
+    }
+    else if (!relay_dispatch.target_name.empty())
+    {
+        if (target_probe.runtime_target_candidates > 0)
+        {
+            if (relay_dispatch.delay > 0.0f)
+            {
+                hl::game_api::detail::ScheduledUseAction action;
+                action.fire_time = time + std::max(
+                    relay_dispatch.delay,
+                    std::max(frametime, 0.05f));
+                action.source_edict_index =
+                    runtime_record != nullptr ? runtime_record->edict_index : -1;
+                action.source_classname =
+                    "trigger_relay(parsed#" + std::to_string(definition->ordinal) + ")";
+                action.target_name = relay_dispatch.target_name;
+                action.use_type = relay_dispatch.use_type;
+                action.value = 0.0f;
+                action.reason =
+                    "path-node parsed-trigger_relay#" + std::to_string(definition->ordinal);
+                target_queued = dispatcher.QueueAction(action, hooks);
+                result.handled = target_queued;
+                result.failed = !target_queued;
+            }
+            else
+            {
+                hl::game_api::detail::MapLogicDispatchContext relay_context;
+                relay_context.frame_number = request.frame_number;
+                relay_context.source_edict_index =
+                    runtime_record != nullptr ? runtime_record->edict_index : -1;
+                relay_context.source_classname =
+                    "trigger_relay(parsed#" + std::to_string(definition->ordinal) + ")";
+                relay_context.target_name = relay_dispatch.target_name;
+                relay_context.use_type = relay_dispatch.use_type;
+                relay_context.value = 0.0f;
+                relay_context.reason =
+                    "parsed-trigger_relay path-node node="
+                    + (request.node_name.empty() ? std::string("<empty>") : request.node_name);
+                target_dispatched = dispatcher.DispatchTargetChain(relay_context, hooks);
+                result.handled = target_dispatched;
+                result.failed = !target_dispatched;
+            }
+        }
+        else if (target_probe.parsed_target_candidates > 0)
+        {
+            result.deferred = true;
+            result.required_subsystem = "parsed-only relay target bootstrap dispatch semantics";
+        }
+        else
+        {
+            // Parsed relay was reached and evaluated, but it currently points at no targets.
+            result.handled = true;
+        }
+    }
+    else
+    {
+        // Parsed relay with no downstream target still counts as a staged bootstrap dispatch.
+        result.handled = true;
+    }
+
+    if (result.handled)
+    {
+        result.synthetic_resolved_targets = 1;
+    }
+
+    result.detail =
+        "parsed-only trigger_relay staged bootstrap dispatch"
+        " parsed#"
+        + std::to_string(definition->ordinal)
+        + " runtimeAudit="
+        + (runtime_record != nullptr
+            ? BuildParsedRuntimeAuditDetail(*runtime_record)
+            : std::string("runtimeRecordMissing"))
+        + " useType=" + std::string(BootstrapUseTypeLabel(relay_dispatch.use_type))
+        + " target="
+        + (relay_dispatch.target_name.empty()
+            ? std::string("<none>")
+            : relay_dispatch.target_name)
+        + " targetRuntimeMatches="
+        + std::to_string(target_probe.runtime_target_candidates)
+        + " targetParsedMatches="
+        + std::to_string(target_probe.parsed_target_candidates)
+        + " targetQueued=" + BoolToYesNo(target_queued)
+        + " targetDispatched=" + BoolToYesNo(target_dispatched)
+        + " killtarget="
+        + (relay_dispatch.kill_target_name.empty()
+            ? std::string("<none>")
+            : relay_dispatch.kill_target_name)
+        + " killRuntimeMatches="
+        + std::to_string(kill_probe.runtime_target_candidates)
+        + " killParsedMatches="
+        + std::to_string(kill_probe.parsed_target_candidates)
+        + " delay=" + std::to_string(relay_dispatch.delay)
+        + " outcome="
+        + (result.handled ? std::string("handled")
+                          : result.deferred ? std::string("deferred")
+                                            : result.failed ? std::string("failed")
+                                                            : std::string("noop"));
+    return result;
 }
 
 int CallbackCountDelta(
@@ -9680,6 +9992,118 @@ void PerformServerFrameLoop()
                         return hl::game_api::detail::MapLogicTargetDispatchResult::kHandled;
                     }
 
+                    if (normalized == "func_door")
+                    {
+                        if (detail != nullptr)
+                        {
+                            *detail =
+                                "func_door runtime target resolved but staged safe use remains deferred"
+                                " pending brush-door movement/use semantics";
+                        }
+                        return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                    }
+
+                    if (normalized == "trigger_relay")
+                    {
+                        RuntimeEntityRecord* record =
+                            FindRuntimeRecordByEdictIndex(state, target_snapshot.edict_index);
+                        if (record == nullptr)
+                        {
+                            if (detail != nullptr)
+                            {
+                                *detail = "trigger_relay runtime record missing";
+                            }
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        const hl::game_api::detail::EntityDefinition* definition =
+                            FindParsedEntityDefinitionByOrdinal(state, record->parse_index);
+                        if (definition == nullptr)
+                        {
+                            if (detail != nullptr)
+                            {
+                                *detail = "trigger_relay parsed definition missing";
+                            }
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        const TriggerRelayDispatchDefinition relay_dispatch =
+                            CollectTriggerRelayDispatchDefinition(*definition);
+                        if (!relay_dispatch.valid_delay)
+                        {
+                            if (detail != nullptr)
+                            {
+                                *detail = "trigger_relay has invalid delay value";
+                            }
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        const PathNodeTargetProbe target_probe =
+                            ProbePathNodeTargets(state, relay_dispatch.target_name);
+                        const PathNodeTargetProbe kill_probe =
+                            ProbePathNodeTargets(state, relay_dispatch.kill_target_name);
+                        if (!relay_dispatch.kill_target_name.empty()
+                            && (kill_probe.runtime_target_candidates > 0
+                                || kill_probe.parsed_target_candidates > 0))
+                        {
+                            if (detail != nullptr)
+                            {
+                                *detail =
+                                    "trigger_relay killtarget="
+                                    + relay_dispatch.kill_target_name
+                                    + " runtimeMatches="
+                                    + std::to_string(kill_probe.runtime_target_candidates)
+                                    + " parsedMatches="
+                                    + std::to_string(kill_probe.parsed_target_candidates)
+                                    + " pending safe staged removal semantics";
+                            }
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        bool target_queued = false;
+                        if (!relay_dispatch.target_name.empty())
+                        {
+                            hl::game_api::detail::ScheduledUseAction action;
+                            action.fire_time =
+                                time + std::max(
+                                    relay_dispatch.delay,
+                                    std::max(frametime, 0.05f));
+                            action.source_edict_index = target_snapshot.edict_index;
+                            action.source_classname = target_snapshot.classname;
+                            action.target_name = relay_dispatch.target_name;
+                            action.use_type = relay_dispatch.use_type;
+                            action.value = context.value;
+                            action.reason = "trigger_relay";
+                            target_queued = map_logic_dispatcher.QueueAction(action, map_logic_hooks);
+                        }
+
+                        if (detail != nullptr)
+                        {
+                            *detail =
+                                "trigger_relay staged bootstrap dispatch"
+                                " useType=" + std::string(BootstrapUseTypeLabel(relay_dispatch.use_type))
+                                + " target="
+                                + (relay_dispatch.target_name.empty()
+                                    ? std::string("<none>")
+                                    : relay_dispatch.target_name)
+                                + " targetRuntimeMatches="
+                                + std::to_string(target_probe.runtime_target_candidates)
+                                + " targetParsedMatches="
+                                + std::to_string(target_probe.parsed_target_candidates)
+                                + " targetQueued=" + BoolToYesNo(target_queued)
+                                + " killtarget="
+                                + (relay_dispatch.kill_target_name.empty()
+                                    ? std::string("<none>")
+                                    : relay_dispatch.kill_target_name)
+                                + " killRuntimeMatches="
+                                + std::to_string(kill_probe.runtime_target_candidates)
+                                + " killParsedMatches="
+                                + std::to_string(kill_probe.parsed_target_candidates)
+                                + " delay=" + std::to_string(relay_dispatch.delay);
+                        }
+                        return hl::game_api::detail::MapLogicTargetDispatchResult::kHandled;
+                    }
+
                     if (normalized != "multi_manager")
                     {
                         if (normalized == "monster_scientist"
@@ -10334,6 +10758,17 @@ void PerformServerFrameLoop()
 
                     const bool dispatched =
                         map_logic_dispatcher.DispatchTargetChain(dispatch_context, map_logic_hooks);
+                    const ParsedTriggerRelayBootstrapDispatchResult parsed_trigger_relay_bootstrap =
+                        target_probe.runtime_target_candidates == 0
+                            && target_probe.parsed_target_candidates > 0
+                        ? TryDispatchParsedOnlyTriggerRelayBootstrap(
+                            state,
+                            request,
+                            time,
+                            frametime,
+                            map_logic_dispatcher,
+                            map_logic_hooks)
+                        : ParsedTriggerRelayBootstrapDispatchResult{};
                     const hl::game_api::MapLogicFrameStateSummary* after_frame =
                         map_logic_dispatcher.CurrentFrameSummary();
                     const int after_use_attempts =
@@ -10372,12 +10807,19 @@ void PerformServerFrameLoop()
                     const int deferred_delta = after_use_deferred - before_use_deferred;
                     const int failure_delta = after_use_failures - before_use_failures;
                     const int no_target_delta = after_no_targets - before_no_targets;
-                    const bool handled_without_use =
+                    const int scheduled_created_delta =
+                        downstream_after.scheduled_created - downstream_before.scheduled_created;
+                    const int scheduled_executed_delta =
+                        downstream_after.scheduled_executed - downstream_before.scheduled_executed;
+                    const bool handled_without_runtime_use =
                         resolved_delta > 0
                         && success_delta == 0
                         && deferred_delta == 0
                         && failure_delta == 0
                         && no_target_delta == 0;
+                    const bool handled_without_use =
+                        handled_without_runtime_use
+                        || parsed_trigger_relay_bootstrap.handled;
 
                     hl::game_api::detail::PathNodeEventDispatchFeedback feedback;
                     feedback.attempted = true;
@@ -10385,15 +10827,24 @@ void PerformServerFrameLoop()
                     feedback.parsed_target_candidates = target_probe.parsed_target_candidates;
                     feedback.target_classnames = target_probe.target_classnames;
                     feedback.resolved_target_details = target_probe.resolved_target_details;
-                    feedback.resolved_targets = std::max(0, resolved_delta);
+                    feedback.resolved_targets =
+                        std::max(0, resolved_delta)
+                        + parsed_trigger_relay_bootstrap.synthetic_resolved_targets;
                     feedback.successful_targets =
                         std::max(0, success_delta)
-                        + (handled_without_use ? std::max(0, resolved_delta) : 0);
-                    feedback.deferred_targets = std::max(0, deferred_delta);
-                    feedback.failed_targets = std::max(0, failure_delta);
+                        + (handled_without_runtime_use ? std::max(0, resolved_delta) : 0)
+                        + parsed_trigger_relay_bootstrap.synthetic_resolved_targets;
+                    feedback.deferred_targets =
+                        std::max(0, deferred_delta)
+                        + (parsed_trigger_relay_bootstrap.deferred ? 1 : 0);
+                    feedback.failed_targets =
+                        std::max(0, failure_delta)
+                        + (parsed_trigger_relay_bootstrap.failed ? 1 : 0);
                     feedback.pfn_use_attempted = use_attempt_delta > 0;
-                    feedback.unresolved_target = no_target_delta > 0
+                    feedback.unresolved_target =
+                        (no_target_delta > 0 && !parsed_trigger_relay_bootstrap.attempted)
                         || (!dispatched
+                            && !parsed_trigger_relay_bootstrap.attempted
                             && resolved_delta <= 0
                             && success_delta <= 0
                             && deferred_delta <= 0
@@ -10461,7 +10912,9 @@ void PerformServerFrameLoop()
                         feedback.unresolved_target = false;
                         feedback.classification_hint = "encountered-deferred";
                         feedback.required_subsystem =
-                            "broader scripted actor/bootstrap progression semantics";
+                            !parsed_trigger_relay_bootstrap.required_subsystem.empty()
+                            ? parsed_trigger_relay_bootstrap.required_subsystem
+                            : "broader scripted actor/bootstrap progression semantics";
                     }
                     else if (IsKnownUnsupportedPathNodeMessage(request.message)
                         && target_probe.runtime_target_candidates == 0
@@ -10475,17 +10928,40 @@ void PerformServerFrameLoop()
                         feedback.required_subsystem =
                             "client bootstrap fade channel, message channel, or env_message linkage";
                     }
-
-                    if (!feedback.visible_downstream_progression)
+                    else if (EqualsIgnoreCase(request.message, "room2train")
+                        && target_probe.runtime_target_candidates > 0
+                        && feedback.outcome
+                            == hl::game_api::detail::PathNodeEventDispatchOutcome::kDeferred
+                        && !feedback.pfn_use_attempted)
                     {
-                        feedback.downstream_summary = feedback.required_subsystem.empty()
-                            ? std::string("none")
-                            : "blockedOn=" + feedback.required_subsystem;
+                        feedback.classification_hint = "encountered-deferred";
+                        feedback.required_subsystem =
+                            "safe brush door use/bootstrap movement callbacks";
                     }
-                    else if (feedback.downstream_summary == "none"
-                        && !feedback.required_subsystem.empty())
+
+                    if (!parsed_trigger_relay_bootstrap.required_subsystem.empty()
+                        && feedback.required_subsystem.empty())
                     {
-                        feedback.downstream_summary = "blockedOn=" + feedback.required_subsystem;
+                        feedback.required_subsystem =
+                            parsed_trigger_relay_bootstrap.required_subsystem;
+                    }
+
+                    if (feedback.downstream_summary.empty())
+                    {
+                        feedback.downstream_summary = "none";
+                    }
+                    if (!feedback.required_subsystem.empty())
+                    {
+                        if (feedback.downstream_summary == "none")
+                        {
+                            feedback.downstream_summary =
+                                "blockedOn=" + feedback.required_subsystem;
+                        }
+                        else if (feedback.downstream_summary.find("blockedOn=") == std::string::npos)
+                        {
+                            feedback.downstream_summary +=
+                                ", blockedOn=" + feedback.required_subsystem;
+                        }
                     }
 
                     feedback.detail =
@@ -10517,6 +10993,10 @@ void PerformServerFrameLoop()
                         + " successDelta=" + std::to_string(std::max(0, success_delta))
                         + " deferredDelta=" + std::to_string(std::max(0, deferred_delta))
                         + " failureDelta=" + std::to_string(std::max(0, failure_delta))
+                        + " scheduledCreatedDelta="
+                        + std::to_string(std::max(0, scheduled_created_delta))
+                        + " scheduledExecutedDelta="
+                        + std::to_string(std::max(0, scheduled_executed_delta))
                         + " noTargetDelta=" + std::to_string(std::max(0, no_target_delta))
                         + " targetClassnames=" + JoinStringValues(target_probe.target_classnames)
                         + " resolvedTargetDetails="
@@ -10539,6 +11019,11 @@ void PerformServerFrameLoop()
                             : feedback.downstream_summary)
                         + (handled_without_use ? " handledWithoutUse=yes" : std::string());
 
+                    if (parsed_trigger_relay_bootstrap.attempted)
+                    {
+                        feedback.detail +=
+                            " parsedBootstrap={" + parsed_trigger_relay_bootstrap.detail + "}";
+                    }
                     if (!feedback.required_subsystem.empty())
                     {
                         feedback.detail +=
@@ -10555,8 +11040,9 @@ void PerformServerFrameLoop()
                     else if (IsKnownDeferredPathNodeMessage(request.message)
                         && target_probe.runtime_target_candidates == 0)
                     {
-                        feedback.detail +=
-                            " note=execute_sci currently surfaced as a staged scripted cue; broader actor/script progression semantics are still pending";
+                        feedback.detail += parsed_trigger_relay_bootstrap.handled
+                            ? " note=execute_sci parsed trigger_relay bootstrap dispatch ran from parsed-only entity state; no downstream scripted actor progression was observed"
+                            : " note=execute_sci currently surfaced as a staged scripted cue; broader actor/script progression semantics are still pending";
                     }
                     else if (IsKnownUnsupportedPathNodeMessage(request.message)
                         && target_probe.runtime_target_candidates == 0)
