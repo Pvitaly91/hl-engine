@@ -1,0 +1,58 @@
+[2026-03-27 21:20:49.053] [info][startup] Logger session started.
+[2026-03-27 21:20:49.054] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\build32\logs
+[2026-03-27 21:20:49.054] [info][startup] Session id: 20260327_212049
+[2026-03-27 21:20:49.054] [info][startup] Max file size: 10485760 bytes
+[2026-03-27 21:20:49.054] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\build32\logs\hlhost_20260327_212049_part01.log
+[2026-03-27 21:20:49.054] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\build32\logs\hlhost_20260327_212049_summary.log
+[2026-03-27 21:20:49.054] [info][startup] hlhost startup initiated.
+[2026-03-27 21:20:49.055] [info][startup] Current working directory: G:\DEV\СPP\HLengine
+[2026-03-27 21:20:49.056] [info][startup] Executable path: G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe
+[2026-03-27 21:20:49.072] [info][summary] DLL smoke test summary:
+[2026-03-27 21:20:49.072] [info][summary] Valve directory: OK
+[2026-03-27 21:20:49.072] [info][summary] hl.dll: loaded
+[2026-03-27 21:20:49.072] [info][summary] hl.dll exports: 2/2
+[2026-03-27 21:20:49.072] [info][summary] client.dll: loaded
+[2026-03-27 21:20:49.072] [info][summary] client.dll exports: 5/5
+[2026-03-27 21:20:49.075] [info][startup] Frame bootstrap config: frames=600, frametime=0.050000, think_limit=32, use_limit=64, scheduled_use_limit=128, path_arrival_epsilon=24.000000, trace_scripted=0, trace_movement=0, trace_think=0, trace_callbacks=0, log_frame_sample=10, log_state_changes_only=1, stop_on_first_message=0, stop_on_node=<none>
+[2026-03-27 21:20:49.079] [info][summary] Frame bootstrap requested: frames=600, frametime=0.050000, think_limit=32, use_limit=64, scheduled_use_limit=128, path_arrival_epsilon=24.000000, trace_scripted=0, trace_movement=0, trace_think=0, log_frame_sample=10, log_state_changes_only=1, stop_on_first_message=0, stop_on_node=<none>
+[2026-03-27 21:20:49.086] [warn][general] Duplicate cvar registration detected for 'mp_defaultteam'.
+[2026-03-27 21:20:50.442] [warn][general] pfnSetModel received a model that was not precached yet; auto-registering: *1
+[2026-03-27 21:20:50.490] [warn][general] pfnSetModel received a model that was not precached yet; auto-registering: *3
+[2026-03-27 21:20:50.492] [warn][general] pfnSetModel received a model that was not precached yet; auto-registering: *4
+[2026-03-27 21:20:50.549] [warn][general] pfnSetModel received a model that was not precached yet; auto-registering: *5
+[2026-03-27 21:20:50.823] [warn][general] CFG references unsupported command/cvar 'pausable' in G:\Steam\steamapps\common\Half-Life\valve\spserver.cfg:4; skipping.
+[2026-03-27 21:20:50.824] [warn][general] Server activation: pruning helper edict before activation: edict#2 classname=<empty> modelindex=0 spawned=no removed=no deferred=no private=yes activate=no
+[2026-03-27 21:20:50.824] [warn][general] Server activation: pruning helper edict before activation: edict#3 classname=bodyque modelindex=0 spawned=no removed=no deferred=no private=yes activate=no
+[2026-03-27 21:20:50.824] [warn][general] Server activation: pruning helper edict before activation: edict#4 classname=bodyque modelindex=0 spawned=no removed=no deferred=no private=yes activate=no
+[2026-03-27 21:20:50.824] [warn][general] Server activation: pruning helper edict before activation: edict#5 classname=bodyque modelindex=0 spawned=no removed=no deferred=no private=yes activate=no
+[2026-03-27 21:20:50.825] [warn][general] Server activation: pruning helper edict before activation: edict#6 classname=bodyque modelindex=0 spawned=no removed=no deferred=no private=yes activate=no
+[2026-03-27 21:20:50.982] [warn][path] TrackPathResolver: broken trainstop26 edict#77 origin=-48 -1868 449 -> trainstop27
+[2026-03-27 21:20:51.205] [warn][think] EntityThinkScheduler: deferred classname=scripted_sequence reason=class deferred by safe lifecycle policy.
+[2026-03-27 21:21:32.810] [warn][think] previous line repeated 1563 times
+[2026-03-27 21:21:32.810] [warn][path_event] BrushDoorBootstrapController: room2train support=deferred state=deferred blocked=non-positive staged travel distance
+[2026-03-27 21:21:32.810] [warn][use] MapLogicDispatcher: custom dispatch deferred edict#85 [staged-safe brush door bootstrap deferred path=fallback-deferred reason=non-positive staged travel distance audit=edict#85 parse#185 classname=func_door targetname=room2train live=yes removed=no deferred=yes private=yes model=*9 modelindex=0 origin=0 0 0 angles=0 90 0 movedir=-4.37114e-08 1 -0 speed=275.000000 lip=-3300.000000 wait=-1.000000 spawnflags=0 lifecycle=detected but deferred]
+[2026-03-27 21:21:32.871] [warn][think] EntityThinkScheduler: deferred classname=scripted_sequence reason=class deferred by safe lifecycle policy.
+[2026-03-27 21:21:55.716] [warn][think] previous line repeated 1496 times
+[2026-03-27 21:21:55.716] [info][summary] hl.dll shim summary:
+[2026-03-27 21:21:55.716] [info][summary]   - load/init: hl.dll=yes, GiveFnptrsToDll=yes, GetEntityAPI2=yes, DLL_FUNCTIONS=yes, pfnGameInit=yes
+[2026-03-27 21:21:55.716] [info][summary]   - cfg/cvars: executed_cfg=3, queued_cmds=3, executed_cmds=3, cvars_from_cfg=252, auto_created_cvars=2
+[2026-03-27 21:21:55.716] [info][summary]   - world/bootstrap: world=yes, entity_pipeline=yes, worldspawn=yes, ServerActivate=yes
+[2026-03-27 21:21:55.717] [info][summary]   - frame bootstrap: frames=600, frametime=0.050000, think_limit=32, use_limit=64, scheduled_use_limit=128, sample=10, state_changes_only=yes, trace_scripted=no, trace_movement=no, trace_think=no, trace_callbacks=no
+[2026-03-27 21:21:55.717] [info][summary]   - frame loop: requested=600, completed=600, stopped_early=no, final_time=29.999828, any_seh=no
+[2026-03-27 21:21:55.717] [info][summary]   - logger: repeat_suppressions=9171, total_bytes_written=9343064
+[2026-03-27 21:21:55.717] [info][summary]   - think scheduler: due/executed/deferred/failures=3063/2/3061/0
+[2026-03-27 21:21:55.718] [info][summary]   - use-target dispatcher: chains/resolutions/use_ok/use_deferred/use_failures=12/13/8/1/0
+[2026-03-27 21:21:55.718] [info][summary]   - scripted logic: frames=600, progressed=15, long_delay pending/executed=0/0
+[2026-03-27 21:21:55.718] [info][summary]   - scripted movement: frames=600, scene_movement success/block=7/0, path arrivals/advances/messages=1/12/2
+[2026-03-27 21:21:55.718] [info][summary]   - brush-door bootstrap: tracked/use-supported/moving/opened/blocked/deferred=1/0/0/0/0/1, callbacks=<none>
+[2026-03-27 21:21:55.719] [info][summary]   - ftruck_a final: current=trainstop8a, next=trainstop9, status=moving previous=trainstop8 current=trainstop8a next=trainstop9 arrivals=12 advances=12 lastMessage=room2start dispatch=succeeded blocked=<none> stopped=<none>
+[2026-03-27 21:21:55.719] [info][summary]   - first message node: trainstop8 frame=394 time=19.699986
+[2026-03-27 21:21:55.719] [info][summary]   - path-event report: deepest=trainstop8a, reachedMessages=trainstop8;trainstop8a, dispatch attempts/successes/deferred/failures/unresolved=2/1/1/0/0, classified resolved/no-target/unresolved/unsupported=1/0/0/0
+[2026-03-27 21:21:55.719] [info][summary]   - room2train (trainstop8): reached=yes, frame=394, time=19.699986, dispatchAttempted=yes, dispatchResult=deferred, classification=encountered-deferred, resolvedTargets=1, runtimeTargets=1, parsedTargets=1, pfnUseAttempted=no, downstream=yes, targetClassnames=func_door, resolvedTargetDetails=runtime edict#85 classname=func_door targetname=room2train;parsed#185 classname=func_door targetname=room2train, moverSpeed=300.000000, downstreamSummary=chains=+1, resolutions=+1, useDeferred=+1, alertCallbacks=+2, callbackDelta=pfnAlertMessage:2, entityDelta=func_door/room2train resolutions=+1,useDeferred=+1,doorPath=<none>->fallback-deferred,doorSupport=passive-recipient-only->deferred,doorState=closed->deferred,doorUseFrame=394,doorSource=edict#47 classname=light_spot, brushDoorUse=+1, brushDoorStateChange=yes, blockedOn=safe brush door use/bootstrap movement callbacks, brushDoorAttempted=yes, brushDoorPath=fallback-deferred, brushDoorState=deferred, brushDoorSupport=deferred, brushDoorMoveStarted=no, brushDoorMoveCompleted=no, brushDoorAudit=edict#85 parse#185 classname=func_door targetname=room2train live=yes removed=no deferred=yes private=yes model=*9 modelindex=0 origin=0 0 0 angles=0 90 0 movedir=-4.37114e-08 1 -0 speed=275.000000 lip=-3300.000000 wait=-1.000000 spawnflags=0 lifecycle=detected but deferred, requiredSubsystem=safe brush door use/bootstrap movement callbacks
+[2026-03-27 21:21:55.720] [info][summary]   - room2start (trainstop8a): reached=yes, frame=431, time=21.549957, dispatchAttempted=yes, dispatchResult=succeeded, classification=resolved-and-dispatched, resolvedTargets=2, runtimeTargets=2, parsedTargets=2, pfnUseAttempted=yes, downstream=yes, targetClassnames=multi_manager;scripted_sequence, resolvedTargetDetails=runtime edict#58 classname=multi_manager targetname=room2start;runtime edict#62 classname=scripted_sequence targetname=room2start;parsed#107 classname=multi_manager targetname=room2start;parsed#112 classname=scripted_sequence targetname=room2start, moverSpeed=250.000000, downstreamSummary=chains=+1, resolutions=+2, useAttempts=+1, useSuccesses=+1, scheduledCreated=+3, scheduledPending=+3, multiManager=+1, alertCallbacks=+3, callbackDelta=pfnAlertMessage:3, entityDelta=multi_manager/room2start resolutions=+1,pendingOutputs=+3, brushDoorAttempted=no, brushDoorPath=<none>, brushDoorState=<none>, brushDoorSupport=<none>, brushDoorMoveStarted=no, brushDoorMoveCompleted=no, brushDoorAudit=<none>, requiredSubsystem=<none>
+[2026-03-27 21:21:55.720] [info][summary]   - execute_sci (trainstop9): reached=no, frame=<none>, time=<none>, dispatchAttempted=no, dispatchResult=not-reached, classification=<none>, resolvedTargets=0, runtimeTargets=0, parsedTargets=0, pfnUseAttempted=no, downstream=no, targetClassnames=<none>, resolvedTargetDetails=<none>, moverSpeed=0.000000, downstreamSummary=<none>, brushDoorAttempted=no, brushDoorPath=<none>, brushDoorState=<none>, brushDoorSupport=<none>, brushDoorMoveStarted=no, brushDoorMoveCompleted=no, brushDoorAudit=<none>, requiredSubsystem=<none>
+[2026-03-27 21:21:55.720] [info][summary]   - fade_out (trainstop11): reached=no, frame=<none>, time=<none>, dispatchAttempted=no, dispatchResult=not-reached, classification=<none>, resolvedTargets=0, runtimeTargets=0, parsedTargets=0, pfnUseAttempted=no, downstream=no, targetClassnames=<none>, resolvedTargetDetails=<none>, moverSpeed=0.000000, downstreamSummary=<none>, brushDoorAttempted=no, brushDoorPath=<none>, brushDoorState=<none>, brushDoorSupport=<none>, brushDoorMoveStarted=no, brushDoorMoveCompleted=no, brushDoorAudit=<none>, requiredSubsystem=<none>
+[2026-03-27 21:21:55.721] [info][summary]   - readiness: ready for deeper path-node event semantics, passive actor/server groundwork, and later controlled client bootstrap groundwork
+[2026-03-27 21:21:55.800] [info][summary] Host foundation reached deterministic post-activation frame bootstrap stage.
+[2026-03-27 21:21:55.800] [info][summary] Logger shutdown: total log files created=2, total bytes written=9362251, repeat suppressions=9171
+[2026-03-27 21:21:55.800] [info][summary] Logger shutdown paths: G:\DEV\СPP\HLengine\host\build32\logs\hlhost_20260327_212049_part01.log; G:\DEV\СPP\HLengine\host\build32\logs\hlhost_20260327_212049_summary.log

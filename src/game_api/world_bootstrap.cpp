@@ -20,7 +20,19 @@ struct BspHeader
     std::array<BspLumpHeader, hl::game_api::detail::kBspHeaderLumpCount> lumps{};
 };
 
+struct BspModelEntry
+{
+    Vector mins = Vector(0.0f, 0.0f, 0.0f);
+    Vector maxs = Vector(0.0f, 0.0f, 0.0f);
+    Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    std::array<std::int32_t, 4> headnodes{};
+    std::int32_t visleafs = 0;
+    std::int32_t firstface = 0;
+    std::int32_t numfaces = 0;
+};
+
 static_assert(sizeof(BspHeader) == 124, "GoldSrc BSP header layout mismatch.");
+static_assert(sizeof(BspModelEntry) == 64, "GoldSrc BSP model entry layout mismatch.");
 
 constexpr std::array<const char*, hl::game_api::detail::kBspHeaderLumpCount> kBspLumpNames = {{
     "entities",
@@ -154,6 +166,30 @@ bool LoadWorldModelContext(
     else
     {
         world_context.entities.present = false;
+    }
+
+    const BspLumpMetadata& models_lump = world_context.lumps[14];
+    if (models_lump.file_length > 0)
+    {
+        const std::size_t model_count =
+            static_cast<std::size_t>(models_lump.file_length) / sizeof(BspModelEntry);
+        world_context.inline_models.resize(model_count);
+        for (std::size_t index = 0; index < model_count; ++index)
+        {
+            BspModelEntry model{};
+            std::memcpy(
+                &model,
+                bytes->data() + models_lump.file_offset + (index * sizeof(BspModelEntry)),
+                sizeof(BspModelEntry));
+
+            BspInlineModelBounds bounds;
+            bounds.model_index = static_cast<int>(index);
+            bounds.mins = model.mins;
+            bounds.maxs = model.maxs;
+            bounds.origin = model.origin;
+            bounds.valid = true;
+            world_context.inline_models[index] = bounds;
+        }
     }
 
     world_context.bsp_loaded = true;

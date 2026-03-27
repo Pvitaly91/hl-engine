@@ -4,6 +4,13 @@
 
 namespace
 {
+std::string FormatVector(const Vector& value)
+{
+    std::ostringstream stream;
+    stream << value.x << ' ' << value.y << ' ' << value.z;
+    return stream.str();
+}
+
 void LogInvalid(
     const hl::game_api::detail::EntityVarLogFn& log_warn,
     std::string_view message)
@@ -81,6 +88,20 @@ bool TryReadEntityVars(
         || entity->v.angles.x != 0.0f
         || entity->v.angles.y != 0.0f
         || entity->v.angles.z != 0.0f;
+    snapshot->movedir = entity->v.movedir;
+    snapshot->has_movedir =
+        entity->v.movedir.x != 0.0f
+        || entity->v.movedir.y != 0.0f
+        || entity->v.movedir.z != 0.0f;
+    snapshot->mins = entity->v.mins;
+    snapshot->maxs = entity->v.maxs;
+    snapshot->has_size = store_snapshot.has_size
+        || entity->v.mins.x != 0.0f
+        || entity->v.mins.y != 0.0f
+        || entity->v.mins.z != 0.0f
+        || entity->v.maxs.x != 0.0f
+        || entity->v.maxs.y != 0.0f
+        || entity->v.maxs.z != 0.0f;
     snapshot->scheduled_for_think = snapshot->nextthink > 0.0f;
 
     if (!snapshot->containing_entity_valid)
@@ -174,6 +195,10 @@ std::string BuildEntityVarSummary(const EntityVarSnapshot& snapshot)
            << " health=" << (snapshot.health_available ? std::to_string(snapshot.health) : std::string("<unavailable>"))
            << " private=" << (snapshot.has_private_data ? "yes" : "no")
            << " deferred=" << (snapshot.deferred ? "yes" : "no")
+           << " movedir=" << (snapshot.has_movedir ? FormatVector(snapshot.movedir) : std::string("<none>"))
+           << " size=" << (snapshot.has_size
+                ? (FormatVector(snapshot.mins) + ".." + FormatVector(snapshot.maxs))
+                : std::string("<none>"))
            << " scheduled=" << (snapshot.scheduled_for_think ? "yes" : "no");
     return stream.str();
 }

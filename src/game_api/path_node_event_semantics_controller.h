@@ -65,6 +65,20 @@ struct PathNodeEventDispatchFeedback
     std::string downstream_summary;
     std::string detail;
     std::string required_subsystem;
+    bool brush_door_handling_attempted = false;
+    bool brush_door_use_succeeded = false;
+    bool brush_door_state_changed = false;
+    bool brush_door_movement_started = false;
+    bool brush_door_movement_completed = false;
+    bool brush_door_native_use_attempted = false;
+    bool brush_door_native_use_succeeded = false;
+    std::string brush_door_dispatch_path;
+    std::string brush_door_support_state;
+    std::string brush_door_state;
+    std::string brush_door_blocked_reason;
+    std::string brush_door_runtime_audit;
+    int downstream_target_chains = 0;
+    int downstream_scheduled_actions = 0;
 };
 
 struct PathNodeEventSemanticsConfig

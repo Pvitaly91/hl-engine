@@ -24,6 +24,15 @@ struct BspLumpMetadata
     bool within_file = false;
 };
 
+struct BspInlineModelBounds
+{
+    int model_index = 0;
+    Vector mins = Vector(0.0f, 0.0f, 0.0f);
+    Vector maxs = Vector(0.0f, 0.0f, 0.0f);
+    Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    bool valid = false;
+};
+
 struct WorldModelContext
 {
     std::string map_name;
@@ -34,6 +43,7 @@ struct WorldModelContext
     std::int32_t bsp_version = 0;
     std::uintmax_t bsp_file_size = 0;
     std::array<BspLumpMetadata, kBspHeaderLumpCount> lumps{};
+    std::vector<BspInlineModelBounds> inline_models;
     EntityTextBlockPreview entities;
     int world_model_index = 0;
     int world_edict_index = -1;

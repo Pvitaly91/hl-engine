@@ -1,0 +1,204 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\cfg_executor.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\cvar_registry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\dll_module.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\dll_search_directories.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_think_scheduler.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\brush_door_bootstrap_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_lump_parser.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\map_logic_dispatcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_runtime.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_arrival_calibrator.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_advance_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_semantics_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_message_runtime.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_dispatcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_traversal_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_text_block.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_var_access.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\game_module_loader.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\hl_server_module.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_logic_tracker.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_movement_controller.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_bootstrap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_command_buffer.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_command_dispatcher.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_frame_loop.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\sound_precache_registry.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\spawn_trace.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\track_path_resolver.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\world_bootstrap.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\win32_error.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\cfg_executor.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\cvar_registry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\dll_module.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\dll_search_directories.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\game_module_loader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\hl_server_module.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\server_command_buffer.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\server_command_dispatcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\win32_error.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_think_scheduler.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\brush_door_bootstrap_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_lump_parser.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\map_logic_dispatcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_runtime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_arrival_calibrator.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_advance_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_semantics_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_message_runtime.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_dispatcher.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_traversal_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_text_block.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_var_access.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_logic_tracker.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_movement_controller.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\server_bootstrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\server_frame_loop.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\sound_precache_registry.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\spawn_trace.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\track_path_resolver.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\world_bootstrap.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\DEV\СPP\HLengine\host\CMakeLists.txt" />
+  </ItemGroup>
+  <ItemGroup>
+    <Filter Include="Header Files">
+      <UniqueIdentifier>{FE4499F5-6495-3845-BEB2-B4C2D62E1930}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Source Files">
+      <UniqueIdentifier>{8BD69EFB-7B23-35E8-B5C4-CA36B5688E31}</UniqueIdentifier>
+    </Filter>
+  </ItemGroup>
+</Project>

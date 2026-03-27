@@ -1,0 +1,46 @@
+[2026-03-27 21:08:54.439] [info][startup] Logger session started.
+[2026-03-27 21:08:54.440] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\build\logs
+[2026-03-27 21:08:54.440] [info][startup] Session id: 20260327_210854
+[2026-03-27 21:08:54.440] [info][startup] Max file size: 10485760 bytes
+[2026-03-27 21:08:54.440] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\build\logs\hlhost_20260327_210854_part01.log
+[2026-03-27 21:08:54.440] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\build\logs\hlhost_20260327_210854_summary.log
+[2026-03-27 21:08:54.440] [info][startup] hlhost startup initiated.
+[2026-03-27 21:08:54.440] [info][startup] Current working directory: G:\DEV\СPP\HLengine
+[2026-03-27 21:08:54.442] [info][startup] Executable path: G:\DEV\СPP\HLengine\host\build\host\Debug\hlhost.exe
+[2026-03-27 21:08:54.442] [info][filesystem] Using game directory: G:\Steam\steamapps\common\Half-Life\valve
+[2026-03-27 21:08:54.442] [info][filesystem] valve directory: found
+[2026-03-27 21:08:54.442] [info][filesystem] hl.dll: found
+[2026-03-27 21:08:54.442] [info][filesystem] client.dll: found
+[2026-03-27 21:08:54.442] [info][filesystem] pak0.pak: missing (optional)
+[2026-03-27 21:08:54.442] [info][filesystem] Valve directory validation succeeded.
+[2026-03-27 21:08:54.442] [info][dll] Running DLL smoke test.
+[2026-03-27 21:08:54.443] [info][dll] Planned module target [hl.dll]: G:\Steam\steamapps\common\Half-Life\valve\dlls/hl.dll
+[2026-03-27 21:08:54.443] [info][dll] LoadLibraryW attempt for G:\Steam\steamapps\common\Half-Life\valve\dlls\hl.dll
+[2026-03-27 21:08:54.516] [error][dll] LoadLibraryW failed for G:\Steam\steamapps\common\Half-Life\valve\dlls\hl.dll (code 193): %1 is not a valid Win32 application.
+[2026-03-27 21:08:54.516] [error][dll] hl.dll smoke test failed to load any candidate DLL.
+[2026-03-27 21:08:54.516] [info][dll] hl.dll: failed
+[2026-03-27 21:08:54.517] [info][dll] hl.dll exports: 0/2
+[2026-03-27 21:08:54.517] [info][dll] hl.dll last attempted path: G:\Steam\steamapps\common\Half-Life\valve\dlls/hl.dll
+[2026-03-27 21:08:54.517] [warn][dll] hl.dll load error: code 193, message: %1 is not a valid Win32 application.
+[2026-03-27 21:08:54.517] [info][dll] Planned module targets [client.dll]: primary=G:\Steam\steamapps\common\Half-Life\valve\cl_dlls/client.dll, fallback=G:\Steam\steamapps\common\Half-Life\valve\dlls/client.dll
+[2026-03-27 21:08:54.517] [info][dll] client.dll dependency search path prepared.
+[2026-03-27 21:08:54.517] [info][dll] LoadLibraryExW attempt for G:\Steam\steamapps\common\Half-Life\valve\cl_dlls\client.dll
+[2026-03-27 21:08:54.517] [info][dll] LoadLibraryExW search directory: G:\Steam\steamapps\common\Half-Life
+[2026-03-27 21:08:54.517] [info][dll] LoadLibraryExW search directory: G:\Steam\steamapps\common\Half-Life\valve
+[2026-03-27 21:08:54.517] [info][dll] LoadLibraryExW search directory: G:\Steam\steamapps\common\Half-Life\valve\cl_dlls
+[2026-03-27 21:08:54.632] [error][dll] LoadLibraryExW failed for G:\Steam\steamapps\common\Half-Life\valve\cl_dlls\client.dll (code 193): %1 is not a valid Win32 application.
+[2026-03-27 21:08:54.632] [warn][dll] client.dll candidate missing: G:\Steam\steamapps\common\Half-Life\valve\dlls/client.dll
+[2026-03-27 21:08:54.633] [error][dll] client.dll smoke test failed to load any candidate DLL.
+[2026-03-27 21:08:54.633] [info][dll] client.dll: failed
+[2026-03-27 21:08:54.633] [info][dll] client.dll exports: 0/5
+[2026-03-27 21:08:54.633] [info][dll] client.dll last attempted path: G:\Steam\steamapps\common\Half-Life\valve\cl_dlls/client.dll
+[2026-03-27 21:08:54.633] [warn][dll] client.dll load error: code 193, message: %1 is not a valid Win32 application.
+[2026-03-27 21:08:54.633] [info][summary] DLL smoke test summary:
+[2026-03-27 21:08:54.633] [info][summary] Valve directory: OK
+[2026-03-27 21:08:54.633] [info][summary] hl.dll: failed
+[2026-03-27 21:08:54.633] [info][summary] hl.dll exports: 0/2
+[2026-03-27 21:08:54.633] [info][summary] client.dll: failed
+[2026-03-27 21:08:54.633] [info][summary] client.dll exports: 0/5
+[2026-03-27 21:08:54.634] [error][dll] DLL smoke test failed.
+[2026-03-27 21:08:54.634] [info][summary] Logger shutdown: total log files created=2, total bytes written=10473, repeat suppressions=0
+[2026-03-27 21:08:54.634] [info][summary] Logger shutdown paths: G:\DEV\СPP\HLengine\host\build\logs\hlhost_20260327_210854_part01.log; G:\DEV\СPP\HLengine\host\build\logs\hlhost_20260327_210854_summary.log

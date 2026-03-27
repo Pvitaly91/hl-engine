@@ -606,6 +606,22 @@ struct PathNodeMessageCanarySummary
     std::string downstream_summary;
     std::string dispatch_detail;
     std::string required_subsystem;
+    bool brush_door_handling_attempted = false;
+    bool brush_door_use_succeeded = false;
+    bool brush_door_state_changed = false;
+    bool brush_door_movement_started = false;
+    bool brush_door_movement_completed = false;
+    bool brush_door_native_use_attempted = false;
+    bool brush_door_native_use_succeeded = false;
+    std::string brush_door_dispatch_path;
+    std::string brush_door_support_state;
+    std::string brush_door_state;
+    std::string brush_door_blocked_reason;
+    std::string brush_door_runtime_audit;
+    int downstream_target_chains = 0;
+    int downstream_scheduled_actions = 0;
+    int downstream_alert_callbacks = 0;
+    int downstream_message_callbacks = 0;
 };
 
 struct PathNodeMessageEncounterSummary
@@ -632,6 +648,22 @@ struct PathNodeMessageEncounterSummary
     std::string downstream_summary;
     std::string dispatch_detail;
     std::string required_subsystem;
+    bool brush_door_handling_attempted = false;
+    bool brush_door_use_succeeded = false;
+    bool brush_door_state_changed = false;
+    bool brush_door_movement_started = false;
+    bool brush_door_movement_completed = false;
+    bool brush_door_native_use_attempted = false;
+    bool brush_door_native_use_succeeded = false;
+    std::string brush_door_dispatch_path;
+    std::string brush_door_support_state;
+    std::string brush_door_state;
+    std::string brush_door_blocked_reason;
+    std::string brush_door_runtime_audit;
+    int downstream_target_chains = 0;
+    int downstream_scheduled_actions = 0;
+    int downstream_alert_callbacks = 0;
+    int downstream_message_callbacks = 0;
 };
 
 struct PathNodeMessageStateSummary
@@ -737,6 +769,64 @@ struct PathMoverRuntimeSummary
     float last_progress_time = 0.0f;
 };
 
+struct BrushDoorRuntimeSummary
+{
+    int edict_index = -1;
+    std::size_t parse_index = 0;
+    std::string classname;
+    std::string targetname;
+    std::string model;
+    int modelindex = 0;
+    std::string origin_text;
+    std::string angles_text;
+    std::string movedir_text;
+    float speed = 0.0f;
+    float lip = 0.0f;
+    float wait = 0.0f;
+    int spawnflags = 0;
+    float health = 0.0f;
+    bool health_available = false;
+    float damage = 0.0f;
+    bool damage_available = false;
+    std::string lifecycle;
+    std::string support_state;
+    std::string dispatch_path;
+    std::string movement_state;
+    std::string last_source_event;
+    std::string blocked_reason;
+    std::string audit_line;
+    bool resolved_runtime_target = false;
+    bool active = false;
+    bool native_use_attempted = false;
+    bool native_use_succeeded = false;
+    bool staged_bootstrap_attempted = false;
+    bool staged_bootstrap_used = false;
+    bool movement_started = false;
+    bool movement_completed = false;
+    int last_use_frame = -1;
+    float last_use_time = 0.0f;
+    int last_state_change_frame = -1;
+    float last_state_change_time = 0.0f;
+};
+
+struct BrushDoorBootstrapStateSummary
+{
+    bool configured = false;
+    bool controller_ran = false;
+    int frames_attempted = 0;
+    int frames_completed = 0;
+    std::size_t tracked_doors = 0;
+    std::size_t use_supported = 0;
+    std::size_t moving = 0;
+    std::size_t opened = 0;
+    std::size_t blocked = 0;
+    std::size_t deferred = 0;
+    std::vector<BrushDoorRuntimeSummary> doors_preview;
+    std::vector<std::string> transition_history;
+    std::vector<std::string> exercised_callbacks;
+    std::string readiness;
+};
+
 struct CanarySceneStateSummary
 {
     std::string canary_name;
@@ -800,6 +890,7 @@ struct ScriptedMovementStateSummary
     std::string ftruck_final_next;
     bool ftruck_advanced_beyond_trainstop1a = false;
     PathNodeMessageStateSummary path_node_messages;
+    BrushDoorBootstrapStateSummary brush_doors;
     std::vector<std::string> path_messages_encountered;
     std::size_t path_node_message_dispatch_count = 0;
     bool path_node_message_triggered_dispatch = false;
