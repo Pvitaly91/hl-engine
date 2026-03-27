@@ -22,6 +22,7 @@
 #include "common/text_encoding.h"
 #include "filesystem/file_system.h"
 #include "game_api/dll_module.h"
+#include "brush_door_bootstrap_controller.h"
 #include "entity_think_scheduler.h"
 #include "entity_lump_parser.h"
 #include "map_logic_dispatcher.h"
@@ -95,6 +96,11 @@ struct RuntimeEntityRecord
     std::string angles_raw;
     Vector angles = Vector(0.0f, 0.0f, 0.0f);
     bool has_angles = false;
+    Vector movedir = Vector(0.0f, 0.0f, 0.0f);
+    bool has_movedir = false;
+    Vector mins = Vector(0.0f, 0.0f, 0.0f);
+    Vector maxs = Vector(0.0f, 0.0f, 0.0f);
+    bool has_size = false;
     std::string model;
     int modelindex = 0;
     bool spawned = false;
@@ -1342,6 +1348,7 @@ hl::common::LogCategory ClassifyMovementMessageCategory(std::string_view message
 {
     if (StartsWithIgnoreCase(message, "PathNodeMessageRuntime:")
         || StartsWithIgnoreCase(message, "PathNodeEventSemanticsController:")
+        || StartsWithIgnoreCase(message, "BrushDoorBootstrapController:")
         || StartsWithIgnoreCase(message, "PathAdvanceController:")
         || StartsWithIgnoreCase(message, "PathArrivalCalibrator:"))
     {
@@ -1698,6 +1705,10 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + (canary != nullptr && canary->reached
                         ? std::to_string(canary->first_reached_time)
                         : std::string("<none>"))
+                    + ", message="
+                    + (canary != nullptr && !canary->message.empty()
+                        ? canary->message
+                        : std::string("<none>"))
                     + ", dispatchAttempted="
                     + (canary != nullptr && canary->staged_dispatch_attempted ? "yes" : "no")
                     + ", dispatchResult="
@@ -1724,6 +1735,22 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + (canary != nullptr && canary->pfn_use_attempted ? "yes" : "no")
                     + ", downstream="
                     + (canary != nullptr && canary->visible_downstream_progression ? "yes" : "no")
+                    + ", downstreamTargetChains="
+                    + (canary != nullptr
+                        ? std::to_string(canary->downstream_target_chains)
+                        : std::string("0"))
+                    + ", downstreamScheduledActions="
+                    + (canary != nullptr
+                        ? std::to_string(canary->downstream_scheduled_actions)
+                        : std::string("0"))
+                    + ", alertCallbacks="
+                    + (canary != nullptr
+                        ? std::to_string(canary->downstream_alert_callbacks)
+                        : std::string("0"))
+                    + ", messageCallbacks="
+                    + (canary != nullptr
+                        ? std::to_string(canary->downstream_message_callbacks)
+                        : std::string("0"))
                     + ", targetClassnames="
                     + (canary != nullptr
                         ? JoinStringValues(canary->target_classnames)
@@ -1740,6 +1767,28 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + (canary != nullptr && !canary->downstream_summary.empty()
                         ? canary->downstream_summary
                         : std::string("<none>"))
+                    + ", brushDoorAttempted="
+                    + (canary != nullptr && canary->brush_door_handling_attempted ? "yes" : "no")
+                    + ", brushDoorPath="
+                    + (canary != nullptr && !canary->brush_door_dispatch_path.empty()
+                        ? canary->brush_door_dispatch_path
+                        : std::string("<none>"))
+                    + ", brushDoorState="
+                    + (canary != nullptr && !canary->brush_door_state.empty()
+                        ? canary->brush_door_state
+                        : std::string("<none>"))
+                    + ", brushDoorSupport="
+                    + (canary != nullptr && !canary->brush_door_support_state.empty()
+                        ? canary->brush_door_support_state
+                        : std::string("<none>"))
+                    + ", brushDoorMoveStarted="
+                    + (canary != nullptr && canary->brush_door_movement_started ? "yes" : "no")
+                    + ", brushDoorMoveCompleted="
+                    + (canary != nullptr && canary->brush_door_movement_completed ? "yes" : "no")
+                    + ", brushDoorAudit="
+                    + (canary != nullptr && !canary->brush_door_runtime_audit.empty()
+                        ? canary->brush_door_runtime_audit
+                        : std::string("<none>"))
                     + ", requiredSubsystem="
                     + (canary != nullptr && !canary->required_subsystem.empty()
                         ? canary->required_subsystem
@@ -1753,6 +1802,23 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
         find_path_node_canary("trainstop9");
     const hl::game_api::PathNodeMessageCanarySummary* fade_out_canary =
         find_path_node_canary("trainstop11");
+
+    std::string readiness_summary = summary.scripted_movement.readiness;
+    if (fade_out_canary != nullptr && fade_out_canary->reached)
+    {
+        readiness_summary = !fade_out_canary->required_subsystem.empty()
+            ? "execute_sci and fade_out were both reached; next step is staged client/message bootstrap for fade_out via "
+                + fade_out_canary->required_subsystem
+            : "execute_sci and fade_out were both reached; validate later downstream scripted aftermath while keeping deterministic traversal stable";
+    }
+    else if (execute_sci_canary != nullptr && execute_sci_canary->reached)
+    {
+        readiness_summary =
+            execute_sci_canary->runtime_target_candidates == 0
+            && execute_sci_canary->parsed_target_candidates > 0
+            ? "execute_sci was reached through staged parsed-only dispatch; next step is broader scripted actor/bootstrap progression semantics before later fade/client work"
+            : "execute_sci was reached; continue deterministic traversal toward fade_out while preserving current staged dispatch semantics";
+    }
 
     hl::common::Logger::Info(hl::common::LogCategory::Summary, "hl.dll shim summary:");
     hl::common::Logger::Info(
@@ -1863,6 +1929,25 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             + std::to_string(summary.scripted_movement.path_messages_encountered.size()));
     hl::common::Logger::Info(
         hl::common::LogCategory::Summary,
+        "  - brush-door bootstrap: tracked/use-supported/moving/opened/blocked/deferred="
+            + std::to_string(summary.scripted_movement.brush_doors.tracked_doors) + "/"
+            + std::to_string(summary.scripted_movement.brush_doors.use_supported) + "/"
+            + std::to_string(summary.scripted_movement.brush_doors.moving) + "/"
+            + std::to_string(summary.scripted_movement.brush_doors.opened) + "/"
+            + std::to_string(summary.scripted_movement.brush_doors.blocked) + "/"
+            + std::to_string(summary.scripted_movement.brush_doors.deferred)
+            + ", callbacks="
+            + JoinStringValues(summary.scripted_movement.brush_doors.exercised_callbacks));
+    hl::common::Logger::Info(
+        hl::common::LogCategory::Summary,
+        "  - path-node callbacks exercised: "
+            + JoinStringValues(summary.scripted_movement.path_mover_callbacks_exercised));
+    hl::common::Logger::Info(
+        hl::common::LogCategory::Summary,
+        "  - movement/path callbacks exercised: "
+            + JoinStringValues(summary.scripted_movement.exercised_callbacks));
+    hl::common::Logger::Info(
+        hl::common::LogCategory::Summary,
         "  - ftruck_a final: current="
             + (summary.scripted_movement.ftruck_final_current.empty()
                 ? std::string("<none>")
@@ -1914,8 +1999,8 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
     hl::common::Logger::Info(
         hl::common::LogCategory::Summary,
         "  - readiness: "
-            + (!summary.scripted_movement.readiness.empty()
-                ? summary.scripted_movement.readiness
+            + (!readiness_summary.empty()
+                ? readiness_summary
                 : !summary.scripted_logic.readiness.empty()
                 ? summary.scripted_logic.readiness
                 : !summary.map_logic_dispatcher.readiness.empty()
@@ -2223,6 +2308,12 @@ std::string BuildRuntimeRecordSummary(const RuntimeEntityRecord& record)
     summary += " solid=" + std::to_string(record.solid);
     summary += " movetype=" + std::to_string(record.movetype);
     summary += " effects=" + std::to_string(record.effects);
+    summary += " movedir="
+        + (record.has_movedir ? FormatVector(record.movedir) : std::string("<none>"));
+    summary += " size="
+        + (record.has_size
+            ? (FormatVector(record.mins) + ".." + FormatVector(record.maxs))
+            : std::string("<none>"));
     summary += " health="
         + (record.health_available ? std::to_string(record.health) : std::string("<unavailable>"));
 
@@ -3833,6 +3924,113 @@ struct TrackTrainFields
     float start_speed = 0.0f;
 };
 
+bool ParseStrictVector3(std::string_view text, Vector* value);
+ParsedVectorField ParseAnglesField(const hl::game_api::detail::EntityDefinition& entity);
+ParsedVectorField ParseOriginField(const hl::game_api::detail::EntityDefinition& entity);
+
+struct BrushDoorFields
+{
+    float speed = 100.0f;
+    float lip = 8.0f;
+    float wait = 0.0f;
+    int spawnflags = 0;
+    float damage = 0.0f;
+    bool damage_available = false;
+    Vector movedir = Vector(0.0f, 0.0f, 0.0f);
+    bool movedir_available = false;
+};
+
+float NormalizeDoorMoveDir(Vector* value)
+{
+    if (value == nullptr)
+    {
+        return 0.0f;
+    }
+
+    const float length = std::sqrt(
+        (value->x * value->x)
+        + (value->y * value->y)
+        + (value->z * value->z));
+    if (length <= 0.0001f)
+    {
+        return 0.0f;
+    }
+
+    value->x /= length;
+    value->y /= length;
+    value->z /= length;
+    return length;
+}
+
+Vector ForwardVectorFromAngles(const Vector& angles)
+{
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+    const float pitch = angles.x * kDegToRad;
+    const float yaw = angles.y * kDegToRad;
+    const float cp = std::cos(pitch);
+    const float sp = std::sin(pitch);
+    const float cy = std::cos(yaw);
+    const float sy = std::sin(yaw);
+    return Vector(cp * cy, cp * sy, -sp);
+}
+
+BrushDoorFields ExtractBrushDoorFields(const hl::game_api::detail::EntityDefinition* definition)
+{
+    BrushDoorFields fields;
+    if (definition == nullptr)
+    {
+        return fields;
+    }
+
+    if (const std::string* value = FindLastKeyValue(*definition, "speed");
+        value != nullptr)
+    {
+        ParseStrictFloat(*value, &fields.speed);
+    }
+    if (const std::string* value = FindLastKeyValue(*definition, "lip");
+        value != nullptr)
+    {
+        ParseStrictFloat(*value, &fields.lip);
+    }
+    if (const std::string* value = FindLastKeyValue(*definition, "wait");
+        value != nullptr)
+    {
+        ParseStrictFloat(*value, &fields.wait);
+    }
+    if (const std::string* value = FindLastKeyValue(*definition, "spawnflags");
+        value != nullptr)
+    {
+        ParseStrictInteger(*value, &fields.spawnflags);
+    }
+    if (const std::string* value = FindLastKeyValue(*definition, "dmg");
+        value != nullptr)
+    {
+        fields.damage_available = ParseStrictFloat(*value, &fields.damage);
+    }
+
+    if (const std::string* raw_movedir = FindLastKeyValue(*definition, "movedir");
+        raw_movedir != nullptr)
+    {
+        fields.movedir_available = ParseStrictVector3(*raw_movedir, &fields.movedir);
+    }
+    else
+    {
+        const ParsedVectorField angles = ParseAnglesField(*definition);
+        if (angles.present && angles.valid)
+        {
+            fields.movedir = ForwardVectorFromAngles(angles.value);
+            fields.movedir_available = NormalizeDoorMoveDir(&fields.movedir) > 0.0001f;
+        }
+    }
+
+    if (fields.movedir_available)
+    {
+        NormalizeDoorMoveDir(&fields.movedir);
+    }
+
+    return fields;
+}
+
 ScriptedSequenceFields ExtractScriptedSequenceFields(
     const hl::game_api::detail::EntityDefinition* definition)
 {
@@ -4011,6 +4209,192 @@ std::string BuildParsedRuntimeAuditDetail(const RuntimeEntityRecord& record)
         + " lifecycle=" + std::string(RuntimeEntityLifecycleStateLabel(record.lifecycle_state))
         + " note=" + (record.note.empty() ? std::string("<none>") : record.note);
 }
+
+hl::game_api::detail::BrushDoorEntityView BuildBrushDoorEntityView(
+    const EngineShimState& state,
+    const RuntimeEntityRecord& record)
+{
+    hl::game_api::detail::BrushDoorEntityView view;
+    view.edict_index = record.edict_index;
+    view.parse_index = record.parse_index;
+    view.classname = record.classname;
+    view.targetname = record.targetname;
+    view.model = record.model;
+    view.modelindex = record.modelindex;
+    view.origin = record.origin;
+    view.has_origin = record.has_origin;
+    view.angles = record.angles;
+    view.has_angles = record.has_angles;
+    view.movedir = record.movedir;
+    view.has_movedir = record.has_movedir;
+    view.mins = record.mins;
+    view.maxs = record.maxs;
+    view.has_size = record.has_size;
+    view.health = record.health;
+    view.health_available = record.health_available;
+    view.in_use = record.in_use;
+    view.removed = record.removed || (record.flags & FL_KILLME) != 0;
+    view.deferred = record.deferred;
+    view.has_private_data = record.has_private_data;
+    view.lifecycle = RuntimeEntityLifecycleStateLabel(record.lifecycle_state);
+
+    const hl::game_api::detail::EntityDefinition* definition =
+        FindParsedEntityDefinitionByOrdinal(state, record.parse_index);
+    const BrushDoorFields fields = ExtractBrushDoorFields(definition);
+    view.speed = fields.speed;
+    view.lip = fields.lip;
+    view.wait = fields.wait;
+    view.spawnflags = fields.spawnflags;
+    view.damage = fields.damage;
+    view.damage_available = fields.damage_available;
+    if (!view.has_movedir && fields.movedir_available)
+    {
+        view.movedir = fields.movedir;
+        view.has_movedir = true;
+    }
+
+    if (definition != nullptr)
+    {
+        const ParsedVectorField origin = ParseOriginField(*definition);
+        if (!view.has_origin && origin.present && origin.valid)
+        {
+            view.origin = origin.value;
+            view.has_origin = true;
+        }
+
+        if (!view.has_angles)
+        {
+            const ParsedVectorField angles = ParseAnglesField(*definition);
+            if (angles.present && angles.valid)
+            {
+                view.angles = angles.value;
+                view.has_angles = true;
+            }
+        }
+    }
+
+    auto try_parse_inline_model_index =
+        [](std::string_view model_name, int* index)
+        {
+            if (index == nullptr || model_name.size() < 2 || model_name.front() != '*')
+            {
+                return false;
+            }
+
+            return ParseStrictInteger(model_name.substr(1), index);
+        };
+    int inline_model_index = -1;
+    if (try_parse_inline_model_index(view.model, &inline_model_index)
+        && inline_model_index >= 0
+        && static_cast<std::size_t>(inline_model_index) < state.world_context.inline_models.size())
+    {
+        const hl::game_api::detail::BspInlineModelBounds& bounds =
+            state.world_context.inline_models[static_cast<std::size_t>(inline_model_index)];
+        if (bounds.valid)
+        {
+            if (!view.has_size)
+            {
+                view.mins = bounds.mins;
+                view.maxs = bounds.maxs;
+                view.has_size = true;
+            }
+
+            if (!view.has_origin)
+            {
+                // GoldSrc brush entities often sit at 0 0 0 while their inline BSP model
+                // supplies the practical staged movement frame of reference.
+                view.origin = bounds.origin;
+                view.has_origin = true;
+            }
+        }
+    }
+
+    if (record.deferred && fields.movedir_available)
+    {
+        view.movedir = fields.movedir;
+        view.has_movedir = true;
+    }
+
+    return view;
+}
+
+std::vector<hl::game_api::detail::BrushDoorEntityView> BuildBrushDoorEntityViews(
+    const EngineShimState& state)
+{
+    std::vector<hl::game_api::detail::BrushDoorEntityView> views;
+    for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        if (!EqualsIgnoreCase(record.classname, "func_door"))
+        {
+            continue;
+        }
+
+        views.push_back(BuildBrushDoorEntityView(state, record));
+    }
+
+    return views;
+}
+
+struct BrushDoorDispatchAggregate
+{
+    bool seen = false;
+    bool handled = false;
+    bool deferred = false;
+    bool failed = false;
+    bool use_succeeded = false;
+    bool state_changed = false;
+    bool movement_started = false;
+    bool movement_completed = false;
+    bool native_use_attempted = false;
+    bool native_use_succeeded = false;
+    bool staged_handling_attempted = false;
+    std::string dispatch_path;
+    std::string support_state;
+    std::string door_state;
+    std::string blocked_reason;
+    std::string runtime_audit;
+    std::string detail;
+
+    void Merge(const hl::game_api::detail::BrushDoorDispatchResult& result)
+    {
+        seen = true;
+        handled = handled || result.handled;
+        deferred = deferred || result.deferred;
+        failed = failed || result.failed;
+        use_succeeded = use_succeeded || result.use_succeeded;
+        state_changed = state_changed || result.state_changed;
+        movement_started = movement_started || result.movement_started;
+        movement_completed = movement_completed || result.movement_completed;
+        native_use_attempted = native_use_attempted || result.native_use_attempted;
+        native_use_succeeded = native_use_succeeded || result.native_use_succeeded;
+        staged_handling_attempted =
+            staged_handling_attempted || result.staged_bootstrap_attempted;
+        if (!result.dispatch_path.empty())
+        {
+            dispatch_path = result.dispatch_path;
+        }
+        if (!result.support_state.empty())
+        {
+            support_state = result.support_state;
+        }
+        if (!result.door_state.empty())
+        {
+            door_state = result.door_state;
+        }
+        if (!result.blocked_reason.empty())
+        {
+            blocked_reason = result.blocked_reason;
+        }
+        if (!result.audit_line.empty())
+        {
+            runtime_audit = result.audit_line;
+        }
+        if (!result.detail.empty())
+        {
+            detail = result.detail;
+        }
+    }
+};
 
 const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTargetname(
     const EngineShimState& state,
@@ -4216,6 +4600,21 @@ struct PathNodeDownstreamSnapshot
         bool scripted_actor_resolved = false;
         bool scripted_arrived = false;
         bool scripted_animation_ready = false;
+        bool brush_door_tracked = false;
+        bool brush_door_native_use_attempted = false;
+        bool brush_door_native_use_succeeded = false;
+        bool brush_door_staged_attempted = false;
+        bool brush_door_staged_used = false;
+        bool brush_door_movement_started = false;
+        bool brush_door_movement_completed = false;
+        int brush_door_last_use_frame = -1;
+        float brush_door_last_use_time = 0.0f;
+        std::string brush_door_support_state;
+        std::string brush_door_dispatch_path;
+        std::string brush_door_state;
+        std::string brush_door_blocked_reason;
+        std::string brush_door_last_source_event;
+        std::string brush_door_runtime_audit;
     };
 
     std::vector<TrackedEntityState> tracked_entities;
@@ -4286,7 +4685,8 @@ bool ShouldTrackPathNodeDownstreamEntity(const RuntimeEntityRecord& record)
 }
 
 PathNodeDownstreamSnapshot::TrackedEntityState CapturePathNodeTrackedEntityState(
-    const RuntimeEntityRecord& record)
+    const RuntimeEntityRecord& record,
+    const hl::game_api::detail::BrushDoorBootstrapController* brush_door_controller)
 {
     PathNodeDownstreamSnapshot::TrackedEntityState state;
     state.edict_index = record.edict_index;
@@ -4310,6 +4710,29 @@ PathNodeDownstreamSnapshot::TrackedEntityState CapturePathNodeTrackedEntityState
     state.scripted_actor_resolved = record.scripted_actor_resolved;
     state.scripted_arrived = record.scripted_arrived;
     state.scripted_animation_ready = record.scripted_animation_ready;
+    if (brush_door_controller != nullptr)
+    {
+        if (const hl::game_api::BrushDoorRuntimeSummary* door =
+                brush_door_controller->FindDoorState(record.edict_index);
+            door != nullptr)
+        {
+            state.brush_door_tracked = true;
+            state.brush_door_native_use_attempted = door->native_use_attempted;
+            state.brush_door_native_use_succeeded = door->native_use_succeeded;
+            state.brush_door_staged_attempted = door->staged_bootstrap_attempted;
+            state.brush_door_staged_used = door->staged_bootstrap_used;
+            state.brush_door_movement_started = door->movement_started;
+            state.brush_door_movement_completed = door->movement_completed;
+            state.brush_door_last_use_frame = door->last_use_frame;
+            state.brush_door_last_use_time = door->last_use_time;
+            state.brush_door_support_state = door->support_state;
+            state.brush_door_dispatch_path = door->dispatch_path;
+            state.brush_door_state = door->movement_state;
+            state.brush_door_blocked_reason = door->blocked_reason;
+            state.brush_door_last_source_event = door->last_source_event;
+            state.brush_door_runtime_audit = door->audit_line;
+        }
+    }
     return state;
 }
 
@@ -4585,7 +5008,8 @@ int CallbackCountDelta(
 PathNodeDownstreamSnapshot CapturePathNodeDownstreamSnapshot(
     const EngineShimState& state,
     const hl::game_api::detail::MapLogicDispatcher& dispatcher,
-    const std::unordered_map<std::string, std::size_t>& callback_deltas)
+    const std::unordered_map<std::string, std::size_t>& callback_deltas,
+    const hl::game_api::detail::BrushDoorBootstrapController* brush_door_controller)
 {
     PathNodeDownstreamSnapshot snapshot;
     const hl::game_api::MapLogicDispatcherStateSummary& map_logic_summary = dispatcher.Summary();
@@ -4614,7 +5038,8 @@ PathNodeDownstreamSnapshot CapturePathNodeDownstreamSnapshot(
         }
         if (ShouldTrackPathNodeDownstreamEntity(record))
         {
-            snapshot.tracked_entities.push_back(CapturePathNodeTrackedEntityState(record));
+            snapshot.tracked_entities.push_back(
+                CapturePathNodeTrackedEntityState(record, brush_door_controller));
         }
     }
 
@@ -4724,6 +5149,10 @@ struct PathNodeTrackedChangeSummary
     int scripted_sequence_activity = 0;
     int actor_state_changes = 0;
     int path_state_changes = 0;
+    bool brush_door_use_succeeded = false;
+    bool brush_door_state_changed = false;
+    bool brush_door_movement_started = false;
+    bool brush_door_movement_completed = false;
     std::vector<std::string> details;
 };
 
@@ -4837,6 +5266,70 @@ PathNodeTrackedChangeSummary SummarizePathNodeTrackedEntityChanges(
             local_changes.push_back("blocked=" + after_state.scripted_blocked_reason);
         }
 
+        if (after_state.brush_door_tracked || before_state.brush_door_tracked)
+        {
+            if (after_state.brush_door_dispatch_path != before_state.brush_door_dispatch_path
+                && !after_state.brush_door_dispatch_path.empty())
+            {
+                local_changes.push_back(
+                    "doorPath="
+                    + (before_state.brush_door_dispatch_path.empty()
+                        ? std::string("<none>")
+                        : before_state.brush_door_dispatch_path)
+                    + "->" + after_state.brush_door_dispatch_path);
+            }
+            if (after_state.brush_door_support_state != before_state.brush_door_support_state
+                && !after_state.brush_door_support_state.empty())
+            {
+                local_changes.push_back(
+                    "doorSupport="
+                    + (before_state.brush_door_support_state.empty()
+                        ? std::string("<none>")
+                        : before_state.brush_door_support_state)
+                    + "->" + after_state.brush_door_support_state);
+                summary.brush_door_state_changed = true;
+            }
+            if (after_state.brush_door_state != before_state.brush_door_state
+                && !after_state.brush_door_state.empty())
+            {
+                local_changes.push_back(
+                    "doorState="
+                    + (before_state.brush_door_state.empty()
+                        ? std::string("<none>")
+                        : before_state.brush_door_state)
+                    + "->" + after_state.brush_door_state);
+                summary.brush_door_state_changed = true;
+            }
+            if (after_state.brush_door_movement_started && !before_state.brush_door_movement_started)
+            {
+                local_changes.push_back("doorMoveStarted");
+                summary.brush_door_movement_started = true;
+            }
+            if (after_state.brush_door_movement_completed
+                && !before_state.brush_door_movement_completed)
+            {
+                local_changes.push_back("doorMoveCompleted");
+                summary.brush_door_movement_completed = true;
+            }
+            if (after_state.brush_door_last_use_frame != before_state.brush_door_last_use_frame
+                && after_state.brush_door_last_use_frame >= 0)
+            {
+                local_changes.push_back(
+                    "doorUseFrame=" + std::to_string(after_state.brush_door_last_use_frame));
+                summary.brush_door_use_succeeded = true;
+            }
+            if (after_state.brush_door_blocked_reason != before_state.brush_door_blocked_reason
+                && !after_state.brush_door_blocked_reason.empty())
+            {
+                local_changes.push_back("doorBlocked=" + after_state.brush_door_blocked_reason);
+            }
+            if (after_state.brush_door_last_source_event != before_state.brush_door_last_source_event
+                && !after_state.brush_door_last_source_event.empty())
+            {
+                local_changes.push_back("doorSource=" + after_state.brush_door_last_source_event);
+            }
+        }
+
         if (local_changes.empty())
         {
             continue;
@@ -4864,6 +5357,10 @@ PathNodeTrackedChangeSummary SummarizePathNodeTrackedEntityChanges(
             }
         }
         else if (normalized == "func_tracktrain")
+        {
+            ++summary.path_state_changes;
+        }
+        else if (normalized == "func_door")
         {
             ++summary.path_state_changes;
         }
@@ -4958,6 +5455,22 @@ std::string BuildPathNodeDownstreamSummary(
             stream << tracked_changes.details[index];
         }
         parts.push_back("entityDelta=" + stream.str());
+    }
+    if (tracked_changes.brush_door_use_succeeded)
+    {
+        parts.push_back("brushDoorUse=+1");
+    }
+    if (tracked_changes.brush_door_state_changed)
+    {
+        parts.push_back("brushDoorStateChange=yes");
+    }
+    if (tracked_changes.brush_door_movement_started)
+    {
+        parts.push_back("brushDoorMoveStarted=yes");
+    }
+    if (tracked_changes.brush_door_movement_completed)
+    {
+        parts.push_back("brushDoorMoveCompleted=yes");
     }
 
     if (parts.empty())
@@ -5422,6 +5935,11 @@ void SyncRuntimeRecordFromEdict(
         record.has_private_data = vars_snapshot.has_private_data;
         record.private_data_present = vars_snapshot.has_private_data;
         record.scheduled_for_think = vars_snapshot.scheduled_for_think;
+        record.movedir = vars_snapshot.movedir;
+        record.has_movedir = vars_snapshot.has_movedir;
+        record.mins = vars_snapshot.mins;
+        record.maxs = vars_snapshot.maxs;
+        record.has_size = vars_snapshot.has_size;
     }
 
     if (snapshot.has_origin)
@@ -9549,6 +10067,8 @@ void PerformServerFrameLoop()
         state.scripted_movement_state.configured = true;
         state.scripted_movement_state.trace_movement =
             state.frame_bootstrap_options.trace_movement;
+        state.scripted_movement_state.brush_doors.readiness =
+            "brush-door bootstrap waits for successful ServerActivate";
         state.scripted_movement_state.readiness =
             "scene movement bootstrap waits for successful ServerActivate";
         hl::common::Logger::Warn(
@@ -9606,8 +10126,18 @@ void PerformServerFrameLoop()
     path_mover_config.frame_history_limit = 128;
     path_mover_controller.Configure(path_mover_config);
 
+    hl::game_api::detail::BrushDoorBootstrapController brush_door_controller;
+    hl::game_api::detail::BrushDoorBootstrapConfig brush_door_config;
+    brush_door_config.default_speed = 100.0f;
+    brush_door_config.default_lip = 8.0f;
+    brush_door_config.arrival_epsilon = 1.0f;
+    brush_door_config.preview_limit = 8;
+    brush_door_config.history_limit = 128;
+    brush_door_controller.Configure(brush_door_config);
+
     std::unordered_set<std::string> movement_callbacks_exercised;
     std::unordered_set<std::string> path_mover_callbacks_exercised;
+    std::unordered_set<std::string> brush_door_callbacks_exercised;
 
     hl::game_api::detail::ServerFrameLoopHooks hooks;
     hooks.validate_frame_state =
@@ -9728,6 +10258,7 @@ void PerformServerFrameLoop()
             movement_frame_context.frametime = frametime;
             movement_controller.BeginFrame(movement_frame_context);
             path_mover_controller.BeginFrame(movement_frame_context);
+            brush_door_controller.BeginFrame(movement_frame_context);
 
             hl::game_api::detail::MapLogicDispatcherHooks map_logic_hooks;
             map_logic_hooks.host_frame_index =
@@ -9968,6 +10499,48 @@ void PerformServerFrameLoop()
                         std::string(message));
                 };
 
+            hl::game_api::detail::BrushDoorBootstrapHooks brush_door_hooks;
+            brush_door_hooks.entity_by_index =
+                [&](int edict_index)
+                {
+                    return state.edict_store.EntityOfIndex(edict_index);
+                };
+            brush_door_hooks.set_origin =
+                [&](edict_t* entity, const Vector& origin)
+                {
+                    float values[3] = {origin.x, origin.y, origin.z};
+                    brush_door_callbacks_exercised.insert("pfnSetOrigin");
+                    movement_callbacks_exercised.insert("pfnSetOrigin");
+                    path_mover_callbacks_exercised.insert("pfnSetOrigin");
+                    StubSetOrigin(entity, values);
+                };
+            brush_door_hooks.set_velocity =
+                [&](edict_t* entity, const Vector& velocity)
+                {
+                    if (entity == nullptr)
+                    {
+                        return;
+                    }
+                    entity->v.velocity = velocity;
+                };
+            brush_door_hooks.log_info =
+                [&](std::string_view message)
+                {
+                    LogSubsystemInfo(
+                        hl::common::LogCategory::PathEvent,
+                        state.frame_bootstrap_options.trace_movement,
+                        message);
+                };
+            brush_door_hooks.log_warn =
+                [](std::string_view message)
+                {
+                    hl::common::Logger::Warn(
+                        hl::common::LogCategory::PathEvent,
+                        std::string(message));
+                };
+
+            BrushDoorDispatchAggregate current_brush_door_dispatch;
+
             map_logic_hooks.custom_dispatch_target =
                 [&](const hl::game_api::detail::MapLogicDispatchContext& context,
                     const hl::game_api::detail::EntityVarSnapshot& target_snapshot,
@@ -9994,13 +10567,74 @@ void PerformServerFrameLoop()
 
                     if (normalized == "func_door")
                     {
+                        RuntimeEntityRecord* record =
+                            FindRuntimeRecordByEdictIndex(state, target_snapshot.edict_index);
+                        if (record == nullptr)
+                        {
+                            if (detail != nullptr)
+                            {
+                                *detail = "func_door runtime record missing";
+                            }
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        hl::game_api::detail::BrushDoorUseRequest request;
+                        request.entity = BuildBrushDoorEntityView(state, *record);
+                        request.source_edict_index = context.source_edict_index;
+                        request.source_label = BuildSourceEntityLabel(
+                            state,
+                            context.source_edict_index,
+                            context.source_classname);
+                        request.reason = context.reason;
+                        request.frame_number = frame_number;
+                        request.time = time;
+                        request.frametime = frametime;
+                        request.native_use_attempted = false;
+                        request.native_use_succeeded = false;
+                        request.native_use_detail =
+                            "skipped-native-use staged-safe bootstrap brush-door path";
+
+                        const hl::game_api::detail::BrushDoorDispatchResult door_result =
+                            brush_door_controller.HandleUse(request, brush_door_hooks);
+                        current_brush_door_dispatch.Merge(door_result);
+
+                        edict_t* entity = state.edict_store.EntityOfIndex(target_snapshot.edict_index);
+                        if (entity != nullptr)
+                        {
+                            SyncRuntimeRecordFromEdict(state, entity, *record);
+                        }
+
+                        if (door_result.handled)
+                        {
+                            AccumulateRuntimeRecordUseStats(
+                                state,
+                                target_snapshot.edict_index,
+                                context.source_edict_index,
+                                context.source_classname,
+                                false,
+                                door_result.use_succeeded,
+                                false,
+                                door_result.detail,
+                                frame_number,
+                                time);
+                        }
+
                         if (detail != nullptr)
                         {
-                            *detail =
-                                "func_door runtime target resolved but staged safe use remains deferred"
-                                " pending brush-door movement/use semantics";
+                            *detail = door_result.detail;
                         }
-                        return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+
+                        if (door_result.handled)
+                        {
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kHandled;
+                        }
+
+                        if (door_result.deferred)
+                        {
+                            return hl::game_api::detail::MapLogicTargetDispatchResult::kDeferred;
+                        }
+
+                        return hl::game_api::detail::MapLogicTargetDispatchResult::kFailed;
                     }
 
                     if (normalized == "trigger_relay")
@@ -10721,13 +11355,15 @@ void PerformServerFrameLoop()
                 {
                     std::unordered_map<std::string, std::size_t> callbacks_before =
                         state.callback_counts;
+                    current_brush_door_dispatch = {};
                     const PathNodeTargetProbe target_probe =
                         ProbePathNodeTargets(state, request.message);
                     const PathNodeDownstreamSnapshot downstream_before =
                         CapturePathNodeDownstreamSnapshot(
                             state,
                             map_logic_dispatcher,
-                            std::unordered_map<std::string, std::size_t>{});
+                            std::unordered_map<std::string, std::size_t>{},
+                            &brush_door_controller);
                     const hl::game_api::MapLogicFrameStateSummary* before_frame =
                         map_logic_dispatcher.CurrentFrameSummary();
                     const int before_use_attempts =
@@ -10756,8 +11392,27 @@ void PerformServerFrameLoop()
                             ? std::string("<empty>")
                             : request.node_name);
 
-                    const bool dispatched =
-                        map_logic_dispatcher.DispatchTargetChain(dispatch_context, map_logic_hooks);
+                    const bool known_parsed_only_message =
+                        IsKnownDeferredPathNodeMessage(request.message)
+                        && target_probe.runtime_target_candidates == 0
+                        && target_probe.parsed_target_candidates > 0;
+                    const bool known_unsupported_message =
+                        IsKnownUnsupportedPathNodeMessage(request.message)
+                        && target_probe.runtime_target_candidates == 0
+                        && target_probe.parsed_target_candidates == 0;
+                    const bool skip_runtime_dispatch =
+                        known_parsed_only_message || known_unsupported_message;
+                    const std::string runtime_dispatch_mode =
+                        known_parsed_only_message
+                        ? "skip-runtime-known-parsed-only"
+                        : known_unsupported_message
+                        ? "skip-runtime-known-unsupported"
+                        : "runtime-dispatch";
+                    const bool dispatched = skip_runtime_dispatch
+                        ? false
+                        : map_logic_dispatcher.DispatchTargetChain(
+                            dispatch_context,
+                            map_logic_hooks);
                     const ParsedTriggerRelayBootstrapDispatchResult parsed_trigger_relay_bootstrap =
                         target_probe.runtime_target_candidates == 0
                             && target_probe.parsed_target_candidates > 0
@@ -10795,7 +11450,8 @@ void PerformServerFrameLoop()
                         CapturePathNodeDownstreamSnapshot(
                             state,
                             map_logic_dispatcher,
-                            callback_delta_map);
+                            callback_delta_map,
+                            &brush_door_controller);
                     const PathNodeTrackedChangeSummary tracked_changes =
                         SummarizePathNodeTrackedEntityChanges(
                             downstream_before,
@@ -10840,7 +11496,8 @@ void PerformServerFrameLoop()
                     feedback.failed_targets =
                         std::max(0, failure_delta)
                         + (parsed_trigger_relay_bootstrap.failed ? 1 : 0);
-                    feedback.pfn_use_attempted = use_attempt_delta > 0;
+                    feedback.pfn_use_attempted =
+                        use_attempt_delta > 0 || current_brush_door_dispatch.native_use_attempted;
                     feedback.unresolved_target =
                         (no_target_delta > 0 && !parsed_trigger_relay_bootstrap.attempted)
                         || (!dispatched
@@ -10857,6 +11514,39 @@ void PerformServerFrameLoop()
                         downstream_after.alert_callbacks - downstream_before.alert_callbacks;
                     feedback.message_callbacks =
                         downstream_after.message_callbacks - downstream_before.message_callbacks;
+                    feedback.downstream_target_chains =
+                        downstream_after.target_chains_fired - downstream_before.target_chains_fired;
+                    feedback.downstream_scheduled_actions =
+                        (downstream_after.scheduled_created - downstream_before.scheduled_created)
+                        + (downstream_after.scheduled_executed - downstream_before.scheduled_executed);
+                    feedback.brush_door_handling_attempted =
+                        current_brush_door_dispatch.staged_handling_attempted;
+                    feedback.brush_door_use_succeeded =
+                        current_brush_door_dispatch.use_succeeded
+                        || tracked_changes.brush_door_use_succeeded;
+                    feedback.brush_door_state_changed =
+                        current_brush_door_dispatch.state_changed
+                        || tracked_changes.brush_door_state_changed;
+                    feedback.brush_door_movement_started =
+                        current_brush_door_dispatch.movement_started
+                        || tracked_changes.brush_door_movement_started;
+                    feedback.brush_door_movement_completed =
+                        current_brush_door_dispatch.movement_completed
+                        || tracked_changes.brush_door_movement_completed;
+                    feedback.brush_door_native_use_attempted =
+                        current_brush_door_dispatch.native_use_attempted;
+                    feedback.brush_door_native_use_succeeded =
+                        current_brush_door_dispatch.native_use_succeeded;
+                    feedback.brush_door_dispatch_path =
+                        current_brush_door_dispatch.dispatch_path;
+                    feedback.brush_door_support_state =
+                        current_brush_door_dispatch.support_state;
+                    feedback.brush_door_state =
+                        current_brush_door_dispatch.door_state;
+                    feedback.brush_door_blocked_reason =
+                        current_brush_door_dispatch.blocked_reason;
+                    feedback.brush_door_runtime_audit =
+                        current_brush_door_dispatch.runtime_audit;
 
                     if (feedback.successful_targets > 0)
                     {
@@ -10983,6 +11673,7 @@ void PerformServerFrameLoop()
                         + (request.speed_decision.empty()
                             ? std::string("<unset>")
                             : request.speed_decision)
+                        + " runtimeDispatchMode=" + runtime_dispatch_mode
                         + " dispatched=" + (dispatched ? "yes" : "no")
                         + " runtimeTargets="
                         + std::to_string(target_probe.runtime_target_candidates)
@@ -11009,10 +11700,32 @@ void PerformServerFrameLoop()
                         + std::to_string(feedback.actor_state_changes)
                         + " pathStateChanges="
                         + std::to_string(feedback.path_state_changes)
+                        + " brushDoorAttempted="
+                        + BoolToYesNo(feedback.brush_door_handling_attempted)
+                        + " brushDoorPath="
+                        + (feedback.brush_door_dispatch_path.empty()
+                            ? std::string("<none>")
+                            : feedback.brush_door_dispatch_path)
+                        + " brushDoorSupport="
+                        + (feedback.brush_door_support_state.empty()
+                            ? std::string("<none>")
+                            : feedback.brush_door_support_state)
+                        + " brushDoorState="
+                        + (feedback.brush_door_state.empty()
+                            ? std::string("<none>")
+                            : feedback.brush_door_state)
+                        + " brushDoorStarted="
+                        + BoolToYesNo(feedback.brush_door_movement_started)
+                        + " brushDoorCompleted="
+                        + BoolToYesNo(feedback.brush_door_movement_completed)
                         + " alertCallbacks="
                         + std::to_string(std::max(0, feedback.alert_callbacks))
                         + " messageCallbacks="
                         + std::to_string(std::max(0, feedback.message_callbacks))
+                        + " targetChainDelta="
+                        + std::to_string(std::max(0, feedback.downstream_target_chains))
+                        + " scheduledActionDelta="
+                        + std::to_string(std::max(0, feedback.downstream_scheduled_actions))
                         + " downstream="
                         + (feedback.downstream_summary.empty()
                             ? std::string("<none>")
@@ -11028,6 +11741,11 @@ void PerformServerFrameLoop()
                     {
                         feedback.detail +=
                             " requiredSubsystem=" + feedback.required_subsystem;
+                    }
+                    if (!feedback.brush_door_runtime_audit.empty())
+                    {
+                        feedback.detail +=
+                            " brushDoorAudit={" + feedback.brush_door_runtime_audit + "}";
                     }
 
                     if (EqualsIgnoreCase(request.message, "room2train")
@@ -11060,6 +11778,11 @@ void PerformServerFrameLoop()
                 movement_entities,
                 path_mover_hooks);
 
+            brush_door_controller.RunFrame(
+                movement_frame_context,
+                BuildBrushDoorEntityViews(state),
+                brush_door_hooks);
+
             map_logic_dispatcher.CompleteFrame(map_logic_hooks);
             state.map_logic_dispatcher_state = map_logic_dispatcher.Summary();
 
@@ -11081,12 +11804,16 @@ void PerformServerFrameLoop()
             MergePathMoverStateIntoScriptedMovementSummary(
                 state.scripted_movement_state,
                 path_mover_controller.Summary());
+            state.scripted_movement_state.brush_doors = brush_door_controller.Summary();
             state.scripted_movement_state.trace_movement =
                 state.frame_bootstrap_options.trace_movement;
             std::unordered_set<std::string> all_movement_callbacks = movement_callbacks_exercised;
             all_movement_callbacks.insert(
                 path_mover_callbacks_exercised.begin(),
                 path_mover_callbacks_exercised.end());
+            all_movement_callbacks.insert(
+                brush_door_callbacks_exercised.begin(),
+                brush_door_callbacks_exercised.end());
             state.scripted_movement_state.exercised_callbacks.assign(
                 all_movement_callbacks.begin(),
                 all_movement_callbacks.end());
@@ -11099,6 +11826,12 @@ void PerformServerFrameLoop()
             std::sort(
                 state.scripted_movement_state.path_mover_callbacks_exercised.begin(),
                 state.scripted_movement_state.path_mover_callbacks_exercised.end());
+            if (state.scripted_movement_state.brush_doors.opened > 0
+                || state.scripted_movement_state.brush_doors.moving > 0)
+            {
+                state.scripted_movement_state.readiness =
+                    "staged-safe brush door bootstrap is active; continue deeper deterministic traversal toward execute_sci and fade_out";
+            }
 
             if (!state.scripted_movement_state.frames.empty())
             {
@@ -12739,6 +13472,25 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + (record.downstream_summary.empty()
                     ? std::string("<none>")
                     : record.downstream_summary)
+                + " brushDoorAttempted=" + BoolToYesNo(record.brush_door_handling_attempted)
+                + " brushDoorPath="
+                + (record.brush_door_dispatch_path.empty()
+                    ? std::string("<none>")
+                    : record.brush_door_dispatch_path)
+                + " brushDoorSupport="
+                + (record.brush_door_support_state.empty()
+                    ? std::string("<none>")
+                    : record.brush_door_support_state)
+                + " brushDoorState="
+                + (record.brush_door_state.empty()
+                    ? std::string("<none>")
+                    : record.brush_door_state)
+                + " brushDoorStarted=" + BoolToYesNo(record.brush_door_movement_started)
+                + " brushDoorCompleted=" + BoolToYesNo(record.brush_door_movement_completed)
+                + " brushDoorAudit="
+                + (record.brush_door_runtime_audit.empty()
+                    ? std::string("<none>")
+                    : record.brush_door_runtime_audit)
                 + " requiredSubsystem="
                 + (record.required_subsystem.empty()
                     ? std::string("<none>")
@@ -12786,6 +13538,25 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + (canary.downstream_summary.empty()
                     ? std::string("<none>")
                     : canary.downstream_summary)
+                + " brushDoorAttempted=" + BoolToYesNo(canary.brush_door_handling_attempted)
+                + " brushDoorPath="
+                + (canary.brush_door_dispatch_path.empty()
+                    ? std::string("<none>")
+                    : canary.brush_door_dispatch_path)
+                + " brushDoorSupport="
+                + (canary.brush_door_support_state.empty()
+                    ? std::string("<none>")
+                    : canary.brush_door_support_state)
+                + " brushDoorState="
+                + (canary.brush_door_state.empty()
+                    ? std::string("<none>")
+                    : canary.brush_door_state)
+                + " brushDoorStarted=" + BoolToYesNo(canary.brush_door_movement_started)
+                + " brushDoorCompleted=" + BoolToYesNo(canary.brush_door_movement_completed)
+                + " brushDoorAudit="
+                + (canary.brush_door_runtime_audit.empty()
+                    ? std::string("<none>")
+                    : canary.brush_door_runtime_audit)
                 + " requiredSubsystem="
                 + (canary.required_subsystem.empty()
                     ? std::string("<none>")

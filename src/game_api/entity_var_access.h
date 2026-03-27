@@ -41,6 +41,11 @@ struct EntityVarSnapshot
     bool has_origin = false;
     Vector angles = Vector(0.0f, 0.0f, 0.0f);
     bool has_angles = false;
+    Vector movedir = Vector(0.0f, 0.0f, 0.0f);
+    bool has_movedir = false;
+    Vector mins = Vector(0.0f, 0.0f, 0.0f);
+    Vector maxs = Vector(0.0f, 0.0f, 0.0f);
+    bool has_size = false;
     bool scheduled_for_think = false;
 };
 

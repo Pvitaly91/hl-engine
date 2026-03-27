@@ -260,6 +260,14 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         + " targetClassnames=" + JoinValues(feedback.target_classnames)
         + " resolvedTargetDetails=" + JoinValues(feedback.resolved_target_details)
         + " pfnUseAttempted=" + (feedback.pfn_use_attempted ? std::string("yes") : "no")
+        + " brushDoorAttempted="
+        + (feedback.brush_door_handling_attempted ? std::string("yes") : "no")
+        + " brushDoorPath="
+        + (feedback.brush_door_dispatch_path.empty()
+            ? std::string("<none>")
+            : feedback.brush_door_dispatch_path)
+        + " brushDoorState="
+        + (feedback.brush_door_state.empty() ? std::string("<none>") : feedback.brush_door_state)
         + " requiredSubsystem="
         + (feedback.required_subsystem.empty()
             ? std::string("<none>")
@@ -285,6 +293,22 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         + " targetClassnames=" + JoinValues(feedback.target_classnames)
         + " resolvedTargetDetails=" + JoinValues(feedback.resolved_target_details)
         + " pfnUseAttempted=" + (feedback.pfn_use_attempted ? std::string("yes") : "no")
+        + " brushDoorAttempted="
+        + (feedback.brush_door_handling_attempted ? std::string("yes") : "no")
+        + " brushDoorPath="
+        + (feedback.brush_door_dispatch_path.empty()
+            ? std::string("<none>")
+            : feedback.brush_door_dispatch_path)
+        + " brushDoorSupport="
+        + (feedback.brush_door_support_state.empty()
+            ? std::string("<none>")
+            : feedback.brush_door_support_state)
+        + " brushDoorState="
+        + (feedback.brush_door_state.empty() ? std::string("<none>") : feedback.brush_door_state)
+        + " brushDoorStarted="
+        + (feedback.brush_door_movement_started ? std::string("yes") : "no")
+        + " brushDoorCompleted="
+        + (feedback.brush_door_movement_completed ? std::string("yes") : "no")
         + " visibleDownstreamProgression="
         + (feedback.visible_downstream_progression ? std::string("yes") : "no")
         + " downstream="
@@ -293,6 +317,10 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         + (feedback.required_subsystem.empty()
             ? std::string("<none>")
             : feedback.required_subsystem)
+        + " brushDoorAudit="
+        + (feedback.brush_door_runtime_audit.empty()
+            ? std::string("<none>")
+            : feedback.brush_door_runtime_audit)
         + (feedback.detail.empty() ? std::string() : " detail=" + feedback.detail);
     AppendLimited(summary_.dispatch_history, result.dispatch_summary, config_.history_limit);
 
@@ -613,6 +641,22 @@ void PathNodeEventSemanticsController::NoteMessageRecord(
     record->downstream_summary = feedback.downstream_summary;
     record->dispatch_detail = feedback.detail;
     record->required_subsystem = feedback.required_subsystem;
+    record->brush_door_handling_attempted = feedback.brush_door_handling_attempted;
+    record->brush_door_use_succeeded = feedback.brush_door_use_succeeded;
+    record->brush_door_state_changed = feedback.brush_door_state_changed;
+    record->brush_door_movement_started = feedback.brush_door_movement_started;
+    record->brush_door_movement_completed = feedback.brush_door_movement_completed;
+    record->brush_door_native_use_attempted = feedback.brush_door_native_use_attempted;
+    record->brush_door_native_use_succeeded = feedback.brush_door_native_use_succeeded;
+    record->brush_door_dispatch_path = feedback.brush_door_dispatch_path;
+    record->brush_door_support_state = feedback.brush_door_support_state;
+    record->brush_door_state = feedback.brush_door_state;
+    record->brush_door_blocked_reason = feedback.brush_door_blocked_reason;
+    record->brush_door_runtime_audit = feedback.brush_door_runtime_audit;
+    record->downstream_target_chains = feedback.downstream_target_chains;
+    record->downstream_scheduled_actions = feedback.downstream_scheduled_actions;
+    record->downstream_alert_callbacks = feedback.alert_callbacks;
+    record->downstream_message_callbacks = feedback.message_callbacks;
 }
 
 void PathNodeEventSemanticsController::NoteCanaryReach(
@@ -660,6 +704,22 @@ void PathNodeEventSemanticsController::NoteCanaryReach(
             canary.downstream_summary = feedback.downstream_summary;
             canary.dispatch_detail = feedback.detail;
             canary.required_subsystem = feedback.required_subsystem;
+            canary.brush_door_handling_attempted = feedback.brush_door_handling_attempted;
+            canary.brush_door_use_succeeded = feedback.brush_door_use_succeeded;
+            canary.brush_door_state_changed = feedback.brush_door_state_changed;
+            canary.brush_door_movement_started = feedback.brush_door_movement_started;
+            canary.brush_door_movement_completed = feedback.brush_door_movement_completed;
+            canary.brush_door_native_use_attempted = feedback.brush_door_native_use_attempted;
+            canary.brush_door_native_use_succeeded = feedback.brush_door_native_use_succeeded;
+            canary.brush_door_dispatch_path = feedback.brush_door_dispatch_path;
+            canary.brush_door_support_state = feedback.brush_door_support_state;
+            canary.brush_door_state = feedback.brush_door_state;
+            canary.brush_door_blocked_reason = feedback.brush_door_blocked_reason;
+            canary.brush_door_runtime_audit = feedback.brush_door_runtime_audit;
+            canary.downstream_target_chains = feedback.downstream_target_chains;
+            canary.downstream_scheduled_actions = feedback.downstream_scheduled_actions;
+            canary.downstream_alert_callbacks = feedback.alert_callbacks;
+            canary.downstream_message_callbacks = feedback.message_callbacks;
         }
         else if (canary.dispatch_result.empty())
         {

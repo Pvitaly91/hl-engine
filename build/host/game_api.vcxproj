@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="17.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <PropertyGroup>
+    <PreferredToolArchitecture>x64</PreferredToolArchitecture>
+  </PropertyGroup>
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="MinSizeRel|x64">
+      <Configuration>MinSizeRel</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="RelWithDebInfo|x64">
+      <Configuration>RelWithDebInfo</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <ProjectGuid>{51FB4619-A3D9-360D-9C46-51A329CFE390}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>10.0.26100.0</WindowsTargetPlatformVersion>
+    <Platform>x64</Platform>
+    <ProjectName>game_api</ProjectName>
+    <VCProjectUpgraderObjectName>NoUpgrade</VCProjectUpgraderObjectName>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <CharacterSet>Unicode</CharacterSet>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup>
+    <_ProjectFileVersion>10.0.20506.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">G:\DEV\СPP\HLengine\host\build\host\Debug\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">game_api.dir\Debug\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">game_api</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">G:\DEV\СPP\HLengine\host\build\host\Release\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='Release|x64'">game_api.dir\Release\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">game_api</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">G:\DEV\СPP\HLengine\host\build\host\MinSizeRel\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">game_api.dir\MinSizeRel\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">game_api</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">.lib</TargetExt>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">G:\DEV\СPP\HLengine\host\build\host\RelWithDebInfo\</OutDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">game_api.dir\RelWithDebInfo\</IntDir>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">game_api</TargetName>
+    <TargetExt Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">.lib</TargetExt>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>Disabled</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>Disabled</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="Debug"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_DEBUG;_WINDOWS;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"Debug\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="Release"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"Release\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ConformanceMode>true</ConformanceMode>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MinSpace</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="MinSizeRel"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <DebugInformationFormat>
+      </DebugInformationFormat>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"MinSizeRel\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AssemblerListingLocation>$(IntDir)</AssemblerListingLocation>
+      <ConformanceMode>true</ConformanceMode>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <ExceptionHandling>Sync</ExceptionHandling>
+      <InlineFunctionExpansion>OnlyExplicitInline</InlineFunctionExpansion>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <Optimization>MaxSpeed</Optimization>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <UseFullPaths>false</UseFullPaths>
+      <WarningLevel>Level4</WarningLevel>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR="RelWithDebInfo"</PreprocessorDefinitions>
+      <ObjectFileName>$(IntDir)</ObjectFileName>
+      <ScanSourceForModuleDependencies>false</ScanSourceForModuleDependencies>
+    </ClCompile>
+    <ResourceCompile>
+      <PreprocessorDefinitions>%(PreprocessorDefinitions);WIN32;_WINDOWS;NDEBUG;NOMINMAX;WIN32_LEAN_AND_MEAN;UNICODE;_UNICODE;CMAKE_INTDIR=\"RelWithDebInfo\"</PreprocessorDefinitions>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+    </ResourceCompile>
+    <Midl>
+      <AdditionalIncludeDirectories>G:\DEV\СPP\HLengine\host\include;G:\DEV\СPP\HLengine\third_party\halflife-sdk\common;G:\DEV\СPP\HLengine\third_party\halflife-sdk\dlls;G:\DEV\СPP\HLengine\third_party\halflife-sdk\engine;G:\DEV\СPP\HLengine\third_party\halflife-sdk\public;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <OutputDirectory>$(ProjectDir)/$(IntDir)</OutputDirectory>
+      <HeaderFileName>%(Filename).h</HeaderFileName>
+      <TypeLibraryName>%(Filename).tlb</TypeLibraryName>
+      <InterfaceIdentifierFileName>%(Filename)_i.c</InterfaceIdentifierFileName>
+      <ProxyFileName>%(Filename)_p.c</ProxyFileName>
+    </Midl>
+    <Lib>
+      <AdditionalOptions>%(AdditionalOptions) /machine:x64</AdditionalOptions>
+    </Lib>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <CustomBuild Include="G:\DEV\СPP\HLengine\host\CMakeLists.txt">
+      <UseUtf8Encoding>Always</UseUtf8Encoding>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Building Custom Rule G:/DEV/СPP/HLengine/host/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SG:/DEV/СPP/HLengine -BG:/DEV/СPP/HLengine/host/build --check-stamp-file G:/DEV/СPP/HLengine/host/build/host/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">G:\DEV\СPP\HLengine\host\build\host\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Building Custom Rule G:/DEV/СPP/HLengine/host/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SG:/DEV/СPP/HLengine -BG:/DEV/СPP/HLengine/host/build --check-stamp-file G:/DEV/СPP/HLengine/host/build/host/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">G:\DEV\СPP\HLengine\host\build\host\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='Release|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">Building Custom Rule G:/DEV/СPP/HLengine/host/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SG:/DEV/СPP/HLengine -BG:/DEV/СPP/HLengine/host/build --check-stamp-file G:/DEV/СPP/HLengine/host/build/host/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">G:\DEV\СPP\HLengine\host\build\host\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='MinSizeRel|x64'">false</LinkObjects>
+      <Message Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">Building Custom Rule G:/DEV/СPP/HLengine/host/CMakeLists.txt</Message>
+      <Command Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">setlocal
+"C:\Program Files\Microsoft Visual Studio\2022\Community\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe" -SG:/DEV/СPP/HLengine -BG:/DEV/СPP/HLengine/host/build --check-stamp-file G:/DEV/СPP/HLengine/host/build/host/CMakeFiles/generate.stamp
+if %errorlevel% neq 0 goto :cmEnd
+:cmEnd
+endlocal &amp; call :cmErrorLevel %errorlevel% &amp; goto :cmDone
+:cmErrorLevel
+exit /b %1
+:cmDone
+if %errorlevel% neq 0 goto :VCEnd</Command>
+      <AdditionalInputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">%(AdditionalInputs)</AdditionalInputs>
+      <Outputs Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">G:\DEV\СPP\HLengine\host\build\host\CMakeFiles\generate.stamp</Outputs>
+      <LinkObjects Condition="'$(Configuration)|$(Platform)'=='RelWithDebInfo|x64'">false</LinkObjects>
+    </CustomBuild>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\cfg_executor.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\cvar_registry.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\dll_module.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\dll_search_directories.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\game_module_loader.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\hl_server_module.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\server_command_buffer.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\server_command_dispatcher.h" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\include\game_api\win32_error.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\cfg_executor.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\cvar_registry.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\dll_module.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\dll_search_directories.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_think_scheduler.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_think_scheduler.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\brush_door_bootstrap_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\brush_door_bootstrap_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_lump_parser.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_lump_parser.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\map_logic_dispatcher.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\map_logic_dispatcher.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_runtime.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_runtime.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_arrival_calibrator.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_arrival_calibrator.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_advance_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_advance_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_semantics_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_semantics_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_message_runtime.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_message_runtime.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_dispatcher.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_node_event_dispatcher.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_mover_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\path_traversal_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\path_traversal_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_text_block.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_text_block.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_var_access.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\entity_var_access.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\game_module_loader.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\hl_server_module.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_logic_tracker.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_logic_tracker.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_movement_controller.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\scripted_movement_controller.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_bootstrap.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\server_bootstrap.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_command_buffer.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_command_dispatcher.cpp" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\server_frame_loop.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\server_frame_loop.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\sound_precache_registry.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\sound_precache_registry.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\spawn_trace.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\spawn_trace.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\track_path_resolver.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\track_path_resolver.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\world_bootstrap.cpp" />
+    <ClInclude Include="G:\DEV\СPP\HLengine\host\src\game_api\world_bootstrap.h" />
+    <ClCompile Include="G:\DEV\СPP\HLengine\host\src\game_api\win32_error.cpp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="G:\DEV\СPP\HLengine\host\build\ZERO_CHECK.vcxproj">
+      <Project>{4ECC4A63-093B-34C8-BA5C-155452658DEE}</Project>
+      <Name>ZERO_CHECK</Name>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+    </ProjectReference>
+    <ProjectReference Include="G:\DEV\СPP\HLengine\host\build\host\common.vcxproj">
+      <Project>{0A699A5B-77AE-3022-90E6-A844E9D45E9A}</Project>
+      <Name>common</Name>
+    </ProjectReference>
+    <ProjectReference Include="G:\DEV\СPP\HLengine\host\build\host\filesystem.vcxproj">
+      <Project>{D8AA5B69-119D-3B77-96DB-39B6BD4C4739}</Project>
+      <Name>filesystem</Name>
+    </ProjectReference>
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

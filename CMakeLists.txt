@@ -43,6 +43,8 @@ add_library(game_api STATIC
     src/game_api/dll_search_directories.cpp
     src/game_api/entity_think_scheduler.cpp
     src/game_api/entity_think_scheduler.h
+    src/game_api/brush_door_bootstrap_controller.cpp
+    src/game_api/brush_door_bootstrap_controller.h
     src/game_api/entity_lump_parser.cpp
     src/game_api/entity_lump_parser.h
     src/game_api/map_logic_dispatcher.cpp
