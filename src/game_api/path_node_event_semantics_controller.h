@@ -62,6 +62,15 @@ struct PathNodeEventDispatchFeedback
     std::vector<std::string> target_classnames;
     std::vector<std::string> resolved_target_details;
     std::string classification_hint;
+    std::string dispatch_mode;
+    bool fade_channel_available = false;
+    bool fade_channel_used = false;
+    bool message_channel_available = false;
+    bool message_channel_used = false;
+    bool env_message_linkage_found = false;
+    bool env_message_linkage_used = false;
+    bool summary_only_fallback_used = false;
+    std::string presentation_linkage_detail;
     std::string downstream_summary;
     std::string detail;
     std::string required_subsystem;
@@ -133,6 +142,7 @@ private:
     static bool LooksLikeTargetName(std::string_view message) noexcept;
     static void AppendLimited(std::vector<std::string>& lines, std::string line, std::size_t limit);
     static bool EqualsIgnoreCase(std::string_view left, std::string_view right) noexcept;
+    static bool StartsWithIgnoreCase(std::string_view value, std::string_view prefix) noexcept;
     static void AppendUnique(std::vector<std::string>& lines, std::string value);
     static std::string JoinValues(const std::vector<std::string>& values);
     static std::string ResolveClassification(
@@ -141,6 +151,10 @@ private:
     static hl::game_api::PathNodeMessageEncounterSummary* FindMessageRecord(
         hl::game_api::PathNodeMessageStateSummary& summary,
         std::string_view node_name);
+    static hl::game_api::PathNodePresentationEventSummary* FindPresentationEvent(
+        hl::game_api::PathNodeMessageStateSummary& summary,
+        std::string_view node_name,
+        std::string_view event_name);
 
     void EnsureCanaryDefaults();
     void NoteClassificationCount(std::string_view classification);
@@ -148,6 +162,11 @@ private:
         const TrackPathNodeView& node,
         const ScriptedMovementFrameContext& frame,
         const PathMoverMutableState& mover,
+        const PathNodeEventDispatchFeedback& feedback,
+        std::string_view classification);
+    void NotePresentationEvent(
+        const TrackPathNodeView& node,
+        const ScriptedMovementFrameContext& frame,
         const PathNodeEventDispatchFeedback& feedback,
         std::string_view classification);
     void NoteCanaryReach(

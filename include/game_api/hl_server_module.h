@@ -580,6 +580,29 @@ struct TrackPathGraphSummary
     std::vector<std::string> message_node_preview;
 };
 
+struct PathNodePresentationEventSummary
+{
+    std::string event_name;
+    std::string source_node;
+    int frame_number = -1;
+    float time = 0.0f;
+    bool dispatch_attempted = false;
+    bool succeeded = false;
+    bool deferred = false;
+    std::string dispatch_mode;
+    std::string classification;
+    bool fade_channel_available = false;
+    bool fade_channel_used = false;
+    bool message_channel_available = false;
+    bool message_channel_used = false;
+    bool env_message_linkage_found = false;
+    bool env_message_linkage_used = false;
+    bool summary_only_fallback_used = false;
+    std::string required_subsystem;
+    std::string presentation_linkage_detail;
+    std::string dispatch_detail;
+};
+
 struct PathNodeMessageCanarySummary
 {
     std::string node_name;
@@ -590,6 +613,14 @@ struct PathNodeMessageCanarySummary
     bool staged_dispatch_attempted = false;
     std::string dispatch_result;
     std::string classification;
+    std::string dispatch_mode;
+    bool fade_channel_available = false;
+    bool fade_channel_used = false;
+    bool message_channel_available = false;
+    bool message_channel_used = false;
+    bool env_message_linkage_found = false;
+    bool env_message_linkage_used = false;
+    bool summary_only_fallback_used = false;
     float node_speed_metadata = 0.0f;
     float mover_speed_at_encounter = 0.0f;
     float mover_speed_before_encounter = 0.0f;
@@ -604,6 +635,7 @@ struct PathNodeMessageCanarySummary
     std::vector<std::string> target_classnames;
     std::vector<std::string> resolved_target_details;
     std::string downstream_summary;
+    std::string presentation_linkage_detail;
     std::string dispatch_detail;
     std::string required_subsystem;
     bool brush_door_handling_attempted = false;
@@ -638,6 +670,14 @@ struct PathNodeMessageEncounterSummary
     bool dispatch_attempted = false;
     std::string dispatch_result;
     std::string classification;
+    std::string dispatch_mode;
+    bool fade_channel_available = false;
+    bool fade_channel_used = false;
+    bool message_channel_available = false;
+    bool message_channel_used = false;
+    bool env_message_linkage_found = false;
+    bool env_message_linkage_used = false;
+    bool summary_only_fallback_used = false;
     int resolved_targets = 0;
     int runtime_target_candidates = 0;
     int parsed_target_candidates = 0;
@@ -646,6 +686,7 @@ struct PathNodeMessageEncounterSummary
     std::vector<std::string> target_classnames;
     std::vector<std::string> resolved_target_details;
     std::string downstream_summary;
+    std::string presentation_linkage_detail;
     std::string dispatch_detail;
     std::string required_subsystem;
     bool brush_door_handling_attempted = false;
@@ -688,6 +729,7 @@ struct PathNodeMessageStateSummary
     std::vector<std::string> dispatch_attempt_history;
     std::vector<std::string> dispatch_history;
     std::vector<std::string> rolling_trace;
+    std::vector<PathNodePresentationEventSummary> presentation_events;
     std::vector<PathNodeMessageEncounterSummary> message_records;
     std::vector<PathNodeMessageCanarySummary> canaries;
 };

@@ -41,6 +41,7 @@
 
 #pragma warning(push, 0)
 #include "extdll.h"
+#include "shake.h"
 #pragma warning(pop)
 
 #if defined(_MSC_VER)
@@ -402,6 +403,11 @@ bool SafeCallUseSeh(
     edict_t* used_entity,
     edict_t* other_entity,
     unsigned int* seh_code);
+void StubMessageBegin(int msg_dest, int msg_type, const float* origin, edict_t* entity);
+void StubMessageEnd();
+void StubWriteByte(int value);
+void StubWriteShort(int value);
+void StubWriteString(const char* value);
 void LogWorldspawnDistinctCallbackTail(const EngineShimState& state);
 void LogWorldspawnPrecacheTail(const EngineShimState& state);
 void LogServerActivationTraceTail(const EngineShimState& state);
@@ -1719,6 +1725,10 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + (canary != nullptr && !canary->classification.empty()
                         ? canary->classification
                         : std::string("<none>"))
+                    + ", dispatchMode="
+                    + (canary != nullptr && !canary->dispatch_mode.empty()
+                        ? canary->dispatch_mode
+                        : std::string("<none>"))
                     + ", resolvedTargets="
                     + (canary != nullptr
                         ? std::to_string(canary->resolved_targets)
@@ -1751,6 +1761,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + (canary != nullptr
                         ? std::to_string(canary->downstream_message_callbacks)
                         : std::string("0"))
+                    + ", fadeChannelAvailable="
+                    + (canary != nullptr && canary->fade_channel_available ? "yes" : "no")
+                    + ", fadeChannelUsed="
+                    + (canary != nullptr && canary->fade_channel_used ? "yes" : "no")
+                    + ", messageChannelAvailable="
+                    + (canary != nullptr && canary->message_channel_available ? "yes" : "no")
+                    + ", messageChannelUsed="
+                    + (canary != nullptr && canary->message_channel_used ? "yes" : "no")
+                    + ", envMessageLinkageFound="
+                    + (canary != nullptr && canary->env_message_linkage_found ? "yes" : "no")
+                    + ", envMessageLinkageUsed="
+                    + (canary != nullptr && canary->env_message_linkage_used ? "yes" : "no")
+                    + ", summaryFallbackUsed="
+                    + (canary != nullptr && canary->summary_only_fallback_used ? "yes" : "no")
                     + ", targetClassnames="
                     + (canary != nullptr
                         ? JoinStringValues(canary->target_classnames)
@@ -1766,6 +1790,10 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + ", downstreamSummary="
                     + (canary != nullptr && !canary->downstream_summary.empty()
                         ? canary->downstream_summary
+                        : std::string("<none>"))
+                    + ", presentationLinkage="
+                    + (canary != nullptr && !canary->presentation_linkage_detail.empty()
+                        ? canary->presentation_linkage_detail
                         : std::string("<none>"))
                     + ", brushDoorAttempted="
                     + (canary != nullptr && canary->brush_door_handling_attempted ? "yes" : "no")
@@ -1806,8 +1834,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
     std::string readiness_summary = summary.scripted_movement.readiness;
     if (fade_out_canary != nullptr && fade_out_canary->reached)
     {
-        readiness_summary = !fade_out_canary->required_subsystem.empty()
-            ? "execute_sci and fade_out were both reached; next step is staged client/message bootstrap for fade_out via "
+        readiness_summary = fade_out_canary->fade_channel_used
+            ? "execute_sci and fade_out were both reached; fade_out now routes through staged ScreenFade bootstrap while deterministic traversal stays stable"
+            : fade_out_canary->message_channel_used
+            ? "execute_sci and fade_out were both reached; fade_out now routes through staged message-channel bootstrap without requiring full client UI"
+            : fade_out_canary->env_message_linkage_used
+            ? "execute_sci and fade_out were both reached; fade_out now routes through staged env_message linkage and can be narrowed further per-map if needed"
+            : fade_out_canary->summary_only_fallback_used
+            ? "execute_sci and fade_out were both reached; fade_out is no longer generic unsupported and is now captured by a staged summary-only presentation sink"
+            : !fade_out_canary->required_subsystem.empty()
+            ? "execute_sci and fade_out were both reached; next step is the remaining staged presentation gap for fade_out via "
                 + fade_out_canary->required_subsystem
             : "execute_sci and fade_out were both reached; validate later downstream scripted aftermath while keeping deterministic traversal stable";
     }
@@ -4556,6 +4592,42 @@ struct PathNodeTargetProbe
     std::vector<std::string> resolved_target_details;
 };
 
+struct PathNodePresentationLinkageProbe
+{
+    int env_message_runtime_candidates = 0;
+    int env_message_parsed_candidates = 0;
+    int env_fade_runtime_candidates = 0;
+    int env_fade_parsed_candidates = 0;
+    bool actionable_env_message_runtime = false;
+    std::vector<std::string> details;
+};
+
+struct PathNodeMessageEmitResult
+{
+    bool emitted = false;
+    std::string channel_name;
+    int message_id = 0;
+    std::string detail;
+};
+
+struct PathNodePresentationDispatchResult
+{
+    bool dispatched = false;
+    bool deferred = false;
+    std::string dispatch_mode;
+    std::string classification;
+    std::string required_subsystem;
+    bool fade_channel_available = false;
+    bool fade_channel_used = false;
+    bool message_channel_available = false;
+    bool message_channel_used = false;
+    bool env_message_linkage_found = false;
+    bool env_message_linkage_used = false;
+    bool summary_only_fallback_used = false;
+    std::string presentation_linkage_detail;
+    std::string detail;
+};
+
 struct PathNodeDownstreamSnapshot
 {
     int target_chains_fired = 0;
@@ -4664,7 +4736,7 @@ bool IsKnownDeferredPathNodeMessage(std::string_view message)
     return EqualsIgnoreCase(message, "execute_sci");
 }
 
-bool IsKnownUnsupportedPathNodeMessage(std::string_view message)
+bool IsKnownPresentationPathNodeMessage(std::string_view message)
 {
     return EqualsIgnoreCase(message, "fade_out");
 }
@@ -5112,6 +5184,411 @@ std::string JoinStringValues(const std::vector<std::string>& values)
     }
 
     return stream.str();
+}
+
+unsigned short FixedUnsigned16Bootstrap(float value, float scale)
+{
+    int output = static_cast<int>(value * scale);
+    if (output < 0)
+    {
+        output = 0;
+    }
+    if (output > 0xFFFF)
+    {
+        output = 0xFFFF;
+    }
+
+    return static_cast<unsigned short>(output);
+}
+
+int ResolveUserMessageId(const EngineShimState& state, std::string_view message_name)
+{
+    const int index = state.user_message_registry.IndexOf(message_name);
+    return index == 0 ? 0 : (64 + index);
+}
+
+std::string CompletedMessagePreviewSince(const EngineShimState& state, std::size_t before_count)
+{
+    if (state.frame_message_buffer.CompletedCount() <= before_count)
+    {
+        return "<none>";
+    }
+
+    const std::vector<std::string> preview = state.frame_message_buffer.CompletedPreview(1);
+    return preview.empty() ? std::string("<none>") : preview.back();
+}
+
+PathNodeMessageEmitResult EmitPathNodeScreenFadeBootstrap(
+    EngineShimState& state,
+    const hl::game_api::detail::PathNodeEventDispatchRequest& request)
+{
+    PathNodeMessageEmitResult result;
+    result.channel_name = "ScreenFade";
+    result.message_id = ResolveUserMessageId(state, "ScreenFade");
+    if (result.message_id == 0)
+    {
+        result.detail = "fade channel ScreenFade is unavailable";
+        return result;
+    }
+
+    const ScreenFade fade = {
+        FixedUnsigned16Bootstrap(1.0f, 1 << 12),
+        FixedUnsigned16Bootstrap(0.5f, 1 << 12),
+        static_cast<short>(FFADE_OUT | FFADE_STAYOUT),
+        0,
+        0,
+        0,
+        255,
+    };
+    const std::size_t completed_before = state.frame_message_buffer.CompletedCount();
+    StubMessageBegin(MSG_ALL, result.message_id, nullptr, nullptr);
+    StubWriteShort(fade.duration);
+    StubWriteShort(fade.holdTime);
+    StubWriteShort(fade.fadeFlags);
+    StubWriteByte(fade.r);
+    StubWriteByte(fade.g);
+    StubWriteByte(fade.b);
+    StubWriteByte(fade.a);
+    StubMessageEnd();
+
+    result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+    result.detail =
+        "channel=ScreenFade"
+        " id=" + std::to_string(result.message_id)
+        + " node=" + (request.node_name.empty() ? std::string("<empty>") : request.node_name)
+        + " event=" + (request.message.empty() ? std::string("<empty>") : request.message)
+        + " duration=" + std::to_string(fade.duration)
+        + " hold=" + std::to_string(fade.holdTime)
+        + " flags=" + std::to_string(fade.fadeFlags)
+        + " rgba=0/0/0/255"
+        + " emitted=" + BoolToYesNo(result.emitted)
+        + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
+    return result;
+}
+
+PathNodeMessageEmitResult EmitPathNodeTextMessageBootstrap(
+    EngineShimState& state,
+    const hl::game_api::detail::PathNodeEventDispatchRequest& request)
+{
+    PathNodeMessageEmitResult result;
+    result.message_id = ResolveUserMessageId(state, "TextMsg");
+    if (result.message_id > 0)
+    {
+        result.channel_name = "TextMsg";
+        const std::string text =
+            "fade_out staged bootstrap @" + (request.node_name.empty()
+                ? std::string("<empty>")
+                : request.node_name);
+        const std::size_t completed_before = state.frame_message_buffer.CompletedCount();
+        StubMessageBegin(MSG_ALL, result.message_id, nullptr, nullptr);
+        StubWriteByte(HUD_PRINTCENTER);
+        StubWriteString(text.c_str());
+        StubMessageEnd();
+        result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+        result.detail =
+            "channel=TextMsg"
+            " id=" + std::to_string(result.message_id)
+            + " hudPrint=" + std::to_string(HUD_PRINTCENTER)
+            + " text=" + text
+            + " emitted=" + BoolToYesNo(result.emitted)
+            + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
+        return result;
+    }
+
+    result.message_id = ResolveUserMessageId(state, "HudText");
+    result.channel_name = "HudText";
+    if (result.message_id == 0)
+    {
+        result.detail = "message channel TextMsg/HudText is unavailable";
+        return result;
+    }
+
+    const std::string text =
+        "fade_out staged bootstrap @" + (request.node_name.empty()
+            ? std::string("<empty>")
+            : request.node_name);
+    const std::size_t completed_before = state.frame_message_buffer.CompletedCount();
+    StubMessageBegin(MSG_ALL, result.message_id, nullptr, nullptr);
+    StubWriteString(text.c_str());
+    StubMessageEnd();
+    result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+    result.detail =
+        "channel=HudText"
+        " id=" + std::to_string(result.message_id)
+        + " payload=simplified-bootstrap-string"
+        + " text=" + text
+        + " emitted=" + BoolToYesNo(result.emitted)
+        + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
+    return result;
+}
+
+PathNodePresentationLinkageProbe ProbePathNodePresentationLinkage(
+    const EngineShimState& state,
+    std::string_view event_name)
+{
+    PathNodePresentationLinkageProbe probe;
+    if (event_name.empty())
+    {
+        return probe;
+    }
+
+    const auto collect_match_fields =
+        [&](std::string_view targetname,
+            std::string_view message,
+            std::string_view target)
+        {
+            std::vector<std::string> matches;
+            if (EqualsIgnoreCase(targetname, event_name))
+            {
+                matches.push_back("targetname");
+            }
+            if (EqualsIgnoreCase(message, event_name))
+            {
+                matches.push_back("message");
+            }
+            if (EqualsIgnoreCase(target, event_name))
+            {
+                matches.push_back("target");
+            }
+            return matches;
+        };
+
+    for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        const bool env_message = EqualsIgnoreCase(record.classname, "env_message");
+        const bool env_fade = EqualsIgnoreCase(record.classname, "env_fade");
+        if (!env_message && !env_fade)
+        {
+            continue;
+        }
+
+        const std::vector<std::string> matches =
+            collect_match_fields(record.targetname, record.message, record.target);
+        if (matches.empty())
+        {
+            continue;
+        }
+
+        if (env_message)
+        {
+            ++probe.env_message_runtime_candidates;
+            probe.actionable_env_message_runtime =
+                probe.actionable_env_message_runtime || IsLiveRuntimeTargetRecord(record);
+        }
+        else
+        {
+            ++probe.env_fade_runtime_candidates;
+        }
+
+        if (probe.details.size() < 8)
+        {
+            probe.details.push_back(
+                "runtime edict#" + std::to_string(record.edict_index)
+                + " classname=" + (record.classname.empty()
+                    ? std::string("<empty>")
+                    : record.classname)
+                + " match=" + JoinStringValues(matches)
+                + " live=" + BoolToYesNo(IsLiveRuntimeTargetRecord(record))
+                + " targetname="
+                + (record.targetname.empty() ? std::string("<empty>") : record.targetname)
+                + " message="
+                + (record.message.empty() ? std::string("<empty>") : record.message)
+                + " target=" + (record.target.empty() ? std::string("<empty>") : record.target));
+        }
+    }
+
+    for (const hl::game_api::detail::EntityDefinition& definition :
+         state.entity_bootstrap.parsed_entities)
+    {
+        const bool env_message = EqualsIgnoreCase(definition.classname, "env_message");
+        const bool env_fade = EqualsIgnoreCase(definition.classname, "env_fade");
+        if (!env_message && !env_fade)
+        {
+            continue;
+        }
+
+        const std::string* targetname = FindLastKeyValue(definition, "targetname");
+        const std::string* message = FindLastKeyValue(definition, "message");
+        const std::string* target = FindLastKeyValue(definition, "target");
+        const std::vector<std::string> matches = collect_match_fields(
+            targetname != nullptr ? *targetname : std::string_view{},
+            message != nullptr ? *message : std::string_view{},
+            target != nullptr ? *target : std::string_view{});
+        if (matches.empty())
+        {
+            continue;
+        }
+
+        if (env_message)
+        {
+            ++probe.env_message_parsed_candidates;
+        }
+        else
+        {
+            ++probe.env_fade_parsed_candidates;
+        }
+
+        const RuntimeEntityRecord* runtime_record =
+            FindRuntimeRecordByParseIndex(state, definition.ordinal);
+        if (env_message && runtime_record != nullptr)
+        {
+            probe.actionable_env_message_runtime =
+                probe.actionable_env_message_runtime || IsLiveRuntimeTargetRecord(*runtime_record);
+        }
+
+        if (probe.details.size() < 8)
+        {
+            probe.details.push_back(
+                "parsed#" + std::to_string(definition.ordinal)
+                + " classname=" + SafeClassname(definition)
+                + " match=" + JoinStringValues(matches)
+                + " runtime="
+                + (runtime_record != nullptr
+                    ? BuildParsedRuntimeAuditDetail(*runtime_record)
+                    : std::string("runtimeRecordMissing")));
+        }
+    }
+
+    return probe;
+}
+
+std::string BuildPathNodePresentationLinkageSummary(
+    const PathNodePresentationLinkageProbe& probe,
+    bool fade_channel_available,
+    int fade_message_id,
+    bool message_channel_available,
+    std::string_view message_channel_name,
+    int message_channel_id)
+{
+    return "fadeChannel="
+        + (fade_channel_available
+            ? "available(ScreenFade#" + std::to_string(fade_message_id) + ")"
+            : std::string("missing"))
+        + " messageChannel="
+        + (message_channel_available
+            ? std::string("available(")
+                + (message_channel_name.empty()
+                    ? std::string("<unknown>")
+                    : std::string(message_channel_name))
+                + "#" + std::to_string(message_channel_id) + ")"
+            : std::string("missing"))
+        + " envMessageLinkage="
+        + ((probe.env_message_runtime_candidates > 0 || probe.env_message_parsed_candidates > 0)
+            ? (probe.actionable_env_message_runtime
+                ? std::string("runtime-actionable")
+                : std::string("present-nonactionable"))
+            : std::string("absent"))
+        + " envMessageRuntime=" + std::to_string(probe.env_message_runtime_candidates)
+        + " envMessageParsed=" + std::to_string(probe.env_message_parsed_candidates)
+        + " envFadeRuntime=" + std::to_string(probe.env_fade_runtime_candidates)
+        + " envFadeParsed=" + std::to_string(probe.env_fade_parsed_candidates)
+        + " probeDetails=" + JoinStringValues(probe.details);
+}
+
+PathNodePresentationDispatchResult DispatchKnownPathNodePresentationBootstrap(
+    EngineShimState& state,
+    const hl::game_api::detail::PathNodeEventDispatchRequest& request,
+    const hl::game_api::detail::MapLogicDispatchContext& dispatch_context,
+    const PathNodePresentationLinkageProbe& linkage_probe,
+    hl::game_api::detail::MapLogicDispatcher& dispatcher,
+    const hl::game_api::detail::MapLogicDispatcherHooks& hooks)
+{
+    PathNodePresentationDispatchResult result;
+
+    const int fade_message_id = ResolveUserMessageId(state, "ScreenFade");
+    const int text_message_id = ResolveUserMessageId(state, "TextMsg");
+    const int hud_text_message_id = ResolveUserMessageId(state, "HudText");
+    result.fade_channel_available = fade_message_id > 0;
+    result.message_channel_available = text_message_id > 0 || hud_text_message_id > 0;
+    result.env_message_linkage_found =
+        linkage_probe.env_message_runtime_candidates > 0
+        || linkage_probe.env_message_parsed_candidates > 0;
+    result.presentation_linkage_detail = BuildPathNodePresentationLinkageSummary(
+        linkage_probe,
+        result.fade_channel_available,
+        fade_message_id,
+        result.message_channel_available,
+        text_message_id > 0 ? std::string_view("TextMsg") : std::string_view("HudText"),
+        text_message_id > 0 ? text_message_id : hud_text_message_id);
+
+    if (result.fade_channel_available)
+    {
+        const PathNodeMessageEmitResult fade_emit =
+            EmitPathNodeScreenFadeBootstrap(state, request);
+        if (fade_emit.emitted)
+        {
+            result.dispatched = true;
+            result.dispatch_mode = "fade-channel";
+            result.classification = "resolved-and-dispatched-via-fade-channel";
+            result.fade_channel_used = true;
+            result.detail = fade_emit.detail;
+            return result;
+        }
+    }
+
+    if (result.message_channel_available)
+    {
+        const PathNodeMessageEmitResult message_emit =
+            EmitPathNodeTextMessageBootstrap(state, request);
+        if (message_emit.emitted)
+        {
+            result.dispatched = true;
+            result.dispatch_mode = "message-channel";
+            result.classification = "resolved-and-dispatched-via-message-channel";
+            result.message_channel_used = true;
+            result.detail = message_emit.detail;
+            return result;
+        }
+    }
+
+    if (linkage_probe.actionable_env_message_runtime)
+    {
+        result.dispatch_mode = "env_message-linkage";
+        result.env_message_linkage_used = dispatcher.DispatchTargetChain(dispatch_context, hooks);
+        if (result.env_message_linkage_used)
+        {
+            result.dispatched = true;
+            result.classification = "resolved-and-dispatched-via-env_message-linkage";
+            result.detail =
+                "env_message linkage dispatch target="
+                + (dispatch_context.target_name.empty()
+                    ? std::string("<empty>")
+                    : dispatch_context.target_name)
+                + " detail={" + result.presentation_linkage_detail + "}";
+            return result;
+        }
+
+        result.deferred = true;
+        result.classification = "deferred-missing-env-message-linkage";
+        result.required_subsystem = "actionable env_message runtime linkage";
+        result.detail =
+            "env_message linkage matched but dispatcher did not produce a staged action"
+            " detail={" + result.presentation_linkage_detail + "}";
+        return result;
+    }
+
+    if (result.env_message_linkage_found)
+    {
+        result.deferred = true;
+        result.dispatch_mode = "env_message-linkage";
+        result.classification = "deferred-missing-env-message-linkage";
+        result.required_subsystem = "actionable env_message runtime linkage";
+        result.detail =
+            "env_message linkage exists only in non-actionable parsed/runtime state"
+            " detail={" + result.presentation_linkage_detail + "}";
+        return result;
+    }
+
+    result.dispatched = true;
+    result.dispatch_mode = "summary-only-fallback";
+    result.classification = "summary-only-staged-fallback";
+    result.summary_only_fallback_used = true;
+    result.detail =
+        "summary-only staged presentation sink recorded fade/message event"
+        " node=" + (request.node_name.empty() ? std::string("<empty>") : request.node_name)
+        + " event=" + (request.message.empty() ? std::string("<empty>") : request.message)
+        + " detail={" + result.presentation_linkage_detail + "}";
+    return result;
 }
 
 std::string BuildCallbackDeltaSummary(
@@ -11392,21 +11869,23 @@ void PerformServerFrameLoop()
                             ? std::string("<empty>")
                             : request.node_name);
 
+                    const bool known_presentation_message =
+                        IsKnownPresentationPathNodeMessage(request.message);
+                    const PathNodePresentationLinkageProbe presentation_linkage_probe =
+                        known_presentation_message
+                        ? ProbePathNodePresentationLinkage(state, request.message)
+                        : PathNodePresentationLinkageProbe{};
                     const bool known_parsed_only_message =
                         IsKnownDeferredPathNodeMessage(request.message)
                         && target_probe.runtime_target_candidates == 0
                         && target_probe.parsed_target_candidates > 0;
-                    const bool known_unsupported_message =
-                        IsKnownUnsupportedPathNodeMessage(request.message)
-                        && target_probe.runtime_target_candidates == 0
-                        && target_probe.parsed_target_candidates == 0;
                     const bool skip_runtime_dispatch =
-                        known_parsed_only_message || known_unsupported_message;
+                        known_parsed_only_message || known_presentation_message;
                     const std::string runtime_dispatch_mode =
                         known_parsed_only_message
                         ? "skip-runtime-known-parsed-only"
-                        : known_unsupported_message
-                        ? "skip-runtime-known-unsupported"
+                        : known_presentation_message
+                        ? "presentation-bootstrap"
                         : "runtime-dispatch";
                     const bool dispatched = skip_runtime_dispatch
                         ? false
@@ -11414,7 +11893,8 @@ void PerformServerFrameLoop()
                             dispatch_context,
                             map_logic_hooks);
                     const ParsedTriggerRelayBootstrapDispatchResult parsed_trigger_relay_bootstrap =
-                        target_probe.runtime_target_candidates == 0
+                        !known_presentation_message
+                            && target_probe.runtime_target_candidates == 0
                             && target_probe.parsed_target_candidates > 0
                         ? TryDispatchParsedOnlyTriggerRelayBootstrap(
                             state,
@@ -11424,6 +11904,16 @@ void PerformServerFrameLoop()
                             map_logic_dispatcher,
                             map_logic_hooks)
                         : ParsedTriggerRelayBootstrapDispatchResult{};
+                    const PathNodePresentationDispatchResult presentation_dispatch =
+                        known_presentation_message
+                        ? DispatchKnownPathNodePresentationBootstrap(
+                            state,
+                            request,
+                            dispatch_context,
+                            presentation_linkage_probe,
+                            map_logic_dispatcher,
+                            map_logic_hooks)
+                        : PathNodePresentationDispatchResult{};
                     const hl::game_api::MapLogicFrameStateSummary* after_frame =
                         map_logic_dispatcher.CurrentFrameSummary();
                     const int after_use_attempts =
@@ -11547,6 +12037,53 @@ void PerformServerFrameLoop()
                         current_brush_door_dispatch.blocked_reason;
                     feedback.brush_door_runtime_audit =
                         current_brush_door_dispatch.runtime_audit;
+                    feedback.dispatch_mode = presentation_dispatch.dispatch_mode;
+                    feedback.fade_channel_available = presentation_dispatch.fade_channel_available;
+                    feedback.fade_channel_used = presentation_dispatch.fade_channel_used;
+                    feedback.message_channel_available =
+                        presentation_dispatch.message_channel_available;
+                    feedback.message_channel_used = presentation_dispatch.message_channel_used;
+                    feedback.env_message_linkage_found =
+                        presentation_dispatch.env_message_linkage_found;
+                    feedback.env_message_linkage_used =
+                        presentation_dispatch.env_message_linkage_used;
+                    feedback.summary_only_fallback_used =
+                        presentation_dispatch.summary_only_fallback_used;
+                    feedback.presentation_linkage_detail =
+                        presentation_dispatch.presentation_linkage_detail;
+                    if (known_presentation_message)
+                    {
+                        feedback.unresolved_target = false;
+                        if (presentation_dispatch.dispatched)
+                        {
+                            feedback.resolved_targets = std::max(feedback.resolved_targets, 1);
+                            feedback.successful_targets = std::max(feedback.successful_targets, 1);
+                            if (feedback.resolved_target_details.size() < 8
+                                && !presentation_dispatch.detail.empty())
+                            {
+                                feedback.resolved_target_details.push_back(
+                                    presentation_dispatch.detail);
+                            }
+                            if (presentation_dispatch.fade_channel_used)
+                            {
+                                AppendUniqueValue(
+                                    feedback.target_classnames,
+                                    "bootstrap_screenfade");
+                            }
+                            else if (presentation_dispatch.message_channel_used)
+                            {
+                                AppendUniqueValue(
+                                    feedback.target_classnames,
+                                    "bootstrap_message_channel");
+                            }
+                            else if (presentation_dispatch.summary_only_fallback_used)
+                            {
+                                AppendUniqueValue(
+                                    feedback.target_classnames,
+                                    "bootstrap_summary_sink");
+                            }
+                        }
+                    }
 
                     if (feedback.successful_targets > 0)
                     {
@@ -11606,17 +12143,18 @@ void PerformServerFrameLoop()
                             ? parsed_trigger_relay_bootstrap.required_subsystem
                             : "broader scripted actor/bootstrap progression semantics";
                     }
-                    else if (IsKnownUnsupportedPathNodeMessage(request.message)
-                        && target_probe.runtime_target_candidates == 0
-                        && feedback.resolved_targets == 0
-                        && !feedback.pfn_use_attempted)
+                    else if (known_presentation_message)
                     {
-                        feedback.outcome =
-                            hl::game_api::detail::PathNodeEventDispatchOutcome::kDeferred;
+                        feedback.outcome = presentation_dispatch.dispatched
+                            ? hl::game_api::detail::PathNodeEventDispatchOutcome::kSucceeded
+                            : presentation_dispatch.deferred
+                            ? hl::game_api::detail::PathNodeEventDispatchOutcome::kDeferred
+                            : feedback.outcome;
                         feedback.unresolved_target = false;
-                        feedback.classification_hint = "encountered-unsupported";
-                        feedback.required_subsystem =
-                            "client bootstrap fade channel, message channel, or env_message linkage";
+                        feedback.classification_hint = !presentation_dispatch.classification.empty()
+                            ? presentation_dispatch.classification
+                            : "summary-only-staged-fallback";
+                        feedback.required_subsystem = presentation_dispatch.required_subsystem;
                     }
                     else if (EqualsIgnoreCase(request.message, "room2train")
                         && target_probe.runtime_target_candidates > 0
@@ -11675,10 +12213,32 @@ void PerformServerFrameLoop()
                             : request.speed_decision)
                         + " runtimeDispatchMode=" + runtime_dispatch_mode
                         + " dispatched=" + (dispatched ? "yes" : "no")
+                        + " presentationDispatchMode="
+                        + (feedback.dispatch_mode.empty()
+                            ? std::string("<none>")
+                            : feedback.dispatch_mode)
+                        + " presentationDispatched="
+                        + BoolToYesNo(presentation_dispatch.dispatched)
                         + " runtimeTargets="
                         + std::to_string(target_probe.runtime_target_candidates)
                         + " parsedTargets="
                         + std::to_string(target_probe.parsed_target_candidates)
+                        + " fadeChannelAvailable="
+                        + BoolToYesNo(feedback.fade_channel_available)
+                        + " fadeChannelUsed=" + BoolToYesNo(feedback.fade_channel_used)
+                        + " messageChannelAvailable="
+                        + BoolToYesNo(feedback.message_channel_available)
+                        + " messageChannelUsed=" + BoolToYesNo(feedback.message_channel_used)
+                        + " envMessageLinkageFound="
+                        + BoolToYesNo(feedback.env_message_linkage_found)
+                        + " envMessageLinkageUsed="
+                        + BoolToYesNo(feedback.env_message_linkage_used)
+                        + " summaryFallbackUsed="
+                        + BoolToYesNo(feedback.summary_only_fallback_used)
+                        + " presentationLinkage="
+                        + (feedback.presentation_linkage_detail.empty()
+                            ? std::string("<none>")
+                            : feedback.presentation_linkage_detail)
                         + " resolvedDelta=" + std::to_string(std::max(0, resolved_delta))
                         + " useAttemptDelta=" + std::to_string(std::max(0, use_attempt_delta))
                         + " successDelta=" + std::to_string(std::max(0, success_delta))
@@ -11742,6 +12302,11 @@ void PerformServerFrameLoop()
                         feedback.detail +=
                             " requiredSubsystem=" + feedback.required_subsystem;
                     }
+                    if (!presentation_dispatch.detail.empty())
+                    {
+                        feedback.detail +=
+                            " presentationDetail={" + presentation_dispatch.detail + "}";
+                    }
                     if (!feedback.brush_door_runtime_audit.empty())
                     {
                         feedback.detail +=
@@ -11762,11 +12327,18 @@ void PerformServerFrameLoop()
                             ? " note=execute_sci parsed trigger_relay bootstrap dispatch ran from parsed-only entity state; no downstream scripted actor progression was observed"
                             : " note=execute_sci currently surfaced as a staged scripted cue; broader actor/script progression semantics are still pending";
                     }
-                    else if (IsKnownUnsupportedPathNodeMessage(request.message)
-                        && target_probe.runtime_target_candidates == 0)
+                    else if (known_presentation_message)
                     {
                         feedback.detail +=
-                            " note=fade_out currently surfaced as a client/message-style presentation token; later needs client/bootstrap fade channel or env_message linkage";
+                            presentation_dispatch.fade_channel_used
+                            ? " note=fade_out emitted through staged ScreenFade bootstrap; no full client rendering/runtime was required"
+                            : presentation_dispatch.message_channel_used
+                            ? " note=fade_out emitted through staged message-channel bootstrap; no full HUD/UI runtime was required"
+                            : presentation_dispatch.env_message_linkage_used
+                            ? " note=fade_out used staged env_message linkage after channel probes"
+                            : presentation_dispatch.summary_only_fallback_used
+                            ? " note=fade_out was captured by a staged summary-only presentation sink"
+                            : " note=fade_out remains on a concrete staged presentation path, but a narrower env_message/runtime link is still missing";
                     }
 
                     return feedback;
@@ -13461,17 +14033,32 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + (record.classification.empty()
                     ? std::string("<none>")
                     : record.classification)
+                + " dispatchMode="
+                + (record.dispatch_mode.empty()
+                    ? std::string("<none>")
+                    : record.dispatch_mode)
                 + " resolvedTargets=" + std::to_string(record.resolved_targets)
                 + " runtimeTargets=" + std::to_string(record.runtime_target_candidates)
                 + " parsedTargets=" + std::to_string(record.parsed_target_candidates)
                 + " pfnUseAttempted=" + BoolToYesNo(record.pfn_use_attempted)
                 + " visibleDownstream=" + BoolToYesNo(record.visible_downstream_progression)
+                + " fadeChannelAvailable=" + BoolToYesNo(record.fade_channel_available)
+                + " fadeChannelUsed=" + BoolToYesNo(record.fade_channel_used)
+                + " messageChannelAvailable=" + BoolToYesNo(record.message_channel_available)
+                + " messageChannelUsed=" + BoolToYesNo(record.message_channel_used)
+                + " envMessageLinkageFound=" + BoolToYesNo(record.env_message_linkage_found)
+                + " envMessageLinkageUsed=" + BoolToYesNo(record.env_message_linkage_used)
+                + " summaryFallbackUsed=" + BoolToYesNo(record.summary_only_fallback_used)
                 + " targetClassnames=" + JoinStringValues(record.target_classnames)
                 + " resolvedTargetDetails=" + JoinStringValues(record.resolved_target_details)
                 + " downstream="
                 + (record.downstream_summary.empty()
                     ? std::string("<none>")
                     : record.downstream_summary)
+                + " presentationLinkage="
+                + (record.presentation_linkage_detail.empty()
+                    ? std::string("<none>")
+                    : record.presentation_linkage_detail)
                 + " brushDoorAttempted=" + BoolToYesNo(record.brush_door_handling_attempted)
                 + " brushDoorPath="
                 + (record.brush_door_dispatch_path.empty()
@@ -13524,6 +14111,14 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + (canary.dispatch_result.empty()
                     ? std::string("<none>")
                     : canary.dispatch_result)
+                + " classification="
+                + (canary.classification.empty()
+                    ? std::string("<none>")
+                    : canary.classification)
+                + " dispatchMode="
+                + (canary.dispatch_mode.empty()
+                    ? std::string("<none>")
+                    : canary.dispatch_mode)
                 + " nodeSpeed=" + std::to_string(canary.node_speed_metadata)
                 + " speed=" + std::to_string(canary.mover_speed_at_encounter)
                 + " speedBefore=" + std::to_string(canary.mover_speed_before_encounter)
@@ -13532,12 +14127,23 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + " text=" + (canary.message.empty()
                     ? std::string("<none>")
                     : canary.message)
+                + " fadeChannelAvailable=" + BoolToYesNo(canary.fade_channel_available)
+                + " fadeChannelUsed=" + BoolToYesNo(canary.fade_channel_used)
+                + " messageChannelAvailable=" + BoolToYesNo(canary.message_channel_available)
+                + " messageChannelUsed=" + BoolToYesNo(canary.message_channel_used)
+                + " envMessageLinkageFound=" + BoolToYesNo(canary.env_message_linkage_found)
+                + " envMessageLinkageUsed=" + BoolToYesNo(canary.env_message_linkage_used)
+                + " summaryFallbackUsed=" + BoolToYesNo(canary.summary_only_fallback_used)
                 + " targetClassnames=" + JoinStringValues(canary.target_classnames)
                 + " resolvedTargetDetails=" + JoinStringValues(canary.resolved_target_details)
                 + " downstream="
                 + (canary.downstream_summary.empty()
                     ? std::string("<none>")
                     : canary.downstream_summary)
+                + " presentationLinkage="
+                + (canary.presentation_linkage_detail.empty()
+                    ? std::string("<none>")
+                    : canary.presentation_linkage_detail)
                 + " brushDoorAttempted=" + BoolToYesNo(canary.brush_door_handling_attempted)
                 + " brushDoorPath="
                 + (canary.brush_door_dispatch_path.empty()
@@ -13561,6 +14167,53 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
                 + (canary.required_subsystem.empty()
                     ? std::string("<none>")
                     : canary.required_subsystem));
+        }
+    }
+    if (!summary.scripted_movement.path_node_messages.presentation_events.empty())
+    {
+        hl::common::Logger::Info("  - staged presentation events:");
+        for (const hl::game_api::PathNodePresentationEventSummary& event :
+             summary.scripted_movement.path_node_messages.presentation_events)
+        {
+            hl::common::Logger::Info(
+                "    * event=" + (event.event_name.empty()
+                    ? std::string("<none>")
+                    : event.event_name)
+                + " node=" + (event.source_node.empty()
+                    ? std::string("<none>")
+                    : event.source_node)
+                + " frame=" + std::to_string(event.frame_number)
+                + " time=" + std::to_string(event.time)
+                + " attempted=" + BoolToYesNo(event.dispatch_attempted)
+                + " succeeded=" + BoolToYesNo(event.succeeded)
+                + " deferred=" + BoolToYesNo(event.deferred)
+                + " mode="
+                + (event.dispatch_mode.empty()
+                    ? std::string("<none>")
+                    : event.dispatch_mode)
+                + " classification="
+                + (event.classification.empty()
+                    ? std::string("<none>")
+                    : event.classification)
+                + " fadeChannelAvailable=" + BoolToYesNo(event.fade_channel_available)
+                + " fadeChannelUsed=" + BoolToYesNo(event.fade_channel_used)
+                + " messageChannelAvailable=" + BoolToYesNo(event.message_channel_available)
+                + " messageChannelUsed=" + BoolToYesNo(event.message_channel_used)
+                + " envMessageLinkageFound=" + BoolToYesNo(event.env_message_linkage_found)
+                + " envMessageLinkageUsed=" + BoolToYesNo(event.env_message_linkage_used)
+                + " summaryFallbackUsed=" + BoolToYesNo(event.summary_only_fallback_used)
+                + " requiredSubsystem="
+                + (event.required_subsystem.empty()
+                    ? std::string("<none>")
+                    : event.required_subsystem)
+                + " linkage="
+                + (event.presentation_linkage_detail.empty()
+                    ? std::string("<none>")
+                    : event.presentation_linkage_detail)
+                + " detail="
+                + (event.dispatch_detail.empty()
+                    ? std::string("<none>")
+                    : event.dispatch_detail));
         }
     }
     if (!summary.scripted_movement.path_node_messages.rolling_trace.empty())

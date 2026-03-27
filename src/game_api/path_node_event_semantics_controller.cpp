@@ -259,6 +259,25 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         + " resolvedTargets=" + std::to_string(feedback.resolved_targets)
         + " targetClassnames=" + JoinValues(feedback.target_classnames)
         + " resolvedTargetDetails=" + JoinValues(feedback.resolved_target_details)
+        + " dispatchMode="
+        + (feedback.dispatch_mode.empty() ? std::string("<none>") : feedback.dispatch_mode)
+        + " fadeChannelAvailable="
+        + (feedback.fade_channel_available ? std::string("yes") : "no")
+        + " fadeChannelUsed=" + (feedback.fade_channel_used ? std::string("yes") : "no")
+        + " messageChannelAvailable="
+        + (feedback.message_channel_available ? std::string("yes") : "no")
+        + " messageChannelUsed="
+        + (feedback.message_channel_used ? std::string("yes") : "no")
+        + " envMessageLinkageFound="
+        + (feedback.env_message_linkage_found ? std::string("yes") : "no")
+        + " envMessageLinkageUsed="
+        + (feedback.env_message_linkage_used ? std::string("yes") : "no")
+        + " summaryFallbackUsed="
+        + (feedback.summary_only_fallback_used ? std::string("yes") : "no")
+        + " presentationLinkage="
+        + (feedback.presentation_linkage_detail.empty()
+            ? std::string("<none>")
+            : feedback.presentation_linkage_detail)
         + " pfnUseAttempted=" + (feedback.pfn_use_attempted ? std::string("yes") : "no")
         + " brushDoorAttempted="
         + (feedback.brush_door_handling_attempted ? std::string("yes") : "no")
@@ -292,6 +311,25 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         + " failed=" + std::to_string(feedback.failed_targets)
         + " targetClassnames=" + JoinValues(feedback.target_classnames)
         + " resolvedTargetDetails=" + JoinValues(feedback.resolved_target_details)
+        + " dispatchMode="
+        + (feedback.dispatch_mode.empty() ? std::string("<none>") : feedback.dispatch_mode)
+        + " fadeChannelAvailable="
+        + (feedback.fade_channel_available ? std::string("yes") : "no")
+        + " fadeChannelUsed=" + (feedback.fade_channel_used ? std::string("yes") : "no")
+        + " messageChannelAvailable="
+        + (feedback.message_channel_available ? std::string("yes") : "no")
+        + " messageChannelUsed="
+        + (feedback.message_channel_used ? std::string("yes") : "no")
+        + " envMessageLinkageFound="
+        + (feedback.env_message_linkage_found ? std::string("yes") : "no")
+        + " envMessageLinkageUsed="
+        + (feedback.env_message_linkage_used ? std::string("yes") : "no")
+        + " summaryFallbackUsed="
+        + (feedback.summary_only_fallback_used ? std::string("yes") : "no")
+        + " presentationLinkage="
+        + (feedback.presentation_linkage_detail.empty()
+            ? std::string("<none>")
+            : feedback.presentation_linkage_detail)
         + " pfnUseAttempted=" + (feedback.pfn_use_attempted ? std::string("yes") : "no")
         + " brushDoorAttempted="
         + (feedback.brush_door_handling_attempted ? std::string("yes") : "no")
@@ -328,6 +366,11 @@ PathNodeEventSemanticsResult PathNodeEventSemanticsController::HandleArrival(
         node,
         frame,
         mover,
+        feedback,
+        result.classification);
+    NotePresentationEvent(
+        node,
+        frame,
         feedback,
         result.classification);
     NoteCanaryReach(
@@ -472,6 +515,26 @@ bool PathNodeEventSemanticsController::EqualsIgnoreCase(
         });
 }
 
+bool PathNodeEventSemanticsController::StartsWithIgnoreCase(
+    std::string_view value,
+    std::string_view prefix) noexcept
+{
+    if (value.size() < prefix.size())
+    {
+        return false;
+    }
+
+    return std::equal(
+        prefix.begin(),
+        prefix.end(),
+        value.begin(),
+        [](char lhs, char rhs)
+        {
+            return std::tolower(static_cast<unsigned char>(lhs))
+                == std::tolower(static_cast<unsigned char>(rhs));
+        });
+}
+
 void PathNodeEventSemanticsController::AppendUnique(
     std::vector<std::string>& lines,
     std::string value)
@@ -564,6 +627,23 @@ PathNodeEventSemanticsController::FindMessageRecord(
     return it != summary.message_records.end() ? &(*it) : nullptr;
 }
 
+hl::game_api::PathNodePresentationEventSummary*
+PathNodeEventSemanticsController::FindPresentationEvent(
+    hl::game_api::PathNodeMessageStateSummary& summary,
+    std::string_view node_name,
+    std::string_view event_name)
+{
+    const auto it = std::find_if(
+        summary.presentation_events.begin(),
+        summary.presentation_events.end(),
+        [&](const hl::game_api::PathNodePresentationEventSummary& record)
+        {
+            return EqualsIgnoreCase(record.source_node, node_name)
+                && EqualsIgnoreCase(record.event_name, event_name);
+        });
+    return it != summary.presentation_events.end() ? &(*it) : nullptr;
+}
+
 void PathNodeEventSemanticsController::EnsureCanaryDefaults()
 {
     if (config_.canary_nodes.empty())
@@ -583,7 +663,7 @@ void PathNodeEventSemanticsController::EnsureCanaryDefaults()
 
 void PathNodeEventSemanticsController::NoteClassificationCount(std::string_view classification)
 {
-    if (IsClassification(classification, "resolved-and-dispatched"))
+    if (StartsWithIgnoreCase(classification, "resolved-and-dispatched"))
     {
         ++summary_.resolved_and_dispatched;
     }
@@ -630,6 +710,14 @@ void PathNodeEventSemanticsController::NoteMessageRecord(
     record->dispatch_attempted = feedback.attempted;
     record->dispatch_result = DispatchOutcomeLabel(feedback.outcome);
     record->classification = std::string(classification);
+    record->dispatch_mode = feedback.dispatch_mode;
+    record->fade_channel_available = feedback.fade_channel_available;
+    record->fade_channel_used = feedback.fade_channel_used;
+    record->message_channel_available = feedback.message_channel_available;
+    record->message_channel_used = feedback.message_channel_used;
+    record->env_message_linkage_found = feedback.env_message_linkage_found;
+    record->env_message_linkage_used = feedback.env_message_linkage_used;
+    record->summary_only_fallback_used = feedback.summary_only_fallback_used;
     record->resolved_targets = feedback.resolved_targets;
     record->runtime_target_candidates = feedback.runtime_target_candidates;
     record->parsed_target_candidates = feedback.parsed_target_candidates;
@@ -639,6 +727,7 @@ void PathNodeEventSemanticsController::NoteMessageRecord(
     record->target_classnames = feedback.target_classnames;
     record->resolved_target_details = feedback.resolved_target_details;
     record->downstream_summary = feedback.downstream_summary;
+    record->presentation_linkage_detail = feedback.presentation_linkage_detail;
     record->dispatch_detail = feedback.detail;
     record->required_subsystem = feedback.required_subsystem;
     record->brush_door_handling_attempted = feedback.brush_door_handling_attempted;
@@ -657,6 +746,55 @@ void PathNodeEventSemanticsController::NoteMessageRecord(
     record->downstream_scheduled_actions = feedback.downstream_scheduled_actions;
     record->downstream_alert_callbacks = feedback.alert_callbacks;
     record->downstream_message_callbacks = feedback.message_callbacks;
+}
+
+void PathNodeEventSemanticsController::NotePresentationEvent(
+    const TrackPathNodeView& node,
+    const ScriptedMovementFrameContext& frame,
+    const PathNodeEventDispatchFeedback& feedback,
+    std::string_view classification)
+{
+    const bool presentation_event =
+        !feedback.dispatch_mode.empty()
+        || feedback.fade_channel_available
+        || feedback.fade_channel_used
+        || feedback.message_channel_available
+        || feedback.message_channel_used
+        || feedback.env_message_linkage_found
+        || feedback.env_message_linkage_used
+        || feedback.summary_only_fallback_used;
+    if (!presentation_event || node.message_target.empty())
+    {
+        return;
+    }
+
+    hl::game_api::PathNodePresentationEventSummary* record =
+        FindPresentationEvent(summary_, node.targetname, node.message_target);
+    if (record == nullptr)
+    {
+        summary_.presentation_events.push_back({});
+        record = &summary_.presentation_events.back();
+        record->event_name = node.message_target;
+        record->source_node = node.targetname;
+    }
+
+    record->frame_number = frame.frame_number;
+    record->time = frame.time;
+    record->dispatch_attempted = feedback.attempted;
+    record->succeeded = feedback.outcome == PathNodeEventDispatchOutcome::kSucceeded;
+    record->deferred = feedback.outcome == PathNodeEventDispatchOutcome::kDeferred;
+    record->dispatch_mode = feedback.dispatch_mode;
+    record->classification = std::string(classification);
+    record->fade_channel_available = feedback.fade_channel_available;
+    record->fade_channel_used = feedback.fade_channel_used;
+    record->message_channel_available = feedback.message_channel_available;
+    record->message_channel_used = feedback.message_channel_used;
+    record->env_message_linkage_found = feedback.env_message_linkage_found;
+    record->env_message_linkage_used = feedback.env_message_linkage_used;
+    record->summary_only_fallback_used = feedback.summary_only_fallback_used;
+    record->required_subsystem = feedback.required_subsystem;
+    record->presentation_linkage_detail = feedback.presentation_linkage_detail;
+    record->dispatch_detail = feedback.detail;
 }
 
 void PathNodeEventSemanticsController::NoteCanaryReach(
@@ -686,6 +824,14 @@ void PathNodeEventSemanticsController::NoteCanaryReach(
             canary.staged_dispatch_attempted = feedback.attempted;
             canary.dispatch_result = DispatchOutcomeLabel(feedback.outcome);
             canary.classification = std::string(classification);
+            canary.dispatch_mode = feedback.dispatch_mode;
+            canary.fade_channel_available = feedback.fade_channel_available;
+            canary.fade_channel_used = feedback.fade_channel_used;
+            canary.message_channel_available = feedback.message_channel_available;
+            canary.message_channel_used = feedback.message_channel_used;
+            canary.env_message_linkage_found = feedback.env_message_linkage_found;
+            canary.env_message_linkage_used = feedback.env_message_linkage_used;
+            canary.summary_only_fallback_used = feedback.summary_only_fallback_used;
             canary.node_speed_metadata = node.speed;
             canary.mover_speed_at_encounter = mover.summary.effective_speed;
             canary.mover_speed_before_encounter = mover.summary.last_speed_before_arrival;
@@ -702,6 +848,7 @@ void PathNodeEventSemanticsController::NoteCanaryReach(
             canary.target_classnames = feedback.target_classnames;
             canary.resolved_target_details = feedback.resolved_target_details;
             canary.downstream_summary = feedback.downstream_summary;
+            canary.presentation_linkage_detail = feedback.presentation_linkage_detail;
             canary.dispatch_detail = feedback.detail;
             canary.required_subsystem = feedback.required_subsystem;
             canary.brush_door_handling_attempted = feedback.brush_door_handling_attempted;
