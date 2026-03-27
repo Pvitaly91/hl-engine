@@ -1,0 +1,890 @@
+#pragma once
+
+#include <cstdint>
+#include <filesystem>
+#include <memory>
+#include <string>
+#include <vector>
+
+#include "game_api/cvar_registry.h"
+
+namespace hl::game_api
+{
+struct DllFunctionPointerStatus
+{
+    std::string name;
+    bool present = false;
+};
+
+struct InvokedEngineCallback
+{
+    std::string name;
+    std::size_t call_count = 0;
+};
+
+struct NamedCountSummary
+{
+    std::string name;
+    std::size_t count = 0;
+};
+
+struct FrameBootstrapOptions
+{
+    int frames = 1000;
+    float frametime = 0.05f;
+    int think_limit = 32;
+    int use_limit = 64;
+    int scheduled_use_limit = 128;
+    float path_arrival_epsilon = 24.0f;
+    bool trace_scripted = false;
+    bool trace_movement = false;
+    bool trace_think = false;
+    bool trace_callbacks = false;
+    int log_frame_sample = 10;
+    bool log_state_changes_only = true;
+    bool stop_on_first_message = false;
+    std::string stop_on_node;
+};
+
+struct GlobalVariablesSnapshot
+{
+    std::string map_name;
+    std::string startspot;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    float deathmatch = 0.0f;
+    float coop = 0.0f;
+    int max_clients = 0;
+    int max_entities = 0;
+};
+
+struct BspLumpSummary
+{
+    std::string name;
+    int file_offset = 0;
+    int file_length = 0;
+    bool within_file = false;
+};
+
+struct EntityClassCountSummary
+{
+    std::string classname;
+    std::size_t count = 0;
+};
+
+struct EntityClassSupportSummary
+{
+    std::string classname;
+    std::size_t spawned_successfully = 0;
+    std::size_t removed_during_spawn = 0;
+    std::size_t deferred_unsupported = 0;
+    std::size_t failed_during_spawn = 0;
+};
+
+struct WorldBootstrapStateSummary
+{
+    bool attempted = false;
+    bool completed = false;
+    std::string map_name;
+    std::string model_path;
+    std::string map_path;
+    bool bsp_loaded = false;
+    int bsp_version = 0;
+    std::uintmax_t bsp_file_size = 0;
+    std::size_t bsp_lump_count = 0;
+    std::vector<BspLumpSummary> key_lumps;
+    int world_model_index = 0;
+    int world_edict_index = -1;
+    std::size_t entities_lump_size = 0;
+    std::string edict0_state;
+    bool ready_for_entity_parsing = false;
+};
+
+struct EntityPipelineStateSummary
+{
+    bool attempted = false;
+    bool entities_lump_parsed = false;
+    bool partially_parsed = false;
+    std::string failure_reason;
+    std::size_t parse_error_count = 0;
+    std::size_t total_parsed_entities = 0;
+    std::size_t total_worldspawn_entities = 0;
+    bool first_entity_is_worldspawn = false;
+    std::size_t total_runtime_entities_allocated = 0;
+    std::size_t total_keyvalues_dispatched = 0;
+    std::size_t total_keyvalues_handled = 0;
+    std::size_t total_spawn_attempts = 0;
+    std::size_t total_successful_spawns = 0;
+    std::size_t total_removed_entities = 0;
+    std::size_t total_deferred_entities = 0;
+    std::vector<EntityClassCountSummary> top_classname_counts;
+    std::vector<EntityClassSupportSummary> classname_support_summary;
+    std::vector<std::string> sample_entities;
+    std::vector<std::string> sample_spawned_entities;
+    std::vector<InvokedEngineCallback> newly_exercised_engine_callbacks;
+};
+
+struct ServerBootstrapStateSummary
+{
+    bool initialized = false;
+    std::string game_directory;
+    std::string mod_name;
+    std::string hostname;
+    int maxclients = 0;
+    std::string map_name;
+    bool active = false;
+    bool loading = false;
+    std::uint64_t frame_count = 0;
+    std::uint64_t server_frame = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+};
+
+struct WorldspawnSpawnStateSummary
+{
+    bool attempted = false;
+    bool succeeded = false;
+    bool seh_exception = false;
+    unsigned int seh_code = 0;
+    std::string map_name;
+    int edict_index = -1;
+    std::string classname;
+    std::string last_callback;
+    std::vector<std::string> distinct_callback_tail;
+    std::vector<std::string> trace_tail;
+    std::vector<std::string> precache_tail;
+    std::size_t precache_requests = 0;
+    std::size_t sound_precache_count = 0;
+    std::size_t sound_registry_size = 0;
+    std::size_t missing_sound_files = 0;
+    std::size_t duplicate_sound_precache_count = 0;
+    std::uint64_t random_long_call_count = 0;
+};
+
+struct ServerActivationStateSummary
+{
+    bool function_present = false;
+    bool attempted = false;
+    bool preflight_succeeded = false;
+    bool succeeded = false;
+    bool seh_exception = false;
+    unsigned int seh_code = 0;
+    bool worldspawn_spawned = false;
+    bool edict0_valid = false;
+    int allocated_edicts = 0;
+    int edict_count_passed = 0;
+    int spawned_edicts = 0;
+    int removed_edicts = 0;
+    int deferred_edicts = 0;
+    int activation_candidate_count = 0;
+    int pruned_participants = 0;
+    int max_clients = 0;
+    std::string map_name;
+    std::string globals_snapshot;
+    std::string server_state_snapshot;
+    std::size_t trace_events_captured = 0;
+    std::vector<EntityClassCountSummary> activation_class_counts;
+    std::vector<std::string> activation_entities_preview;
+    std::vector<std::string> pruned_entities_preview;
+    std::vector<std::string> validation_rejections;
+    std::vector<std::string> distinct_callback_tail;
+    std::vector<std::string> callback_trace_tail;
+    std::string likely_blocker;
+};
+
+struct ServerFrameStateSummary
+{
+    int frame_number = 0;
+    std::uint64_t host_frame_index = 0;
+    std::uint64_t server_frame_index = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    bool validation_passed = false;
+    bool start_frame_present = false;
+    bool start_frame_called = false;
+    bool start_frame_succeeded = false;
+    bool seh_exception = false;
+    unsigned int seh_code = 0;
+    std::string globals_snapshot;
+    std::string server_state_snapshot;
+    int active_edicts = 0;
+    int spawned_entities = 0;
+    int removed_entities = 0;
+    int deferred_entities = 0;
+    std::vector<std::string> validation_issues;
+    std::vector<std::string> entity_preview;
+    std::vector<std::string> message_preview;
+    std::vector<std::string> callback_trace_tail;
+    std::vector<InvokedEngineCallback> callback_counts_this_frame;
+};
+
+struct ServerFrameLoopStateSummary
+{
+    bool configured = false;
+    bool attempted = false;
+    bool activation_succeeded = false;
+    bool start_frame_present = false;
+    bool any_seh = false;
+    bool stopped_early = false;
+    unsigned int seh_code = 0;
+    int frames_requested = 0;
+    int frames_completed = 0;
+    int stop_frame = -1;
+    float fixed_frametime = 0.0f;
+    float final_time = 0.0f;
+    float stop_time = 0.0f;
+    std::size_t total_trace_events = 0;
+    std::vector<std::string> validation_failures;
+    std::vector<InvokedEngineCallback> callbacks_during_loop;
+    std::vector<ServerFrameStateSummary> frames;
+    std::string stop_reason;
+    std::string readiness;
+};
+
+struct EntityThinkFrameStateSummary
+{
+    int frame_number = 0;
+    std::uint64_t host_frame_index = 0;
+    std::uint64_t server_frame_index = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    int active_entities = 0;
+    int due_thinks = 0;
+    int executed_thinks = 0;
+    int deferred_thinks = 0;
+    int think_failures = 0;
+    int seh_failures = 0;
+    int removed_by_game_logic = 0;
+    std::vector<std::string> due_entities_preview;
+    std::vector<std::string> callback_trace_tail;
+    std::vector<InvokedEngineCallback> callback_counts_this_frame;
+};
+
+struct EntityLifecycleStateCountSummary
+{
+    std::string state;
+    std::size_t count = 0;
+};
+
+struct EntityLifecycleClassSummary
+{
+    std::string classname;
+    std::size_t active_supported = 0;
+    std::size_t passive_supported = 0;
+    std::size_t detected_but_deferred = 0;
+    std::size_t removed_by_game_logic = 0;
+    std::size_t due_thinks = 0;
+    std::size_t executed_thinks = 0;
+    std::size_t deferred_thinks = 0;
+};
+
+struct EntityThinkSchedulerStateSummary
+{
+    bool configured = false;
+    bool attempted = false;
+    bool start_frame_present = false;
+    bool think_dispatch_present = false;
+    int think_limit = 0;
+    int frames_attempted = 0;
+    int frames_completed = 0;
+    int total_due_thinks = 0;
+    int total_executed_thinks = 0;
+    int total_deferred_thinks = 0;
+    int total_think_failures = 0;
+    int total_seh_failures = 0;
+    int total_removed_by_game_logic = 0;
+    std::vector<EntityLifecycleStateCountSummary> active_entity_counts_by_support_state;
+    std::vector<EntityLifecycleClassSummary> classname_lifecycle_summary;
+    std::vector<InvokedEngineCallback> callbacks_during_scheduler;
+    std::vector<std::string> rolling_trace_tail;
+    std::vector<EntityThinkFrameStateSummary> frames;
+    std::string readiness;
+};
+
+enum class MapLogicSupportState
+{
+    kUseSupported,
+    kPassiveRecipientOnly,
+    kDetectedButDeferred,
+    kRemovedByGameLogic,
+};
+
+enum class ScriptedLogicSupportState
+{
+    kPassiveRecipientOnly,
+    kUseSupported,
+    kScheduledUseSupported,
+    kScriptedProgressing,
+    kBlockedOnMovement,
+    kBlockedOnActor,
+    kBlockedOnEngineCallback,
+    kRemovedByGameLogic,
+};
+
+struct MapLogicFrameStateSummary
+{
+    int frame_number = 0;
+    std::uint64_t host_frame_index = 0;
+    std::uint64_t server_frame_index = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    int queue_size_before = 0;
+    int queue_size_after = 0;
+    int target_chains_fired = 0;
+    int target_resolutions = 0;
+    int use_attempts = 0;
+    int use_successes = 0;
+    int use_deferred = 0;
+    int use_failures = 0;
+    int use_seh_failures = 0;
+    int scheduled_due = 0;
+    int scheduled_created = 0;
+    int scheduled_executed = 0;
+    int scheduled_rescheduled = 0;
+    int scheduled_skipped = 0;
+    int scheduled_failed = 0;
+    int scheduled_deferred = 0;
+    int scheduled_pending = 0;
+    int long_delay_executed = 0;
+    int long_delay_pending = 0;
+    std::vector<std::string> scheduled_action_preview;
+    std::vector<std::string> trace_tail;
+    std::vector<InvokedEngineCallback> callback_counts_this_frame;
+};
+
+struct MapLogicClassSummary
+{
+    std::string classname;
+    MapLogicSupportState support_state = MapLogicSupportState::kDetectedButDeferred;
+    std::size_t active_entities = 0;
+    std::size_t can_think = 0;
+    std::size_t can_receive_use = 0;
+    std::size_t can_emit_targets = 0;
+    std::size_t pending_scheduled_outputs = 0;
+    std::size_t triggered_this_frame = 0;
+    std::size_t blocked_or_deferred = 0;
+    std::size_t target_resolutions = 0;
+    std::size_t use_attempts = 0;
+    std::size_t use_successes = 0;
+    std::size_t use_deferred = 0;
+    std::size_t use_failures = 0;
+};
+
+struct MapLogicDispatcherStateSummary
+{
+    bool configured = false;
+    bool attempted = false;
+    bool use_dispatch_present = false;
+    int use_limit = 0;
+    int scheduled_use_limit = 0;
+    int frames_attempted = 0;
+    int frames_completed = 0;
+    int total_target_chains_fired = 0;
+    int total_target_resolutions = 0;
+    int total_no_targets_found = 0;
+    int total_single_target_hits = 0;
+    int total_multi_target_hits = 0;
+    int total_use_attempts = 0;
+    int total_use_successes = 0;
+    int total_use_deferred = 0;
+    int total_use_failures = 0;
+    int total_use_seh_failures = 0;
+    int total_scheduled_created = 0;
+    int total_scheduled_executed = 0;
+    int total_scheduled_rescheduled = 0;
+    int total_scheduled_skipped = 0;
+    int total_scheduled_failed = 0;
+    int total_scheduled_deferred = 0;
+    int total_long_delay_executed = 0;
+    int total_long_delay_pending = 0;
+    int scheduled_pending = 0;
+    std::vector<MapLogicClassSummary> classname_summary;
+    std::vector<InvokedEngineCallback> callbacks_during_dispatcher;
+    std::vector<MapLogicFrameStateSummary> frames;
+    std::vector<std::string> rolling_trace_tail;
+    std::string readiness;
+};
+
+struct ScriptedLogicEntitySummary
+{
+    int edict_index = -1;
+    std::size_t parse_index = 0;
+    std::string classname;
+    std::string targetname;
+    std::string target;
+    std::string actor_name;
+    std::string actor_classname;
+    std::string play;
+    std::string idle;
+    int move_to = 0;
+    float radius = 0.0f;
+    int spawnflags = 0;
+    int received_use_count = 0;
+    int emitted_target_count = 0;
+    int scheduled_output_count = 0;
+    int last_trigger_frame = -1;
+    float last_trigger_time = 0.0f;
+    std::string last_source_entity;
+    std::string blocked_reason;
+    ScriptedLogicSupportState support_state = ScriptedLogicSupportState::kPassiveRecipientOnly;
+    bool progressed_this_frame = false;
+    bool progressed_this_run = false;
+    bool internal_state_changed = false;
+    bool scheduled_follow_up = false;
+    bool emitted_targets = false;
+    bool actor_exists = false;
+    bool path_linked = false;
+    std::vector<std::string> path_links_preview;
+};
+
+struct ScriptedLogicClassSummary
+{
+    std::string classname;
+    ScriptedLogicSupportState support_state = ScriptedLogicSupportState::kPassiveRecipientOnly;
+    std::size_t entity_count = 0;
+    std::size_t received_use_count = 0;
+    std::size_t emitted_target_count = 0;
+    std::size_t scheduled_output_count = 0;
+    std::size_t progressing_count = 0;
+    std::size_t blocked_count = 0;
+};
+
+struct ScriptedSequenceProgressSummary
+{
+    std::size_t total = 0;
+    std::size_t received_use = 0;
+    std::size_t changed_state = 0;
+    std::size_t scheduled_follow_up = 0;
+    std::size_t emitted_targets = 0;
+    std::size_t progressing = 0;
+    std::size_t blocked_on_movement = 0;
+    std::size_t blocked_on_actor = 0;
+    std::size_t blocked_on_engine_callback = 0;
+};
+
+struct PathTrackResolutionSummary
+{
+    std::size_t total_nodes = 0;
+    std::size_t resolved_next_links = 0;
+    std::size_t unresolved_next_links = 0;
+    std::size_t message_links = 0;
+    std::size_t resolved_message_targets = 0;
+    std::size_t unresolved_message_targets = 0;
+    std::size_t sequences_with_path_links = 0;
+    std::size_t actors_with_path_links = 0;
+    std::vector<std::string> preview;
+};
+
+struct ScriptedLogicFrameStateSummary
+{
+    int frame_number = 0;
+    std::uint64_t host_frame_index = 0;
+    std::uint64_t server_frame_index = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    int queue_size_before = 0;
+    int queue_size_after = 0;
+    int due_delayed_actions = 0;
+    int executed_delayed_actions = 0;
+    int rescheduled_delayed_actions = 0;
+    int skipped_delayed_actions = 0;
+    int failed_delayed_actions = 0;
+    int deferred_delayed_actions = 0;
+    int target_chains_fired = 0;
+    int target_resolutions = 0;
+    int use_attempts = 0;
+    int use_successes = 0;
+    int use_deferred = 0;
+    int use_failures = 0;
+    int long_delay_pending = 0;
+    int long_delay_executed = 0;
+    std::size_t newly_progressed_scripted_entities = 0;
+    std::size_t blocked_scripted_entities = 0;
+    std::vector<NamedCountSummary> blocked_by_reason;
+    std::vector<std::string> progressing_preview;
+    std::vector<std::string> pending_delay_preview;
+};
+
+struct ScriptedLogicStateSummary
+{
+    bool configured = false;
+    bool trace_scripted = false;
+    int frames_attempted = 0;
+    int frames_completed = 0;
+    int total_received_use = 0;
+    int total_emitted_targets = 0;
+    int total_scheduled_outputs = 0;
+    int total_internal_state_changes = 0;
+    int total_scheduled_follow_ups = 0;
+    int total_long_delay_executed = 0;
+    int total_long_delay_pending = 0;
+    std::size_t total_progressed_entities = 0;
+    std::vector<NamedCountSummary> blocked_reasons;
+    std::vector<ScriptedLogicClassSummary> classname_summary;
+    std::vector<ScriptedLogicEntitySummary> progressing_entities_preview;
+    std::vector<ScriptedLogicEntitySummary> blocked_entities_preview;
+    ScriptedSequenceProgressSummary scripted_sequence_summary;
+    PathTrackResolutionSummary path_track_summary;
+    std::vector<ScriptedLogicFrameStateSummary> frames;
+    std::string readiness;
+};
+
+struct ScriptedSceneRuntimeSummary
+{
+    int edict_index = -1;
+    std::size_t parse_index = 0;
+    std::string targetname;
+    std::string classname;
+    std::string entity_name;
+    std::string play;
+    std::string idle;
+    int move_to = 0;
+    float radius = 0.0f;
+    float delay = 0.0f;
+    std::string origin_text;
+    std::string angles_text;
+    bool actor_resolved = false;
+    int actor_edict_index = -1;
+    std::string actor_classname;
+    std::string support_state;
+    std::string blocked_reason;
+    std::string stage;
+    int last_progress_frame = -1;
+    float last_progress_time = 0.0f;
+    std::string mark_origin_text;
+    float mark_yaw = 0.0f;
+    float arrival_epsilon = 0.0f;
+    std::string movement_mode;
+    bool requires_move_to_mark = false;
+    bool bootstrap_no_collision = false;
+    bool stage_changed_this_frame = false;
+    bool moving_this_frame = false;
+    bool arrived_this_frame = false;
+};
+
+struct TrackPathGraphSummary
+{
+    std::size_t nodes = 0;
+    std::size_t valid_links = 0;
+    std::size_t broken_links = 0;
+    std::size_t nodes_with_message = 0;
+    std::size_t inactive_nodes = 0;
+    std::size_t duplicate_targetnames = 0;
+    std::size_t orphan_nodes = 0;
+    std::size_t cycles = 0;
+    std::vector<std::string> preview;
+    std::vector<std::string> broken_link_preview;
+    std::vector<std::string> duplicate_targetname_preview;
+    std::vector<std::string> orphan_preview;
+    std::vector<std::string> cycle_preview;
+    std::vector<std::string> message_node_preview;
+};
+
+struct PathNodeMessageCanarySummary
+{
+    std::string node_name;
+    bool reached = false;
+    int first_reached_frame = -1;
+    float first_reached_time = 0.0f;
+    bool message_encountered = false;
+    bool staged_dispatch_attempted = false;
+    std::string dispatch_result;
+    std::string classification;
+    float node_speed_metadata = 0.0f;
+    float mover_speed_at_encounter = 0.0f;
+    float mover_speed_before_encounter = 0.0f;
+    float mover_speed_after_encounter = 0.0f;
+    bool mover_speed_changed = false;
+    int resolved_targets = 0;
+    int runtime_target_candidates = 0;
+    int parsed_target_candidates = 0;
+    bool pfn_use_attempted = false;
+    bool visible_downstream_progression = false;
+    std::string message;
+    std::vector<std::string> target_classnames;
+    std::vector<std::string> resolved_target_details;
+    std::string downstream_summary;
+    std::string dispatch_detail;
+    std::string required_subsystem;
+};
+
+struct PathNodeMessageEncounterSummary
+{
+    std::string node_name;
+    std::string message;
+    int first_reached_frame = -1;
+    float first_reached_time = 0.0f;
+    float node_speed_metadata = 0.0f;
+    float mover_speed_at_encounter = 0.0f;
+    float mover_speed_before_encounter = 0.0f;
+    float mover_speed_after_encounter = 0.0f;
+    bool mover_speed_changed = false;
+    bool dispatch_attempted = false;
+    std::string dispatch_result;
+    std::string classification;
+    int resolved_targets = 0;
+    int runtime_target_candidates = 0;
+    int parsed_target_candidates = 0;
+    bool pfn_use_attempted = false;
+    bool visible_downstream_progression = false;
+    std::vector<std::string> target_classnames;
+    std::vector<std::string> resolved_target_details;
+    std::string downstream_summary;
+    std::string dispatch_detail;
+    std::string required_subsystem;
+};
+
+struct PathNodeMessageStateSummary
+{
+    std::size_t encountered = 0;
+    std::size_t staged_dispatch_attempts = 0;
+    std::size_t staged_dispatch_successes = 0;
+    std::size_t staged_dispatch_deferred = 0;
+    std::size_t staged_dispatch_failures = 0;
+    std::size_t unresolved_message_targets = 0;
+    std::size_t encountered_no_target = 0;
+    std::size_t encountered_unresolved_targets = 0;
+    std::size_t encountered_unsupported = 0;
+    std::size_t resolved_and_dispatched = 0;
+    bool first_message_bearing_node_reached = false;
+    std::string first_message_bearing_node;
+    int first_message_bearing_frame = -1;
+    float first_message_bearing_time = 0.0f;
+    std::string deepest_node_reached;
+    std::vector<std::string> reached_message_nodes;
+    std::vector<std::string> encountered_history;
+    std::vector<std::string> dispatch_attempt_history;
+    std::vector<std::string> dispatch_history;
+    std::vector<std::string> rolling_trace;
+    std::vector<PathNodeMessageEncounterSummary> message_records;
+    std::vector<PathNodeMessageCanarySummary> canaries;
+};
+
+struct PathMoverAggregateSummary
+{
+    std::size_t func_tracktrain_resolved = 0;
+    std::size_t start_targets_resolved = 0;
+    std::size_t track_bound = 0;
+    std::size_t activated = 0;
+    std::size_t moving = 0;
+    std::size_t arrived_at_node = 0;
+    std::size_t node_arrivals = 0;
+    std::size_t path_advances = 0;
+    std::size_t stopped = 0;
+    std::size_t blocked = 0;
+    std::size_t completed = 0;
+    std::size_t staged_message_dispatches = 0;
+    std::size_t broken_link_hits = 0;
+};
+
+struct PathMoverRuntimeSummary
+{
+    int edict_index = -1;
+    std::size_t parse_index = 0;
+    std::string targetname;
+    std::string classname;
+    std::string model;
+    int modelindex = 0;
+    std::string requested_start_node;
+    std::string resolved_start_node;
+    std::string previous_node;
+    std::string current_node;
+    std::string next_node;
+    std::string stage;
+    std::string resolution_mode;
+    std::string resolution_detail;
+    std::string last_use_source;
+    std::string origin_text;
+    bool start_target_resolved = false;
+    bool graph_valid = false;
+    bool path_bound = false;
+    bool activated = false;
+    bool moving = false;
+    bool stage_changed_this_frame = false;
+    bool arrived_this_frame = false;
+    float base_speed = 0.0f;
+    float speed = 0.0f;
+    float effective_speed = 0.0f;
+    float arrival_epsilon = 0.0f;
+    float last_arrival_distance = 0.0f;
+    std::string last_arrival_decision;
+    std::string last_arrival_trigger;
+    std::string last_arrival_origin_text;
+    std::string last_arrival_target_origin_text;
+    bool last_arrival_snap_applied = false;
+    bool any_arrival_snap_applied = false;
+    std::string speed_policy;
+    std::string speed_policy_detail;
+    std::string blocked_reason;
+    std::string stopped_reason;
+    int node_arrivals = 0;
+    int node_advances = 0;
+    std::string last_message;
+    std::string last_message_node;
+    std::string last_message_dispatch_result;
+    int last_node_arrival_frame = -1;
+    float last_node_arrival_time = 0.0f;
+    bool staged_message_dispatch_attempted = false;
+    bool staged_message_dispatch_succeeded = false;
+    std::string staged_message_dispatch_detail;
+    float last_node_speed_metadata = 0.0f;
+    float last_speed_before_arrival = 0.0f;
+    float last_speed_after_arrival = 0.0f;
+    bool last_speed_changed_on_arrival = false;
+    std::string last_speed_decision;
+    std::string last_speed_decision_detail;
+    int last_progress_frame = -1;
+    float last_progress_time = 0.0f;
+};
+
+struct CanarySceneStateSummary
+{
+    std::string canary_name;
+    std::string actor_name;
+    std::string stage;
+    std::string status;
+    bool progressed_further_than_before = false;
+};
+
+struct ScriptedMovementFrameStateSummary
+{
+    int frame_number = 0;
+    std::uint64_t host_frame_index = 0;
+    std::uint64_t server_frame_index = 0;
+    float time = 0.0f;
+    float frametime = 0.0f;
+    int scenes_moving = 0;
+    int scene_arrivals = 0;
+    int blocked_scenes = 0;
+    int path_movers_active = 0;
+    int path_movers_moving = 0;
+    int blocked_path_movers = 0;
+    int stopped_path_movers = 0;
+    int path_node_arrivals = 0;
+    int path_nodes_advanced = 0;
+    int delayed_actions_due = 0;
+    int delayed_actions_executed = 0;
+    int delayed_actions_pending = 0;
+    std::string ftruck_status;
+    std::vector<NamedCountSummary> blocked_by_reason;
+    std::vector<std::string> canary_status;
+    std::vector<std::string> active_path_movers;
+    std::vector<std::string> path_messages_this_frame;
+    std::vector<std::string> path_events;
+};
+
+struct ScriptedMovementStateSummary
+{
+    bool configured = false;
+    bool attempted = false;
+    bool controller_ran = false;
+    bool trace_movement = false;
+    std::string bootstrap_mode;
+    int frames_attempted = 0;
+    int frames_completed = 0;
+    std::size_t actor_resolutions_attempted = 0;
+    std::size_t actor_resolutions_succeeded = 0;
+    std::size_t actor_resolutions_failed = 0;
+    std::size_t scene_movement_attempts = 0;
+    std::size_t scene_movement_successes = 0;
+    std::size_t scene_movement_blocked = 0;
+    std::vector<NamedCountSummary> movement_blocked_reasons;
+    std::vector<NamedCountSummary> scene_stage_summary;
+    TrackPathGraphSummary path_graph;
+    PathMoverAggregateSummary path_movers;
+    float path_arrival_epsilon = 0.0f;
+    bool path_snap_to_node_occurred = false;
+    bool flatbedstart_resolved = false;
+    std::string delayed_ftruck_status;
+    std::string ftruck_final_current;
+    std::string ftruck_final_next;
+    bool ftruck_advanced_beyond_trainstop1a = false;
+    PathNodeMessageStateSummary path_node_messages;
+    std::vector<std::string> path_messages_encountered;
+    std::size_t path_node_message_dispatch_count = 0;
+    bool path_node_message_triggered_dispatch = false;
+    std::vector<std::string> path_message_dispatch_history;
+    std::vector<std::string> broken_path_link_events;
+    std::vector<CanarySceneStateSummary> canaries;
+    std::vector<ScriptedSceneRuntimeSummary> scenes_preview;
+    std::vector<PathMoverRuntimeSummary> path_movers_preview;
+    std::vector<ScriptedMovementFrameStateSummary> frames;
+    std::vector<std::string> exercised_callbacks;
+    std::vector<std::string> path_mover_callbacks_exercised;
+    std::string readiness;
+};
+
+struct HlServerModuleInitOptions
+{
+    std::filesystem::path game_directory;
+    std::string mod_name = "valve";
+    std::string map_name = "c0a0";
+    std::string hostname = "HLengine Test Server";
+    int maxclients = 1;
+    FrameBootstrapOptions frame_bootstrap;
+};
+
+struct HlServerModuleSummary
+{
+    std::filesystem::path loaded_path;
+    bool hl_dll_loaded = false;
+    bool give_fnptrs_to_dll_export_found = false;
+    bool get_entity_api2_export_found = false;
+    bool give_fnptrs_to_dll_called = false;
+    bool get_entity_api2_succeeded = false;
+    bool dll_functions_acquired = false;
+    bool pfn_game_init_present = false;
+    bool pfn_game_init_called = false;
+    bool pfn_game_init_succeeded = false;
+    int interface_version_requested = 0;
+    int interface_version_reported = 0;
+    std::vector<DllFunctionPointerStatus> dll_functions;
+    std::vector<InvokedEngineCallback> invoked_engine_callbacks;
+    std::size_t registered_cvars = 0;
+    std::size_t queued_server_commands = 0;
+    std::size_t executed_server_commands = 0;
+    std::size_t executed_cfg_files = 0;
+    std::size_t updated_cvars_from_cfg = 0;
+    std::size_t auto_created_cvars = 0;
+    std::vector<std::string> executed_cfg_paths;
+    std::vector<CvarSnapshot> sample_skill_cvars;
+    ServerBootstrapStateSummary server_state;
+    GlobalVariablesSnapshot globals_snapshot;
+    std::size_t precache_callback_invocations = 0;
+    std::size_t model_callback_invocations = 0;
+    std::size_t string_callback_invocations = 0;
+    std::size_t entity_callback_invocations = 0;
+    bool ready_for_world_bootstrap = false;
+    WorldBootstrapStateSummary world_bootstrap;
+    bool ready_for_entity_parsing = false;
+    EntityPipelineStateSummary entity_pipeline;
+    WorldspawnSpawnStateSummary worldspawn_spawn;
+    ServerActivationStateSummary server_activation;
+    FrameBootstrapOptions frame_bootstrap_config;
+    ServerFrameLoopStateSummary server_frame_loop;
+    EntityThinkSchedulerStateSummary entity_think_scheduler;
+    MapLogicDispatcherStateSummary map_logic_dispatcher;
+    ScriptedLogicStateSummary scripted_logic;
+    ScriptedMovementStateSummary scripted_movement;
+    bool ready_for_server_activation = false;
+};
+
+class HlServerModule final
+{
+public:
+    HlServerModule();
+    ~HlServerModule();
+
+    HlServerModule(const HlServerModule&) = delete;
+    HlServerModule& operator=(const HlServerModule&) = delete;
+
+    bool Load(const std::filesystem::path& path);
+    bool InitializeEngineShim(const HlServerModuleInitOptions& options);
+
+    const HlServerModuleSummary& Summary() const noexcept;
+
+private:
+    struct Impl;
+    std::unique_ptr<Impl> impl_;
+};
+} // namespace hl::game_api
