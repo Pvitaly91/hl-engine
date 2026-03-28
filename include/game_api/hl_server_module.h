@@ -408,6 +408,17 @@ struct MapLogicDispatcherStateSummary
 
 struct ChangeLevelTransitionSummary
 {
+    struct PreChangeLevelHandoffSummary
+    {
+        bool active = false;
+        int request_frame = -1;
+        float request_time = 0.0f;
+        std::string world_state;
+        std::string action;
+        bool map_load_performed = false;
+        std::string detail;
+    };
+
     bool candidate_present = false;
     bool staged_supported = false;
     bool deferred_candidate = false;
@@ -426,6 +437,7 @@ struct ChangeLevelTransitionSummary
     float transition_intent_request_time = 0.0f;
     std::string transition_intent_action;
     std::string transition_intent_detail;
+    PreChangeLevelHandoffSummary pre_changelevel_handoff;
     bool touch_bounds_resolved = false;
     bool eligible_activator_observed = false;
     bool overlap_candidate_observed = false;

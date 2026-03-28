@@ -278,6 +278,34 @@ bool ValidateRegressionGuard(
             failures,
             summary.changelevel_transition.transition_intent_action == "no-op transition stop",
             "expected changelevel action=no-op transition stop");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.active,
+            "expected pre_changelevel_handoff active=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.request_frame
+                == summary.changelevel_transition.transition_intent_request_frame,
+            "expected pre_changelevel_handoff requestFrame to match consumed intent");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.request_time
+                == summary.changelevel_transition.transition_intent_request_time,
+            "expected pre_changelevel_handoff requestTime to match consumed intent");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.world_state
+                == "frozen|latched|handoff-ready",
+            "expected pre_changelevel_handoff worldState=frozen|latched|handoff-ready");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.action
+                == "no-op handoff boundary",
+            "expected pre_changelevel_handoff action=no-op handoff boundary");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.map_load_performed,
+            "expected pre_changelevel_handoff mapLoad=no");
         break;
     }
 
