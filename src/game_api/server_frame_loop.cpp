@@ -217,6 +217,31 @@ std::vector<std::string> FrameMessageBuffer::CompletedPreview(std::size_t limit)
     return preview;
 }
 
+bool FrameMessageBuffer::LastCompletedSince(
+    std::size_t before_count,
+    FrameCompletedMessageObservation* observation) const
+{
+    if (observation != nullptr)
+    {
+        *observation = {};
+    }
+
+    if (observation == nullptr || completed_messages_.size() <= before_count)
+    {
+        return false;
+    }
+
+    const MessageRecord& record = completed_messages_.back();
+    observation->available = true;
+    observation->destination = record.destination;
+    observation->destination_name = MessageDestinationName(record.destination);
+    observation->message_type = record.message_type;
+    observation->payload_size = record.payload_size;
+    observation->writes = record.writes;
+    observation->summary = Summarize(record);
+    return true;
+}
+
 void FrameMessageBuffer::AddWrite(
     std::string_view op_name,
     std::string value_text,

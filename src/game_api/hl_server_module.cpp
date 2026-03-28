@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <charconv>
 #include <cctype>
 #include <cstdarg>
 #include <cstring>
@@ -2032,6 +2033,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
     log_path_node_outcome("room2start", "trainstop8a", room2start_canary);
     log_path_node_outcome("execute_sci", "trainstop9", execute_sci_canary);
     log_path_node_outcome("fade_out", "trainstop11", fade_out_canary);
+    if (fade_out_canary != nullptr
+        && fade_out_canary->reached
+        && !fade_out_canary->presentation_semantics_summary.empty())
+    {
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Summary,
+            "  - fade_out semantics: " + fade_out_canary->presentation_semantics_summary);
+    }
     hl::common::Logger::Info(
         hl::common::LogCategory::Summary,
         "  - readiness: "
@@ -4607,6 +4616,7 @@ struct PathNodeMessageEmitResult
     bool emitted = false;
     std::string channel_name;
     int message_id = 0;
+    std::string semantics_summary;
     std::string detail;
 };
 
@@ -4625,6 +4635,7 @@ struct PathNodePresentationDispatchResult
     bool env_message_linkage_used = false;
     bool summary_only_fallback_used = false;
     std::string presentation_linkage_detail;
+    std::string semantics_summary;
     std::string detail;
 };
 
@@ -5218,6 +5229,130 @@ std::string CompletedMessagePreviewSince(const EngineShimState& state, std::size
     return preview.empty() ? std::string("<none>") : preview.back();
 }
 
+bool TryParseMessageWriteValue(
+    std::string_view write,
+    std::string_view expected_name,
+    int* value)
+{
+    if (value == nullptr)
+    {
+        return false;
+    }
+
+    const std::size_t separator = write.find('=');
+    if (separator == std::string_view::npos || write.substr(0, separator) != expected_name)
+    {
+        return false;
+    }
+
+    const std::string_view value_text = write.substr(separator + 1);
+    int parsed = 0;
+    const auto [ptr, ec] =
+        std::from_chars(value_text.data(), value_text.data() + value_text.size(), parsed);
+    if (ec != std::errc{} || ptr != value_text.data() + value_text.size())
+    {
+        return false;
+    }
+
+    *value = parsed;
+    return true;
+}
+
+std::string BuildObservedMessageCallbackPath(
+    const hl::game_api::detail::FrameCompletedMessageObservation& observation)
+{
+    std::vector<std::string> operations;
+    operations.reserve(observation.writes.size() + 2);
+    operations.push_back("pfnMessageBegin");
+    for (const std::string& write : observation.writes)
+    {
+        const std::size_t separator = write.find('=');
+        const std::string_view op_name =
+            separator == std::string::npos
+            ? std::string_view(write)
+            : std::string_view(write).substr(0, separator);
+        operations.push_back("pfn" + std::string(op_name));
+    }
+    operations.push_back("pfnMessageEnd");
+    return JoinStringValues(operations);
+}
+
+std::string BuildObservedPayloadWrites(
+    const hl::game_api::detail::FrameCompletedMessageObservation& observation)
+{
+    return observation.writes.empty()
+        ? std::string("<none>")
+        : JoinStringValues(observation.writes);
+}
+
+bool TryBuildScreenFadeDecodedFields(
+    const hl::game_api::detail::FrameCompletedMessageObservation& observation,
+    std::string* decoded_fields)
+{
+    if (decoded_fields == nullptr || observation.writes.size() != 7)
+    {
+        return false;
+    }
+
+    int duration = 0;
+    int hold = 0;
+    int flags = 0;
+    int red = 0;
+    int green = 0;
+    int blue = 0;
+    int alpha = 0;
+    if (!TryParseMessageWriteValue(observation.writes[0], "WriteShort", &duration)
+        || !TryParseMessageWriteValue(observation.writes[1], "WriteShort", &hold)
+        || !TryParseMessageWriteValue(observation.writes[2], "WriteShort", &flags)
+        || !TryParseMessageWriteValue(observation.writes[3], "WriteByte", &red)
+        || !TryParseMessageWriteValue(observation.writes[4], "WriteByte", &green)
+        || !TryParseMessageWriteValue(observation.writes[5], "WriteByte", &blue)
+        || !TryParseMessageWriteValue(observation.writes[6], "WriteByte", &alpha))
+    {
+        return false;
+    }
+
+    *decoded_fields =
+        "duration=" + std::to_string(duration)
+        + " hold=" + std::to_string(hold)
+        + " flags=" + std::to_string(flags)
+        + " rgba=" + std::to_string(red)
+        + "/" + std::to_string(green)
+        + "/" + std::to_string(blue)
+        + "/" + std::to_string(alpha);
+    return true;
+}
+
+std::string BuildPresentationSemanticsSummary(
+    std::string_view message_name,
+    int message_id,
+    const hl::game_api::detail::FrameCompletedMessageObservation& observation)
+{
+    std::string summary =
+        "handled=server-side-presentation-semantics"
+        " message=" + (message_name.empty() ? std::string("<unknown>") : std::string(message_name))
+        + " id=" + std::to_string(message_id)
+        + " dest="
+        + (observation.destination_name.empty()
+            ? std::string("MSG_UNKNOWN")
+            : observation.destination_name)
+        + "(" + std::to_string(observation.destination) + ")"
+        + " payloadBytes=" + std::to_string(observation.payload_size);
+
+    std::string decoded_fields;
+    if (TryBuildScreenFadeDecodedFields(observation, &decoded_fields))
+    {
+        summary += " " + decoded_fields;
+    }
+    else if (!observation.writes.empty())
+    {
+        summary += " payloadWrites=" + BuildObservedPayloadWrites(observation);
+    }
+
+    summary += " callbackPath=" + BuildObservedMessageCallbackPath(observation);
+    return summary;
+}
+
 PathNodeMessageEmitResult EmitPathNodeScreenFadeBootstrap(
     EngineShimState& state,
     const hl::game_api::detail::PathNodeEventDispatchRequest& request)
@@ -5252,15 +5387,23 @@ PathNodeMessageEmitResult EmitPathNodeScreenFadeBootstrap(
     StubMessageEnd();
 
     result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+    hl::game_api::detail::FrameCompletedMessageObservation observation;
+    if (result.emitted
+        && state.frame_message_buffer.LastCompletedSince(completed_before, &observation))
+    {
+        result.semantics_summary =
+            BuildPresentationSemanticsSummary("ScreenFade", result.message_id, observation);
+    }
+
     result.detail =
-        "channel=ScreenFade"
-        " id=" + std::to_string(result.message_id)
+        (!result.semantics_summary.empty()
+            ? result.semantics_summary
+            : std::string(
+                "handled=server-side-presentation-semantics"
+                " message=ScreenFade"
+                " id=" + std::to_string(result.message_id)))
         + " node=" + (request.node_name.empty() ? std::string("<empty>") : request.node_name)
         + " event=" + (request.message.empty() ? std::string("<empty>") : request.message)
-        + " duration=" + std::to_string(fade.duration)
-        + " hold=" + std::to_string(fade.holdTime)
-        + " flags=" + std::to_string(fade.fadeFlags)
-        + " rgba=0/0/0/255"
         + " emitted=" + BoolToYesNo(result.emitted)
         + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
     return result;
@@ -5285,10 +5428,20 @@ PathNodeMessageEmitResult EmitPathNodeTextMessageBootstrap(
         StubWriteString(text.c_str());
         StubMessageEnd();
         result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+        hl::game_api::detail::FrameCompletedMessageObservation observation;
+        if (result.emitted
+            && state.frame_message_buffer.LastCompletedSince(completed_before, &observation))
+        {
+            result.semantics_summary =
+                BuildPresentationSemanticsSummary(result.channel_name, result.message_id, observation);
+        }
         result.detail =
-            "channel=TextMsg"
-            " id=" + std::to_string(result.message_id)
-            + " hudPrint=" + std::to_string(HUD_PRINTCENTER)
+            (!result.semantics_summary.empty()
+                ? result.semantics_summary
+                : std::string(
+                    "handled=server-side-presentation-semantics"
+                    " message=TextMsg"
+                    " id=" + std::to_string(result.message_id)))
             + " text=" + text
             + " emitted=" + BoolToYesNo(result.emitted)
             + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
@@ -5312,10 +5465,20 @@ PathNodeMessageEmitResult EmitPathNodeTextMessageBootstrap(
     StubWriteString(text.c_str());
     StubMessageEnd();
     result.emitted = state.frame_message_buffer.CompletedCount() > completed_before;
+    hl::game_api::detail::FrameCompletedMessageObservation observation;
+    if (result.emitted
+        && state.frame_message_buffer.LastCompletedSince(completed_before, &observation))
+    {
+        result.semantics_summary =
+            BuildPresentationSemanticsSummary(result.channel_name, result.message_id, observation);
+    }
     result.detail =
-        "channel=HudText"
-        " id=" + std::to_string(result.message_id)
-        + " payload=simplified-bootstrap-string"
+        (!result.semantics_summary.empty()
+            ? result.semantics_summary
+            : std::string(
+                "handled=server-side-presentation-semantics"
+                " message=HudText"
+                " id=" + std::to_string(result.message_id)))
         + " text=" + text
         + " emitted=" + BoolToYesNo(result.emitted)
         + " preview={" + CompletedMessagePreviewSince(state, completed_before) + "}";
@@ -5521,6 +5684,7 @@ PathNodePresentationDispatchResult DispatchKnownPathNodePresentationBootstrap(
             result.dispatch_mode = "fade-channel";
             result.classification = "resolved-and-dispatched-via-fade-channel";
             result.fade_channel_used = true;
+            result.semantics_summary = fade_emit.semantics_summary;
             result.detail = fade_emit.detail;
             return result;
         }
@@ -5536,6 +5700,7 @@ PathNodePresentationDispatchResult DispatchKnownPathNodePresentationBootstrap(
             result.dispatch_mode = "message-channel";
             result.classification = "resolved-and-dispatched-via-message-channel";
             result.message_channel_used = true;
+            result.semantics_summary = message_emit.semantics_summary;
             result.detail = message_emit.detail;
             return result;
         }
@@ -12051,6 +12216,8 @@ void PerformServerFrameLoop()
                         presentation_dispatch.summary_only_fallback_used;
                     feedback.presentation_linkage_detail =
                         presentation_dispatch.presentation_linkage_detail;
+                    feedback.presentation_semantics_summary =
+                        presentation_dispatch.semantics_summary;
                     if (known_presentation_message)
                     {
                         feedback.unresolved_target = false;

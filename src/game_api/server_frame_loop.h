@@ -49,6 +49,17 @@ struct FrameLoopConfig
     std::size_t message_preview_limit = 8;
 };
 
+struct FrameCompletedMessageObservation
+{
+    bool available = false;
+    int destination = 0;
+    std::string destination_name;
+    int message_type = 0;
+    std::size_t payload_size = 0;
+    std::vector<std::string> writes;
+    std::string summary;
+};
+
 class FrameMessageBuffer
 {
 public:
@@ -74,6 +85,9 @@ public:
 
     std::size_t CompletedCount() const noexcept;
     std::vector<std::string> CompletedPreview(std::size_t limit) const;
+    bool LastCompletedSince(
+        std::size_t before_count,
+        FrameCompletedMessageObservation* observation) const;
 
 private:
     struct MessageRecord
