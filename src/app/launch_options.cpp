@@ -185,6 +185,13 @@ bool TryParseRegressionGuardProfile(
         return true;
     }
 
+    if (normalized == L"changelevel-request-consumed"
+        || normalized == L"trigger-changelevel-consumed")
+    {
+        *value = hl::app::RegressionGuardProfile::kChangelevelRequestConsumed;
+        return true;
+    }
+
     return false;
 }
 
@@ -439,7 +446,7 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             if (!TryParseRegressionGuardProfile(argv[++index], &profile))
             {
                 result.error_message =
-                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe or trainstop26-baseline.";
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, or changelevel-request-consumed.";
                 return result;
             }
 
@@ -456,7 +463,7 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
                     &profile))
             {
                 result.error_message =
-                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe or trainstop26-baseline.";
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, or changelevel-request-consumed.";
                 return result;
             }
 
@@ -833,6 +840,40 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
                     &result.options.stop_on_first_message,
                     &result.error_message,
                     L"--stop-on-first-message"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--stop-on-changelevel-request")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --stop-on-changelevel-request.";
+                return result;
+            }
+
+            if (!ParseBoolValue(
+                    argv[++index],
+                    &result.options.stop_on_changelevel_request,
+                    &result.error_message,
+                    L"--stop-on-changelevel-request"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view stop_on_changelevel_request_prefix =
+            L"--stop-on-changelevel-request=";
+        if (StartsWith(argument, stop_on_changelevel_request_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(stop_on_changelevel_request_prefix.size()),
+                    &result.options.stop_on_changelevel_request,
+                    &result.error_message,
+                    L"--stop-on-changelevel-request"))
             {
                 return result;
             }
@@ -1316,12 +1357,12 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
              L"    [--log-disable-categories <csv>] [--log-category-files <csv>] [--log-frame-sample <n>]\n"
              L"    [--log-state-changes-only <0|1>] [--log-summary-file <0|1>] [--log-suppress-repeats <0|1>]\n"
-             L"    [--stop-on-first-message <0|1>] [--stop-on-node <name>]\n\n"
+             L"    [--stop-on-first-message <0|1>] [--stop-on-changelevel-request <0|1>] [--stop-on-node <name>]\n\n"
              L"Options:\n"
              L"  --gamedir <path>               Use an explicit Half-Life game directory (typically ...\\valve)\n"
              L"  --map <name>                   Set the bootstrap map name (default: c0a0)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
-             L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline\n"
+             L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-request-consumed\n"
              L"  --frames <count>               Run a finite deterministic post-activation frame loop (default: 1000)\n"
              L"  --frametime <s>                Fixed frame time for the bootstrap loop (default: 0.05)\n"
              L"  --think-limit <n>              Maximum due thinks executed per frame (default: 32)\n"
@@ -1351,6 +1392,8 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --log-summary-file <0|1>       Enable compact summary log output (default: 1)\n"
              L"  --log-suppress-repeats <0|1>   Collapse repeated consecutive log lines (default: 1)\n"
              L"  --stop-on-first-message <0|1>  Stop cleanly after the first message-bearing path node (default: 0)\n"
+             L"  --stop-on-changelevel-request <0|1>\n"
+             L"                                 Stop cleanly after a staged-safe changelevel intent is consumed (default: 0)\n"
              L"  --stop-on-node <name>          Stop cleanly after reaching a specific path node\n"
              L"  --help                         Show this help message\n";
 }

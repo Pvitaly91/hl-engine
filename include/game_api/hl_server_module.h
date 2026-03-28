@@ -43,6 +43,7 @@ struct FrameBootstrapOptions
     int log_frame_sample = 10;
     bool log_state_changes_only = true;
     bool stop_on_first_message = false;
+    bool stop_on_changelevel_request = false;
     std::string stop_on_node;
 };
 
@@ -419,10 +420,42 @@ struct ChangeLevelTransitionSummary
     int pending_request_frame = -1;
     float pending_request_time = 0.0f;
     std::string pending_request_detail;
+    bool transition_intent_captured = false;
+    bool transition_intent_consumed = false;
+    int transition_intent_request_frame = -1;
+    float transition_intent_request_time = 0.0f;
+    std::string transition_intent_action;
+    std::string transition_intent_detail;
     bool touch_bounds_resolved = false;
     bool eligible_activator_observed = false;
     bool overlap_candidate_observed = false;
     bool surrogate_activator_available = false;
+    bool moving_surrogate_active = false;
+    bool moving_surrogate_initialized = false;
+    int moving_surrogate_samples = 0;
+    float moving_surrogate_initial_anchor_yaw = 0.0f;
+    float moving_surrogate_local_offset_x = 0.0f;
+    float moving_surrogate_local_offset_y = 0.0f;
+    float moving_surrogate_local_offset_z = 0.0f;
+    float trigger_bounds_absmin_x = 0.0f;
+    float trigger_bounds_absmin_y = 0.0f;
+    float trigger_bounds_absmin_z = 0.0f;
+    float trigger_bounds_absmax_x = 0.0f;
+    float trigger_bounds_absmax_y = 0.0f;
+    float trigger_bounds_absmax_z = 0.0f;
+    float surrogate_path_absmin_x = 0.0f;
+    float surrogate_path_absmin_y = 0.0f;
+    float surrogate_path_absmin_z = 0.0f;
+    float surrogate_path_absmax_x = 0.0f;
+    float surrogate_path_absmax_y = 0.0f;
+    float surrogate_path_absmax_z = 0.0f;
+    float closest_approach_distance = -1.0f;
+    int closest_approach_frame = -1;
+    float closest_approach_time = 0.0f;
+    std::string moving_surrogate_local_offset_text;
+    std::string trigger_bounds_text;
+    std::string surrogate_path_envelope_text;
+    std::string closest_surrogate_origin_text;
 };
 
 struct ScriptedLogicEntitySummary
