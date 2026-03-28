@@ -1,0 +1,67 @@
+name: Changelevel Policy Self-Hosted
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  accepted-changelevel-policy-preflight:
+    name: Accepted changelevel policy preflight
+    runs-on:
+      - self-hosted
+      - windows
+
+    outputs:
+      runnable: ${{ steps.preflight.outputs.runnable }}
+      reason: ${{ steps.preflight.outputs.reason }}
+      valve_dir: ${{ steps.preflight.outputs.valve_dir }}
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: host
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: host
+
+      - name: Probe self-hosted assets and workspace layout
+        id: preflight
+        run: >
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File .\scripts\run_changelevel_policy_self_hosted.ps1
+          -ProbeOnly
+          -GitHubOutputPath $env:GITHUB_OUTPUT
+          -GitHubSummaryPath $env:GITHUB_STEP_SUMMARY
+
+  accepted-changelevel-policy:
+    name: Accepted changelevel policy regressions
+    needs: accepted-changelevel-policy-preflight
+    if: ${{ needs.accepted-changelevel-policy-preflight.outputs.runnable == 'true' }}
+    runs-on:
+      - self-hosted
+      - windows
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: host
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: host
+
+      - name: Run accepted changelevel policy regressions
+        run: >
+          powershell -NoProfile -ExecutionPolicy Bypass
+          -File .\scripts\run_changelevel_policy_self_hosted.ps1
+          -ConfigurePreset vs2022-win32
+          -BuildPreset vs2022-debug
+          -Target changelevel_policy_regressions
+          -GitHubSummaryPath $env:GITHUB_STEP_SUMMARY
