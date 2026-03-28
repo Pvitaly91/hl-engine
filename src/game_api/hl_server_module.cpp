@@ -481,6 +481,28 @@ std::string FormatChangeLevelTransitionIntentSummary(
             : summary.transition_intent_action);
 }
 
+std::string FormatPreChangeLevelHandoffSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::PreChangeLevelHandoffSummary& handoff =
+        summary.pre_changelevel_handoff;
+    return std::string("active=") + BoolToYesNo(handoff.active)
+        + ", requestedMap="
+        + (summary.target_map.empty() ? std::string("<none>") : summary.target_map)
+        + ", landmark="
+        + (summary.landmark.empty() ? std::string("<none>") : summary.landmark)
+        + ", source=" + DescribeChangeLevelSource(summary)
+        + ", requestFrame="
+        + (handoff.request_frame >= 0 ? std::to_string(handoff.request_frame) : std::string("<none>"))
+        + ", requestTime="
+        + (handoff.active ? std::to_string(handoff.request_time) : std::string("<none>"))
+        + ", worldState="
+        + (handoff.world_state.empty() ? std::string("<none>") : handoff.world_state)
+        + ", action="
+        + (handoff.action.empty() ? std::string("<none>") : handoff.action)
+        + ", mapLoad=" + BoolToYesNo(handoff.map_load_performed);
+}
+
 std::string TrimTrailingWhitespace(std::string value)
 {
     while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back())) != 0)
@@ -2058,6 +2080,18 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 intent_line += ", note=" + summary.changelevel_transition.transition_intent_detail;
             }
             hl::common::Logger::Info(hl::common::LogCategory::Summary, intent_line);
+        }
+        if (summary.changelevel_transition.pre_changelevel_handoff.active)
+        {
+            std::string handoff_line =
+                "  - pre_changelevel_handoff: "
+                + FormatPreChangeLevelHandoffSummary(summary.changelevel_transition);
+            if (!summary.changelevel_transition.pre_changelevel_handoff.detail.empty())
+            {
+                handoff_line += ", note="
+                    + summary.changelevel_transition.pre_changelevel_handoff.detail;
+            }
+            hl::common::Logger::Info(hl::common::LogCategory::Summary, handoff_line);
         }
         if (summary.changelevel_transition.moving_surrogate_samples > 0)
         {
@@ -4025,6 +4059,14 @@ void ConsumePendingChangeLevelRequest(EngineShimState& state)
     summary.transition_intent_action = "no-op transition latched";
     summary.transition_intent_detail =
         "pending_changelevel_request consumed into staged-safe host transition intent; no map load performed";
+    summary.pre_changelevel_handoff.active = true;
+    summary.pre_changelevel_handoff.request_frame = summary.transition_intent_request_frame;
+    summary.pre_changelevel_handoff.request_time = summary.transition_intent_request_time;
+    summary.pre_changelevel_handoff.world_state = "frozen|latched|handoff-ready";
+    summary.pre_changelevel_handoff.action = "no-op handoff boundary";
+    summary.pre_changelevel_handoff.map_load_performed = false;
+    summary.pre_changelevel_handoff.detail =
+        "staged pre-changelevel handoff boundary latched after consumed transition intent; no map load performed";
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
