@@ -422,6 +422,7 @@ struct ChangeLevelTransitionSummary
     bool touch_bounds_resolved = false;
     bool eligible_activator_observed = false;
     bool overlap_candidate_observed = false;
+    bool surrogate_activator_available = false;
 };
 
 struct ScriptedLogicEntitySummary

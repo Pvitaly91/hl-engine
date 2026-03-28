@@ -4766,6 +4766,94 @@ bool TryResolveTriggerChangeLevelTouchBounds(
     return true;
 }
 
+bool TryResolveSinglePlayerActivatorSurrogateBounds(
+    const EngineShimState& state,
+    ChangeLevelTouchBounds* bounds,
+    std::string* detail)
+{
+    if (bounds == nullptr)
+    {
+        return false;
+    }
+
+    *bounds = {};
+    if (detail != nullptr)
+    {
+        detail->clear();
+    }
+
+    const RuntimeEntityRecord* player_start = nullptr;
+    for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        if (EqualsIgnoreCase(record.classname, "info_player_start"))
+        {
+            player_start = &record;
+            break;
+        }
+    }
+
+    if (player_start == nullptr)
+    {
+        return false;
+    }
+
+    Vector origin = player_start->origin;
+    bool has_origin = player_start->has_origin;
+    if (const hl::game_api::detail::EntityDefinition* definition =
+            FindParsedEntityDefinitionByOrdinal(state, player_start->parse_index);
+        definition != nullptr)
+    {
+        const ParsedVectorField parsed_origin = ParseOriginField(*definition);
+        if (!has_origin && parsed_origin.present && parsed_origin.valid)
+        {
+            origin = parsed_origin.value;
+            has_origin = true;
+        }
+    }
+
+    if (!has_origin && player_start->edict_index >= 0)
+    {
+        if (const edict_t* entity = state.edict_store.EntityOfIndex(player_start->edict_index);
+            entity != nullptr)
+        {
+            hl::game_api::detail::EntityVarSnapshot snapshot;
+            hl::game_api::detail::TryReadEntityVars(
+                state.edict_store,
+                state.string_pool,
+                entity,
+                &snapshot,
+                {});
+            if (snapshot.valid && snapshot.has_origin)
+            {
+                origin = snapshot.origin;
+                has_origin = true;
+            }
+        }
+    }
+
+    if (!has_origin)
+    {
+        return false;
+    }
+
+    entvars_t vars{};
+    vars.origin = origin;
+    vars.mins = Vector(-16.0f, -16.0f, -36.0f);
+    vars.maxs = Vector(16.0f, 16.0f, 36.0f);
+    vars.solid = SOLID_SLIDEBOX;
+    ComputeFallbackAbsBox(vars);
+
+    bounds->valid = true;
+    bounds->absmin = vars.absmin;
+    bounds->absmax = vars.absmax;
+
+    if (detail != nullptr)
+    {
+        *detail = "info_player_start origin=" + FormatVector(origin);
+    }
+    return true;
+}
+
 void ObserveTriggerChangeLevelTouchState(
     EngineShimState& state,
     int frame_number,
@@ -4850,6 +4938,37 @@ void ObserveTriggerChangeLevelTouchState(
                     ? std::string("<empty>")
                     : activator_snapshot.classname)
                 + "; no map load performed");
+        return;
+    }
+
+    ChangeLevelTouchBounds surrogate_bounds;
+    std::string surrogate_detail;
+    if (!summary.eligible_activator_observed
+        && TryResolveSinglePlayerActivatorSurrogateBounds(
+            state,
+            &surrogate_bounds,
+            &surrogate_detail))
+    {
+        summary.surrogate_activator_available = true;
+        if (trigger_bounds.valid && BoundsOverlap(trigger_bounds, surrogate_bounds))
+        {
+            summary.overlap_candidate_observed = true;
+            CapturePendingChangeLevelRequest(
+                state,
+                FindParsedEntityDefinitionByOrdinal(state, trigger_record->parse_index),
+                trigger_record,
+                frame_number,
+                time,
+                "captured from staged-safe host-only single-player activator surrogate touch overlap ("
+                    + surrogate_detail
+                    + "); no map load performed");
+            return;
+        }
+
+        summary.pending_request_detail = trigger_bounds.valid
+            ? "not exercised: host-only single-player activator surrogate ("
+                + surrogate_detail + ") has no overlap candidate"
+            : "not exercised: host-only single-player activator surrogate available, but trigger bounds are unavailable";
         return;
     }
 
