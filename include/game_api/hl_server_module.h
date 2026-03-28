@@ -405,6 +405,22 @@ struct MapLogicDispatcherStateSummary
     std::string readiness;
 };
 
+struct ChangeLevelTransitionSummary
+{
+    bool candidate_present = false;
+    bool staged_supported = false;
+    bool deferred_candidate = false;
+    std::string target_map;
+    std::string landmark;
+    std::string source_classname;
+    int source_edict_index = -1;
+    std::string support_detail;
+    bool pending_request_captured = false;
+    int pending_request_frame = -1;
+    float pending_request_time = 0.0f;
+    std::string pending_request_detail;
+};
+
 struct ScriptedLogicEntitySummary
 {
     int edict_index = -1;
@@ -998,6 +1014,7 @@ struct HlServerModuleSummary
     ServerFrameLoopStateSummary server_frame_loop;
     EntityThinkSchedulerStateSummary entity_think_scheduler;
     MapLogicDispatcherStateSummary map_logic_dispatcher;
+    ChangeLevelTransitionSummary changelevel_transition;
     ScriptedLogicStateSummary scripted_logic;
     ScriptedMovementStateSummary scripted_movement;
     bool ready_for_server_activation = false;

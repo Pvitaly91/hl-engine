@@ -370,6 +370,7 @@ struct EngineShimState
     hl::game_api::ServerFrameLoopStateSummary server_frame_loop_state;
     hl::game_api::EntityThinkSchedulerStateSummary entity_think_scheduler_state;
     hl::game_api::MapLogicDispatcherStateSummary map_logic_dispatcher_state;
+    hl::game_api::ChangeLevelTransitionSummary changelevel_transition_state;
     hl::game_api::ScriptedLogicStateSummary scripted_logic_state;
     hl::game_api::ScriptedMovementStateSummary scripted_movement_state;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -421,10 +422,40 @@ std::string BuildRandomDiagnosticContext(const EngineShimState& state);
 std::string BuildEntitySnapshotSummary(const hl::game_api::detail::EntityStateSnapshot& snapshot);
 void EmitAiConsoleDiagnostic(std::string_view message);
 bool EqualsIgnoreCase(std::string_view left, std::string_view right);
+const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
+    const EngineShimState& state,
+    std::size_t ordinal);
 
 const char* BoolToYesNo(bool value)
 {
     return value ? "yes" : "no";
+}
+
+std::string DescribeChangeLevelSource(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    if (!summary.source_classname.empty())
+    {
+        return summary.source_classname;
+    }
+
+    if (summary.source_edict_index >= 0)
+    {
+        return "edict#" + std::to_string(summary.source_edict_index);
+    }
+
+    return "<none>";
+}
+
+std::string FormatChangeLevelCandidate(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    return "{map="
+        + (summary.target_map.empty() ? std::string("<none>") : summary.target_map)
+        + ", landmark="
+        + (summary.landmark.empty() ? std::string("<none>") : summary.landmark)
+        + ", source=" + DescribeChangeLevelSource(summary)
+        + "}";
 }
 
 std::string TrimTrailingWhitespace(std::string value)
@@ -1971,6 +2002,30 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             + std::to_string(summary.map_logic_dispatcher.total_use_successes) + "/"
             + std::to_string(summary.map_logic_dispatcher.total_use_deferred) + "/"
             + std::to_string(summary.map_logic_dispatcher.total_use_failures));
+    if (summary.changelevel_transition.candidate_present)
+    {
+        std::string line =
+            "  - trigger_changelevel: candidate="
+            + FormatChangeLevelCandidate(summary.changelevel_transition)
+            + " staged_supported="
+            + BoolToYesNo(summary.changelevel_transition.staged_supported)
+            + ", deferred="
+            + BoolToYesNo(summary.changelevel_transition.deferred_candidate);
+        if (summary.changelevel_transition.pending_request_captured)
+        {
+            line += ", pending_changelevel_request="
+                + FormatChangeLevelCandidate(summary.changelevel_transition);
+        }
+        else
+        {
+            line += ", pending_changelevel_request=<none>";
+        }
+        if (!summary.changelevel_transition.pending_request_detail.empty())
+        {
+            line += ", note=" + summary.changelevel_transition.pending_request_detail;
+        }
+        hl::common::Logger::Info(hl::common::LogCategory::Summary, line);
+    }
     hl::common::Logger::Info(
         hl::common::LogCategory::Summary,
         "  - scripted logic: frames="
@@ -2124,6 +2179,25 @@ struct EntitySupportDecision
     std::string reason;
 };
 
+struct TriggerChangeLevelFields
+{
+    std::string map_name;
+    std::string landmark;
+};
+
+void NoteTriggerChangeLevelCandidate(
+    hl::game_api::ChangeLevelTransitionSummary& summary,
+    const hl::game_api::detail::EntityDefinition* definition,
+    const RuntimeEntityRecord* record);
+
+void CapturePendingChangeLevelRequest(
+    EngineShimState& state,
+    const hl::game_api::detail::EntityDefinition* definition,
+    const RuntimeEntityRecord* record,
+    int frame_number,
+    float time,
+    std::string_view detail);
+
 EntitySupportDecision ClassifyEntitySupport(std::string_view classname)
 {
     static constexpr std::array<std::string_view, 11> kSafeSpawnClasses = {{
@@ -2167,6 +2241,11 @@ EntitySupportDecision ClassifyEntitySupport(std::string_view classname)
         return {false, true, "func_tracktrain bootstrap deferred"};
     }
 
+    if (normalized == "trigger_changelevel")
+    {
+        return {false, true, "trigger_changelevel staged changelevel candidate deferred"};
+    }
+
     if (normalized.rfind("monster_", 0) == 0)
     {
         return {false, true, "monster support deferred"};
@@ -2197,6 +2276,11 @@ hl::game_api::MapLogicSupportState ClassifyRuntimeMapLogicSupportState(
         || normalized == "func_tracktrain")
     {
         return hl::game_api::MapLogicSupportState::kUseSupported;
+    }
+
+    if (normalized == "trigger_changelevel")
+    {
+        return hl::game_api::MapLogicSupportState::kPassiveRecipientOnly;
     }
 
     if (normalized == "env_glow"
@@ -3760,6 +3844,109 @@ const std::string* FindLastKeyValue(
     }
 
     return nullptr;
+}
+
+TriggerChangeLevelFields ExtractTriggerChangeLevelFields(
+    const hl::game_api::detail::EntityDefinition* definition)
+{
+    TriggerChangeLevelFields fields;
+    if (definition == nullptr)
+    {
+        return fields;
+    }
+
+    if (const std::string* value = FindLastKeyValue(*definition, "map");
+        value != nullptr)
+    {
+        fields.map_name = TrimWhitespaceCopy(*value);
+    }
+
+    if (const std::string* value = FindLastKeyValue(*definition, "landmark");
+        value != nullptr)
+    {
+        fields.landmark = TrimWhitespaceCopy(*value);
+    }
+
+    return fields;
+}
+
+void NoteTriggerChangeLevelCandidate(
+    hl::game_api::ChangeLevelTransitionSummary& summary,
+    const hl::game_api::detail::EntityDefinition* definition,
+    const RuntimeEntityRecord* record)
+{
+    summary.candidate_present = true;
+    summary.staged_supported = true;
+    if (record != nullptr && record->deferred)
+    {
+        summary.deferred_candidate = true;
+    }
+
+    if (summary.source_classname.empty())
+    {
+        if (record != nullptr && !record->classname.empty())
+        {
+            summary.source_classname = record->classname;
+        }
+        else if (definition != nullptr && !definition->classname.empty())
+        {
+            summary.source_classname = definition->classname;
+        }
+        else
+        {
+            summary.source_classname = "trigger_changelevel";
+        }
+    }
+
+    if (summary.source_edict_index < 0 && record != nullptr)
+    {
+        summary.source_edict_index = record->edict_index;
+    }
+
+    const TriggerChangeLevelFields fields = ExtractTriggerChangeLevelFields(definition);
+    if (summary.target_map.empty() && !fields.map_name.empty())
+    {
+        summary.target_map = fields.map_name;
+    }
+    if (summary.landmark.empty() && !fields.landmark.empty())
+    {
+        summary.landmark = fields.landmark;
+    }
+
+    if (summary.support_detail.empty())
+    {
+        summary.support_detail =
+            "staged-safe candidate retained without full touch or map-change lifecycle";
+    }
+
+    if (!summary.pending_request_captured && summary.pending_request_detail.empty())
+    {
+        summary.pending_request_detail =
+            "not exercised under current host constraints: no staged touch/changelevel-request path observed";
+    }
+}
+
+void CapturePendingChangeLevelRequest(
+    EngineShimState& state,
+    const hl::game_api::detail::EntityDefinition* definition,
+    const RuntimeEntityRecord* record,
+    int frame_number,
+    float time,
+    std::string_view detail)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    NoteTriggerChangeLevelCandidate(summary, definition, record);
+    if (summary.pending_request_captured)
+    {
+        return;
+    }
+
+    summary.pending_request_captured = true;
+    summary.pending_request_frame = frame_number;
+    summary.pending_request_time = time;
+    summary.pending_request_detail = detail.empty()
+        ? "captured as staged-safe no-op host changelevel request"
+        : std::string(detail);
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
@@ -7112,6 +7299,11 @@ hl::game_api::MapLogicSupportState ClassifyMapLogicSupportFromSnapshot(
         return hl::game_api::MapLogicSupportState::kUseSupported;
     }
 
+    if (normalized == "trigger_changelevel")
+    {
+        return hl::game_api::MapLogicSupportState::kPassiveRecipientOnly;
+    }
+
     if ((normalized == "scripted_sequence" || normalized.rfind("scripted_", 0) == 0)
         && normalized != "scripted_sequence")
     {
@@ -7891,6 +8083,36 @@ void PopulateBootstrapSummary(
     summary.server_frame_loop = state.server_frame_loop_state;
     summary.entity_think_scheduler = state.entity_think_scheduler_state;
     summary.map_logic_dispatcher = state.map_logic_dispatcher_state;
+    summary.changelevel_transition = state.changelevel_transition_state;
+    if (!summary.changelevel_transition.candidate_present)
+    {
+        for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+        {
+            if (!EqualsIgnoreCase(record.classname, "trigger_changelevel"))
+            {
+                continue;
+            }
+
+            const hl::game_api::detail::EntityDefinition* definition =
+                FindParsedEntityDefinitionByOrdinal(state, record.parse_index);
+            NoteTriggerChangeLevelCandidate(summary.changelevel_transition, definition, &record);
+            break;
+        }
+    }
+    if (!summary.changelevel_transition.candidate_present)
+    {
+        for (const hl::game_api::detail::EntityDefinition& definition :
+             state.entity_bootstrap.parsed_entities)
+        {
+            if (!EqualsIgnoreCase(definition.classname, "trigger_changelevel"))
+            {
+                continue;
+            }
+
+            NoteTriggerChangeLevelCandidate(summary.changelevel_transition, &definition, nullptr);
+            break;
+        }
+    }
     summary.map_logic_dispatcher.classname_summary =
         BuildMapLogicClassSummary(state.entity_bootstrap.runtime_entities);
     summary.scripted_logic = state.scripted_logic_state;
@@ -9983,6 +10205,7 @@ void PerformWorldBootstrap()
 void PerformEntityBootstrap()
 {
     EngineShimState& state = CurrentShimState();
+    state.changelevel_transition_state = {};
 
     EntityBootstrapContext context;
     context.attempted = true;
@@ -10220,6 +10443,13 @@ void PerformEntityBootstrap()
                 state.edict_store.RemoveEntity(entity);
             }
             SyncRuntimeRecordFromEdict(state, entity, record);
+            if (EqualsIgnoreCase(definition.classname, "trigger_changelevel"))
+            {
+                NoteTriggerChangeLevelCandidate(
+                    state.changelevel_transition_state,
+                    &definition,
+                    &record);
+            }
             ++context.deferred_entities;
             context.runtime_entities.push_back(std::move(record));
             continue;
@@ -11417,6 +11647,30 @@ void PerformServerFrameLoop()
                                 + " killParsedMatches="
                                 + std::to_string(kill_probe.parsed_target_candidates)
                                 + " delay=" + std::to_string(relay_dispatch.delay);
+                        }
+                        return hl::game_api::detail::MapLogicTargetDispatchResult::kHandled;
+                    }
+
+                    if (normalized == "trigger_changelevel")
+                    {
+                        RuntimeEntityRecord* record =
+                            FindRuntimeRecordByEdictIndex(state, target_snapshot.edict_index);
+                        const hl::game_api::detail::EntityDefinition* definition =
+                            record != nullptr
+                            ? FindParsedEntityDefinitionByOrdinal(state, record->parse_index)
+                            : nullptr;
+                        CapturePendingChangeLevelRequest(
+                            state,
+                            definition,
+                            record,
+                            frame_number,
+                            time,
+                            "captured as staged-safe no-op host changelevel request; no map load performed");
+                        if (detail != nullptr)
+                        {
+                            *detail =
+                                "pending_changelevel_request="
+                                + FormatChangeLevelCandidate(state.changelevel_transition_state);
                         }
                         return hl::game_api::detail::MapLogicTargetDispatchResult::kHandled;
                     }
