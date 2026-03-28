@@ -1,5 +1,11 @@
 set(HLHOST_INCLUDE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/include")
 set(HLSDK_ROOT_DIR "${PROJECT_SOURCE_DIR}/third_party/halflife-sdk")
+set(HLHOST_CHANGELEVEL_POLICY_RUNNER
+    "${CMAKE_CURRENT_SOURCE_DIR}/scripts/run_changelevel_policy_regressions.ps1")
+
+find_program(HLHOST_POWERSHELL_EXECUTABLE
+    NAMES powershell pwsh
+    REQUIRED)
 
 add_library(common STATIC
     include/common/logger.h
@@ -123,4 +129,20 @@ target_link_libraries(hlhost
 set_target_properties(hlhost PROPERTIES
     FOLDER "host"
     VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
+)
+
+add_custom_target(changelevel_policy_regressions
+    COMMAND
+        "${HLHOST_POWERSHELL_EXECUTABLE}"
+        -NoProfile
+        -ExecutionPolicy Bypass
+        -File "${HLHOST_CHANGELEVEL_POLICY_RUNNER}"
+        -ExecutablePath "$<TARGET_FILE:hlhost>"
+    DEPENDS hlhost
+    USES_TERMINAL
+    COMMENT "Running accepted changelevel policy regressions"
+)
+
+set_target_properties(changelevel_policy_regressions PROPERTIES
+    FOLDER "host"
 )
