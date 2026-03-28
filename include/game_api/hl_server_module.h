@@ -411,12 +411,31 @@ struct ChangeLevelTransitionSummary
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
+        bool handoff_latched = false;
+        bool world_frozen = false;
+        bool stop_requested = false;
         int request_frame = -1;
         float request_time = 0.0f;
         std::string world_state;
         std::string action;
         bool map_load_performed = false;
         std::string detail;
+    };
+
+    struct PostHandoffActivitySummary
+    {
+        bool measured = false;
+        int handoff_frame = -1;
+        float handoff_time = 0.0f;
+        int observed_frames = 0;
+        int scheduled_executed = 0;
+        int dispatch_attempts = 0;
+        int dispatch_successes = 0;
+        int messages = 0;
+        std::string first_action;
+        std::string first_entity;
+        int first_frame = -1;
+        std::vector<std::string> sample_effects;
     };
 
     bool candidate_present = false;
@@ -438,6 +457,7 @@ struct ChangeLevelTransitionSummary
     std::string transition_intent_action;
     std::string transition_intent_detail;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
+    PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
     bool eligible_activator_observed = false;
     bool overlap_candidate_observed = false;

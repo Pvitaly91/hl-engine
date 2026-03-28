@@ -14,6 +14,7 @@ enum class RegressionGuardProfile
 {
     kTrainstop26TerminalProbe,
     kTrainstop26Baseline,
+    kChangelevelLatchOnlyContinuation,
     kChangelevelRequestConsumed,
 };
 
