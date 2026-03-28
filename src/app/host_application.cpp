@@ -1,7 +1,9 @@
 #include "app/host_application.h"
 
+#include <algorithm>
 #include <exception>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "common/logger.h"
@@ -38,6 +40,213 @@ bool UsesFallbackPath(const hl::filesystem::ValidationCheckStatus& status)
     return status.found
         && status.checked_paths.size() > 1
         && status.resolved_path != status.checked_paths.front();
+}
+
+bool StartsWith(std::string_view value, std::string_view prefix)
+{
+    return value.size() >= prefix.size() && value.compare(0, prefix.size(), prefix) == 0;
+}
+
+bool ContainsText(std::string_view value, std::string_view token)
+{
+    return value.find(token) != std::string_view::npos;
+}
+
+std::string_view RegressionGuardProfileName(hl::app::RegressionGuardProfile profile)
+{
+    switch (profile)
+    {
+    case hl::app::RegressionGuardProfile::kTrainstop26TerminalProbe:
+        return "trainstop26-terminal-probe";
+    case hl::app::RegressionGuardProfile::kTrainstop26Baseline:
+        return "trainstop26-baseline";
+    }
+
+    return "unknown";
+}
+
+void AddGuardFailure(
+    std::vector<std::string>& failures,
+    bool condition,
+    std::string failure_text)
+{
+    if (!condition)
+    {
+        failures.push_back(std::move(failure_text));
+    }
+}
+
+const hl::game_api::PathNodeMessageCanarySummary* FindPathNodeCanary(
+    const hl::game_api::HlServerModuleSummary& summary,
+    std::string_view node_name)
+{
+    const auto it = std::find_if(
+        summary.scripted_movement.path_node_messages.canaries.begin(),
+        summary.scripted_movement.path_node_messages.canaries.end(),
+        [&](const hl::game_api::PathNodeMessageCanarySummary& canary)
+        {
+            return canary.node_name == node_name;
+        });
+
+    return it != summary.scripted_movement.path_node_messages.canaries.end() ? &(*it) : nullptr;
+}
+
+void ValidateTrainstop26TerminalState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    std::vector<std::string>& failures)
+{
+    constexpr std::string_view kExpectedCurrentNode = "trainstop26";
+    constexpr std::string_view kExpectedStoppedReason =
+        "path completed at 'trainstop26' (dead end 'trainstop27')";
+
+    AddGuardFailure(
+        failures,
+        summary.scripted_movement.ftruck_final_current == kExpectedCurrentNode,
+        "expected ftruck_a final current=trainstop26");
+    AddGuardFailure(
+        failures,
+        summary.scripted_movement.ftruck_final_next.empty(),
+        "expected ftruck_a final next=<none>");
+    AddGuardFailure(
+        failures,
+        StartsWith(summary.scripted_movement.delayed_ftruck_status, "completed "),
+        "expected ftruck_a terminal status=completed");
+    AddGuardFailure(
+        failures,
+        ContainsText(
+            summary.scripted_movement.delayed_ftruck_status,
+            std::string("stopped=") + std::string(kExpectedStoppedReason)),
+        "expected ftruck_a stopped reason to remain terminal dead-end completion at trainstop26");
+}
+
+bool ValidateRegressionGuard(
+    hl::app::RegressionGuardProfile profile,
+    const hl::game_api::HlServerModuleSummary& summary)
+{
+    constexpr std::string_view kExpectedStoppedReason =
+        "path completed at 'trainstop26' (dead end 'trainstop27')";
+
+    std::vector<std::string> failures;
+    switch (profile)
+    {
+    case hl::app::RegressionGuardProfile::kTrainstop26TerminalProbe:
+        ValidateTrainstop26TerminalState(summary, failures);
+        AddGuardFailure(
+            failures,
+            !summary.server_frame_loop.any_seh,
+            "expected frame loop any_seh=no");
+        AddGuardFailure(
+            failures,
+            summary.server_frame_loop.stopped_early,
+            "expected stop-on-node probe to stop early");
+        AddGuardFailure(
+            failures,
+            ContainsText(summary.server_frame_loop.stop_reason, "requested=trainstop26"),
+            "expected frame loop stop reason to reference requested=trainstop26");
+        AddGuardFailure(
+            failures,
+            ContainsText(summary.server_frame_loop.stop_reason, "status=completed"),
+            "expected frame loop stop reason to report status=completed");
+        AddGuardFailure(
+            failures,
+            ContainsText(
+                summary.server_frame_loop.stop_reason,
+                std::string("stopped=") + std::string(kExpectedStoppedReason)),
+            "expected frame loop stop reason to report the terminal dead-end completion text");
+        break;
+
+    case hl::app::RegressionGuardProfile::kTrainstop26Baseline:
+    {
+        const hl::game_api::PathNodeMessageCanarySummary* execute_sci_canary =
+            FindPathNodeCanary(summary, "trainstop9");
+        const hl::game_api::PathNodeMessageCanarySummary* fade_out_canary =
+            FindPathNodeCanary(summary, "trainstop11");
+
+        ValidateTrainstop26TerminalState(summary, failures);
+        AddGuardFailure(
+            failures,
+            summary.server_frame_loop.frames_requested == 1800,
+            "expected baseline frames requested=1800");
+        AddGuardFailure(
+            failures,
+            summary.server_frame_loop.frames_completed == 1800,
+            "expected baseline frames completed=1800");
+        AddGuardFailure(
+            failures,
+            !summary.server_frame_loop.stopped_early,
+            "expected baseline to run through all requested frames");
+        AddGuardFailure(
+            failures,
+            !summary.server_frame_loop.any_seh,
+            "expected baseline any_seh=no");
+        AddGuardFailure(
+            failures,
+            summary.scripted_movement.path_node_messages.deepest_node_reached == "trainstop26",
+            "expected deepest reached node=trainstop26");
+        AddGuardFailure(
+            failures,
+            execute_sci_canary != nullptr,
+            "expected execute_sci canary at trainstop9 to remain present");
+        AddGuardFailure(
+            failures,
+            execute_sci_canary != nullptr && execute_sci_canary->reached,
+            "expected execute_sci reached=yes");
+        AddGuardFailure(
+            failures,
+            execute_sci_canary != nullptr && execute_sci_canary->dispatch_result == "succeeded",
+            "expected execute_sci dispatchResult=succeeded");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr,
+            "expected fade_out canary at trainstop11 to remain present");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr && fade_out_canary->reached,
+            "expected fade_out reached=yes");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr && fade_out_canary->dispatch_result == "succeeded",
+            "expected fade_out dispatchResult=succeeded");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr && fade_out_canary->fade_channel_used,
+            "expected fade_out to keep using staged ScreenFade semantics");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr
+                && !fade_out_canary->presentation_semantics_summary.empty(),
+            "expected fade_out semantics summary to remain present");
+        AddGuardFailure(
+            failures,
+            fade_out_canary != nullptr
+                && ContainsText(
+                    fade_out_canary->presentation_semantics_summary,
+                    "handled=server-side-presentation-semantics")
+                && ContainsText(
+                    fade_out_canary->presentation_semantics_summary,
+                    "message=ScreenFade"),
+            "expected fade_out semantics to remain the staged server-side ScreenFade path");
+        break;
+    }
+    }
+
+    if (failures.empty())
+    {
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Summary,
+            "Regression guard passed: " + std::string(RegressionGuardProfileName(profile)));
+        return true;
+    }
+
+    hl::common::Logger::Error(
+        hl::common::LogCategory::Summary,
+        "Regression guard failed: " + std::string(RegressionGuardProfileName(profile)));
+    for (const std::string& failure : failures)
+    {
+        hl::common::Logger::Error(hl::common::LogCategory::Summary, "  - " + failure);
+    }
+
+    return false;
 }
 } // namespace
 
@@ -318,6 +527,17 @@ bool HostApplication::RunServerEngineShim(
             ? std::string("<none>")
             : init_options.frame_bootstrap.stop_on_node));
 
-    return server_module.InitializeEngineShim(init_options);
+    if (!server_module.InitializeEngineShim(init_options))
+    {
+        return false;
+    }
+
+    if (options.regression_guard.has_value()
+        && !ValidateRegressionGuard(*options.regression_guard, server_module.Summary()))
+    {
+        return false;
+    }
+
+    return true;
 }
 } // namespace hl::app

@@ -136,6 +136,7 @@ void TrackPathResolver::Rebuild(
         node.edict_index = input.edict_index;
         node.targetname = input.targetname;
         node.next_target = input.next_target;
+        node.next_target_terminal_dead_end = input.next_target_terminal_dead_end;
         node.message_target = input.message_target;
         node.origin = input.origin;
         node.has_origin = input.has_origin;
@@ -207,12 +208,15 @@ void TrackPathResolver::Rebuild(
             }
             else
             {
-                ++summary_.broken_links;
-                if (summary_.broken_link_preview.size() < config_.preview_limit)
+                if (!node.next_target_terminal_dead_end)
                 {
-                    summary_.broken_link_preview.push_back(
-                        "broken " + BuildNodeLabel(node)
-                        + " -> " + node.next_target);
+                    ++summary_.broken_links;
+                    if (summary_.broken_link_preview.size() < config_.preview_limit)
+                    {
+                        summary_.broken_link_preview.push_back(
+                            "broken " + BuildNodeLabel(node)
+                            + " -> " + node.next_target);
+                    }
                 }
             }
         }
@@ -234,7 +238,10 @@ void TrackPathResolver::Rebuild(
 
     for (TrackPathNodeView& node : nodes_)
     {
-        node.orphan = node.incoming_links == 0u && !node.next_resolved;
+        node.orphan =
+            node.incoming_links == 0u
+            && !node.next_resolved
+            && !node.next_target_terminal_dead_end;
         if (node.orphan)
         {
             ++summary_.orphan_nodes;
@@ -264,6 +271,7 @@ void TrackPathResolver::Rebuild(
                 + (node.targetname.empty() ? std::string("<empty>") : node.targetname)
                 + " -> "
                 + (node.next_target.empty() ? std::string("<none>") : node.next_target)
+                + (node.next_target_terminal_dead_end ? " terminal-dead-end" : std::string())
                 + (node.message_target.empty()
                     ? std::string()
                     : " message=" + node.message_target)
@@ -445,6 +453,16 @@ const TrackPathNodeView* TrackPathResolver::FindNodeByEdictIndex(int edict_index
 const TrackPathNodeView* TrackPathResolver::ResolveNext(const TrackPathNodeView& node) const noexcept
 {
     return FindNodeByName(node.next_target);
+}
+
+bool TrackPathResolver::HasTerminalDeadEndLink(const TrackPathNodeView& node) const noexcept
+{
+    return !node.next_target.empty() && node.next_target_terminal_dead_end;
+}
+
+bool TrackPathResolver::IsTerminalNode(const TrackPathNodeView& node) const noexcept
+{
+    return node.next_target.empty() || HasTerminalDeadEndLink(node);
 }
 
 const TrackPathNodeView* TrackPathResolver::FindNearest(
