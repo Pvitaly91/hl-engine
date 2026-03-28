@@ -636,6 +636,7 @@ struct PathNodeMessageCanarySummary
     std::vector<std::string> resolved_target_details;
     std::string downstream_summary;
     std::string presentation_linkage_detail;
+    std::string presentation_semantics_summary;
     std::string dispatch_detail;
     std::string required_subsystem;
     bool brush_door_handling_attempted = false;

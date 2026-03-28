@@ -71,6 +71,7 @@ struct PathNodeEventDispatchFeedback
     bool env_message_linkage_used = false;
     bool summary_only_fallback_used = false;
     std::string presentation_linkage_detail;
+    std::string presentation_semantics_summary;
     std::string downstream_summary;
     std::string detail;
     std::string required_subsystem;

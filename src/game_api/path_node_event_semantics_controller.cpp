@@ -849,6 +849,7 @@ void PathNodeEventSemanticsController::NoteCanaryReach(
             canary.resolved_target_details = feedback.resolved_target_details;
             canary.downstream_summary = feedback.downstream_summary;
             canary.presentation_linkage_detail = feedback.presentation_linkage_detail;
+            canary.presentation_semantics_summary = feedback.presentation_semantics_summary;
             canary.dispatch_detail = feedback.detail;
             canary.required_subsystem = feedback.required_subsystem;
             canary.brush_door_handling_attempted = feedback.brush_door_handling_attempted;
