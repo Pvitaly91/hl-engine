@@ -185,6 +185,12 @@ bool TryParseRegressionGuardProfile(
         return true;
     }
 
+    if (normalized == L"changelevel-latch-only-continuation")
+    {
+        *value = hl::app::RegressionGuardProfile::kChangelevelLatchOnlyContinuation;
+        return true;
+    }
+
     if (normalized == L"changelevel-request-consumed"
         || normalized == L"trigger-changelevel-consumed")
     {
@@ -446,7 +452,7 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             if (!TryParseRegressionGuardProfile(argv[++index], &profile))
             {
                 result.error_message =
-                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, or changelevel-request-consumed.";
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, or changelevel-request-consumed.";
                 return result;
             }
 
@@ -463,7 +469,7 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
                     &profile))
             {
                 result.error_message =
-                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, or changelevel-request-consumed.";
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, or changelevel-request-consumed.";
                 return result;
             }
 
@@ -1362,7 +1368,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --gamedir <path>               Use an explicit Half-Life game directory (typically ...\\valve)\n"
              L"  --map <name>                   Set the bootstrap map name (default: c0a0)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
-             L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-request-consumed\n"
+             L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --frames <count>               Run a finite deterministic post-activation frame loop (default: 1000)\n"
              L"  --frametime <s>                Fixed frame time for the bootstrap loop (default: 0.05)\n"
              L"  --think-limit <n>              Maximum due thinks executed per frame (default: 32)\n"

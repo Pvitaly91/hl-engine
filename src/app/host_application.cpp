@@ -60,6 +60,8 @@ std::string_view RegressionGuardProfileName(hl::app::RegressionGuardProfile prof
         return "trainstop26-terminal-probe";
     case hl::app::RegressionGuardProfile::kTrainstop26Baseline:
         return "trainstop26-baseline";
+    case hl::app::RegressionGuardProfile::kChangelevelLatchOnlyContinuation:
+        return "changelevel-latch-only-continuation";
     case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
         return "changelevel-request-consumed";
     }
@@ -231,6 +233,78 @@ bool ValidateRegressionGuard(
         break;
     }
 
+    case hl::app::RegressionGuardProfile::kChangelevelLatchOnlyContinuation:
+        ValidateTrainstop26TerminalState(summary, failures);
+        AddGuardFailure(
+            failures,
+            !summary.server_frame_loop.any_seh,
+            "expected latch-only continuation any_seh=no");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_captured,
+            "expected changelevel_transition_intent captured=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_consumed,
+            "expected changelevel_transition_intent consumed=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.handoff_latched,
+            "expected changelevel_transition_intent handoffLatched=yes");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.world_frozen,
+            "expected changelevel_transition_intent worldFrozen=no");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.stop_requested,
+            "expected changelevel_transition_intent stopRequested=no");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_action == "no-op handoff boundary",
+            "expected changelevel action=no-op handoff boundary");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.active,
+            "expected pre_changelevel_handoff active=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.handoff_latched,
+            "expected pre_changelevel_handoff handoffLatched=yes");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.world_frozen,
+            "expected pre_changelevel_handoff worldFrozen=no");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.stop_requested,
+            "expected pre_changelevel_handoff stopRequested=no");
+        AddGuardFailure(
+            failures,
+            !summary.changelevel_transition.pre_changelevel_handoff.map_load_performed,
+            "expected pre_changelevel_handoff mapLoad=no");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.post_handoff_activity.measured,
+            "expected post_handoff_activity measured=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.post_handoff_activity.scheduled_executed == 0,
+            "expected postHandoffScheduledExecuted=0");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.post_handoff_activity.dispatch_attempts == 0,
+            "expected postHandoffDispatchAttempts=0");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.post_handoff_activity.dispatch_successes == 0,
+            "expected postHandoffDispatchSuccesses=0");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.post_handoff_activity.messages == 0,
+            "expected postHandoffMessages=0");
+        break;
+
     case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
         AddGuardFailure(
             failures,
@@ -284,6 +358,18 @@ bool ValidateRegressionGuard(
             "expected pre_changelevel_handoff active=yes");
         AddGuardFailure(
             failures,
+            summary.changelevel_transition.pre_changelevel_handoff.handoff_latched,
+            "expected pre_changelevel_handoff handoffLatched=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.world_frozen,
+            "expected pre_changelevel_handoff worldFrozen=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pre_changelevel_handoff.stop_requested,
+            "expected pre_changelevel_handoff stopRequested=yes");
+        AddGuardFailure(
+            failures,
             summary.changelevel_transition.pre_changelevel_handoff.request_frame
                 == summary.changelevel_transition.transition_intent_request_frame,
             "expected pre_changelevel_handoff requestFrame to match consumed intent");
@@ -294,14 +380,9 @@ bool ValidateRegressionGuard(
             "expected pre_changelevel_handoff requestTime to match consumed intent");
         AddGuardFailure(
             failures,
-            summary.changelevel_transition.pre_changelevel_handoff.world_state
-                == "frozen|latched|handoff-ready",
-            "expected pre_changelevel_handoff worldState=frozen|latched|handoff-ready");
-        AddGuardFailure(
-            failures,
             summary.changelevel_transition.pre_changelevel_handoff.action
-                == "no-op handoff boundary",
-            "expected pre_changelevel_handoff action=no-op handoff boundary");
+                == "no-op transition stop",
+            "expected pre_changelevel_handoff action=no-op transition stop");
         AddGuardFailure(
             failures,
             !summary.changelevel_transition.pre_changelevel_handoff.map_load_performed,
