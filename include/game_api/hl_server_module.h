@@ -419,6 +419,9 @@ struct ChangeLevelTransitionSummary
     int pending_request_frame = -1;
     float pending_request_time = 0.0f;
     std::string pending_request_detail;
+    bool touch_bounds_resolved = false;
+    bool eligible_activator_observed = false;
+    bool overlap_candidate_observed = false;
 };
 
 struct ScriptedLogicEntitySummary
