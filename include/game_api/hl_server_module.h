@@ -408,6 +408,21 @@ struct MapLogicDispatcherStateSummary
 
 struct ChangeLevelTransitionSummary
 {
+    struct ChangeLevelTargetValidationSummary
+    {
+        bool attempted = false;
+        std::string current_map;
+        std::string requested_map;
+        bool target_map_exists = false;
+        std::string landmark;
+        bool current_landmark_found = false;
+        bool target_landmark_found = false;
+        bool entity_parse_succeeded = false;
+        std::string action;
+        std::string missing_component;
+        std::string detail;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -456,6 +471,7 @@ struct ChangeLevelTransitionSummary
     float transition_intent_request_time = 0.0f;
     std::string transition_intent_action;
     std::string transition_intent_detail;
+    ChangeLevelTargetValidationSummary target_validation;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
