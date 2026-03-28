@@ -63,6 +63,24 @@ struct ParsedVectorField
     Vector value = Vector(0.0f, 0.0f, 0.0f);
 };
 
+struct ChangeLevelValidationBspLumpHeader
+{
+    std::int32_t file_offset = 0;
+    std::int32_t file_length = 0;
+};
+
+struct ChangeLevelValidationBspHeader
+{
+    std::int32_t version = 0;
+    std::array<
+        ChangeLevelValidationBspLumpHeader,
+        hl::game_api::detail::kBspHeaderLumpCount> lumps{};
+};
+
+static_assert(
+    sizeof(ChangeLevelValidationBspHeader) == 124,
+    "Changelevel validation BSP header layout mismatch.");
+
 enum class RuntimeEntitySupportState
 {
     kPending,
@@ -425,6 +443,11 @@ bool EqualsIgnoreCase(std::string_view left, std::string_view right);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
+const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTargetname(
+    const EngineShimState& state,
+    std::string_view target_name,
+    std::string_view classname_filter);
+void EnsureChangeLevelTargetValidation(EngineShimState& state);
 
 const char* BoolToYesNo(bool value)
 {
@@ -511,6 +534,36 @@ std::string FormatPreChangeLevelHandoffSummary(
         + ", worldState="
         + (handoff.world_state.empty() ? std::string("<none>") : handoff.world_state)
         + ", mapLoad=" + BoolToYesNo(handoff.map_load_performed);
+}
+
+std::string FormatChangeLevelTargetValidationSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelTargetValidationSummary& validation =
+        summary.target_validation;
+    std::string line =
+        std::string("currentMap=")
+        + (validation.current_map.empty() ? std::string("<none>") : validation.current_map)
+        + ", requestedMap="
+        + (validation.requested_map.empty() ? std::string("<none>") : validation.requested_map)
+        + ", targetMapExists=" + BoolToYesNo(validation.target_map_exists)
+        + ", landmark="
+        + (validation.landmark.empty() ? std::string("<none>") : validation.landmark)
+        + ", currentLandmark=" + BoolToYesNo(validation.current_landmark_found)
+        + ", targetLandmark=" + BoolToYesNo(validation.target_landmark_found)
+        + ", entityParse=" + (validation.entity_parse_succeeded ? "ok" : "fail")
+        + ", action="
+        + (validation.action.empty() ? std::string("<none>") : validation.action);
+    if (!validation.missing_component.empty())
+    {
+        line += ", missing=" + validation.missing_component;
+    }
+    if (!validation.detail.empty())
+    {
+        line += ", note=" + validation.detail;
+    }
+
+    return line;
 }
 
 bool StartsWithText(std::string_view text, std::string_view prefix)
@@ -2426,6 +2479,13 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + summary.changelevel_transition.pre_changelevel_handoff.detail;
             }
             hl::common::Logger::Info(hl::common::LogCategory::Summary, handoff_line);
+        }
+        if (summary.changelevel_transition.target_validation.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_target_validation: "
+                    + FormatChangeLevelTargetValidationSummary(summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
         {
@@ -4374,6 +4434,216 @@ void NoteTriggerChangeLevelCandidate(
     }
 }
 
+bool ValidateChangeLevelBspLumpBounds(
+    const ChangeLevelValidationBspLumpHeader& lump,
+    std::uintmax_t file_size)
+{
+    if (lump.file_offset < 0 || lump.file_length < 0)
+    {
+        return false;
+    }
+
+    const std::uintmax_t offset = static_cast<std::uintmax_t>(lump.file_offset);
+    const std::uintmax_t length = static_cast<std::uintmax_t>(lump.file_length);
+    return offset <= file_size && length <= file_size - offset;
+}
+
+const hl::game_api::detail::EntityDefinition* FindLandmarkDefinitionByTargetname(
+    const std::vector<hl::game_api::detail::EntityDefinition>& definitions,
+    std::string_view landmark)
+{
+    if (landmark.empty())
+    {
+        return nullptr;
+    }
+
+    for (const hl::game_api::detail::EntityDefinition& definition : definitions)
+    {
+        if (!EqualsIgnoreCase(definition.classname, "info_landmark"))
+        {
+            continue;
+        }
+
+        const std::string* targetname = FindLastKeyValue(definition, "targetname");
+        if (targetname != nullptr && EqualsIgnoreCase(*targetname, landmark))
+        {
+            return &definition;
+        }
+    }
+
+    return nullptr;
+}
+
+struct ChangeLevelTargetMapDryRunProbe
+{
+    bool target_map_exists = false;
+    bool entity_parse_succeeded = false;
+    bool target_landmark_found = false;
+    std::string relative_map_path;
+    std::string detail;
+};
+
+ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
+    const EngineShimState& state,
+    std::string_view requested_map,
+    std::string_view landmark)
+{
+    ChangeLevelTargetMapDryRunProbe probe;
+    if (requested_map.empty())
+    {
+        return probe;
+    }
+
+    probe.relative_map_path = hl::game_api::detail::BuildMapModelPath(requested_map);
+    const std::filesystem::path absolute_map_path =
+        state.server_state.game_directory / hl::common::ToWide(probe.relative_map_path);
+    if (!state.file_system.FileExists(absolute_map_path))
+    {
+        return probe;
+    }
+
+    probe.target_map_exists = true;
+
+    const std::optional<std::vector<unsigned char>> bytes =
+        state.file_system.ReadBinaryFile(absolute_map_path);
+    if (!bytes.has_value())
+    {
+        probe.detail = "failed to read target BSP";
+        return probe;
+    }
+
+    if (bytes->size() < sizeof(ChangeLevelValidationBspHeader))
+    {
+        probe.detail = "target BSP is smaller than a GoldSrc header";
+        return probe;
+    }
+
+    ChangeLevelValidationBspHeader header{};
+    std::memcpy(&header, bytes->data(), sizeof(header));
+    if (header.version != hl::game_api::detail::kGoldSrcBspVersion)
+    {
+        probe.detail = "unsupported BSP version " + std::to_string(header.version);
+        return probe;
+    }
+
+    const ChangeLevelValidationBspLumpHeader& entities_lump = header.lumps[0];
+    if (!ValidateChangeLevelBspLumpBounds(entities_lump, bytes->size()))
+    {
+        probe.detail = "target BSP entities lump is out of file bounds";
+        return probe;
+    }
+
+    if (entities_lump.file_length <= 0)
+    {
+        probe.detail = "target BSP entities lump is missing or empty";
+        return probe;
+    }
+
+    std::string_view entity_lump_text(
+        reinterpret_cast<const char*>(bytes->data()) + entities_lump.file_offset,
+        static_cast<std::size_t>(entities_lump.file_length));
+    const std::size_t terminator = entity_lump_text.find('\0');
+    if (terminator != std::string_view::npos)
+    {
+        entity_lump_text = entity_lump_text.substr(0, terminator);
+    }
+
+    const hl::game_api::detail::EntityLumpParseResult parse_result =
+        hl::game_api::detail::EntityLumpParser::Parse(entity_lump_text);
+    probe.entity_parse_succeeded =
+        parse_result.readable
+        && parse_result.parsed_any
+        && !parse_result.partially_parsed
+        && parse_result.errors.empty()
+        && parse_result.failure_reason.empty();
+    probe.target_landmark_found =
+        FindLandmarkDefinitionByTargetname(parse_result.entities, landmark) != nullptr;
+    if (!probe.entity_parse_succeeded)
+    {
+        probe.detail = !parse_result.failure_reason.empty()
+            ? parse_result.failure_reason
+            : "target BSP entities lump parse failed";
+    }
+
+    return probe;
+}
+
+void EnsureChangeLevelTargetValidation(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (summary.target_validation.attempted
+        || (!summary.pending_request_captured && !summary.transition_intent_captured))
+    {
+        return;
+    }
+
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelTargetValidationSummary& validation =
+        summary.target_validation;
+    validation = {};
+    validation.attempted = true;
+    validation.action = "no-op dry-run validation";
+    validation.current_map = !state.world_context.map_name.empty()
+        ? state.world_context.map_name
+        : hl::game_api::detail::NormalizeMapName(state.server_state.map_name);
+    validation.requested_map = hl::game_api::detail::NormalizeMapName(summary.target_map);
+    validation.landmark = TrimWhitespaceCopy(summary.landmark);
+    validation.current_landmark_found =
+        FindParsedTargetDefinitionByTargetname(state, validation.landmark, "info_landmark")
+        != nullptr;
+
+    const ChangeLevelTargetMapDryRunProbe target_probe =
+        ProbeChangeLevelTargetMapDryRun(state, validation.requested_map, validation.landmark);
+    validation.target_map_exists = target_probe.target_map_exists;
+    validation.entity_parse_succeeded = target_probe.entity_parse_succeeded;
+    validation.target_landmark_found = target_probe.target_landmark_found;
+
+    if (validation.current_map.empty())
+    {
+        validation.missing_component = "current map name";
+        return;
+    }
+
+    if (validation.requested_map.empty())
+    {
+        validation.missing_component = "requested map name";
+        return;
+    }
+
+    if (!validation.target_map_exists)
+    {
+        validation.missing_component = target_probe.relative_map_path.empty()
+            ? "requested map BSP"
+            : "requested map BSP " + target_probe.relative_map_path;
+        return;
+    }
+
+    if (validation.landmark.empty())
+    {
+        validation.missing_component = "landmark name";
+        return;
+    }
+
+    if (!validation.current_landmark_found)
+    {
+        validation.missing_component =
+            "current info_landmark targetname=" + validation.landmark;
+        return;
+    }
+
+    if (!validation.entity_parse_succeeded)
+    {
+        validation.missing_component = "target map entity lump";
+        validation.detail = target_probe.detail;
+        return;
+    }
+
+    if (!validation.target_landmark_found)
+    {
+        validation.missing_component =
+            "target info_landmark targetname=" + validation.landmark;
+    }
+}
+
 void CapturePendingChangeLevelRequest(
     EngineShimState& state,
     const hl::game_api::detail::EntityDefinition* definition,
@@ -4395,6 +4665,7 @@ void CapturePendingChangeLevelRequest(
     summary.pending_request_detail = detail.empty()
         ? "captured as staged-safe no-op host changelevel request"
         : std::string(detail);
+    EnsureChangeLevelTargetValidation(state);
 }
 
 void ConsumePendingChangeLevelRequest(EngineShimState& state)

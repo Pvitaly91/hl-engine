@@ -123,6 +123,48 @@ void ValidateTrainstop26TerminalState(
         "expected ftruck_a stopped reason to remain terminal dead-end completion at trainstop26");
 }
 
+void ValidateChangelevelTargetValidation(
+    const hl::game_api::HlServerModuleSummary& summary,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.attempted,
+        "expected changelevel_target_validation attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.current_map == "c0a0",
+        "expected changelevel_target_validation currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.requested_map == "c0a0a",
+        "expected changelevel_target_validation requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.landmark == "c0a0toa",
+        "expected changelevel_target_validation landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.target_map_exists,
+        "expected changelevel_target_validation targetMapExists=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.current_landmark_found,
+        "expected changelevel_target_validation currentLandmark=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.target_landmark_found,
+        "expected changelevel_target_validation targetLandmark=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.entity_parse_succeeded,
+        "expected changelevel_target_validation entityParse=ok");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.target_validation.action == "no-op dry-run validation",
+        "expected changelevel_target_validation action=no-op dry-run validation");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -235,6 +277,7 @@ bool ValidateRegressionGuard(
 
     case hl::app::RegressionGuardProfile::kChangelevelLatchOnlyContinuation:
         ValidateTrainstop26TerminalState(summary, failures);
+        ValidateChangelevelTargetValidation(summary, failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -306,6 +349,7 @@ bool ValidateRegressionGuard(
         break;
 
     case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
+        ValidateChangelevelTargetValidation(summary, failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
