@@ -4576,6 +4576,300 @@ hl::game_api::detail::BrushDoorEntityView BuildBrushDoorEntityView(
     return view;
 }
 
+struct ChangeLevelTouchBounds
+{
+    bool valid = false;
+    Vector absmin = Vector(0.0f, 0.0f, 0.0f);
+    Vector absmax = Vector(0.0f, 0.0f, 0.0f);
+};
+
+bool BoundsOverlap(
+    const ChangeLevelTouchBounds& left,
+    const ChangeLevelTouchBounds& right) noexcept
+{
+    return left.valid
+        && right.valid
+        && left.absmin.x <= right.absmax.x
+        && left.absmax.x >= right.absmin.x
+        && left.absmin.y <= right.absmax.y
+        && left.absmax.y >= right.absmin.y
+        && left.absmin.z <= right.absmax.z
+        && left.absmax.z >= right.absmin.z;
+}
+
+bool TryResolveTouchBoundsFromSnapshot(
+    const hl::game_api::detail::EntityVarSnapshot& snapshot,
+    ChangeLevelTouchBounds* bounds)
+{
+    if (bounds == nullptr)
+    {
+        return false;
+    }
+
+    *bounds = {};
+    if (!snapshot.valid || !snapshot.in_use || snapshot.removed)
+    {
+        return false;
+    }
+
+    if (!snapshot.has_origin && !snapshot.has_size)
+    {
+        return false;
+    }
+
+    entvars_t vars{};
+    vars.origin = snapshot.origin;
+    vars.mins = snapshot.mins;
+    vars.maxs = snapshot.maxs;
+    vars.solid = snapshot.solid;
+    vars.angles = snapshot.angles;
+    ComputeFallbackAbsBox(vars);
+
+    bounds->valid = true;
+    bounds->absmin = vars.absmin;
+    bounds->absmax = vars.absmax;
+    return true;
+}
+
+bool TryResolveTriggerChangeLevelTouchBounds(
+    const EngineShimState& state,
+    const RuntimeEntityRecord& record,
+    ChangeLevelTouchBounds* bounds)
+{
+    if (bounds == nullptr)
+    {
+        return false;
+    }
+
+    *bounds = {};
+
+    Vector origin = record.origin;
+    bool has_origin = record.has_origin;
+    Vector angles = record.angles;
+    bool has_angles = record.has_angles;
+    Vector mins = record.mins;
+    Vector maxs = record.maxs;
+    bool has_size = record.has_size;
+    int solid = record.solid;
+    std::string model = record.model;
+
+    const edict_t* entity = state.edict_store.EntityOfIndex(record.edict_index);
+    if (entity != nullptr)
+    {
+        hl::game_api::detail::EntityVarSnapshot snapshot;
+        hl::game_api::detail::TryReadEntityVars(
+            state.edict_store,
+            state.string_pool,
+            entity,
+            &snapshot,
+            {});
+        if (snapshot.valid)
+        {
+            if (!has_origin && snapshot.has_origin)
+            {
+                origin = snapshot.origin;
+                has_origin = true;
+            }
+            if (!has_angles && snapshot.has_angles)
+            {
+                angles = snapshot.angles;
+                has_angles = true;
+            }
+            if (!has_size && snapshot.has_size)
+            {
+                mins = snapshot.mins;
+                maxs = snapshot.maxs;
+                has_size = true;
+            }
+            if (solid == 0 && snapshot.solid != 0)
+            {
+                solid = snapshot.solid;
+            }
+        }
+
+        const hl::game_api::detail::EntityStateSnapshot store_snapshot =
+            state.edict_store.SnapshotOf(entity, state.string_pool);
+        if (model.empty() && !store_snapshot.model_string.empty())
+        {
+            model = store_snapshot.model_string;
+        }
+        if (!has_origin && store_snapshot.has_origin)
+        {
+            origin = store_snapshot.origin;
+            has_origin = true;
+        }
+        if (!has_size && store_snapshot.has_size)
+        {
+            mins = store_snapshot.mins;
+            maxs = store_snapshot.maxs;
+            has_size = true;
+        }
+    }
+
+    if (const hl::game_api::detail::EntityDefinition* definition =
+            FindParsedEntityDefinitionByOrdinal(state, record.parse_index);
+        definition != nullptr)
+    {
+        const ParsedVectorField parsed_origin = ParseOriginField(*definition);
+        if (!has_origin && parsed_origin.present && parsed_origin.valid)
+        {
+            origin = parsed_origin.value;
+            has_origin = true;
+        }
+    }
+
+    int inline_model_index = -1;
+    if (model.size() >= 2
+        && model.front() == '*'
+        && ParseStrictInteger(model.substr(1), &inline_model_index)
+        && inline_model_index >= 0
+        && static_cast<std::size_t>(inline_model_index) < state.world_context.inline_models.size())
+    {
+        const hl::game_api::detail::BspInlineModelBounds& inline_model =
+            state.world_context.inline_models[static_cast<std::size_t>(inline_model_index)];
+        if (inline_model.valid)
+        {
+            if (!has_size)
+            {
+                mins = inline_model.mins;
+                maxs = inline_model.maxs;
+                has_size = true;
+            }
+            if (!has_origin)
+            {
+                origin = inline_model.origin;
+                has_origin = true;
+            }
+        }
+    }
+
+    if (!has_origin && !has_size)
+    {
+        return false;
+    }
+
+    entvars_t vars{};
+    vars.origin = origin;
+    vars.mins = mins;
+    vars.maxs = maxs;
+    vars.solid = solid;
+    vars.angles = has_angles ? angles : Vector(0.0f, 0.0f, 0.0f);
+    if (vars.solid == 0 && !model.empty() && model.front() == '*')
+    {
+        vars.solid = SOLID_BSP;
+    }
+    ComputeFallbackAbsBox(vars);
+
+    bounds->valid = true;
+    bounds->absmin = vars.absmin;
+    bounds->absmax = vars.absmax;
+    return true;
+}
+
+void ObserveTriggerChangeLevelTouchState(
+    EngineShimState& state,
+    int frame_number,
+    float time)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.candidate_present || summary.pending_request_captured)
+    {
+        return;
+    }
+
+    RuntimeEntityRecord* trigger_record = nullptr;
+    for (RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        if (EqualsIgnoreCase(record.classname, "trigger_changelevel"))
+        {
+            trigger_record = &record;
+            break;
+        }
+    }
+
+    if (trigger_record == nullptr)
+    {
+        summary.pending_request_detail = "not exercised: no runtime trigger retained for touch observation";
+        return;
+    }
+
+    ChangeLevelTouchBounds trigger_bounds;
+    if (TryResolveTriggerChangeLevelTouchBounds(state, *trigger_record, &trigger_bounds))
+    {
+        summary.touch_bounds_resolved = true;
+    }
+
+    const int max_client_edict =
+        std::min(state.server_state.maxclients, state.edict_store.NumberOfEntities() - 1);
+    for (int edict_index = 1; edict_index <= max_client_edict; ++edict_index)
+    {
+        edict_t* activator_entity = state.edict_store.EntityOfIndex(edict_index);
+        if (activator_entity == nullptr)
+        {
+            continue;
+        }
+
+        hl::game_api::detail::EntityVarSnapshot activator_snapshot;
+        hl::game_api::detail::TryReadEntityVars(
+            state.edict_store,
+            state.string_pool,
+            activator_entity,
+            &activator_snapshot,
+            {});
+        if (!activator_snapshot.valid
+            || !activator_snapshot.in_use
+            || activator_snapshot.removed)
+        {
+            continue;
+        }
+
+        summary.eligible_activator_observed = true;
+
+        ChangeLevelTouchBounds activator_bounds;
+        if (!TryResolveTouchBoundsFromSnapshot(activator_snapshot, &activator_bounds))
+        {
+            continue;
+        }
+
+        if (!trigger_bounds.valid || !BoundsOverlap(trigger_bounds, activator_bounds))
+        {
+            continue;
+        }
+
+        summary.overlap_candidate_observed = true;
+        CapturePendingChangeLevelRequest(
+            state,
+            FindParsedEntityDefinitionByOrdinal(state, trigger_record->parse_index),
+            trigger_record,
+            frame_number,
+            time,
+            "captured from staged-safe trigger_changelevel touch overlap with activator edict#"
+                + std::to_string(edict_index)
+                + " classname="
+                + (activator_snapshot.classname.empty()
+                    ? std::string("<empty>")
+                    : activator_snapshot.classname)
+                + "; no map load performed");
+        return;
+    }
+
+    if (!summary.touch_bounds_resolved)
+    {
+        summary.pending_request_detail =
+            "not exercised: trigger bounds unavailable for staged touch observation";
+    }
+    else if (!summary.eligible_activator_observed)
+    {
+        summary.pending_request_detail =
+            "not exercised: no eligible client activator observed";
+    }
+    else if (!summary.overlap_candidate_observed)
+    {
+        summary.pending_request_detail =
+            "not exercised: eligible client activator observed but no overlap candidate observed";
+    }
+}
+
 std::vector<hl::game_api::detail::BrushDoorEntityView> BuildBrushDoorEntityViews(
     const EngineShimState& state)
 {
@@ -12874,6 +13168,7 @@ void PerformServerFrameLoop()
                 LogMovementFrameSummary(state.frame_bootstrap_options, movement_frame);
             }
 
+            ObserveTriggerChangeLevelTouchState(state, frame_number, time);
             RefreshScriptedLogicStateSummary(state);
             state.scripted_logic_state.frames.push_back(BuildScriptedLogicFrameStateSummary(state));
 
