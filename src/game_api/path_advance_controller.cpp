@@ -2,6 +2,21 @@
 
 #include <cmath>
 
+namespace
+{
+std::string BuildTerminalPathCompletionReason(
+    const hl::game_api::detail::TrackPathResolver& resolver,
+    const hl::game_api::detail::TrackPathNodeView& node)
+{
+    if (resolver.HasTerminalDeadEndLink(node))
+    {
+        return "path completed at '" + node.targetname + "' (dead end '" + node.next_target + "')";
+    }
+
+    return "path completed at '" + node.targetname + "'";
+}
+} // namespace
+
 namespace hl::game_api::detail
 {
 void PathAdvanceController::Configure(const PathAdvanceControllerConfig& config)
@@ -43,9 +58,10 @@ PathTraversalFrameResult PathAdvanceController::HandlePostCalibration(
         mover.summary.blocked_reason.clear();
         mover.summary.path_bound = false;
         StopMoverMotion(entity, hooks);
-        if (current_node->next_target.empty())
+        if (resolver.IsTerminalNode(*current_node))
         {
-            mover.summary.stopped_reason = "path completed at '" + mover.summary.current_node + "'";
+            mover.summary.graph_valid = true;
+            mover.summary.stopped_reason = BuildTerminalPathCompletionReason(resolver, *current_node);
             if (hooks.set_stage)
             {
                 hooks.set_stage(mover, PathMoverStage::kCompleted, mover.summary.stopped_reason);
@@ -225,9 +241,10 @@ PathTraversalFrameResult PathAdvanceController::HandlePostCalibration(
     }
 
     mover.summary.path_bound = false;
-    if (next_node->next_target.empty())
+    if (resolver.IsTerminalNode(*next_node))
     {
-        mover.summary.stopped_reason = "path completed at '" + next_node->targetname + "'";
+        mover.summary.graph_valid = true;
+        mover.summary.stopped_reason = BuildTerminalPathCompletionReason(resolver, *next_node);
         if (hooks.set_stage)
         {
             hooks.set_stage(mover, PathMoverStage::kCompleted, mover.summary.stopped_reason);

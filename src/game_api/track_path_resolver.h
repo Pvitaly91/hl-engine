@@ -22,6 +22,7 @@ struct TrackPathNodeInput
     int edict_index = -1;
     std::string targetname;
     std::string next_target;
+    bool next_target_terminal_dead_end = false;
     std::string message_target;
     Vector origin = Vector(0.0f, 0.0f, 0.0f);
     bool has_origin = false;
@@ -36,6 +37,7 @@ struct TrackPathNodeView
     int edict_index = -1;
     std::string targetname;
     std::string next_target;
+    bool next_target_terminal_dead_end = false;
     std::string message_target;
     Vector origin = Vector(0.0f, 0.0f, 0.0f);
     bool has_origin = false;
@@ -85,6 +87,8 @@ public:
     std::vector<const TrackPathNodeView*> FindNodesByName(std::string_view targetname) const;
     const TrackPathNodeView* FindNodeByEdictIndex(int edict_index) const noexcept;
     const TrackPathNodeView* ResolveNext(const TrackPathNodeView& node) const noexcept;
+    bool HasTerminalDeadEndLink(const TrackPathNodeView& node) const noexcept;
+    bool IsTerminalNode(const TrackPathNodeView& node) const noexcept;
     const TrackPathNodeView* FindNearest(const Vector& origin, float max_distance) const noexcept;
     TrackPathLookupResult ResolveStartNode(
         std::string_view targetname,

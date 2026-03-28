@@ -42,6 +42,20 @@ std::wstring TrimCopy(std::wstring_view value)
     return std::wstring(value.substr(begin, end - begin));
 }
 
+std::wstring ToLowerCopy(std::wstring_view value)
+{
+    std::wstring lowered = TrimCopy(value);
+    std::transform(
+        lowered.begin(),
+        lowered.end(),
+        lowered.begin(),
+        [](wchar_t character)
+        {
+            return static_cast<wchar_t>(std::towlower(character));
+        });
+    return lowered;
+}
+
 std::string NarrowAscii(std::wstring_view value)
 {
     std::string text;
@@ -144,6 +158,34 @@ bool TryParseLogLevel(std::wstring_view text, hl::common::LogLevel* value)
 
     *value = *parsed;
     return true;
+}
+
+bool TryParseRegressionGuardProfile(
+    std::wstring_view text,
+    hl::app::RegressionGuardProfile* value)
+{
+    if (value == nullptr)
+    {
+        return false;
+    }
+
+    const std::wstring normalized = ToLowerCopy(text);
+    if (normalized == L"trainstop26-terminal-probe"
+        || normalized == L"trainstop26-terminal"
+        || normalized == L"trainstop26-stop-probe")
+    {
+        *value = hl::app::RegressionGuardProfile::kTrainstop26TerminalProbe;
+        return true;
+    }
+
+    if (normalized == L"trainstop26-baseline"
+        || normalized == L"c0a0-trainstop26-baseline")
+    {
+        *value = hl::app::RegressionGuardProfile::kTrainstop26Baseline;
+        return true;
+    }
+
+    return false;
 }
 
 bool TryParseCategoryList(
@@ -382,6 +424,43 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.map_name = std::wstring(value);
+            continue;
+        }
+
+        if (argument == L"--regression-guard")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --regression-guard.";
+                return result;
+            }
+
+            hl::app::RegressionGuardProfile profile{};
+            if (!TryParseRegressionGuardProfile(argv[++index], &profile))
+            {
+                result.error_message =
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe or trainstop26-baseline.";
+                return result;
+            }
+
+            result.options.regression_guard = profile;
+            continue;
+        }
+
+        constexpr std::wstring_view regression_guard_prefix = L"--regression-guard=";
+        if (StartsWith(argument, regression_guard_prefix))
+        {
+            hl::app::RegressionGuardProfile profile{};
+            if (!TryParseRegressionGuardProfile(
+                    argument.substr(regression_guard_prefix.size()),
+                    &profile))
+            {
+                result.error_message =
+                    L"Invalid value for --regression-guard. Expected trainstop26-terminal-probe or trainstop26-baseline.";
+                return result;
+            }
+
+            result.options.regression_guard = profile;
             continue;
         }
 
@@ -1231,7 +1310,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--gamedir <path>] [--map <name>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1241,6 +1320,8 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"Options:\n"
              L"  --gamedir <path>               Use an explicit Half-Life game directory (typically ...\\valve)\n"
              L"  --map <name>                   Set the bootstrap map name (default: c0a0)\n"
+             L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
+             L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline\n"
              L"  --frames <count>               Run a finite deterministic post-activation frame loop (default: 1000)\n"
              L"  --frametime <s>                Fixed frame time for the bootstrap loop (default: 0.05)\n"
              L"  --think-limit <n>              Maximum due thinks executed per frame (default: 32)\n"

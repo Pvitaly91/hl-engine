@@ -10,10 +10,17 @@
 
 namespace hl::app
 {
+enum class RegressionGuardProfile
+{
+    kTrainstop26TerminalProbe,
+    kTrainstop26Baseline,
+};
+
 struct LaunchOptions
 {
     std::optional<std::filesystem::path> game_directory;
     std::optional<std::wstring> map_name;
+    std::optional<RegressionGuardProfile> regression_guard;
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;

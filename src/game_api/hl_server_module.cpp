@@ -374,6 +374,7 @@ struct EngineShimState
     hl::game_api::ScriptedMovementStateSummary scripted_movement_state;
     DeterministicRandomDiagnostics random_diagnostics;
     std::unordered_map<void*, LoadedFileBuffer> loaded_files;
+    std::unordered_set<std::string> path_track_terminal_dead_end_targets;
     std::unordered_map<int, std::string> light_styles;
     StableIndexRegistry generic_precache_registry;
     StableIndexRegistry event_precache_registry;
@@ -1334,6 +1335,31 @@ bool StartsWithIgnoreCase(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size()
         && EqualsIgnoreCase(text.substr(0, prefix.size()), prefix);
+}
+
+std::string ExtractPathTrackDeadEndTarget(std::string_view alert_detail)
+{
+    constexpr std::string_view kDeadEndMarker = "dead end link";
+
+    const std::string normalized = ToLowerCopy(alert_detail);
+    const std::size_t marker_index = normalized.find(kDeadEndMarker);
+    if (marker_index == std::string::npos)
+    {
+        return {};
+    }
+
+    std::string target = TrimWhitespaceCopy(
+        alert_detail.substr(marker_index + kDeadEndMarker.size()));
+    while (!target.empty()
+           && (target.back() == '.'
+               || target.back() == ','
+               || target.back() == ';'
+               || target.back() == ':'))
+    {
+        target.pop_back();
+    }
+
+    return target;
 }
 
 hl::common::LogLevel VerboseTraceLevel(bool verbose_trace)
@@ -6670,6 +6696,10 @@ std::vector<hl::game_api::detail::TrackPathNodeInput> BuildTrackPathInputs(
         input.edict_index = record.edict_index;
         input.targetname = record.targetname;
         input.next_target = record.target;
+        input.next_target_terminal_dead_end =
+            !input.next_target.empty()
+            && state.path_track_terminal_dead_end_targets.find(ToLowerCopy(input.next_target))
+                != state.path_track_terminal_dead_end_targets.end();
         input.origin = record.origin;
         input.has_origin = record.has_origin;
         input.in_use = record.in_use;
@@ -8124,6 +8154,7 @@ void StubServerPrint(const char* message)
 
 void StubAlertMessage(ALERT_TYPE alert_type, char* format, ...)
 {
+    EngineShimState& state = CurrentShimState();
     std::string detail;
     switch (alert_type)
     {
@@ -8161,6 +8192,15 @@ void StubAlertMessage(ALERT_TYPE alert_type, char* format, ...)
         detail += ": ";
         detail += TrimTrailingWhitespace(
             written > 0 ? std::string(buffer.data()) : std::string(format));
+    }
+
+    if (state.server_activation_diagnostics.IsActive())
+    {
+        const std::string dead_end_target = ExtractPathTrackDeadEndTarget(detail);
+        if (!dead_end_target.empty())
+        {
+            state.path_track_terminal_dead_end_targets.insert(ToLowerCopy(dead_end_target));
+        }
     }
 
     RecordCallback("pfnAlertMessage", detail);
@@ -10315,6 +10355,7 @@ void PerformServerActivation()
     EngineShimState& state = CurrentShimState();
     state.server_activation_diagnostics.Reset();
     state.server_activation_state = {};
+    state.path_track_terminal_dead_end_targets.clear();
 
     hl::game_api::ServerActivationStateSummary& summary = state.server_activation_state;
     summary.function_present = state.dll_functions.pfnServerActivate != nullptr;
