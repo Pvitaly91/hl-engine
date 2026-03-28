@@ -60,6 +60,8 @@ std::string_view RegressionGuardProfileName(hl::app::RegressionGuardProfile prof
         return "trainstop26-terminal-probe";
     case hl::app::RegressionGuardProfile::kTrainstop26Baseline:
         return "trainstop26-baseline";
+    case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
+        return "changelevel-request-consumed";
     }
 
     return "unknown";
@@ -228,6 +230,55 @@ bool ValidateRegressionGuard(
             "expected fade_out semantics to remain the staged server-side ScreenFade path");
         break;
     }
+
+    case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
+        AddGuardFailure(
+            failures,
+            !summary.server_frame_loop.any_seh,
+            "expected changelevel consumed probe any_seh=no");
+        AddGuardFailure(
+            failures,
+            summary.server_frame_loop.stopped_early,
+            "expected changelevel consumed probe to stop early");
+        AddGuardFailure(
+            failures,
+            ContainsText(
+                summary.server_frame_loop.stop_reason,
+                "stop-on-changelevel-request reached"),
+            "expected frame loop stop reason to reference stop-on-changelevel-request");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.pending_request_captured,
+            "expected pending_changelevel_request capture to remain present");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_captured,
+            "expected changelevel_transition_intent captured=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_consumed,
+            "expected changelevel_transition_intent consumed=yes");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.target_map == "c0a0a",
+            "expected changelevel requestedMap=c0a0a");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.landmark == "c0a0toa",
+            "expected changelevel landmark=c0a0toa");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_request_frame >= 0,
+            "expected changelevel requestFrame to be captured");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_request_time > 0.0f,
+            "expected changelevel requestTime to be captured");
+        AddGuardFailure(
+            failures,
+            summary.changelevel_transition.transition_intent_action == "no-op transition stop",
+            "expected changelevel action=no-op transition stop");
+        break;
     }
 
     if (failures.empty())
@@ -495,6 +546,8 @@ bool HostApplication::RunServerEngineShim(
     init_options.frame_bootstrap.log_frame_sample = options.log_frame_sample;
     init_options.frame_bootstrap.log_state_changes_only = options.log_state_changes_only;
     init_options.frame_bootstrap.stop_on_first_message = options.stop_on_first_message;
+    init_options.frame_bootstrap.stop_on_changelevel_request =
+        options.stop_on_changelevel_request;
     init_options.frame_bootstrap.stop_on_node =
         options.stop_on_node.has_value() ? common::ToUtf8(*options.stop_on_node) : std::string();
 
@@ -522,6 +575,8 @@ bool HostApplication::RunServerEngineShim(
         + std::string(init_options.frame_bootstrap.log_state_changes_only ? "1" : "0")
         + ", stop_on_first_message="
         + std::string(init_options.frame_bootstrap.stop_on_first_message ? "1" : "0")
+        + ", stop_on_changelevel_request="
+        + std::string(init_options.frame_bootstrap.stop_on_changelevel_request ? "1" : "0")
         + ", stop_on_node="
         + (init_options.frame_bootstrap.stop_on_node.empty()
             ? std::string("<none>")

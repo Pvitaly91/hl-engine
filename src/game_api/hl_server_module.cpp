@@ -458,6 +458,29 @@ std::string FormatChangeLevelCandidate(
         + "}";
 }
 
+std::string FormatChangeLevelTransitionIntentSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    return std::string("captured=") + BoolToYesNo(summary.transition_intent_captured)
+        + ", requestedMap="
+        + (summary.target_map.empty() ? std::string("<none>") : summary.target_map)
+        + ", landmark="
+        + (summary.landmark.empty() ? std::string("<none>") : summary.landmark)
+        + ", requestFrame="
+        + (summary.transition_intent_request_frame >= 0
+            ? std::to_string(summary.transition_intent_request_frame)
+            : std::string("<none>"))
+        + ", requestTime="
+        + (summary.transition_intent_captured
+            ? std::to_string(summary.transition_intent_request_time)
+            : std::string("<none>"))
+        + ", consumed=" + BoolToYesNo(summary.transition_intent_consumed)
+        + ", action="
+        + (summary.transition_intent_action.empty()
+            ? std::string("<none>")
+            : summary.transition_intent_action);
+}
+
 std::string TrimTrailingWhitespace(std::string value)
 {
     while (!value.empty() && std::isspace(static_cast<unsigned char>(value.back())) != 0)
@@ -2025,6 +2048,42 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             line += ", note=" + summary.changelevel_transition.pending_request_detail;
         }
         hl::common::Logger::Info(hl::common::LogCategory::Summary, line);
+        if (summary.changelevel_transition.transition_intent_captured)
+        {
+            std::string intent_line =
+                "  - changelevel_transition_intent: "
+                + FormatChangeLevelTransitionIntentSummary(summary.changelevel_transition);
+            if (!summary.changelevel_transition.transition_intent_detail.empty())
+            {
+                intent_line += ", note=" + summary.changelevel_transition.transition_intent_detail;
+            }
+            hl::common::Logger::Info(hl::common::LogCategory::Summary, intent_line);
+        }
+        if (summary.changelevel_transition.moving_surrogate_samples > 0)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - trigger_changelevel geometry: follow=ftruck_a, trigger_bounds="
+                    + summary.changelevel_transition.trigger_bounds_text
+                    + ", surrogate_path_envelope="
+                    + summary.changelevel_transition.surrogate_path_envelope_text
+                    + ", local_offset="
+                    + summary.changelevel_transition.moving_surrogate_local_offset_text
+                    + ", samples="
+                    + std::to_string(summary.changelevel_transition.moving_surrogate_samples)
+                    + ", closest_approach="
+                    + std::to_string(summary.changelevel_transition.closest_approach_distance)
+                    + ", closest_frame="
+                    + std::to_string(summary.changelevel_transition.closest_approach_frame)
+                    + ", closest_time="
+                    + std::to_string(summary.changelevel_transition.closest_approach_time)
+                    + ", closest_surrogate_origin="
+                    + summary.changelevel_transition.closest_surrogate_origin_text
+                    + ", overlap="
+                    + (summary.changelevel_transition.closest_approach_distance == 0.0f
+                        ? std::string("yes")
+                        : std::string("no")));
+        }
     }
     hl::common::Logger::Info(
         hl::common::LogCategory::Summary,
@@ -2197,6 +2256,8 @@ void CapturePendingChangeLevelRequest(
     int frame_number,
     float time,
     std::string_view detail);
+
+void ConsumePendingChangeLevelRequest(EngineShimState& state);
 
 EntitySupportDecision ClassifyEntitySupport(std::string_view classname)
 {
@@ -3949,6 +4010,23 @@ void CapturePendingChangeLevelRequest(
         : std::string(detail);
 }
 
+void ConsumePendingChangeLevelRequest(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.pending_request_captured || summary.transition_intent_consumed)
+    {
+        return;
+    }
+
+    summary.transition_intent_captured = true;
+    summary.transition_intent_consumed = true;
+    summary.transition_intent_request_frame = summary.pending_request_frame;
+    summary.transition_intent_request_time = summary.pending_request_time;
+    summary.transition_intent_action = "no-op transition latched";
+    summary.transition_intent_detail =
+        "pending_changelevel_request consumed into staged-safe host transition intent; no map load performed";
+}
+
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal)
@@ -4583,6 +4661,14 @@ struct ChangeLevelTouchBounds
     Vector absmax = Vector(0.0f, 0.0f, 0.0f);
 };
 
+struct ChangeLevelKinematicAnchorState
+{
+    bool valid = false;
+    int edict_index = -1;
+    Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    float yaw = 0.0f;
+};
+
 bool BoundsOverlap(
     const ChangeLevelTouchBounds& left,
     const ChangeLevelTouchBounds& right) noexcept
@@ -4595,6 +4681,64 @@ bool BoundsOverlap(
         && left.absmax.y >= right.absmin.y
         && left.absmin.z <= right.absmax.z
         && left.absmax.z >= right.absmin.z;
+}
+
+float BoundsSeparationDistance(
+    const ChangeLevelTouchBounds& left,
+    const ChangeLevelTouchBounds& right) noexcept
+{
+    if (!left.valid || !right.valid)
+    {
+        return -1.0f;
+    }
+
+    const float dx = std::max(
+        0.0f,
+        std::max(left.absmin.x - right.absmax.x, right.absmin.x - left.absmax.x));
+    const float dy = std::max(
+        0.0f,
+        std::max(left.absmin.y - right.absmax.y, right.absmin.y - left.absmax.y));
+    const float dz = std::max(
+        0.0f,
+        std::max(left.absmin.z - right.absmax.z, right.absmin.z - left.absmax.z));
+    return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+Vector RotateOffsetAroundYaw(const Vector& offset, float yaw_delta) noexcept
+{
+    constexpr float kDegToRad = 3.14159265358979323846f / 180.0f;
+    const float radians = yaw_delta * kDegToRad;
+    const float cosine = std::cos(radians);
+    const float sine = std::sin(radians);
+    return Vector(
+        offset.x * cosine - offset.y * sine,
+        offset.x * sine + offset.y * cosine,
+        offset.z);
+}
+
+bool IsReasonableTouchCoordinate(float value) noexcept
+{
+    return std::isfinite(value) && std::fabs(value) < 1000000.0f;
+}
+
+bool IsReasonableTouchOrigin(const Vector& value) noexcept
+{
+    return IsReasonableTouchCoordinate(value.x)
+        && IsReasonableTouchCoordinate(value.y)
+        && IsReasonableTouchCoordinate(value.z);
+}
+
+bool IsReasonableTouchSize(const Vector& mins, const Vector& maxs) noexcept
+{
+    return IsReasonableTouchCoordinate(mins.x)
+        && IsReasonableTouchCoordinate(mins.y)
+        && IsReasonableTouchCoordinate(mins.z)
+        && IsReasonableTouchCoordinate(maxs.x)
+        && IsReasonableTouchCoordinate(maxs.y)
+        && IsReasonableTouchCoordinate(maxs.z)
+        && mins.x <= maxs.x
+        && mins.y <= maxs.y
+        && mins.z <= maxs.z;
 }
 
 bool TryResolveTouchBoundsFromSnapshot(
@@ -4706,6 +4850,15 @@ bool TryResolveTriggerChangeLevelTouchBounds(
         }
     }
 
+    if (has_origin && !IsReasonableTouchOrigin(origin))
+    {
+        has_origin = false;
+    }
+    if (has_size && !IsReasonableTouchSize(mins, maxs))
+    {
+        has_size = false;
+    }
+
     if (const hl::game_api::detail::EntityDefinition* definition =
             FindParsedEntityDefinitionByOrdinal(state, record.parse_index);
         definition != nullptr)
@@ -4766,17 +4919,17 @@ bool TryResolveTriggerChangeLevelTouchBounds(
     return true;
 }
 
-bool TryResolveSinglePlayerActivatorSurrogateBounds(
+bool TryResolveSinglePlayerActivatorSurrogateOrigin(
     const EngineShimState& state,
-    ChangeLevelTouchBounds* bounds,
+    Vector* origin,
     std::string* detail)
 {
-    if (bounds == nullptr)
+    if (origin == nullptr)
     {
         return false;
     }
 
-    *bounds = {};
+    *origin = Vector(0.0f, 0.0f, 0.0f);
     if (detail != nullptr)
     {
         detail->clear();
@@ -4797,7 +4950,7 @@ bool TryResolveSinglePlayerActivatorSurrogateBounds(
         return false;
     }
 
-    Vector origin = player_start->origin;
+    Vector resolved_origin = player_start->origin;
     bool has_origin = player_start->has_origin;
     if (const hl::game_api::detail::EntityDefinition* definition =
             FindParsedEntityDefinitionByOrdinal(state, player_start->parse_index);
@@ -4806,7 +4959,7 @@ bool TryResolveSinglePlayerActivatorSurrogateBounds(
         const ParsedVectorField parsed_origin = ParseOriginField(*definition);
         if (!has_origin && parsed_origin.present && parsed_origin.valid)
         {
-            origin = parsed_origin.value;
+            resolved_origin = parsed_origin.value;
             has_origin = true;
         }
     }
@@ -4825,13 +4978,39 @@ bool TryResolveSinglePlayerActivatorSurrogateBounds(
                 {});
             if (snapshot.valid && snapshot.has_origin)
             {
-                origin = snapshot.origin;
+                resolved_origin = snapshot.origin;
                 has_origin = true;
             }
         }
     }
 
     if (!has_origin)
+    {
+        return false;
+    }
+
+    *origin = resolved_origin;
+    if (detail != nullptr)
+    {
+        *detail = "info_player_start origin=" + FormatVector(resolved_origin);
+    }
+    return true;
+}
+
+bool TryResolveSinglePlayerActivatorSurrogateBounds(
+    const EngineShimState& state,
+    ChangeLevelTouchBounds* bounds,
+    std::string* detail)
+{
+    if (bounds == nullptr)
+    {
+        return false;
+    }
+
+    *bounds = {};
+
+    Vector origin;
+    if (!TryResolveSinglePlayerActivatorSurrogateOrigin(state, &origin, detail))
     {
         return false;
     }
@@ -4846,12 +5025,265 @@ bool TryResolveSinglePlayerActivatorSurrogateBounds(
     bounds->valid = true;
     bounds->absmin = vars.absmin;
     bounds->absmax = vars.absmax;
+    return true;
+}
 
+bool TryResolveTrackTrainAnchorState(
+    const EngineShimState& state,
+    std::string_view targetname,
+    ChangeLevelKinematicAnchorState* anchor,
+    std::string* detail)
+{
+    if (anchor == nullptr)
+    {
+        return false;
+    }
+
+    *anchor = {};
     if (detail != nullptr)
     {
-        *detail = "info_player_start origin=" + FormatVector(origin);
+        detail->clear();
+    }
+
+    const RuntimeEntityRecord* record = FindRuntimeRecordByTargetname(state, targetname);
+    if (record == nullptr)
+    {
+        return false;
+    }
+
+    Vector origin = record->origin;
+    bool has_origin = record->has_origin;
+    Vector angles = record->angles;
+    bool has_angles = record->has_angles;
+    if (record->edict_index >= 0)
+    {
+        if (const edict_t* entity = state.edict_store.EntityOfIndex(record->edict_index);
+            entity != nullptr)
+        {
+            hl::game_api::detail::EntityVarSnapshot snapshot;
+            hl::game_api::detail::TryReadEntityVars(
+                state.edict_store,
+                state.string_pool,
+                entity,
+                &snapshot,
+                {});
+            if (snapshot.valid)
+            {
+                if (snapshot.has_origin)
+                {
+                    origin = snapshot.origin;
+                    has_origin = true;
+                }
+                if (snapshot.has_angles)
+                {
+                    angles = snapshot.angles;
+                    has_angles = true;
+                }
+            }
+
+            const hl::game_api::detail::EntityStateSnapshot store_snapshot =
+                state.edict_store.SnapshotOf(entity, state.string_pool);
+            if (!has_origin && store_snapshot.has_origin)
+            {
+                origin = store_snapshot.origin;
+                has_origin = true;
+            }
+            if (!has_angles && store_snapshot.has_angles)
+            {
+                angles = store_snapshot.angles;
+                has_angles = true;
+            }
+        }
+    }
+
+    if (const hl::game_api::detail::EntityDefinition* definition =
+            FindParsedEntityDefinitionByOrdinal(state, record->parse_index);
+        definition != nullptr)
+    {
+        const ParsedVectorField parsed_origin = ParseOriginField(*definition);
+        if (!has_origin && parsed_origin.present && parsed_origin.valid)
+        {
+            origin = parsed_origin.value;
+            has_origin = true;
+        }
+
+        const ParsedVectorField parsed_angles = ParseAnglesField(*definition);
+        if (!has_angles && parsed_angles.present && parsed_angles.valid)
+        {
+            angles = parsed_angles.value;
+            has_angles = true;
+        }
+    }
+
+    if (!has_origin)
+    {
+        return false;
+    }
+
+    anchor->valid = true;
+    anchor->edict_index = record->edict_index;
+    anchor->origin = origin;
+    anchor->yaw = has_angles ? angles.y : 0.0f;
+    if (detail != nullptr)
+    {
+        *detail = std::string(targetname)
+            + " origin=" + FormatVector(origin)
+            + " yaw=" + std::to_string(anchor->yaw);
     }
     return true;
+}
+
+bool TryResolveKinematicSinglePlayerActivatorSurrogateBounds(
+    const EngineShimState& state,
+    hl::game_api::ChangeLevelTransitionSummary* summary,
+    ChangeLevelTouchBounds* bounds,
+    Vector* surrogate_origin,
+    std::string* detail)
+{
+    if (summary == nullptr || bounds == nullptr)
+    {
+        return false;
+    }
+
+    *bounds = {};
+    if (surrogate_origin != nullptr)
+    {
+        *surrogate_origin = Vector(0.0f, 0.0f, 0.0f);
+    }
+    if (detail != nullptr)
+    {
+        detail->clear();
+    }
+
+    Vector player_start_origin;
+    std::string player_start_detail;
+    if (!TryResolveSinglePlayerActivatorSurrogateOrigin(
+            state,
+            &player_start_origin,
+            &player_start_detail))
+    {
+        return false;
+    }
+
+    ChangeLevelKinematicAnchorState anchor;
+    if (!TryResolveTrackTrainAnchorState(state, "ftruck_a", &anchor, nullptr))
+    {
+        return false;
+    }
+
+    if (!summary->moving_surrogate_initialized)
+    {
+        summary->moving_surrogate_initialized = true;
+        summary->moving_surrogate_initial_anchor_yaw = anchor.yaw;
+        const Vector local_offset = player_start_origin - anchor.origin;
+        summary->moving_surrogate_local_offset_x = local_offset.x;
+        summary->moving_surrogate_local_offset_y = local_offset.y;
+        summary->moving_surrogate_local_offset_z = local_offset.z;
+        summary->moving_surrogate_local_offset_text = FormatVector(local_offset);
+    }
+
+    const Vector local_offset(
+        summary->moving_surrogate_local_offset_x,
+        summary->moving_surrogate_local_offset_y,
+        summary->moving_surrogate_local_offset_z);
+    const Vector rotated_offset = RotateOffsetAroundYaw(
+        local_offset,
+        anchor.yaw - summary->moving_surrogate_initial_anchor_yaw);
+    const Vector origin = anchor.origin + rotated_offset;
+
+    entvars_t vars{};
+    vars.origin = origin;
+    vars.mins = Vector(-16.0f, -16.0f, -36.0f);
+    vars.maxs = Vector(16.0f, 16.0f, 36.0f);
+    vars.solid = SOLID_SLIDEBOX;
+    ComputeFallbackAbsBox(vars);
+
+    bounds->valid = true;
+    bounds->absmin = vars.absmin;
+    bounds->absmax = vars.absmax;
+    if (surrogate_origin != nullptr)
+    {
+        *surrogate_origin = origin;
+    }
+    if (detail != nullptr)
+    {
+        *detail = "anchor=ftruck_a origin=" + FormatVector(anchor.origin)
+            + " yaw=" + std::to_string(anchor.yaw)
+            + " localOffset=" + summary->moving_surrogate_local_offset_text
+            + " surrogateOrigin=" + FormatVector(origin)
+            + " start=" + player_start_detail;
+    }
+    return true;
+}
+
+void NoteTriggerChangeLevelGeometrySample(
+    hl::game_api::ChangeLevelTransitionSummary& summary,
+    const ChangeLevelTouchBounds& trigger_bounds,
+    const ChangeLevelTouchBounds& surrogate_bounds,
+    const Vector& surrogate_origin,
+    int frame_number,
+    float time)
+{
+    if (!trigger_bounds.valid || !surrogate_bounds.valid)
+    {
+        return;
+    }
+
+    summary.trigger_bounds_absmin_x = trigger_bounds.absmin.x;
+    summary.trigger_bounds_absmin_y = trigger_bounds.absmin.y;
+    summary.trigger_bounds_absmin_z = trigger_bounds.absmin.z;
+    summary.trigger_bounds_absmax_x = trigger_bounds.absmax.x;
+    summary.trigger_bounds_absmax_y = trigger_bounds.absmax.y;
+    summary.trigger_bounds_absmax_z = trigger_bounds.absmax.z;
+    summary.trigger_bounds_text =
+        FormatVector(trigger_bounds.absmin) + ".." + FormatVector(trigger_bounds.absmax);
+    if (summary.moving_surrogate_samples == 0)
+    {
+        summary.surrogate_path_absmin_x = surrogate_bounds.absmin.x;
+        summary.surrogate_path_absmin_y = surrogate_bounds.absmin.y;
+        summary.surrogate_path_absmin_z = surrogate_bounds.absmin.z;
+        summary.surrogate_path_absmax_x = surrogate_bounds.absmax.x;
+        summary.surrogate_path_absmax_y = surrogate_bounds.absmax.y;
+        summary.surrogate_path_absmax_z = surrogate_bounds.absmax.z;
+    }
+    else
+    {
+        summary.surrogate_path_absmin_x =
+            std::min(summary.surrogate_path_absmin_x, surrogate_bounds.absmin.x);
+        summary.surrogate_path_absmin_y =
+            std::min(summary.surrogate_path_absmin_y, surrogate_bounds.absmin.y);
+        summary.surrogate_path_absmin_z =
+            std::min(summary.surrogate_path_absmin_z, surrogate_bounds.absmin.z);
+        summary.surrogate_path_absmax_x =
+            std::max(summary.surrogate_path_absmax_x, surrogate_bounds.absmax.x);
+        summary.surrogate_path_absmax_y =
+            std::max(summary.surrogate_path_absmax_y, surrogate_bounds.absmax.y);
+        summary.surrogate_path_absmax_z =
+            std::max(summary.surrogate_path_absmax_z, surrogate_bounds.absmax.z);
+    }
+    summary.surrogate_path_envelope_text =
+        FormatVector(
+            Vector(
+                summary.surrogate_path_absmin_x,
+                summary.surrogate_path_absmin_y,
+                summary.surrogate_path_absmin_z))
+        + ".."
+        + FormatVector(
+            Vector(
+                summary.surrogate_path_absmax_x,
+                summary.surrogate_path_absmax_y,
+                summary.surrogate_path_absmax_z));
+    ++summary.moving_surrogate_samples;
+
+    const float distance = BoundsSeparationDistance(trigger_bounds, surrogate_bounds);
+    if (summary.closest_approach_distance < 0.0f
+        || (distance >= 0.0f && distance < summary.closest_approach_distance))
+    {
+        summary.closest_approach_distance = distance;
+        summary.closest_approach_frame = frame_number;
+        summary.closest_approach_time = time;
+        summary.closest_surrogate_origin_text = FormatVector(surrogate_origin);
+    }
 }
 
 void ObserveTriggerChangeLevelTouchState(
@@ -4942,14 +5374,25 @@ void ObserveTriggerChangeLevelTouchState(
     }
 
     ChangeLevelTouchBounds surrogate_bounds;
+    Vector surrogate_origin;
     std::string surrogate_detail;
     if (!summary.eligible_activator_observed
-        && TryResolveSinglePlayerActivatorSurrogateBounds(
+        && TryResolveKinematicSinglePlayerActivatorSurrogateBounds(
             state,
+            &summary,
             &surrogate_bounds,
+            &surrogate_origin,
             &surrogate_detail))
     {
         summary.surrogate_activator_available = true;
+        summary.moving_surrogate_active = true;
+        NoteTriggerChangeLevelGeometrySample(
+            summary,
+            trigger_bounds,
+            surrogate_bounds,
+            surrogate_origin,
+            frame_number,
+            time);
         if (trigger_bounds.valid && BoundsOverlap(trigger_bounds, surrogate_bounds))
         {
             summary.overlap_candidate_observed = true;
@@ -4959,16 +5402,29 @@ void ObserveTriggerChangeLevelTouchState(
                 trigger_record,
                 frame_number,
                 time,
-                "captured from staged-safe host-only single-player activator surrogate touch overlap ("
+                "captured from staged-safe moving host-only single-player activator surrogate touch overlap ("
                     + surrogate_detail
                     + "); no map load performed");
             return;
         }
 
         summary.pending_request_detail = trigger_bounds.valid
-            ? "not exercised: host-only single-player activator surrogate ("
+            ? "not exercised: moving host-only single-player activator surrogate followed ftruck_a but no overlap candidate was observed"
+            : "not exercised: moving host-only single-player activator surrogate available, but trigger bounds are unavailable";
+        return;
+    }
+
+    if (!summary.eligible_activator_observed
+        && TryResolveSinglePlayerActivatorSurrogateBounds(
+            state,
+            &surrogate_bounds,
+            &surrogate_detail))
+    {
+        summary.surrogate_activator_available = true;
+        summary.pending_request_detail = trigger_bounds.valid
+            ? "not exercised: stationary host-only single-player activator surrogate ("
                 + surrogate_detail + ") has no overlap candidate"
-            : "not exercised: host-only single-player activator surrogate available, but trigger bounds are unavailable";
+            : "not exercised: stationary host-only single-player activator surrogate available, but trigger bounds are unavailable";
         return;
     }
 
@@ -13288,6 +13744,7 @@ void PerformServerFrameLoop()
             }
 
             ObserveTriggerChangeLevelTouchState(state, frame_number, time);
+            ConsumePendingChangeLevelRequest(state);
             RefreshScriptedLogicStateSummary(state);
             state.scripted_logic_state.frames.push_back(BuildScriptedLogicFrameStateSummary(state));
 
@@ -13408,6 +13865,36 @@ void PerformServerFrameLoop()
                     }
                     return true;
                 }
+            }
+
+            if (state.frame_bootstrap_options.stop_on_changelevel_request
+                && state.changelevel_transition_state.transition_intent_captured)
+            {
+                hl::game_api::ChangeLevelTransitionSummary& changelevel =
+                    state.changelevel_transition_state;
+                changelevel.transition_intent_action = "no-op transition stop";
+                changelevel.transition_intent_detail =
+                    "pending_changelevel_request consumed into staged-safe host transition intent; stop requested before map load";
+                const std::string stop_reason =
+                    "stop-on-changelevel-request reached: requestedMap="
+                    + (changelevel.target_map.empty()
+                        ? std::string("<none>")
+                        : changelevel.target_map)
+                    + " landmark="
+                    + (changelevel.landmark.empty()
+                        ? std::string("<none>")
+                        : changelevel.landmark)
+                    + " requestFrame="
+                    + std::to_string(changelevel.transition_intent_request_frame)
+                    + " requestTime="
+                    + std::to_string(changelevel.transition_intent_request_time)
+                    + " consumed=" + BoolToYesNo(changelevel.transition_intent_consumed)
+                    + " action=" + changelevel.transition_intent_action;
+                if (reason != nullptr)
+                {
+                    *reason = stop_reason;
+                }
+                return true;
             }
 
             return false;
@@ -14011,6 +14498,8 @@ void LogServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
         + std::string(summary.frame_bootstrap_config.log_state_changes_only ? "1" : "0")
         + ", stop_on_first_message="
         + std::string(summary.frame_bootstrap_config.stop_on_first_message ? "1" : "0")
+        + ", stop_on_changelevel_request="
+        + std::string(summary.frame_bootstrap_config.stop_on_changelevel_request ? "1" : "0")
         + ", stop_on_node="
         + (summary.frame_bootstrap_config.stop_on_node.empty()
             ? std::string("<none>")
@@ -15439,6 +15928,9 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         + std::string(impl_->shim_state.frame_bootstrap_options.log_state_changes_only ? "1" : "0")
         + ", stop_on_first_message="
         + std::string(impl_->shim_state.frame_bootstrap_options.stop_on_first_message ? "1" : "0")
+        + ", stop_on_changelevel_request="
+        + std::string(
+            impl_->shim_state.frame_bootstrap_options.stop_on_changelevel_request ? "1" : "0")
         + ", stop_on_node="
         + (impl_->shim_state.frame_bootstrap_options.stop_on_node.empty()
             ? std::string("<none>")

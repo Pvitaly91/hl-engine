@@ -14,6 +14,7 @@ enum class RegressionGuardProfile
 {
     kTrainstop26TerminalProbe,
     kTrainstop26Baseline,
+    kChangelevelRequestConsumed,
 };
 
 struct LaunchOptions
@@ -33,6 +34,7 @@ struct LaunchOptions
     bool trace_callbacks = false;
     bool verbose = false;
     bool stop_on_first_message = false;
+    bool stop_on_changelevel_request = false;
     std::optional<std::wstring> stop_on_node;
     std::filesystem::path log_directory = std::filesystem::path(L"logs");
     bool log_to_file = true;
