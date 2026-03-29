@@ -461,6 +461,7 @@ void RefreshChangeLevelLandmarkTransform(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state);
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -468,6 +469,10 @@ BuildChangeLevelProjectedTransferSnapshot(
         projected_origin,
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
         projected_orientation);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary
+BuildChangeLevelPlayerTransferApplyPlan(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary&
+        snapshot);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -918,6 +923,57 @@ std::string FormatChangeLevelProjectedTransferSnapshotSummary(
     line += ", transferReady=" + std::string(BoolToYesNo(snapshot.transfer_ready))
         + ", action="
         + (snapshot.action.empty() ? std::string("<none>") : snapshot.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferApplyPlanSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary&
+        plan = summary.changelevel_player_transfer_apply_plan;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(plan.prepared)
+        + ", skipped=" + BoolToYesNo(plan.skipped);
+    if (!plan.decision_source.empty())
+    {
+        line += ", decisionSource=" + plan.decision_source;
+    }
+    if (!plan.apply_target.empty())
+    {
+        line += ", applyTarget=" + plan.apply_target;
+    }
+    if (plan.prepared)
+    {
+        line += ", currentMap="
+            + (plan.current_map.empty() ? std::string("<none>") : plan.current_map)
+            + ", requestedMap="
+            + (plan.requested_map.empty() ? std::string("<none>") : plan.requested_map)
+            + ", targetBspPath="
+            + (plan.target_bsp_path.empty() ? std::string("<none>") : plan.target_bsp_path)
+            + ", landmark="
+            + (plan.landmark.empty() ? std::string("<none>") : plan.landmark)
+            + ", targetPlayerOrigin="
+            + (plan.target_player_origin.empty()
+                ? std::string("<none>")
+                : plan.target_player_origin)
+            + ", targetPlayerYaw="
+            + (plan.target_player_yaw.empty()
+                ? std::string("<none>")
+                : plan.target_player_yaw)
+            + ", originWritePrepared=" + BoolToYesNo(plan.origin_write_prepared)
+            + ", yawWritePrepared=" + BoolToYesNo(plan.yaw_write_prepared)
+            + ", inventoryWritePrepared=" + BoolToYesNo(plan.inventory_write_prepared)
+            + ", velocityWritePrepared=" + BoolToYesNo(plan.velocity_write_prepared)
+            + ", targetWorldspawnPresent=" + BoolToYesNo(plan.target_worldspawn_present)
+            + ", targetEntityParse=" + (plan.target_entity_parse_ok ? "ok" : "fail");
+    }
+    if (!plan.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + plan.short_circuit_reason;
+    }
+
+    line += ", applyReady=" + std::string(BoolToYesNo(plan.apply_ready))
+        + ", action=" + (plan.action.empty() ? std::string("<none>") : plan.action);
     return line;
 }
 
@@ -3013,6 +3069,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_projected_transfer_snapshot: "
                     + FormatChangeLevelProjectedTransferSnapshotSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_apply_plan.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_apply_plan: "
+                    + FormatChangeLevelPlayerTransferApplyPlanSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -5822,6 +5886,55 @@ BuildChangeLevelProjectedTransferSnapshot(
     return snapshot;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary
+BuildChangeLevelPlayerTransferApplyPlan(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary&
+        snapshot)
+{
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary plan;
+    plan.attempted = true;
+
+    if (snapshot.prepared && snapshot.transfer_ready)
+    {
+        plan.prepared = true;
+        plan.skipped = false;
+        plan.decision_source = "projected-transfer-snapshot";
+        plan.apply_target = "player";
+        plan.current_map = snapshot.current_map;
+        plan.requested_map = snapshot.requested_map;
+        plan.target_bsp_path = snapshot.target_bsp_path;
+        plan.landmark = snapshot.landmark;
+        plan.target_player_origin = snapshot.projected_target_origin;
+        plan.target_player_yaw = snapshot.projected_target_yaw;
+        plan.origin_write_prepared = true;
+        plan.yaw_write_prepared = true;
+        plan.inventory_write_prepared = false;
+        plan.velocity_write_prepared = false;
+        plan.target_worldspawn_present = snapshot.target_worldspawn_present;
+        plan.target_entity_parse_ok = snapshot.target_entity_parse_ok;
+        plan.apply_ready = true;
+        plan.action = "no-op player apply plan prepared";
+        return plan;
+    }
+
+    plan.prepared = false;
+    plan.apply_ready = false;
+    plan.short_circuit_reason = snapshot.short_circuit_reason;
+
+    if (snapshot.skipped)
+    {
+        plan.skipped = true;
+        plan.action = "player apply plan skipped";
+        return plan;
+    }
+
+    plan.skipped = false;
+    plan.decision_source = "projected-transfer-snapshot";
+    plan.apply_target = "player";
+    plan.action = "player apply plan unavailable";
+    return plan;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -5842,6 +5955,19 @@ void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
         plan,
         projected_origin,
         projected_orientation);
+    RefreshChangeLevelPlayerTransferApplyPlan(state);
+}
+
+void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_projected_transfer_snapshot.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_apply_plan = BuildChangeLevelPlayerTransferApplyPlan(
+        summary.changelevel_projected_transfer_snapshot);
 }
 
 void CapturePendingChangeLevelRequest(

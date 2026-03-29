@@ -738,6 +738,145 @@ void ValidateChangelevelProjectedTransferSnapshot(
         "expected changelevel_projected_transfer_snapshot targetEntityParse=ok");
 }
 
+void ValidateChangelevelPlayerTransferApplyPlan(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_apply_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.attempted,
+        "expected changelevel_player_transfer_apply_plan attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.prepared
+            == expected_prepared,
+        std::string("expected changelevel_player_transfer_apply_plan prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.skipped
+            == expected_skipped,
+        std::string("expected changelevel_player_transfer_apply_plan skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_prepared ? std::string_view("projected-transfer-snapshot")
+                          : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.decision_source
+            == expected_decision_source,
+        std::string("expected changelevel_player_transfer_apply_plan decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_prepared ? std::string_view("player") : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.apply_target
+            == expected_apply_target,
+        std::string("expected changelevel_player_transfer_apply_plan applyTarget=")
+            + (expected_apply_target.empty()
+                ? std::string("<empty>")
+                : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.apply_ready
+            == expected_apply_ready,
+        std::string("expected changelevel_player_transfer_apply_plan applyReady=")
+            + (expected_apply_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.action
+            == expected_action,
+        std::string("expected changelevel_player_transfer_apply_plan action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_player_transfer_apply_plan shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_apply_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_apply_plan currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_apply_plan requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan.landmark
+            == "c0a0toa",
+        "expected changelevel_player_transfer_apply_plan landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        ContainsText(
+            summary.changelevel_transition.changelevel_player_transfer_apply_plan
+                .target_bsp_path,
+            "c0a0a.bsp"),
+        "expected changelevel_player_transfer_apply_plan targetBspPath to reference c0a0a.bsp");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .target_player_origin
+            == "-2687 -1342.35 65",
+        "expected changelevel_player_transfer_apply_plan targetPlayerOrigin=-2687 -1342.35 65");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .target_player_yaw
+            == "321.622406",
+        "expected changelevel_player_transfer_apply_plan targetPlayerYaw=321.622406");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .origin_write_prepared,
+        "expected changelevel_player_transfer_apply_plan originWritePrepared=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .yaw_write_prepared,
+        "expected changelevel_player_transfer_apply_plan yawWritePrepared=yes");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_apply_plan
+             .inventory_write_prepared,
+        "expected changelevel_player_transfer_apply_plan inventoryWritePrepared=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_apply_plan
+             .velocity_write_prepared,
+        "expected changelevel_player_transfer_apply_plan velocityWritePrepared=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .target_worldspawn_present,
+        "expected changelevel_player_transfer_apply_plan targetWorldspawnPresent=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_apply_plan
+            .target_entity_parse_ok,
+        "expected changelevel_player_transfer_apply_plan targetEntityParse=ok");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -908,6 +1047,14 @@ bool ValidateRegressionGuard(
             "no-op transfer snapshot prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferApplyPlan(
+            summary,
+            true,
+            false,
+            true,
+            "no-op player apply plan prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -1035,6 +1182,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "transfer snapshot skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferApplyPlan(
+            summary,
+            false,
+            true,
+            false,
+            "player apply plan skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
