@@ -624,6 +624,26 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferDeferredApplyGateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string future_apply_phase;
+        int pending_write_count = 0;
+        bool gate_open = false;
+        bool deferred = false;
+        std::string gate_reason;
+        bool runtime_write_suppressed = false;
+        bool apply_gate_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -684,6 +704,8 @@ struct ChangeLevelTransitionSummary
     ChangeLevelProjectedTransferSnapshotSummary changelevel_projected_transfer_snapshot;
     ChangeLevelPlayerTransferApplyPlanSummary changelevel_player_transfer_apply_plan;
     ChangeLevelPlayerTransferWriteSetSummary changelevel_player_transfer_write_set;
+    ChangeLevelPlayerTransferDeferredApplyGateSummary
+        changelevel_player_transfer_deferred_apply_gate;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
