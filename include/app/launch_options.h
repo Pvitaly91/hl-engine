@@ -23,6 +23,7 @@ struct LaunchOptions
     std::optional<std::filesystem::path> game_directory;
     std::optional<std::wstring> map_name;
     std::optional<RegressionGuardProfile> regression_guard;
+    std::optional<std::string> run_label;
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;

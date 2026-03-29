@@ -98,14 +98,27 @@ std::string FormatPartNumber(std::size_t part)
     return stream.str();
 }
 
+void AppendRunLabel(std::string* filename, std::string_view run_label)
+{
+    if (filename == nullptr || run_label.empty())
+    {
+        return;
+    }
+
+    filename->append("__");
+    filename->append(run_label);
+}
+
 std::filesystem::path BuildRollingLogPath(
     const std::filesystem::path& directory,
     std::string_view session_prefix,
     std::string_view session_id,
+    std::string_view run_label,
     std::string_view suffix,
     std::size_t part)
 {
     std::string filename = std::string(session_prefix) + "_" + std::string(session_id);
+    AppendRunLabel(&filename, run_label);
     if (!suffix.empty())
     {
         filename += "_" + std::string(suffix);
@@ -117,10 +130,13 @@ std::filesystem::path BuildRollingLogPath(
 std::filesystem::path BuildSummaryLogPath(
     const std::filesystem::path& directory,
     std::string_view session_prefix,
-    std::string_view session_id)
+    std::string_view session_id,
+    std::string_view run_label)
 {
-    return directory
-        / (std::string(session_prefix) + "_" + std::string(session_id) + "_summary.log");
+    std::string filename = std::string(session_prefix) + "_" + std::string(session_id);
+    AppendRunLabel(&filename, run_label);
+    filename += "_summary.log";
+    return directory / filename;
 }
 
 bool PathExists(const std::filesystem::path& path)
@@ -143,6 +159,7 @@ std::string MakeUniqueSessionId(
             directory,
             options.session_prefix,
             session_id,
+            options.run_label,
             "",
             1));
         if (!conflict && options.log_summary_file)
@@ -150,7 +167,8 @@ std::string MakeUniqueSessionId(
             conflict = PathExists(BuildSummaryLogPath(
                 directory,
                 options.session_prefix,
-                session_id));
+                session_id,
+                options.run_label));
         }
         if (!conflict)
         {
@@ -160,6 +178,7 @@ std::string MakeUniqueSessionId(
                         directory,
                         options.session_prefix,
                         session_id,
+                        options.run_label,
                         hl::common::ToString(category),
                         1)))
                 {
@@ -284,6 +303,7 @@ struct RollingFileSink
     std::filesystem::path directory;
     std::string session_prefix;
     std::string session_id;
+    std::string run_label;
     std::string suffix;
     std::uintmax_t max_file_size_bytes = kDefaultMaxFileSizeBytes;
     std::size_t next_part = 1;
@@ -491,6 +511,7 @@ bool RollingFileSink::OpenNextPart()
         directory,
         session_prefix,
         session_id,
+        run_label,
         suffix,
         next_part++);
     stream.open(current_path, std::ios::out | std::ios::binary | std::ios::trunc);
@@ -701,6 +722,7 @@ LoggerSessionInfo BuildSessionInfoNoLock(const LoggerState& state)
     info.configured = state.configured;
     info.log_directory = state.resolved_log_directory;
     info.session_id = state.session_id;
+    info.run_label = state.options.run_label;
     info.max_file_size_bytes = state.options.max_file_size_bytes;
     info.current_file_path = state.main_file_sink.current_path;
     info.summary_file_path = state.summary_file_sink.path;
@@ -957,6 +979,7 @@ void Logger::Configure(const LoggerOptions& options)
     state.main_file_sink.directory = state.resolved_log_directory;
     state.main_file_sink.session_prefix = state.options.session_prefix;
     state.main_file_sink.session_id = state.session_id;
+    state.main_file_sink.run_label = state.options.run_label;
     state.main_file_sink.max_file_size_bytes = state.options.max_file_size_bytes;
     if (state.main_file_sink.enabled && !state.main_file_sink.OpenNextPart())
     {
@@ -972,7 +995,8 @@ void Logger::Configure(const LoggerOptions& options)
         && !state.summary_file_sink.Open(BuildSummaryLogPath(
             state.resolved_log_directory,
             state.options.session_prefix,
-            state.session_id)))
+            state.session_id,
+            state.options.run_label)))
     {
         state.summary_file_sink.enabled = false;
         WriteFallbackNoLock(
@@ -989,6 +1013,7 @@ void Logger::Configure(const LoggerOptions& options)
         category_sink.sink.directory = state.resolved_log_directory;
         category_sink.sink.session_prefix = state.options.session_prefix;
         category_sink.sink.session_id = state.session_id;
+        category_sink.sink.run_label = state.options.run_label;
         category_sink.sink.suffix = std::string(ToString(category));
         category_sink.sink.max_file_size_bytes = state.options.max_file_size_bytes;
         if (category_sink.sink.OpenNextPart())
