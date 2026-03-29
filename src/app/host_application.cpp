@@ -243,6 +243,114 @@ void ValidateChangelevelLifecycleEntry(
         std::string("expected changelevel_lifecycle_entry action=") + std::string(expected_action));
 }
 
+void ValidateChangelevelLifecycleDispatch(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_allowed,
+    bool expected_blocked,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.attempted,
+        "expected changelevel_lifecycle_dispatch attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.dispatch_checked,
+        "expected changelevel_lifecycle_dispatch dispatchChecked=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.dispatch_allowed == expected_allowed,
+        std::string("expected changelevel_lifecycle_dispatch dispatchAllowed=")
+            + (expected_allowed ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.dispatch_blocked == expected_blocked,
+        std::string("expected changelevel_lifecycle_dispatch dispatchBlocked=")
+            + (expected_blocked ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.decision_source
+            == "changelevel_lifecycle_entry",
+        "expected changelevel_lifecycle_dispatch decisionSource=changelevel_lifecycle_entry");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.requested_map == "c0a0a",
+        "expected changelevel_lifecycle_dispatch requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.landmark == "c0a0toa",
+        "expected changelevel_lifecycle_dispatch landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.action == expected_action,
+        std::string("expected changelevel_lifecycle_dispatch action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_dispatch.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_lifecycle_dispatch shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+}
+
+void ValidateChangelevelLifecycleExecution(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_armed,
+    bool expected_skipped,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.attempted,
+        "expected changelevel_lifecycle_execution attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.execution_checked,
+        "expected changelevel_lifecycle_execution executionChecked=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.execution_armed == expected_armed,
+        std::string("expected changelevel_lifecycle_execution executionArmed=")
+            + (expected_armed ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.execution_skipped == expected_skipped,
+        std::string("expected changelevel_lifecycle_execution executionSkipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.decision_source
+            == "changelevel_lifecycle_dispatch",
+        "expected changelevel_lifecycle_execution decisionSource=changelevel_lifecycle_dispatch");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.requested_map == "c0a0a",
+        "expected changelevel_lifecycle_execution requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.landmark == "c0a0toa",
+        "expected changelevel_lifecycle_execution landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.action == expected_action,
+        std::string("expected changelevel_lifecycle_execution action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_execution.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_lifecycle_execution shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -363,6 +471,20 @@ bool ValidateRegressionGuard(
             false,
             "no-op entry armed",
             failures);
+        ValidateChangelevelLifecycleDispatch(
+            summary,
+            true,
+            false,
+            "no-op dispatch armed",
+            "",
+            failures);
+        ValidateChangelevelLifecycleExecution(
+            summary,
+            true,
+            false,
+            "no-op execution armed",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -441,6 +563,20 @@ bool ValidateRegressionGuard(
             false,
             true,
             "no-op entry skipped by stop mode",
+            failures);
+        ValidateChangelevelLifecycleDispatch(
+            summary,
+            false,
+            true,
+            "no-op dispatch skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelLifecycleExecution(
+            summary,
+            false,
+            true,
+            "no-op execution skipped",
+            "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
             failures,
