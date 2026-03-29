@@ -655,11 +655,16 @@ void ValidateChangelevelProjectedTransferSnapshot(
             == expected_skipped,
         std::string("expected changelevel_projected_transfer_snapshot skipped=")
             + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_prepared ? std::string_view("projected-carried-artifacts") : std::string_view();
     AddGuardFailure(
         failures,
         summary.changelevel_transition.changelevel_projected_transfer_snapshot.decision_source
-            == "projected-carried-artifacts",
-        "expected changelevel_projected_transfer_snapshot decisionSource=projected-carried-artifacts");
+            == expected_decision_source,
+        std::string("expected changelevel_projected_transfer_snapshot decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
     AddGuardFailure(
         failures,
         summary.changelevel_transition.changelevel_projected_transfer_snapshot.transfer_ready
