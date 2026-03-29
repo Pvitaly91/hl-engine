@@ -555,6 +555,81 @@ void ValidateChangelevelProjectedCarriedOrigin(
         "expected changelevel_projected_carried_origin projectedTargetOrigin=-2687 -1342.35 65");
 }
 
+void ValidateChangelevelProjectedCarriedOrientation(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_projected,
+    bool expected_skipped,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.attempted,
+        "expected changelevel_projected_carried_orientation attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.projected
+            == expected_projected,
+        std::string("expected changelevel_projected_carried_orientation projected=")
+            + (expected_projected ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.skipped
+            == expected_skipped,
+        std::string("expected changelevel_projected_carried_orientation skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.decision_source
+            == "changelevel_landmark_transform",
+        "expected changelevel_projected_carried_orientation decisionSource=changelevel_landmark_transform");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.action
+            == expected_action,
+        std::string("expected changelevel_projected_carried_orientation action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_projected_carried_orientation shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_projected)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation
+            .current_carried_yaw_available,
+        "expected changelevel_projected_carried_orientation currentCarriedYaw available");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation
+            .current_landmark_angles_available,
+        "expected changelevel_projected_carried_orientation currentLandmarkAngles available");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_orientation
+            .target_landmark_angles_available,
+        "expected changelevel_projected_carried_orientation targetLandmarkAngles available");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_projected_carried_orientation.yaw_delta.empty(),
+        "expected changelevel_projected_carried_orientation yawDelta to be present");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_projected_carried_orientation
+             .projected_target_yaw.empty(),
+        "expected changelevel_projected_carried_orientation projectedTargetYaw to be present");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -710,6 +785,13 @@ bool ValidateRegressionGuard(
             "no-op carried-origin projection",
             "",
             failures);
+        ValidateChangelevelProjectedCarriedOrientation(
+            summary,
+            true,
+            false,
+            "no-op carried-orientation projection",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -822,6 +904,13 @@ bool ValidateRegressionGuard(
             false,
             true,
             "projection skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelProjectedCarriedOrientation(
+            summary,
+            false,
+            true,
+            "orientation projection skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
