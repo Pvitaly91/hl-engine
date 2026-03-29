@@ -9,6 +9,7 @@
 #include <cstdio>
 #include <cmath>
 #include <deque>
+#include <iomanip>
 #include <initializer_list>
 #include <intrin.h>
 #include <limits>
@@ -447,7 +448,9 @@ const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTarget
     const EngineShimState& state,
     std::string_view target_name,
     std::string_view classname_filter);
+ParsedVectorField ParseAnglesField(const hl::game_api::detail::EntityDefinition& entity);
 ParsedVectorField ParseOriginField(const hl::game_api::detail::EntityDefinition& entity);
+bool ParseStrictFloat(std::string_view text, float* value);
 void EnsureChangeLevelTargetValidation(EngineShimState& state);
 void EnsureChangeLevelLifecycleGate(EngineShimState& state);
 void RefreshChangeLevelLifecycleEntry(EngineShimState& state);
@@ -456,7 +459,10 @@ void RefreshChangeLevelLifecycleExecution(EngineShimState& state);
 void RefreshChangeLevelBootstrapPlan(EngineShimState& state);
 void RefreshChangeLevelLandmarkTransform(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state);
+void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
+float NormalizeAngleDegrees(float value);
+std::string FormatScalar(float value);
 std::string FormatVector(const Vector& value);
 
 const char* BoolToYesNo(bool value)
@@ -818,6 +824,49 @@ std::string FormatChangeLevelProjectedCarriedOriginSummary(
     return line;
 }
 
+std::string FormatChangeLevelProjectedCarriedOrientationSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
+        projected = summary.changelevel_projected_carried_orientation;
+    std::string line =
+        std::string("projected=") + BoolToYesNo(projected.projected)
+        + ", skipped=" + BoolToYesNo(projected.skipped)
+        + ", decisionSource="
+        + (projected.decision_source.empty()
+            ? std::string("<none>")
+            : projected.decision_source);
+    if (projected.projected)
+    {
+        line += ", currentLandmarkAngles="
+            + (projected.current_landmark_angles_available
+                ? projected.current_landmark_angles
+                : std::string("<none>"))
+            + ", targetLandmarkAngles="
+            + (projected.target_landmark_angles_available
+                ? projected.target_landmark_angles
+                : std::string("<none>"))
+            + ", currentCarriedYaw="
+            + (projected.current_carried_yaw_available
+                ? projected.current_carried_yaw
+                : std::string("<none>"))
+            + ", yawDelta="
+            + (projected.yaw_delta.empty() ? std::string("<none>") : projected.yaw_delta)
+            + ", projectedTargetYaw="
+            + (projected.projected_target_yaw.empty()
+                ? std::string("<none>")
+                : projected.projected_target_yaw);
+    }
+    if (!projected.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + projected.short_circuit_reason;
+    }
+
+    line += ", action="
+        + (projected.action.empty() ? std::string("<none>") : projected.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -844,6 +893,35 @@ std::string ExtractTokenValue(std::string_view text, std::string_view key)
     }
 
     return std::string(text.substr(value_begin, value_end - value_begin));
+}
+
+bool TryExtractFloatTokenValue(
+    std::string_view text,
+    std::string_view key,
+    float* value,
+    std::string* formatted_value)
+{
+    const std::string token = ExtractTokenValue(text, key);
+    if (token.empty())
+    {
+        return false;
+    }
+
+    float parsed = 0.0f;
+    if (!ParseStrictFloat(token, &parsed))
+    {
+        return false;
+    }
+
+    if (value != nullptr)
+    {
+        *value = parsed;
+    }
+    if (formatted_value != nullptr)
+    {
+        *formatted_value = token;
+    }
+    return true;
 }
 
 bool TryExtractVectorTokenValue(
@@ -914,6 +992,14 @@ bool TryResolveRequestTimeCarriedOrigin(
         *origin_text = summary.closest_surrogate_origin_text;
     }
     return true;
+}
+
+bool TryResolveRequestTimeCarriedYaw(
+    const hl::game_api::ChangeLevelTransitionSummary& summary,
+    float* yaw,
+    std::string* yaw_text)
+{
+    return TryExtractFloatTokenValue(summary.pending_request_detail, "yaw=", yaw, yaw_text);
 }
 
 std::string FirstWord(std::string_view text)
@@ -2859,6 +2945,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                     + FormatChangeLevelProjectedCarriedOriginSummary(
                         summary.changelevel_transition));
         }
+        if (summary.changelevel_transition.changelevel_projected_carried_orientation.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_projected_carried_orientation: "
+                    + FormatChangeLevelProjectedCarriedOrientationSummary(
+                        summary.changelevel_transition));
+        }
         if (summary.changelevel_transition.post_handoff_activity.measured)
         {
             hl::common::Logger::Info(
@@ -3216,6 +3310,28 @@ std::string FormatVector(const Vector& value)
     std::ostringstream stream;
     stream << value.x << ' ' << value.y << ' ' << value.z;
     return stream.str();
+}
+
+std::string FormatScalar(float value)
+{
+    std::ostringstream stream;
+    stream << std::setprecision(9) << value;
+    return stream.str();
+}
+
+float ComputeSignedAngleDeltaDegrees(float current, float target)
+{
+    float delta = NormalizeAngleDegrees(target) - NormalizeAngleDegrees(current);
+    if (delta >= 180.0f)
+    {
+        delta -= 360.0f;
+    }
+    else if (delta < -180.0f)
+    {
+        delta += 360.0f;
+    }
+
+    return std::fabs(delta) < 0.0001f ? 0.0f : delta;
 }
 
 void AppendRecordNote(RuntimeEntityRecord& record, std::string_view note)
@@ -4853,6 +4969,8 @@ struct ChangeLevelTargetMapDryRunProbe
     bool target_landmark_found = false;
     bool target_landmark_origin_available = false;
     std::string target_landmark_origin;
+    bool target_landmark_angles_available = false;
+    std::string target_landmark_angles;
     bool target_worldspawn_present = false;
     std::string relative_map_path;
     std::string detail;
@@ -4893,6 +5011,28 @@ std::optional<std::string> TryBuildLandmarkOriginText(
     }
 
     return !origin.raw_text.empty() ? origin.raw_text : FormatVector(origin.value);
+}
+
+std::optional<std::string> TryBuildLandmarkAnglesText(
+    const hl::game_api::detail::EntityDefinition* definition)
+{
+    if (definition == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    const ParsedVectorField angles = ParseAnglesField(*definition);
+    if (angles.present)
+    {
+        if (!angles.valid)
+        {
+            return std::nullopt;
+        }
+
+        return FormatVector(angles.value);
+    }
+
+    return FormatVector(Vector(0.0f, 0.0f, 0.0f));
 }
 
 ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
@@ -4989,6 +5129,13 @@ ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
             probe.target_landmark_origin_available = true;
             probe.target_landmark_origin = *origin;
         }
+        if (const std::optional<std::string> angles =
+                TryBuildLandmarkAnglesText(target_landmark_definition);
+            angles.has_value())
+        {
+            probe.target_landmark_angles_available = true;
+            probe.target_landmark_angles = *angles;
+        }
     }
     if (!probe.entity_parse_succeeded)
     {
@@ -4998,6 +5145,94 @@ ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
     }
 
     return probe;
+}
+
+struct ChangeLevelLandmarkOrientationBasis
+{
+    bool valid = false;
+    std::string current_landmark_angles;
+    std::string target_landmark_angles;
+    float current_landmark_yaw = 0.0f;
+    float target_landmark_yaw = 0.0f;
+    std::string short_circuit_reason;
+};
+
+bool TryResolveChangeLevelLandmarkOrientationBasis(
+    const EngineShimState& state,
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
+    ChangeLevelLandmarkOrientationBasis* basis)
+{
+    if (basis == nullptr)
+    {
+        return false;
+    }
+
+    *basis = {};
+    if (plan.landmark.empty())
+    {
+        basis->short_circuit_reason = "landmark-name-unavailable";
+        return false;
+    }
+
+    const hl::game_api::detail::EntityDefinition* current_landmark_definition =
+        FindParsedTargetDefinitionByTargetname(state, plan.landmark, "info_landmark");
+    if (current_landmark_definition == nullptr)
+    {
+        basis->short_circuit_reason = "current-landmark-unavailable";
+        return false;
+    }
+
+    const std::optional<std::string> current_angles =
+        TryBuildLandmarkAnglesText(current_landmark_definition);
+    if (!current_angles.has_value())
+    {
+        basis->short_circuit_reason = "current-landmark-angles-unavailable";
+        return false;
+    }
+
+    Vector current_angles_value(0.0f, 0.0f, 0.0f);
+    if (!ParseStrictVector3(*current_angles, &current_angles_value))
+    {
+        basis->short_circuit_reason = "current-landmark-angle-parse-failed";
+        return false;
+    }
+
+    const ChangeLevelTargetMapDryRunProbe target_probe =
+        ProbeChangeLevelTargetMapDryRun(state, plan.requested_map, plan.landmark);
+    if (!target_probe.target_map_exists)
+    {
+        basis->short_circuit_reason = "target-map-unavailable";
+        return false;
+    }
+    if (!target_probe.entity_parse_succeeded)
+    {
+        basis->short_circuit_reason = "target-map-entity-parse-failed";
+        return false;
+    }
+    if (!target_probe.target_landmark_found)
+    {
+        basis->short_circuit_reason = "target-landmark-unavailable";
+        return false;
+    }
+    if (!target_probe.target_landmark_angles_available)
+    {
+        basis->short_circuit_reason = "target-landmark-angles-unavailable";
+        return false;
+    }
+
+    Vector target_angles_value(0.0f, 0.0f, 0.0f);
+    if (!ParseStrictVector3(target_probe.target_landmark_angles, &target_angles_value))
+    {
+        basis->short_circuit_reason = "target-landmark-angle-parse-failed";
+        return false;
+    }
+
+    basis->valid = true;
+    basis->current_landmark_angles = *current_angles;
+    basis->target_landmark_angles = target_probe.target_landmark_angles;
+    basis->current_landmark_yaw = current_angles_value.y;
+    basis->target_landmark_yaw = target_angles_value.y;
+    return true;
 }
 
 void EnsureChangeLevelTargetValidation(EngineShimState& state)
@@ -5406,6 +5641,74 @@ void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state)
     projected.action = transform.skipped ? "projection skipped" : "projection unavailable";
 }
 
+void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_landmark_transform.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLandmarkTransformSummary&
+        transform = summary.changelevel_landmark_transform;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
+        projected = summary.changelevel_projected_carried_orientation;
+    projected = {};
+    projected.attempted = true;
+    projected.decision_source = "changelevel_landmark_transform";
+
+    if (transform.transform_computed)
+    {
+        float current_carried_yaw = 0.0f;
+        std::string current_carried_yaw_text;
+        ChangeLevelLandmarkOrientationBasis basis;
+        if (TryResolveRequestTimeCarriedYaw(
+                summary,
+                &current_carried_yaw,
+                &current_carried_yaw_text)
+            && TryResolveChangeLevelLandmarkOrientationBasis(
+                state,
+                summary.changelevel_bootstrap_plan,
+                &basis))
+        {
+            const float yaw_delta =
+                ComputeSignedAngleDeltaDegrees(basis.current_landmark_yaw, basis.target_landmark_yaw);
+            const float projected_target_yaw =
+                NormalizeAngleDegrees(current_carried_yaw + yaw_delta);
+            projected.projected = true;
+            projected.skipped = false;
+            projected.current_carried_yaw_available = true;
+            projected.current_carried_yaw = current_carried_yaw_text;
+            projected.current_landmark_angles_available = true;
+            projected.current_landmark_angles = basis.current_landmark_angles;
+            projected.target_landmark_angles_available = true;
+            projected.target_landmark_angles = basis.target_landmark_angles;
+            projected.yaw_delta = FormatScalar(yaw_delta);
+            projected.projected_target_yaw =
+                FormatScalar(std::fabs(projected_target_yaw) < 0.0001f ? 0.0f : projected_target_yaw);
+            projected.action = "no-op carried-orientation projection";
+            return;
+        }
+
+        projected.projected = false;
+        projected.skipped = false;
+        projected.short_circuit_reason = current_carried_yaw_text.empty()
+            ? "current-carried-yaw-unavailable"
+            : (!basis.short_circuit_reason.empty()
+                ? basis.short_circuit_reason
+                : "landmark-orientation-basis-unavailable");
+        projected.action = "orientation projection unavailable";
+        return;
+    }
+
+    projected.projected = false;
+    projected.skipped = transform.skipped;
+    projected.short_circuit_reason = transform.short_circuit_reason;
+    projected.action = transform.skipped
+        ? "orientation projection skipped"
+        : "orientation projection unavailable";
+}
+
 void CapturePendingChangeLevelRequest(
     EngineShimState& state,
     const hl::game_api::detail::EntityDefinition* definition,
@@ -5463,6 +5766,7 @@ void ConsumePendingChangeLevelRequest(EngineShimState& state)
     RefreshChangeLevelBootstrapPlan(state);
     RefreshChangeLevelLandmarkTransform(state);
     RefreshChangeLevelProjectedCarriedOrigin(state);
+    RefreshChangeLevelProjectedCarriedOrientation(state);
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
@@ -15333,6 +15637,7 @@ void PerformServerFrameLoop()
                 RefreshChangeLevelBootstrapPlan(state);
                 RefreshChangeLevelLandmarkTransform(state);
                 RefreshChangeLevelProjectedCarriedOrigin(state);
+                RefreshChangeLevelProjectedCarriedOrientation(state);
                 const std::string stop_reason =
                     "stop-on-changelevel-request reached: requestedMap="
                     + (changelevel.target_map.empty()

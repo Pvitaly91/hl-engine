@@ -537,6 +537,24 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelProjectedCarriedOrientationSummary
+    {
+        bool attempted = false;
+        bool projected = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool current_carried_yaw_available = false;
+        std::string current_carried_yaw;
+        bool current_landmark_angles_available = false;
+        std::string current_landmark_angles;
+        bool target_landmark_angles_available = false;
+        std::string target_landmark_angles;
+        std::string yaw_delta;
+        std::string projected_target_yaw;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -593,6 +611,7 @@ struct ChangeLevelTransitionSummary
     ChangeLevelBootstrapPlanSummary changelevel_bootstrap_plan;
     ChangeLevelLandmarkTransformSummary changelevel_landmark_transform;
     ChangeLevelProjectedCarriedOriginSummary changelevel_projected_carried_origin;
+    ChangeLevelProjectedCarriedOrientationSummary changelevel_projected_carried_orientation;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
