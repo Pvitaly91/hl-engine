@@ -1,5 +1,6 @@
 #include "app/launch_options.h"
 
+#include <array>
 #include <algorithm>
 #include <cmath>
 #include <cwctype>
@@ -11,6 +12,7 @@ namespace
 {
 struct ParseState
 {
+    bool log_directory_explicit = false;
     bool log_console_level_explicit = false;
     bool log_file_level_explicit = false;
     bool log_level_explicit = false;
@@ -301,6 +303,102 @@ bool ParseBoolValue(
     }
 
     return true;
+}
+
+bool PathExists(const std::filesystem::path& path)
+{
+    std::error_code error;
+    return std::filesystem::exists(path, error);
+}
+
+bool LooksLikeHostRepositoryRoot(const std::filesystem::path& candidate)
+{
+    return PathExists(candidate / ".git")
+        && PathExists(candidate / "CMakeLists.txt")
+        && PathExists(candidate / "include")
+        && PathExists(candidate / "src");
+}
+
+bool LooksLikeWorkspaceRoot(const std::filesystem::path& candidate)
+{
+    return PathExists(candidate / "CMakePresets.json")
+        && LooksLikeHostRepositoryRoot(candidate / "host");
+}
+
+std::filesystem::path TryResolveHostRepositoryRootFromBase(std::filesystem::path base_path)
+{
+    if (base_path.empty())
+    {
+        return {};
+    }
+
+    std::error_code error;
+    std::filesystem::path current = std::filesystem::absolute(base_path, error);
+    if (error)
+    {
+        current = base_path;
+        error.clear();
+    }
+
+    for (int depth = 0; depth < 8; ++depth)
+    {
+        if (LooksLikeHostRepositoryRoot(current))
+        {
+            return current;
+        }
+
+        if (LooksLikeWorkspaceRoot(current))
+        {
+            return current / "host";
+        }
+
+        const std::filesystem::path parent = current.parent_path();
+        if (parent.empty() || parent == current)
+        {
+            break;
+        }
+
+        current = parent;
+    }
+
+    return {};
+}
+
+std::filesystem::path ResolveDefaultLogDirectory(int argc, wchar_t* argv[])
+{
+    std::error_code error;
+    const std::filesystem::path current_working_directory = std::filesystem::current_path(error);
+    error.clear();
+
+    std::filesystem::path executable_directory;
+    if (argc > 0 && argv != nullptr && argv[0] != nullptr)
+    {
+        executable_directory = std::filesystem::absolute(std::filesystem::path(argv[0]), error);
+        if (!error)
+        {
+            executable_directory = executable_directory.parent_path();
+        }
+        else
+        {
+            executable_directory.clear();
+            error.clear();
+        }
+    }
+
+    for (const std::filesystem::path& candidate : std::array<std::filesystem::path, 2>{
+             current_working_directory,
+             executable_directory,
+         })
+    {
+        const std::filesystem::path repository_root =
+            TryResolveHostRepositoryRootFromBase(candidate);
+        if (!repository_root.empty())
+        {
+            return repository_root / "logs" / "latest" / "runtime";
+        }
+    }
+
+    return std::filesystem::path(L"logs/latest/runtime");
 }
 
 void ApplyLoggingDefaults(hl::app::LaunchOptions& options, const ParseState& parse_state)
@@ -928,6 +1026,8 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.log_directory = std::filesystem::path(argv[++index]);
+            parse_state.log_directory_explicit = true;
+            result.options.log_directory_explicit = true;
             continue;
         }
 
@@ -942,6 +1042,8 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.log_directory = std::filesystem::path(value);
+            parse_state.log_directory_explicit = true;
+            result.options.log_directory_explicit = true;
             continue;
         }
 
@@ -1346,6 +1448,10 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     }
 
     ApplyLoggingDefaults(result.options, parse_state);
+    if (!parse_state.log_directory_explicit)
+    {
+        result.options.log_directory = ResolveDefaultLogDirectory(argc, argv);
+    }
     return result;
 }
 
@@ -1384,7 +1490,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --log-scripted-trace <0|1>     Alias for --trace-scripted\n"
              L"  --log-path-trace <0|1>         Alias for --trace-path\n"
              L"  --verbose                      Turn on broader debug-oriented logging defaults\n"
-             L"  --log-dir <path>               Directory for session log files (default: logs)\n"
+             L"  --log-dir <path>               Directory for session log files (default: <repo>\\logs\\latest\\runtime when detected, otherwise logs\\latest\\runtime)\n"
              L"  --log-to-file <0|1>            Enable or disable main file logging (default: 1)\n"
              L"  --log-max-mb <n>               Rotate main file log after n megabytes (default: 10)\n"
              L"  --log-level <level>            Global minimum level across sinks\n"

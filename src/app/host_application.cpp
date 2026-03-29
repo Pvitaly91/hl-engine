@@ -630,6 +630,109 @@ void ValidateChangelevelProjectedCarriedOrientation(
         "expected changelevel_projected_carried_orientation projectedTargetYaw to be present");
 }
 
+void ValidateChangelevelProjectedTransferSnapshot(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_transfer_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.attempted,
+        "expected changelevel_projected_transfer_snapshot attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.prepared
+            == expected_prepared,
+        std::string("expected changelevel_projected_transfer_snapshot prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.skipped
+            == expected_skipped,
+        std::string("expected changelevel_projected_transfer_snapshot skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.decision_source
+            == "projected-carried-artifacts",
+        "expected changelevel_projected_transfer_snapshot decisionSource=projected-carried-artifacts");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.transfer_ready
+            == expected_transfer_ready,
+        std::string("expected changelevel_projected_transfer_snapshot transferReady=")
+            + (expected_transfer_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.action
+            == expected_action,
+        std::string("expected changelevel_projected_transfer_snapshot action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_projected_transfer_snapshot shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_transfer_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.current_map
+            == "c0a0",
+        "expected changelevel_projected_transfer_snapshot currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.requested_map
+            == "c0a0a",
+        "expected changelevel_projected_transfer_snapshot requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot.landmark
+            == "c0a0toa",
+        "expected changelevel_projected_transfer_snapshot landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        ContainsText(
+            summary.changelevel_transition.changelevel_projected_transfer_snapshot
+                .target_bsp_path,
+            "c0a0a.bsp"),
+        "expected changelevel_projected_transfer_snapshot targetBspPath to reference c0a0a.bsp");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot
+            .projected_target_origin
+            == "-2687 -1342.35 65",
+        "expected changelevel_projected_transfer_snapshot projectedTargetOrigin=-2687 -1342.35 65");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot
+            .projected_target_yaw
+            == "321.622406",
+        "expected changelevel_projected_transfer_snapshot projectedTargetYaw=321.622406");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot
+            .target_worldspawn_present,
+        "expected changelevel_projected_transfer_snapshot targetWorldspawnPresent=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_transfer_snapshot
+            .target_entity_parse_ok,
+        "expected changelevel_projected_transfer_snapshot targetEntityParse=ok");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -792,6 +895,14 @@ bool ValidateRegressionGuard(
             "no-op carried-orientation projection",
             "",
             failures);
+        ValidateChangelevelProjectedTransferSnapshot(
+            summary,
+            true,
+            false,
+            true,
+            "no-op transfer snapshot prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -911,6 +1022,14 @@ bool ValidateRegressionGuard(
             false,
             true,
             "orientation projection skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelProjectedTransferSnapshot(
+            summary,
+            false,
+            true,
+            false,
+            "transfer snapshot skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(

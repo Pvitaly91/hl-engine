@@ -35,6 +35,18 @@ function Get-ResolvedGameDir {
     return [System.IO.Path]::GetFullPath($defaultGameDir)
 }
 
+function Clear-DirectoryContents {
+    param([string]$DirectoryPath)
+
+    if (-not (Test-Path -LiteralPath $DirectoryPath -PathType Container)) {
+        return
+    }
+
+    Get-ChildItem -LiteralPath $DirectoryPath -Force | ForEach-Object {
+        Remove-Item -LiteralPath $_.FullName -Force -Recurse
+    }
+}
+
 function Invoke-RegressionCase {
     param(
         [string]$CaseName,
@@ -53,14 +65,15 @@ function Invoke-RegressionCase {
     }
 }
 
-$workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot "..\.."))
+$repositoryRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
+$workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot ".."))
 $ResolvedExecutablePath = Get-FullPathOrDefault `
     -Candidate $ExecutablePath `
     -Fallback (Join-Path $workspaceRoot "out\build\vs2022-win32\host\Debug\hlhost.exe")
 $ResolvedGameDir = Get-ResolvedGameDir -RequestedGameDir $GameDir
 $ResolvedLogRoot = Get-FullPathOrDefault `
     -Candidate $LogRoot `
-    -Fallback (Join-Path $workspaceRoot "logs\changelevel_policy_regressions")
+    -Fallback (Join-Path $repositoryRoot "logs\latest\changelevel_policy_regressions")
 
 if (-not (Test-Path -LiteralPath $ResolvedExecutablePath -PathType Leaf)) {
     throw ("hlhost executable not found: {0}" -f $ResolvedExecutablePath)
@@ -68,6 +81,11 @@ if (-not (Test-Path -LiteralPath $ResolvedExecutablePath -PathType Leaf)) {
 
 if (-not (Test-Path -LiteralPath $ResolvedGameDir -PathType Container)) {
     throw ("Half-Life valve directory not found: {0}`nSet HLENGINE_VALVE_DIR or pass -GameDir." -f $ResolvedGameDir)
+}
+
+if ([string]::IsNullOrWhiteSpace($LogRoot)) {
+    New-Item -ItemType Directory -Force -Path $ResolvedLogRoot | Out-Null
+    Clear-DirectoryContents -DirectoryPath $ResolvedLogRoot
 }
 
 $commonArguments = @(

@@ -10,6 +10,43 @@
 
 namespace
 {
+void ClearManagedLogDirectory(const hl::app::LaunchOptions& options)
+{
+    if (options.log_directory_explicit)
+    {
+        return;
+    }
+
+    std::error_code error;
+    const std::filesystem::path managed_directory =
+        std::filesystem::absolute(options.log_directory, error);
+    if (error || managed_directory.empty())
+    {
+        return;
+    }
+
+    std::vector<std::filesystem::path> children;
+    for (const std::filesystem::directory_entry& entry :
+         std::filesystem::directory_iterator(managed_directory, error))
+    {
+        if (error)
+        {
+            return;
+        }
+
+        children.push_back(entry.path());
+    }
+
+    for (const std::filesystem::path& child : children)
+    {
+        std::filesystem::remove_all(child, error);
+        if (error)
+        {
+            return;
+        }
+    }
+}
+
 hl::common::LoggerOptions BuildLoggerOptions(const hl::app::LaunchOptions& options)
 {
     hl::common::LoggerOptions logger_options;
@@ -52,6 +89,7 @@ int wmain(int argc, wchar_t* argv[])
         return 0;
     }
 
+    ClearManagedLogDirectory(parse_result.options);
     hl::common::Logger::Configure(BuildLoggerOptions(parse_result.options));
 
     const hl::app::HostApplication application;

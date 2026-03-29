@@ -1,0 +1,7 @@
+# Keep only the latest generated logs commit-eligible.
+logs/**
+!logs/.gitkeep
+!logs/latest/
+!logs/latest/**/
+!logs/latest/**/*.log
+!logs/latest/**/.gitkeep
