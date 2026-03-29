@@ -464,6 +464,7 @@ void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -483,6 +484,10 @@ hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferDeferredApp
 BuildChangeLevelPlayerTransferDeferredApplyGate(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary&
         write_set);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferGateOpenCheckpointSummary
+BuildChangeLevelPlayerTransferGateOpenCheckpoint(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferDeferredApplyGateSummary& gate);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1087,6 +1092,59 @@ std::string FormatChangeLevelPlayerTransferDeferredApplyGateSummary(
 
     line += ", applyGateReady=" + std::string(BoolToYesNo(gate.apply_gate_ready))
         + ", action=" + (gate.action.empty() ? std::string("<none>") : gate.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferGateOpenCheckpointSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferGateOpenCheckpointSummary& checkpoint =
+            summary.changelevel_player_transfer_gate_open_checkpoint;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(checkpoint.prepared)
+        + ", skipped=" + BoolToYesNo(checkpoint.skipped);
+    if (!checkpoint.decision_source.empty())
+    {
+        line += ", decisionSource=" + checkpoint.decision_source;
+    }
+    if (!checkpoint.apply_target.empty())
+    {
+        line += ", applyTarget=" + checkpoint.apply_target;
+    }
+    if (checkpoint.prepared)
+    {
+        line += ", currentMap="
+            + (checkpoint.current_map.empty() ? std::string("<none>") : checkpoint.current_map)
+            + ", requestedMap="
+            + (checkpoint.requested_map.empty()
+                ? std::string("<none>")
+                : checkpoint.requested_map)
+            + ", futureApplyPhase="
+            + (checkpoint.future_apply_phase.empty()
+                ? std::string("<none>")
+                : checkpoint.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (checkpoint.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : checkpoint.target_runtime_checkpoint)
+            + ", pendingWriteCount=" + std::to_string(checkpoint.pending_write_count)
+            + ", checkpointSatisfied=" + BoolToYesNo(checkpoint.checkpoint_satisfied)
+            + ", gateEligibleAtCheckpoint="
+            + BoolToYesNo(checkpoint.gate_eligible_at_checkpoint)
+            + ", gateOpen=" + BoolToYesNo(checkpoint.gate_open)
+            + ", deferred=" + BoolToYesNo(checkpoint.deferred)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(checkpoint.runtime_write_suppressed);
+    }
+    if (!checkpoint.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + checkpoint.short_circuit_reason;
+    }
+
+    line += ", checkpointReady=" + std::string(BoolToYesNo(checkpoint.checkpoint_ready))
+        + ", action="
+        + (checkpoint.action.empty() ? std::string("<none>") : checkpoint.action);
     return line;
 }
 
@@ -3207,6 +3265,15 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_deferred_apply_gate: "
                     + FormatChangeLevelPlayerTransferDeferredApplyGateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_gate_open_checkpoint
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_gate_open_checkpoint: "
+                    + FormatChangeLevelPlayerTransferGateOpenCheckpointSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -6168,6 +6235,64 @@ BuildChangeLevelPlayerTransferDeferredApplyGate(
     return gate;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferGateOpenCheckpointSummary
+BuildChangeLevelPlayerTransferGateOpenCheckpoint(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferDeferredApplyGateSummary& gate)
+{
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferGateOpenCheckpointSummary
+        checkpoint;
+    checkpoint.attempted = true;
+
+    if (gate.prepared && gate.apply_gate_ready)
+    {
+        checkpoint.prepared = true;
+        checkpoint.skipped = false;
+        checkpoint.decision_source = "player-transfer-deferred-apply-gate";
+        checkpoint.apply_target = gate.apply_target;
+        checkpoint.current_map = gate.current_map;
+        checkpoint.requested_map = gate.requested_map;
+        checkpoint.future_apply_phase = gate.future_apply_phase;
+        checkpoint.target_runtime_checkpoint = "serveractivate-complete";
+        checkpoint.pending_write_count = gate.pending_write_count;
+        checkpoint.checkpoint_satisfied = false;
+        checkpoint.gate_eligible_at_checkpoint = true;
+        checkpoint.gate_open = gate.gate_open;
+        checkpoint.deferred = gate.deferred;
+        checkpoint.runtime_write_suppressed = gate.runtime_write_suppressed;
+        checkpoint.checkpoint_ready = true;
+        checkpoint.action = "no-op player transfer gate-open checkpoint prepared";
+        return checkpoint;
+    }
+
+    checkpoint.prepared = false;
+    checkpoint.checkpoint_ready = false;
+    checkpoint.short_circuit_reason = gate.short_circuit_reason;
+
+    if (gate.skipped)
+    {
+        checkpoint.skipped = true;
+        checkpoint.action = "player transfer gate-open checkpoint skipped";
+        return checkpoint;
+    }
+
+    checkpoint.skipped = false;
+    checkpoint.decision_source = "player-transfer-deferred-apply-gate";
+    checkpoint.apply_target = gate.apply_target;
+    checkpoint.current_map = gate.current_map;
+    checkpoint.requested_map = gate.requested_map;
+    checkpoint.future_apply_phase = gate.future_apply_phase;
+    checkpoint.target_runtime_checkpoint = "serveractivate-complete";
+    checkpoint.pending_write_count = gate.pending_write_count;
+    checkpoint.checkpoint_satisfied = false;
+    checkpoint.gate_eligible_at_checkpoint = gate.apply_gate_ready;
+    checkpoint.gate_open = gate.gate_open;
+    checkpoint.deferred = gate.deferred;
+    checkpoint.runtime_write_suppressed = gate.runtime_write_suppressed;
+    checkpoint.action = "player transfer gate-open checkpoint unavailable";
+    return checkpoint;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -6228,6 +6353,20 @@ void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state)
     summary.changelevel_player_transfer_deferred_apply_gate =
         BuildChangeLevelPlayerTransferDeferredApplyGate(
             summary.changelevel_player_transfer_write_set);
+    RefreshChangeLevelPlayerTransferGateOpenCheckpoint(state);
+}
+
+void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_deferred_apply_gate.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_gate_open_checkpoint =
+        BuildChangeLevelPlayerTransferGateOpenCheckpoint(
+            summary.changelevel_player_transfer_deferred_apply_gate);
 }
 
 void CapturePendingChangeLevelRequest(
