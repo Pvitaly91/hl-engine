@@ -37,7 +37,8 @@ struct LaunchOptions
     bool stop_on_first_message = false;
     bool stop_on_changelevel_request = false;
     std::optional<std::wstring> stop_on_node;
-    std::filesystem::path log_directory = std::filesystem::path(L"logs");
+    std::filesystem::path log_directory = std::filesystem::path(L"logs/latest/runtime");
+    bool log_directory_explicit = false;
     bool log_to_file = true;
     int log_max_mb = 10;
     std::optional<common::LogLevel> log_level;

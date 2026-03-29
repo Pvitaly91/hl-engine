@@ -555,6 +555,25 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelProjectedTransferSnapshotSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string current_map;
+        std::string requested_map;
+        std::string target_bsp_path;
+        std::string landmark;
+        std::string projected_target_origin;
+        std::string projected_target_yaw;
+        bool target_worldspawn_present = false;
+        bool target_entity_parse_ok = false;
+        bool transfer_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -612,6 +631,7 @@ struct ChangeLevelTransitionSummary
     ChangeLevelLandmarkTransformSummary changelevel_landmark_transform;
     ChangeLevelProjectedCarriedOriginSummary changelevel_projected_carried_origin;
     ChangeLevelProjectedCarriedOrientationSummary changelevel_projected_carried_orientation;
+    ChangeLevelProjectedTransferSnapshotSummary changelevel_projected_transfer_snapshot;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
