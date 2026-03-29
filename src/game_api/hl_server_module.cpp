@@ -461,6 +461,13 @@ void RefreshChangeLevelLandmarkTransform(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state);
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
+BuildChangeLevelProjectedTransferSnapshot(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOriginSummary&
+        projected_origin,
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
+        projected_orientation);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -875,11 +882,11 @@ std::string FormatChangeLevelProjectedTransferSnapshotSummary(
         snapshot = summary.changelevel_projected_transfer_snapshot;
     std::string line =
         std::string("prepared=") + BoolToYesNo(snapshot.prepared)
-        + ", skipped=" + BoolToYesNo(snapshot.skipped)
-        + ", decisionSource="
-        + (snapshot.decision_source.empty()
-            ? std::string("<none>")
-            : snapshot.decision_source);
+        + ", skipped=" + BoolToYesNo(snapshot.skipped);
+    if (!snapshot.decision_source.empty())
+    {
+        line += ", decisionSource=" + snapshot.decision_source;
+    }
     if (snapshot.prepared)
     {
         line += ", currentMap="
@@ -5764,6 +5771,57 @@ void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state)
         : "orientation projection unavailable";
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
+BuildChangeLevelProjectedTransferSnapshot(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOriginSummary&
+        projected_origin,
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
+        projected_orientation)
+{
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
+        snapshot;
+    snapshot.attempted = true;
+
+    if (plan.prepared && projected_origin.projected && projected_orientation.projected)
+    {
+        snapshot.prepared = true;
+        snapshot.skipped = false;
+        snapshot.decision_source = "projected-carried-artifacts";
+        snapshot.current_map = plan.current_map;
+        snapshot.requested_map = plan.requested_map;
+        snapshot.target_bsp_path = plan.target_bsp_path;
+        snapshot.landmark = plan.landmark;
+        snapshot.projected_target_origin = projected_origin.projected_target_origin;
+        snapshot.projected_target_yaw = projected_orientation.projected_target_yaw;
+        snapshot.target_worldspawn_present = plan.target_worldspawn_present;
+        snapshot.target_entity_parse_ok = plan.target_entity_parse_ok;
+        snapshot.transfer_ready = true;
+        snapshot.action = "no-op transfer snapshot prepared";
+        return snapshot;
+    }
+
+    snapshot.prepared = false;
+    snapshot.transfer_ready = false;
+    snapshot.short_circuit_reason = !plan.short_circuit_reason.empty()
+        ? plan.short_circuit_reason
+        : (!projected_origin.short_circuit_reason.empty()
+            ? projected_origin.short_circuit_reason
+            : projected_orientation.short_circuit_reason);
+
+    if (plan.skipped || projected_origin.skipped || projected_orientation.skipped)
+    {
+        snapshot.skipped = true;
+        snapshot.action = "transfer snapshot skipped";
+        return snapshot;
+    }
+
+    snapshot.skipped = false;
+    snapshot.decision_source = "projected-carried-artifacts";
+    snapshot.action = "transfer snapshot unavailable";
+    return snapshot;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -5780,46 +5838,10 @@ void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
         projected_origin = summary.changelevel_projected_carried_origin;
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOrientationSummary&
         projected_orientation = summary.changelevel_projected_carried_orientation;
-    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary&
-        snapshot = summary.changelevel_projected_transfer_snapshot;
-    snapshot = {};
-    snapshot.attempted = true;
-    snapshot.decision_source = "projected-carried-artifacts";
-    snapshot.current_map = plan.current_map;
-    snapshot.requested_map = plan.requested_map;
-    snapshot.target_bsp_path = plan.target_bsp_path;
-    snapshot.landmark = plan.landmark;
-    snapshot.projected_target_origin = projected_origin.projected_target_origin;
-    snapshot.projected_target_yaw = projected_orientation.projected_target_yaw;
-    snapshot.target_worldspawn_present = plan.target_worldspawn_present;
-    snapshot.target_entity_parse_ok = plan.target_entity_parse_ok;
-
-    if (plan.prepared && projected_origin.projected && projected_orientation.projected)
-    {
-        snapshot.prepared = true;
-        snapshot.skipped = false;
-        snapshot.transfer_ready = true;
-        snapshot.action = "no-op transfer snapshot prepared";
-        return;
-    }
-
-    snapshot.prepared = false;
-    snapshot.transfer_ready = false;
-    snapshot.short_circuit_reason = !plan.short_circuit_reason.empty()
-        ? plan.short_circuit_reason
-        : (!projected_origin.short_circuit_reason.empty()
-            ? projected_origin.short_circuit_reason
-            : projected_orientation.short_circuit_reason);
-
-    if (plan.skipped || projected_origin.skipped || projected_orientation.skipped)
-    {
-        snapshot.skipped = true;
-        snapshot.action = "transfer snapshot skipped";
-        return;
-    }
-
-    snapshot.skipped = false;
-    snapshot.action = "transfer snapshot unavailable";
+    summary.changelevel_projected_transfer_snapshot = BuildChangeLevelProjectedTransferSnapshot(
+        plan,
+        projected_origin,
+        projected_orientation);
 }
 
 void CapturePendingChangeLevelRequest(
