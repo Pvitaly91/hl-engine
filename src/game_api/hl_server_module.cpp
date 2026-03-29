@@ -462,6 +462,7 @@ void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state);
 void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state);
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -473,6 +474,10 @@ hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSu
 BuildChangeLevelPlayerTransferApplyPlan(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary&
         snapshot);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary
+BuildChangeLevelPlayerTransferWriteSet(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary&
+        plan);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -974,6 +979,64 @@ std::string FormatChangeLevelPlayerTransferApplyPlanSummary(
 
     line += ", applyReady=" + std::string(BoolToYesNo(plan.apply_ready))
         + ", action=" + (plan.action.empty() ? std::string("<none>") : plan.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferWriteSetSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary&
+        write_set = summary.changelevel_player_transfer_write_set;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(write_set.prepared)
+        + ", skipped=" + BoolToYesNo(write_set.skipped);
+    if (!write_set.decision_source.empty())
+    {
+        line += ", decisionSource=" + write_set.decision_source;
+    }
+    if (!write_set.apply_target.empty())
+    {
+        line += ", applyTarget=" + write_set.apply_target;
+    }
+    if (write_set.prepared)
+    {
+        line += ", currentMap="
+            + (write_set.current_map.empty() ? std::string("<none>") : write_set.current_map)
+            + ", requestedMap="
+            + (write_set.requested_map.empty()
+                ? std::string("<none>")
+                : write_set.requested_map)
+            + ", targetBspPath="
+            + (write_set.target_bsp_path.empty()
+                ? std::string("<none>")
+                : write_set.target_bsp_path)
+            + ", landmark="
+            + (write_set.landmark.empty() ? std::string("<none>") : write_set.landmark)
+            + ", targetPlayerOrigin="
+            + (write_set.target_player_origin.empty()
+                ? std::string("<none>")
+                : write_set.target_player_origin)
+            + ", targetPlayerYaw="
+            + (write_set.target_player_yaw.empty()
+                ? std::string("<none>")
+                : write_set.target_player_yaw)
+            + ", writeOrigin=" + BoolToYesNo(write_set.write_origin)
+            + ", writeYaw=" + BoolToYesNo(write_set.write_yaw)
+            + ", writeInventory=" + BoolToYesNo(write_set.write_inventory)
+            + ", writeVelocity=" + BoolToYesNo(write_set.write_velocity)
+            + ", writeCount=" + std::to_string(write_set.write_count)
+            + ", runtimeWriteSuppressed=" + BoolToYesNo(write_set.runtime_write_suppressed)
+            + ", targetWorldspawnPresent=" + BoolToYesNo(write_set.target_worldspawn_present)
+            + ", targetEntityParse=" + (write_set.target_entity_parse_ok ? "ok" : "fail");
+    }
+    if (!write_set.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + write_set.short_circuit_reason;
+    }
+
+    line += ", writeSetReady=" + std::string(BoolToYesNo(write_set.write_set_ready))
+        + ", action="
+        + (write_set.action.empty() ? std::string("<none>") : write_set.action);
     return line;
 }
 
@@ -3077,6 +3140,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_apply_plan: "
                     + FormatChangeLevelPlayerTransferApplyPlanSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_write_set.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_write_set: "
+                    + FormatChangeLevelPlayerTransferWriteSetSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -5935,6 +6006,59 @@ BuildChangeLevelPlayerTransferApplyPlan(
     return plan;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary
+BuildChangeLevelPlayerTransferWriteSet(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary&
+        plan)
+{
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary write_set;
+    write_set.attempted = true;
+
+    if (plan.prepared && plan.apply_ready)
+    {
+        write_set.prepared = true;
+        write_set.skipped = false;
+        write_set.decision_source = "player-transfer-apply-plan";
+        write_set.apply_target = plan.apply_target;
+        write_set.current_map = plan.current_map;
+        write_set.requested_map = plan.requested_map;
+        write_set.target_bsp_path = plan.target_bsp_path;
+        write_set.landmark = plan.landmark;
+        write_set.target_player_origin = plan.target_player_origin;
+        write_set.target_player_yaw = plan.target_player_yaw;
+        write_set.write_origin = plan.origin_write_prepared;
+        write_set.write_yaw = plan.yaw_write_prepared;
+        write_set.write_inventory = plan.inventory_write_prepared;
+        write_set.write_velocity = plan.velocity_write_prepared;
+        write_set.write_count = (write_set.write_origin ? 1 : 0)
+            + (write_set.write_yaw ? 1 : 0) + (write_set.write_inventory ? 1 : 0)
+            + (write_set.write_velocity ? 1 : 0);
+        write_set.runtime_write_suppressed = true;
+        write_set.target_worldspawn_present = plan.target_worldspawn_present;
+        write_set.target_entity_parse_ok = plan.target_entity_parse_ok;
+        write_set.write_set_ready = true;
+        write_set.action = "no-op player transfer write set prepared";
+        return write_set;
+    }
+
+    write_set.prepared = false;
+    write_set.write_set_ready = false;
+    write_set.short_circuit_reason = plan.short_circuit_reason;
+
+    if (plan.skipped)
+    {
+        write_set.skipped = true;
+        write_set.action = "player transfer write set skipped";
+        return write_set;
+    }
+
+    write_set.skipped = false;
+    write_set.decision_source = "player-transfer-apply-plan";
+    write_set.apply_target = plan.apply_target;
+    write_set.action = "player transfer write set unavailable";
+    return write_set;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -5968,6 +6092,19 @@ void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state)
 
     summary.changelevel_player_transfer_apply_plan = BuildChangeLevelPlayerTransferApplyPlan(
         summary.changelevel_projected_transfer_snapshot);
+    RefreshChangeLevelPlayerTransferWriteSet(state);
+}
+
+void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_apply_plan.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_write_set = BuildChangeLevelPlayerTransferWriteSet(
+        summary.changelevel_player_transfer_apply_plan);
 }
 
 void CapturePendingChangeLevelRequest(

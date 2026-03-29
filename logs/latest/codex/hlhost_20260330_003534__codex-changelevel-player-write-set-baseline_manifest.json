@@ -1,0 +1,13 @@
+{
+  "sessionId": "20260330_003534",
+  "runLabel": "codex-changelevel-player-write-set-baseline",
+  "regressionGuard": "changelevel-latch-only-continuation",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "87234179d1fa38526ac51672e638384fecc03340",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260330_003534__codex-changelevel-player-write-set-baseline_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260330_003534__codex-changelevel-player-write-set-baseline_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260330_003534__codex-changelevel-player-write-set-baseline_part01.log"]
+}
