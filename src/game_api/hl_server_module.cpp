@@ -450,6 +450,8 @@ const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTarget
 void EnsureChangeLevelTargetValidation(EngineShimState& state);
 void EnsureChangeLevelLifecycleGate(EngineShimState& state);
 void RefreshChangeLevelLifecycleEntry(EngineShimState& state);
+void RefreshChangeLevelLifecycleDispatch(EngineShimState& state);
+void RefreshChangeLevelLifecycleExecution(EngineShimState& state);
 
 const char* BoolToYesNo(bool value)
 {
@@ -624,6 +626,60 @@ std::string FormatChangeLevelLifecycleEntrySummary(
     if (!entry.short_circuit_reason.empty())
     {
         line += ", shortCircuitReason=" + entry.short_circuit_reason;
+    }
+
+    return line;
+}
+
+std::string FormatChangeLevelLifecycleDispatchSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleDispatchSummary& dispatch =
+        summary.lifecycle_dispatch;
+    std::string line =
+        std::string("dispatchChecked=") + BoolToYesNo(dispatch.dispatch_checked)
+        + ", dispatchAllowed=" + BoolToYesNo(dispatch.dispatch_allowed)
+        + ", dispatchBlocked=" + BoolToYesNo(dispatch.dispatch_blocked)
+        + ", decisionSource="
+        + (dispatch.decision_source.empty()
+            ? std::string("<none>")
+            : dispatch.decision_source)
+        + ", requestedMap="
+        + (dispatch.requested_map.empty() ? std::string("<none>") : dispatch.requested_map)
+        + ", landmark="
+        + (dispatch.landmark.empty() ? std::string("<none>") : dispatch.landmark)
+        + ", action="
+        + (dispatch.action.empty() ? std::string("<none>") : dispatch.action);
+    if (!dispatch.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + dispatch.short_circuit_reason;
+    }
+
+    return line;
+}
+
+std::string FormatChangeLevelLifecycleExecutionSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleExecutionSummary& execution =
+        summary.lifecycle_execution;
+    std::string line =
+        std::string("executionChecked=") + BoolToYesNo(execution.execution_checked)
+        + ", executionArmed=" + BoolToYesNo(execution.execution_armed)
+        + ", executionSkipped=" + BoolToYesNo(execution.execution_skipped)
+        + ", decisionSource="
+        + (execution.decision_source.empty()
+            ? std::string("<none>")
+            : execution.decision_source)
+        + ", requestedMap="
+        + (execution.requested_map.empty() ? std::string("<none>") : execution.requested_map)
+        + ", landmark="
+        + (execution.landmark.empty() ? std::string("<none>") : execution.landmark)
+        + ", action="
+        + (execution.action.empty() ? std::string("<none>") : execution.action);
+    if (!execution.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + execution.short_circuit_reason;
     }
 
     return line;
@@ -2563,6 +2619,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_lifecycle_entry: "
                     + FormatChangeLevelLifecycleEntrySummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.lifecycle_dispatch.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_lifecycle_dispatch: "
+                    + FormatChangeLevelLifecycleDispatchSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.lifecycle_execution.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_lifecycle_execution: "
+                    + FormatChangeLevelLifecycleExecutionSummary(summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
         {
@@ -4804,6 +4874,85 @@ void RefreshChangeLevelLifecycleEntry(EngineShimState& state)
     entry.action = "no-op entry armed";
 }
 
+// Dispatch chooses whether the sole future execution hook may arm.
+void RefreshChangeLevelLifecycleDispatch(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.lifecycle_entry.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleEntrySummary& entry =
+        summary.lifecycle_entry;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleDispatchSummary& dispatch =
+        summary.lifecycle_dispatch;
+    dispatch = {};
+    dispatch.attempted = true;
+    dispatch.dispatch_checked = true;
+    dispatch.decision_source = "changelevel_lifecycle_entry";
+    dispatch.requested_map = entry.requested_map;
+    dispatch.landmark = entry.landmark;
+
+    if (entry.eligible)
+    {
+        dispatch.dispatch_allowed = true;
+        dispatch.dispatch_blocked = false;
+        dispatch.action = "no-op dispatch armed";
+        return;
+    }
+
+    dispatch.dispatch_allowed = false;
+    dispatch.dispatch_blocked = true;
+    dispatch.short_circuit_reason = !entry.short_circuit_reason.empty()
+        ? entry.short_circuit_reason
+        : "changelevel_lifecycle_entry not eligible";
+
+    if (entry.blocked_by_stop_mode)
+    {
+        dispatch.action = "no-op dispatch skipped";
+        return;
+    }
+
+    dispatch.action = "no-op dispatch blocked";
+}
+
+// The single future execution hook for any next-map/bootstrap lifecycle work.
+void RefreshChangeLevelLifecycleExecution(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.lifecycle_dispatch.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleDispatchSummary& dispatch =
+        summary.lifecycle_dispatch;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleExecutionSummary& execution =
+        summary.lifecycle_execution;
+    execution = {};
+    execution.attempted = true;
+    execution.execution_checked = true;
+    execution.decision_source = "changelevel_lifecycle_dispatch";
+    execution.requested_map = dispatch.requested_map;
+    execution.landmark = dispatch.landmark;
+
+    if (dispatch.dispatch_allowed)
+    {
+        execution.execution_armed = true;
+        execution.execution_skipped = false;
+        execution.action = "no-op execution armed";
+        return;
+    }
+
+    execution.execution_armed = false;
+    execution.execution_skipped = true;
+    execution.short_circuit_reason = !dispatch.short_circuit_reason.empty()
+        ? dispatch.short_circuit_reason
+        : "changelevel_lifecycle_dispatch blocked";
+    execution.action = "no-op execution skipped";
+}
+
 void CapturePendingChangeLevelRequest(
     EngineShimState& state,
     const hl::game_api::detail::EntityDefinition* definition,
@@ -4856,6 +5005,8 @@ void ConsumePendingChangeLevelRequest(EngineShimState& state)
         "staged pre-changelevel handoff latched for latch-only continuation; world remains unfrozen and no map load performed";
     EnsureChangeLevelLifecycleGate(state);
     RefreshChangeLevelLifecycleEntry(state);
+    RefreshChangeLevelLifecycleDispatch(state);
+    RefreshChangeLevelLifecycleExecution(state);
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
@@ -14721,6 +14872,8 @@ void PerformServerFrameLoop()
                 changelevel.transition_intent_detail =
                     "pending_changelevel_request consumed into staged-safe host transition intent; deterministic no-op transition stop requested before map load";
                 RefreshChangeLevelLifecycleEntry(state);
+                RefreshChangeLevelLifecycleDispatch(state);
+                RefreshChangeLevelLifecycleExecution(state);
                 const std::string stop_reason =
                     "stop-on-changelevel-request reached: requestedMap="
                     + (changelevel.target_map.empty()
