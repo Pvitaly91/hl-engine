@@ -877,6 +877,148 @@ void ValidateChangelevelPlayerTransferApplyPlan(
         "expected changelevel_player_transfer_apply_plan targetEntityParse=ok");
 }
 
+void ValidateChangelevelPlayerTransferWriteSet(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_write_set_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.attempted,
+        "expected changelevel_player_transfer_write_set attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.prepared
+            == expected_prepared,
+        std::string("expected changelevel_player_transfer_write_set prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.skipped
+            == expected_skipped,
+        std::string("expected changelevel_player_transfer_write_set skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_write_set_ready ? std::string_view("player-transfer-apply-plan")
+                                 : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.decision_source
+            == expected_decision_source,
+        std::string("expected changelevel_player_transfer_write_set decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_write_set_ready ? std::string_view("player") : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.apply_target
+            == expected_apply_target,
+        std::string("expected changelevel_player_transfer_write_set applyTarget=")
+            + (expected_apply_target.empty()
+                ? std::string("<empty>")
+                : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.write_set_ready
+            == expected_write_set_ready,
+        std::string("expected changelevel_player_transfer_write_set writeSetReady=")
+            + (expected_write_set_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.action
+            == expected_action,
+        std::string("expected changelevel_player_transfer_write_set action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_player_transfer_write_set shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_write_set_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_write_set currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_write_set requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.landmark
+            == "c0a0toa",
+        "expected changelevel_player_transfer_write_set landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        ContainsText(
+            summary.changelevel_transition.changelevel_player_transfer_write_set.target_bsp_path,
+            "c0a0a.bsp"),
+        "expected changelevel_player_transfer_write_set targetBspPath to reference c0a0a.bsp");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set
+            .target_player_origin
+            == "-2687 -1342.35 65",
+        "expected changelevel_player_transfer_write_set targetPlayerOrigin=-2687 -1342.35 65");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.target_player_yaw
+            == "321.622406",
+        "expected changelevel_player_transfer_write_set targetPlayerYaw=321.622406");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.write_origin,
+        "expected changelevel_player_transfer_write_set writeOrigin=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.write_yaw,
+        "expected changelevel_player_transfer_write_set writeYaw=yes");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_write_set.write_inventory,
+        "expected changelevel_player_transfer_write_set writeInventory=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_write_set.write_velocity,
+        "expected changelevel_player_transfer_write_set writeVelocity=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set.write_count == 2,
+        "expected changelevel_player_transfer_write_set writeCount=2");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set
+            .runtime_write_suppressed,
+        "expected changelevel_player_transfer_write_set runtimeWriteSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set
+            .target_worldspawn_present,
+        "expected changelevel_player_transfer_write_set targetWorldspawnPresent=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_write_set
+            .target_entity_parse_ok,
+        "expected changelevel_player_transfer_write_set targetEntityParse=ok");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -1055,6 +1197,14 @@ bool ValidateRegressionGuard(
             "no-op player apply plan prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferWriteSet(
+            summary,
+            true,
+            false,
+            true,
+            "no-op player transfer write set prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -1190,6 +1340,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player apply plan skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferWriteSet(
+            summary,
+            false,
+            true,
+            false,
+            "player transfer write set skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
