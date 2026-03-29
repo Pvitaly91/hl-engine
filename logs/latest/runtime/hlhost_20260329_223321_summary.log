@@ -1,0 +1,18 @@
+[2026-03-29 22:33:21.534] [info][startup] Logger session started.
+[2026-03-29 22:33:21.534] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\logs\latest\runtime
+[2026-03-29 22:33:21.535] [info][startup] Session id: 20260329_223321
+[2026-03-29 22:33:21.535] [info][startup] Max file size: 10485760 bytes
+[2026-03-29 22:33:21.536] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260329_223321_part01.log
+[2026-03-29 22:33:21.536] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260329_223321_summary.log
+[2026-03-29 22:33:21.537] [info][startup] hlhost startup initiated.
+[2026-03-29 22:33:21.538] [info][startup] Current working directory: C:\Users\admin
+[2026-03-29 22:33:21.539] [info][startup] Executable path: G:\DEV\СPP\HLengine\out\build\vs2022-win32\host\Debug\hlhost.exe
+[2026-03-29 22:33:21.575] [info][summary] DLL smoke test summary:
+[2026-03-29 22:33:21.576] [info][summary] Valve directory: OK
+[2026-03-29 22:33:21.576] [info][summary] hl.dll: loaded
+[2026-03-29 22:33:21.577] [info][summary] hl.dll exports: 2/2
+[2026-03-29 22:33:21.577] [info][summary] client.dll: loaded
+[2026-03-29 22:33:21.578] [info][summary] client.dll exports: 5/5
+[2026-03-29 22:33:21.582] [info][startup] Frame bootstrap config: frames=1800, frametime=0.050000, think_limit=32, use_limit=64, scheduled_use_limit=128, path_arrival_epsilon=24.000000, trace_scripted=0, trace_movement=0, trace_think=0, trace_callbacks=0, log_frame_sample=10, log_state_changes_only=1, stop_on_first_message=0, stop_on_changelevel_request=0, stop_on_node=<none>
+[2026-03-29 22:33:21.587] [info][summary] Frame bootstrap requested: frames=1800, frametime=0.050000, think_limit=32, use_limit=64, scheduled_use_limit=128, path_arrival_epsilon=24.000000, trace_scripted=0, trace_movement=0, trace_think=0, log_frame_sample=10, log_state_changes_only=1, stop_on_first_message=0, stop_on_changelevel_request=0, stop_on_node=<none>
+[2026-03-29 22:33:21.607] [warn][general] Duplicate cvar registration detected for 'mp_defaultteam'.
