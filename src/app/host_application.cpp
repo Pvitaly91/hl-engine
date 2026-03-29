@@ -165,6 +165,84 @@ void ValidateChangelevelTargetValidation(
         "expected changelevel_target_validation action=no-op dry-run validation");
 }
 
+void ValidateChangelevelLifecycleGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.attempted,
+        "expected changelevel_lifecycle_gate attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.intent_consumed,
+        "expected changelevel_lifecycle_gate intentConsumed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.target_validation_passed,
+        "expected changelevel_lifecycle_gate targetValidation=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.bootstrap_allowed,
+        "expected changelevel_lifecycle_gate bootstrapAllowed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.requested_map == "c0a0a",
+        "expected changelevel_lifecycle_gate requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.landmark == "c0a0toa",
+        "expected changelevel_lifecycle_gate landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_gate.action == "no-op gated-ready",
+        "expected changelevel_lifecycle_gate action=no-op gated-ready");
+}
+
+void ValidateChangelevelLifecycleEntry(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_eligible,
+    bool expected_blocked_by_stop_mode,
+    std::string_view expected_action,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.attempted,
+        "expected changelevel_lifecycle_entry attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.gate_checked,
+        "expected changelevel_lifecycle_entry gateChecked=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.gate_passed,
+        "expected changelevel_lifecycle_entry gatePassed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.eligible == expected_eligible,
+        std::string("expected changelevel_lifecycle_entry eligible=")
+            + (expected_eligible ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.blocked_by_stop_mode
+            == expected_blocked_by_stop_mode,
+        std::string("expected changelevel_lifecycle_entry blockedByStopMode=")
+            + (expected_blocked_by_stop_mode ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.requested_map == "c0a0a",
+        "expected changelevel_lifecycle_entry requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.landmark == "c0a0toa",
+        "expected changelevel_lifecycle_entry landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.lifecycle_entry.action == expected_action,
+        std::string("expected changelevel_lifecycle_entry action=") + std::string(expected_action));
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -278,6 +356,13 @@ bool ValidateRegressionGuard(
     case hl::app::RegressionGuardProfile::kChangelevelLatchOnlyContinuation:
         ValidateTrainstop26TerminalState(summary, failures);
         ValidateChangelevelTargetValidation(summary, failures);
+        ValidateChangelevelLifecycleGate(summary, failures);
+        ValidateChangelevelLifecycleEntry(
+            summary,
+            true,
+            false,
+            "no-op entry armed",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -350,6 +435,13 @@ bool ValidateRegressionGuard(
 
     case hl::app::RegressionGuardProfile::kChangelevelRequestConsumed:
         ValidateChangelevelTargetValidation(summary, failures);
+        ValidateChangelevelLifecycleGate(summary, failures);
+        ValidateChangelevelLifecycleEntry(
+            summary,
+            false,
+            true,
+            "no-op entry skipped by stop mode",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,

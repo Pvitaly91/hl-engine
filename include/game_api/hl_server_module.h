@@ -423,6 +423,31 @@ struct ChangeLevelTransitionSummary
         std::string detail;
     };
 
+    struct ChangeLevelLifecycleGateSummary
+    {
+        bool attempted = false;
+        bool intent_consumed = false;
+        bool target_validation_passed = false;
+        bool bootstrap_allowed = false;
+        std::string requested_map;
+        std::string landmark;
+        std::string action;
+        std::string reason;
+    };
+
+    struct ChangeLevelLifecycleEntrySummary
+    {
+        bool attempted = false;
+        bool gate_checked = false;
+        bool gate_passed = false;
+        bool eligible = false;
+        bool blocked_by_stop_mode = false;
+        std::string requested_map;
+        std::string landmark;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -472,6 +497,8 @@ struct ChangeLevelTransitionSummary
     std::string transition_intent_action;
     std::string transition_intent_detail;
     ChangeLevelTargetValidationSummary target_validation;
+    ChangeLevelLifecycleGateSummary lifecycle_gate;
+    ChangeLevelLifecycleEntrySummary lifecycle_entry;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

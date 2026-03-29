@@ -448,6 +448,8 @@ const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTarget
     std::string_view target_name,
     std::string_view classname_filter);
 void EnsureChangeLevelTargetValidation(EngineShimState& state);
+void EnsureChangeLevelLifecycleGate(EngineShimState& state);
+void RefreshChangeLevelLifecycleEntry(EngineShimState& state);
 
 const char* BoolToYesNo(bool value)
 {
@@ -561,6 +563,67 @@ std::string FormatChangeLevelTargetValidationSummary(
     if (!validation.detail.empty())
     {
         line += ", note=" + validation.detail;
+    }
+
+    return line;
+}
+
+bool IsChangeLevelTargetValidationValid(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelTargetValidationSummary& validation)
+{
+    return validation.attempted
+        && !validation.current_map.empty()
+        && !validation.requested_map.empty()
+        && validation.target_map_exists
+        && !validation.landmark.empty()
+        && validation.current_landmark_found
+        && validation.target_landmark_found
+        && validation.entity_parse_succeeded
+        && validation.missing_component.empty();
+}
+
+std::string FormatChangeLevelLifecycleGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleGateSummary& gate =
+        summary.lifecycle_gate;
+    std::string line =
+        std::string("intentConsumed=") + BoolToYesNo(gate.intent_consumed)
+        + ", targetValidation=" + BoolToYesNo(gate.target_validation_passed)
+        + ", bootstrapAllowed=" + BoolToYesNo(gate.bootstrap_allowed)
+        + ", requestedMap="
+        + (gate.requested_map.empty() ? std::string("<none>") : gate.requested_map)
+        + ", landmark="
+        + (gate.landmark.empty() ? std::string("<none>") : gate.landmark)
+        + ", action="
+        + (gate.action.empty() ? std::string("<none>") : gate.action);
+    if (!gate.reason.empty())
+    {
+        line += ", reason=" + gate.reason;
+    }
+
+    return line;
+}
+
+std::string FormatChangeLevelLifecycleEntrySummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleEntrySummary& entry =
+        summary.lifecycle_entry;
+    std::string line =
+        std::string("gateChecked=") + BoolToYesNo(entry.gate_checked)
+        + ", gatePassed=" + BoolToYesNo(entry.gate_passed)
+        + ", eligible=" + BoolToYesNo(entry.eligible)
+        + ", blockedByStopMode=" + BoolToYesNo(entry.blocked_by_stop_mode)
+        + ", requestedMap="
+        + (entry.requested_map.empty() ? std::string("<none>") : entry.requested_map)
+        + ", landmark="
+        + (entry.landmark.empty() ? std::string("<none>") : entry.landmark)
+        + ", action="
+        + (entry.action.empty() ? std::string("<none>") : entry.action);
+    if (!entry.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + entry.short_circuit_reason;
     }
 
     return line;
@@ -2486,6 +2549,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_target_validation: "
                     + FormatChangeLevelTargetValidationSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.lifecycle_gate.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_lifecycle_gate: "
+                    + FormatChangeLevelLifecycleGateSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.lifecycle_entry.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_lifecycle_entry: "
+                    + FormatChangeLevelLifecycleEntrySummary(summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
         {
@@ -4644,6 +4721,89 @@ void EnsureChangeLevelTargetValidation(EngineShimState& state)
     }
 }
 
+void EnsureChangeLevelLifecycleGate(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (summary.lifecycle_gate.attempted || !summary.transition_intent_captured)
+    {
+        return;
+    }
+
+    EnsureChangeLevelTargetValidation(state);
+
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleGateSummary& gate =
+        summary.lifecycle_gate;
+    gate = {};
+    gate.attempted = true;
+    gate.intent_consumed = summary.transition_intent_consumed;
+    gate.target_validation_passed = IsChangeLevelTargetValidationValid(summary.target_validation);
+    gate.requested_map = hl::game_api::detail::NormalizeMapName(summary.target_map);
+    gate.landmark = TrimWhitespaceCopy(summary.landmark);
+
+    if (!gate.intent_consumed)
+    {
+        gate.bootstrap_allowed = false;
+        gate.action = "no-op gated-blocked";
+        gate.reason = "transition intent not consumed";
+        return;
+    }
+
+    if (!gate.target_validation_passed)
+    {
+        gate.bootstrap_allowed = false;
+        gate.action = "no-op gated-blocked";
+        gate.reason = !summary.target_validation.missing_component.empty()
+            ? summary.target_validation.missing_component
+            : "target validation unavailable";
+        if (!summary.target_validation.detail.empty())
+        {
+            gate.reason += " (" + summary.target_validation.detail + ")";
+        }
+        return;
+    }
+
+    gate.bootstrap_allowed = true;
+    gate.action = "no-op gated-ready";
+}
+
+void RefreshChangeLevelLifecycleEntry(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.lifecycle_gate.attempted)
+    {
+        return;
+    }
+
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleEntrySummary& entry =
+        summary.lifecycle_entry;
+    entry = {};
+    entry.attempted = true;
+    entry.gate_checked = true;
+    entry.gate_passed = summary.lifecycle_gate.bootstrap_allowed;
+    entry.requested_map = summary.lifecycle_gate.requested_map;
+    entry.landmark = summary.lifecycle_gate.landmark;
+
+    if (!entry.gate_passed)
+    {
+        entry.action = "no-op entry blocked";
+        entry.short_circuit_reason = !summary.lifecycle_gate.reason.empty()
+            ? summary.lifecycle_gate.reason
+            : "bootstrap not allowed";
+        return;
+    }
+
+    if (summary.pre_changelevel_handoff.stop_requested)
+    {
+        entry.blocked_by_stop_mode = true;
+        entry.action = "no-op entry skipped by stop mode";
+        entry.short_circuit_reason = "stop-on-changelevel-request";
+        return;
+    }
+
+    entry.eligible = true;
+    entry.action = "no-op entry armed";
+}
+
 void CapturePendingChangeLevelRequest(
     EngineShimState& state,
     const hl::game_api::detail::EntityDefinition* definition,
@@ -4694,6 +4854,8 @@ void ConsumePendingChangeLevelRequest(EngineShimState& state)
     summary.pre_changelevel_handoff.map_load_performed = false;
     summary.pre_changelevel_handoff.detail =
         "staged pre-changelevel handoff latched for latch-only continuation; world remains unfrozen and no map load performed";
+    EnsureChangeLevelLifecycleGate(state);
+    RefreshChangeLevelLifecycleEntry(state);
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
@@ -14558,6 +14720,7 @@ void PerformServerFrameLoop()
                 changelevel.transition_intent_action = "no-op transition stop";
                 changelevel.transition_intent_detail =
                     "pending_changelevel_request consumed into staged-safe host transition intent; deterministic no-op transition stop requested before map load";
+                RefreshChangeLevelLifecycleEntry(state);
                 const std::string stop_reason =
                     "stop-on-changelevel-request reached: requestedMap="
                     + (changelevel.target_map.empty()
