@@ -1019,6 +1019,131 @@ void ValidateChangelevelPlayerTransferWriteSet(
         "expected changelevel_player_transfer_write_set targetEntityParse=ok");
 }
 
+void ValidateChangelevelPlayerTransferDeferredApplyGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_apply_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate.attempted,
+        "expected changelevel_player_transfer_deferred_apply_gate attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate.prepared
+            == expected_prepared,
+        std::string("expected changelevel_player_transfer_deferred_apply_gate prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate.skipped
+            == expected_skipped,
+        std::string("expected changelevel_player_transfer_deferred_apply_gate skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_apply_gate_ready ? std::string_view("player-transfer-write-set")
+                                  : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .decision_source
+            == expected_decision_source,
+        std::string(
+            "expected changelevel_player_transfer_deferred_apply_gate decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_apply_gate_ready ? std::string_view("player") : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .apply_target
+            == expected_apply_target,
+        std::string("expected changelevel_player_transfer_deferred_apply_gate applyTarget=")
+            + (expected_apply_target.empty()
+                ? std::string("<empty>")
+                : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .apply_gate_ready
+            == expected_apply_gate_ready,
+        std::string("expected changelevel_player_transfer_deferred_apply_gate applyGateReady=")
+            + (expected_apply_gate_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate.action
+            == expected_action,
+        std::string("expected changelevel_player_transfer_deferred_apply_gate action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string(
+            "expected changelevel_player_transfer_deferred_apply_gate shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_apply_gate_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_deferred_apply_gate currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_deferred_apply_gate requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .future_apply_phase
+            == "post-target-bootstrap-pre-player-resume",
+        "expected changelevel_player_transfer_deferred_apply_gate futureApplyPhase=post-target-bootstrap-pre-player-resume");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .pending_write_count
+            == 2,
+        "expected changelevel_player_transfer_deferred_apply_gate pendingWriteCount=2");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+             .gate_open,
+        "expected changelevel_player_transfer_deferred_apply_gate gateOpen=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .deferred,
+        "expected changelevel_player_transfer_deferred_apply_gate deferred=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .gate_reason
+            == "target-map-runtime-not-active",
+        "expected changelevel_player_transfer_deferred_apply_gate gateReason=target-map-runtime-not-active");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+            .runtime_write_suppressed,
+        "expected changelevel_player_transfer_deferred_apply_gate runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -1205,6 +1330,14 @@ bool ValidateRegressionGuard(
             "no-op player transfer write set prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferDeferredApplyGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op deferred player apply gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -1348,6 +1481,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player transfer write set skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferDeferredApplyGate(
+            summary,
+            false,
+            true,
+            false,
+            "deferred player apply gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(

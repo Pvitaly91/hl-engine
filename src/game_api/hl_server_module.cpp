@@ -463,6 +463,7 @@ void RefreshChangeLevelProjectedCarriedOrientation(EngineShimState& state);
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -478,6 +479,10 @@ hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSum
 BuildChangeLevelPlayerTransferWriteSet(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferApplyPlanSummary&
         plan);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferDeferredApplyGateSummary
+BuildChangeLevelPlayerTransferDeferredApplyGate(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary&
+        write_set);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1037,6 +1042,51 @@ std::string FormatChangeLevelPlayerTransferWriteSetSummary(
     line += ", writeSetReady=" + std::string(BoolToYesNo(write_set.write_set_ready))
         + ", action="
         + (write_set.action.empty() ? std::string("<none>") : write_set.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferDeferredApplyGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferDeferredApplyGateSummary& gate =
+            summary.changelevel_player_transfer_deferred_apply_gate;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(gate.prepared)
+        + ", skipped=" + BoolToYesNo(gate.skipped);
+    if (!gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + gate.decision_source;
+    }
+    if (!gate.apply_target.empty())
+    {
+        line += ", applyTarget=" + gate.apply_target;
+    }
+    if (gate.prepared)
+    {
+        line += ", currentMap="
+            + (gate.current_map.empty() ? std::string("<none>") : gate.current_map)
+            + ", requestedMap="
+            + (gate.requested_map.empty() ? std::string("<none>") : gate.requested_map)
+            + ", futureApplyPhase="
+            + (gate.future_apply_phase.empty()
+                ? std::string("<none>")
+                : gate.future_apply_phase)
+            + ", pendingWriteCount=" + std::to_string(gate.pending_write_count)
+            + ", gateOpen=" + BoolToYesNo(gate.gate_open)
+            + ", deferred=" + BoolToYesNo(gate.deferred)
+            + ", gateReason="
+            + (gate.gate_reason.empty() ? std::string("<none>") : gate.gate_reason)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(gate.runtime_write_suppressed);
+    }
+    if (!gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + gate.short_circuit_reason;
+    }
+
+    line += ", applyGateReady=" + std::string(BoolToYesNo(gate.apply_gate_ready))
+        + ", action=" + (gate.action.empty() ? std::string("<none>") : gate.action);
     return line;
 }
 
@@ -3148,6 +3198,15 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_write_set: "
                     + FormatChangeLevelPlayerTransferWriteSetSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_deferred_apply_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_deferred_apply_gate: "
+                    + FormatChangeLevelPlayerTransferDeferredApplyGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -6059,6 +6118,56 @@ BuildChangeLevelPlayerTransferWriteSet(
     return write_set;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferDeferredApplyGateSummary
+BuildChangeLevelPlayerTransferDeferredApplyGate(
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferWriteSetSummary&
+        write_set)
+{
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferDeferredApplyGateSummary
+        gate;
+    gate.attempted = true;
+
+    if (write_set.prepared && write_set.write_set_ready)
+    {
+        gate.prepared = true;
+        gate.skipped = false;
+        gate.decision_source = "player-transfer-write-set";
+        gate.apply_target = write_set.apply_target;
+        gate.current_map = write_set.current_map;
+        gate.requested_map = write_set.requested_map;
+        gate.future_apply_phase = "post-target-bootstrap-pre-player-resume";
+        gate.pending_write_count = write_set.write_count;
+        gate.gate_open = false;
+        gate.deferred = true;
+        gate.gate_reason = "target-map-runtime-not-active";
+        gate.runtime_write_suppressed = write_set.runtime_write_suppressed;
+        gate.apply_gate_ready = true;
+        gate.action = "no-op deferred player apply gate prepared";
+        return gate;
+    }
+
+    gate.prepared = false;
+    gate.apply_gate_ready = false;
+    gate.short_circuit_reason = write_set.short_circuit_reason;
+
+    if (write_set.skipped)
+    {
+        gate.skipped = true;
+        gate.action = "deferred player apply gate skipped";
+        return gate;
+    }
+
+    gate.skipped = false;
+    gate.decision_source = "player-transfer-write-set";
+    gate.apply_target = write_set.apply_target;
+    gate.current_map = write_set.current_map;
+    gate.requested_map = write_set.requested_map;
+    gate.pending_write_count = write_set.write_count;
+    gate.runtime_write_suppressed = write_set.runtime_write_suppressed;
+    gate.action = "deferred player apply gate unavailable";
+    return gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -6105,6 +6214,20 @@ void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state)
 
     summary.changelevel_player_transfer_write_set = BuildChangeLevelPlayerTransferWriteSet(
         summary.changelevel_player_transfer_apply_plan);
+    RefreshChangeLevelPlayerTransferDeferredApplyGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_write_set.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_deferred_apply_gate =
+        BuildChangeLevelPlayerTransferDeferredApplyGate(
+            summary.changelevel_player_transfer_write_set);
 }
 
 void CapturePendingChangeLevelRequest(
