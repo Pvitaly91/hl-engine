@@ -72,6 +72,67 @@ std::string NarrowAscii(std::wstring_view value)
     return text;
 }
 
+std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
+{
+    const std::wstring trimmed = TrimCopy(value);
+    if (trimmed.empty())
+    {
+        return std::nullopt;
+    }
+
+    std::string sanitized;
+    sanitized.reserve(trimmed.size());
+
+    const auto append_separator =
+        [&sanitized](char separator)
+        {
+            if (sanitized.empty())
+            {
+                return;
+            }
+
+            const char last = sanitized.back();
+            if (last == '-' || last == '_')
+            {
+                return;
+            }
+
+            sanitized.push_back(separator);
+        };
+
+    for (wchar_t character : trimmed)
+    {
+        if ((character >= L'0' && character <= L'9')
+            || (character >= L'A' && character <= L'Z')
+            || (character >= L'a' && character <= L'z'))
+        {
+            sanitized.push_back(static_cast<char>(character));
+            continue;
+        }
+
+        if (character == L'-' || character == L'_')
+        {
+            append_separator(static_cast<char>(character));
+            continue;
+        }
+
+        append_separator('-');
+    }
+
+    while (!sanitized.empty()
+        && (sanitized.back() == '-' || sanitized.back() == '_'))
+    {
+        sanitized.pop_back();
+    }
+
+    if (sanitized.empty())
+    {
+        return std::nullopt;
+    }
+
+    return sanitized;
+}
+
 bool TryParseInteger(std::wstring_view text, int* value)
 {
     if (value == nullptr || text.empty())
@@ -572,6 +633,42 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.regression_guard = profile;
+            continue;
+        }
+
+        if (argument == L"--run-label")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --run-label.";
+                return result;
+            }
+
+            const std::optional<std::string> sanitized = SanitizeRunLabel(argv[++index]);
+            if (!sanitized.has_value())
+            {
+                result.error_message =
+                    L"Invalid value for --run-label. Expected at least one filesystem-safe ASCII character.";
+                return result;
+            }
+
+            result.options.run_label = *sanitized;
+            continue;
+        }
+
+        constexpr std::wstring_view run_label_prefix = L"--run-label=";
+        if (StartsWith(argument, run_label_prefix))
+        {
+            const std::optional<std::string> sanitized =
+                SanitizeRunLabel(argument.substr(run_label_prefix.size()));
+            if (!sanitized.has_value())
+            {
+                result.error_message =
+                    L"Invalid value for --run-label. Expected at least one filesystem-safe ASCII character.";
+                return result;
+            }
+
+            result.options.run_label = *sanitized;
             continue;
         }
 
@@ -1463,7 +1560,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--run-label <label>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1475,6 +1572,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --map <name>                   Set the bootstrap map name (default: c0a0)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
+             L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"
              L"  --frames <count>               Run a finite deterministic post-activation frame loop (default: 1000)\n"
              L"  --frametime <s>                Fixed frame time for the bootstrap loop (default: 0.05)\n"
              L"  --think-limit <n>              Maximum due thinks executed per frame (default: 32)\n"

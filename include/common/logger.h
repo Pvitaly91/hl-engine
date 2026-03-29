@@ -41,6 +41,7 @@ struct LoggerOptions
 {
     std::filesystem::path log_directory = std::filesystem::path("logs");
     std::string session_prefix = "hlhost";
+    std::string run_label;
     bool log_to_console = true;
     bool log_to_file = true;
     bool log_summary_file = true;
@@ -60,6 +61,7 @@ struct LoggerSessionInfo
     bool configured = false;
     std::filesystem::path log_directory;
     std::string session_id;
+    std::string run_label;
     std::uintmax_t max_file_size_bytes = 0;
     std::filesystem::path current_file_path;
     std::filesystem::path summary_file_path;
