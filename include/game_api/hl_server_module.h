@@ -414,9 +414,15 @@ struct ChangeLevelTransitionSummary
         std::string current_map;
         std::string requested_map;
         bool target_map_exists = false;
+        std::string target_bsp_path;
         std::string landmark;
         bool current_landmark_found = false;
+        bool current_landmark_origin_available = false;
+        std::string current_landmark_origin;
         bool target_landmark_found = false;
+        bool target_landmark_origin_available = false;
+        std::string target_landmark_origin;
+        bool target_worldspawn_present = false;
         bool entity_parse_succeeded = false;
         std::string action;
         std::string missing_component;
@@ -468,8 +474,65 @@ struct ChangeLevelTransitionSummary
         bool execution_armed = false;
         bool execution_skipped = false;
         std::string decision_source;
+        std::string current_map;
         std::string requested_map;
+        std::string target_bsp_path;
         std::string landmark;
+        bool target_worldspawn_present = false;
+        bool target_entity_parse_ok = false;
+        bool current_landmark_origin_available = false;
+        std::string current_landmark_origin;
+        bool target_landmark_origin_available = false;
+        std::string target_landmark_origin;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
+    struct ChangeLevelBootstrapPlanSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string current_map;
+        std::string requested_map;
+        std::string target_bsp_path;
+        std::string landmark;
+        bool target_worldspawn_present = false;
+        bool target_entity_parse_ok = false;
+        bool current_landmark_origin_available = false;
+        std::string current_landmark_origin;
+        bool target_landmark_origin_available = false;
+        std::string target_landmark_origin;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
+    struct ChangeLevelLandmarkTransformSummary
+    {
+        bool attempted = false;
+        bool transform_computed = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool current_landmark_origin_available = false;
+        std::string current_landmark_origin;
+        bool target_landmark_origin_available = false;
+        std::string target_landmark_origin;
+        std::string translation_delta;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
+    struct ChangeLevelProjectedCarriedOriginSummary
+    {
+        bool attempted = false;
+        bool projected = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool current_carried_origin_available = false;
+        std::string current_carried_origin;
+        std::string translation_delta;
+        std::string projected_target_origin;
         std::string action;
         std::string short_circuit_reason;
     };
@@ -527,6 +590,9 @@ struct ChangeLevelTransitionSummary
     ChangeLevelLifecycleEntrySummary lifecycle_entry;
     ChangeLevelLifecycleDispatchSummary lifecycle_dispatch;
     ChangeLevelLifecycleExecutionSummary lifecycle_execution;
+    ChangeLevelBootstrapPlanSummary changelevel_bootstrap_plan;
+    ChangeLevelLandmarkTransformSummary changelevel_landmark_transform;
+    ChangeLevelProjectedCarriedOriginSummary changelevel_projected_carried_origin;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

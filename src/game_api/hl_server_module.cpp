@@ -447,11 +447,17 @@ const hl::game_api::detail::EntityDefinition* FindParsedTargetDefinitionByTarget
     const EngineShimState& state,
     std::string_view target_name,
     std::string_view classname_filter);
+ParsedVectorField ParseOriginField(const hl::game_api::detail::EntityDefinition& entity);
 void EnsureChangeLevelTargetValidation(EngineShimState& state);
 void EnsureChangeLevelLifecycleGate(EngineShimState& state);
 void RefreshChangeLevelLifecycleEntry(EngineShimState& state);
 void RefreshChangeLevelLifecycleDispatch(EngineShimState& state);
 void RefreshChangeLevelLifecycleExecution(EngineShimState& state);
+void RefreshChangeLevelBootstrapPlan(EngineShimState& state);
+void RefreshChangeLevelLandmarkTransform(EngineShimState& state);
+void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state);
+bool ParseStrictVector3(std::string_view text, Vector* value);
+std::string FormatVector(const Vector& value);
 
 const char* BoolToYesNo(bool value)
 {
@@ -685,6 +691,133 @@ std::string FormatChangeLevelLifecycleExecutionSummary(
     return line;
 }
 
+std::string FormatChangeLevelBootstrapPlanSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan =
+        summary.changelevel_bootstrap_plan;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(plan.prepared)
+        + ", skipped=" + BoolToYesNo(plan.skipped)
+        + ", decisionSource="
+        + (plan.decision_source.empty()
+            ? std::string("<none>")
+            : plan.decision_source)
+        + ", action="
+        + (plan.action.empty() ? std::string("<none>") : plan.action);
+    if (plan.prepared)
+    {
+        line += ", currentMap="
+            + (plan.current_map.empty() ? std::string("<none>") : plan.current_map)
+            + ", requestedMap="
+            + (plan.requested_map.empty() ? std::string("<none>") : plan.requested_map)
+            + ", targetBspPath="
+            + (plan.target_bsp_path.empty() ? std::string("<none>") : plan.target_bsp_path)
+            + ", landmark="
+            + (plan.landmark.empty() ? std::string("<none>") : plan.landmark)
+            + ", targetWorldspawnPresent=" + BoolToYesNo(plan.target_worldspawn_present)
+            + ", targetEntityParse=" + (plan.target_entity_parse_ok ? "ok" : "fail")
+            + ", currentLandmarkOrigin="
+            + (plan.current_landmark_origin_available
+                ? plan.current_landmark_origin
+                : std::string("<none>"))
+            + ", targetLandmarkOrigin="
+            + (plan.target_landmark_origin_available
+                ? plan.target_landmark_origin
+                : std::string("<none>"));
+        return line;
+    }
+
+    if (!plan.requested_map.empty())
+    {
+        line += ", requestedMap=" + plan.requested_map;
+    }
+    if (!plan.landmark.empty())
+    {
+        line += ", landmark=" + plan.landmark;
+    }
+    if (!plan.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + plan.short_circuit_reason;
+    }
+
+    return line;
+}
+
+std::string FormatChangeLevelLandmarkTransformSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLandmarkTransformSummary&
+        transform = summary.changelevel_landmark_transform;
+    std::string line =
+        std::string("transformComputed=") + BoolToYesNo(transform.transform_computed)
+        + ", skipped=" + BoolToYesNo(transform.skipped)
+        + ", decisionSource="
+        + (transform.decision_source.empty()
+            ? std::string("<none>")
+            : transform.decision_source);
+    if (transform.transform_computed)
+    {
+        line += ", currentLandmarkOrigin="
+            + (transform.current_landmark_origin_available
+                ? transform.current_landmark_origin
+                : std::string("<none>"))
+            + ", targetLandmarkOrigin="
+            + (transform.target_landmark_origin_available
+                ? transform.target_landmark_origin
+                : std::string("<none>"))
+            + ", translationDelta="
+            + (transform.translation_delta.empty()
+                ? std::string("<none>")
+                : transform.translation_delta);
+    }
+    if (!transform.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + transform.short_circuit_reason;
+    }
+
+    line += ", action="
+        + (transform.action.empty() ? std::string("<none>") : transform.action);
+    return line;
+}
+
+std::string FormatChangeLevelProjectedCarriedOriginSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOriginSummary&
+        projected = summary.changelevel_projected_carried_origin;
+    std::string line =
+        std::string("projected=") + BoolToYesNo(projected.projected)
+        + ", skipped=" + BoolToYesNo(projected.skipped)
+        + ", decisionSource="
+        + (projected.decision_source.empty()
+            ? std::string("<none>")
+            : projected.decision_source);
+    if (projected.projected)
+    {
+        line += ", currentCarriedOrigin="
+            + (projected.current_carried_origin_available
+                ? projected.current_carried_origin
+                : std::string("<none>"))
+            + ", translationDelta="
+            + (projected.translation_delta.empty()
+                ? std::string("<none>")
+                : projected.translation_delta)
+            + ", projectedTargetOrigin="
+            + (projected.projected_target_origin.empty()
+                ? std::string("<none>")
+                : projected.projected_target_origin);
+    }
+    if (!projected.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + projected.short_circuit_reason;
+    }
+
+    line += ", action="
+        + (projected.action.empty() ? std::string("<none>") : projected.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -711,6 +844,76 @@ std::string ExtractTokenValue(std::string_view text, std::string_view key)
     }
 
     return std::string(text.substr(value_begin, value_end - value_begin));
+}
+
+bool TryExtractVectorTokenValue(
+    std::string_view text,
+    std::string_view key,
+    Vector* value,
+    std::string* formatted_value)
+{
+    const std::size_t key_index = text.find(key);
+    if (key_index == std::string_view::npos)
+    {
+        return false;
+    }
+
+    std::istringstream stream{std::string(text.substr(key_index + key.size()))};
+    float x = 0.0f;
+    float y = 0.0f;
+    float z = 0.0f;
+    stream >> x >> y >> z;
+    if (stream.fail())
+    {
+        return false;
+    }
+
+    const Vector parsed(x, y, z);
+    if (value != nullptr)
+    {
+        *value = parsed;
+    }
+    if (formatted_value != nullptr)
+    {
+        *formatted_value = FormatVector(parsed);
+    }
+    return true;
+}
+
+bool TryResolveRequestTimeCarriedOrigin(
+    const hl::game_api::ChangeLevelTransitionSummary& summary,
+    Vector* origin,
+    std::string* origin_text)
+{
+    if (TryExtractVectorTokenValue(
+            summary.pending_request_detail,
+            "surrogateOrigin=",
+            origin,
+            origin_text))
+    {
+        return true;
+    }
+
+    if (summary.closest_surrogate_origin_text.empty())
+    {
+        return false;
+    }
+
+    Vector parsed_origin(0.0f, 0.0f, 0.0f);
+    if (!ParseStrictVector3(summary.closest_surrogate_origin_text, &parsed_origin))
+    {
+        return false;
+    }
+
+    if (origin != nullptr)
+    {
+        *origin = parsed_origin;
+    }
+    if (origin_text != nullptr)
+    {
+        *origin_text = summary.closest_surrogate_origin_text;
+    }
+    return true;
 }
 
 std::string FirstWord(std::string_view text)
@@ -2633,6 +2836,28 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_lifecycle_execution: "
                     + FormatChangeLevelLifecycleExecutionSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_bootstrap_plan.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_bootstrap_plan: "
+                    + FormatChangeLevelBootstrapPlanSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_landmark_transform.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_landmark_transform: "
+                    + FormatChangeLevelLandmarkTransformSummary(summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_projected_carried_origin.attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_projected_carried_origin: "
+                    + FormatChangeLevelProjectedCarriedOriginSummary(
+                        summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
         {
@@ -4626,9 +4851,49 @@ struct ChangeLevelTargetMapDryRunProbe
     bool target_map_exists = false;
     bool entity_parse_succeeded = false;
     bool target_landmark_found = false;
+    bool target_landmark_origin_available = false;
+    std::string target_landmark_origin;
+    bool target_worldspawn_present = false;
     std::string relative_map_path;
     std::string detail;
 };
+
+std::string BuildChangeLevelTargetBspPath(
+    const EngineShimState& state,
+    std::string_view requested_map)
+{
+    const std::string relative_map_path =
+        hl::game_api::detail::BuildMapModelPath(requested_map);
+    if (relative_map_path.empty())
+    {
+        return {};
+    }
+
+    if (state.server_state.game_directory.empty())
+    {
+        return relative_map_path;
+    }
+
+    return hl::common::ToUtf8(
+        (state.server_state.game_directory / hl::common::ToWide(relative_map_path)).lexically_normal());
+}
+
+std::optional<std::string> TryBuildLandmarkOriginText(
+    const hl::game_api::detail::EntityDefinition* definition)
+{
+    if (definition == nullptr)
+    {
+        return std::nullopt;
+    }
+
+    const ParsedVectorField origin = ParseOriginField(*definition);
+    if (!origin.present || !origin.valid)
+    {
+        return std::nullopt;
+    }
+
+    return !origin.raw_text.empty() ? origin.raw_text : FormatVector(origin.value);
+}
 
 ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
     const EngineShimState& state,
@@ -4703,8 +4968,28 @@ ChangeLevelTargetMapDryRunProbe ProbeChangeLevelTargetMapDryRun(
         && !parse_result.partially_parsed
         && parse_result.errors.empty()
         && parse_result.failure_reason.empty();
-    probe.target_landmark_found =
-        FindLandmarkDefinitionByTargetname(parse_result.entities, landmark) != nullptr;
+    probe.target_worldspawn_present =
+        probe.entity_parse_succeeded
+        && std::any_of(
+            parse_result.entities.begin(),
+            parse_result.entities.end(),
+            [](const hl::game_api::detail::EntityDefinition& definition)
+            {
+                return EqualsIgnoreCase(definition.classname, "worldspawn");
+            });
+    const hl::game_api::detail::EntityDefinition* target_landmark_definition =
+        FindLandmarkDefinitionByTargetname(parse_result.entities, landmark);
+    probe.target_landmark_found = target_landmark_definition != nullptr;
+    if (probe.entity_parse_succeeded)
+    {
+        if (const std::optional<std::string> origin =
+                TryBuildLandmarkOriginText(target_landmark_definition);
+            origin.has_value())
+        {
+            probe.target_landmark_origin_available = true;
+            probe.target_landmark_origin = *origin;
+        }
+    }
     if (!probe.entity_parse_succeeded)
     {
         probe.detail = !parse_result.failure_reason.empty()
@@ -4733,16 +5018,28 @@ void EnsureChangeLevelTargetValidation(EngineShimState& state)
         ? state.world_context.map_name
         : hl::game_api::detail::NormalizeMapName(state.server_state.map_name);
     validation.requested_map = hl::game_api::detail::NormalizeMapName(summary.target_map);
+    validation.target_bsp_path =
+        BuildChangeLevelTargetBspPath(state, validation.requested_map);
     validation.landmark = TrimWhitespaceCopy(summary.landmark);
-    validation.current_landmark_found =
-        FindParsedTargetDefinitionByTargetname(state, validation.landmark, "info_landmark")
-        != nullptr;
+    const hl::game_api::detail::EntityDefinition* current_landmark_definition =
+        FindParsedTargetDefinitionByTargetname(state, validation.landmark, "info_landmark");
+    validation.current_landmark_found = current_landmark_definition != nullptr;
+    if (const std::optional<std::string> origin =
+            TryBuildLandmarkOriginText(current_landmark_definition);
+        origin.has_value())
+    {
+        validation.current_landmark_origin_available = true;
+        validation.current_landmark_origin = *origin;
+    }
 
     const ChangeLevelTargetMapDryRunProbe target_probe =
         ProbeChangeLevelTargetMapDryRun(state, validation.requested_map, validation.landmark);
     validation.target_map_exists = target_probe.target_map_exists;
     validation.entity_parse_succeeded = target_probe.entity_parse_succeeded;
     validation.target_landmark_found = target_probe.target_landmark_found;
+    validation.target_landmark_origin_available = target_probe.target_landmark_origin_available;
+    validation.target_landmark_origin = target_probe.target_landmark_origin;
+    validation.target_worldspawn_present = target_probe.target_worldspawn_present;
 
     if (validation.current_map.empty())
     {
@@ -4934,8 +5231,18 @@ void RefreshChangeLevelLifecycleExecution(EngineShimState& state)
     execution.attempted = true;
     execution.execution_checked = true;
     execution.decision_source = "changelevel_lifecycle_dispatch";
+    execution.current_map = summary.target_validation.current_map;
     execution.requested_map = dispatch.requested_map;
+    execution.target_bsp_path = summary.target_validation.target_bsp_path;
     execution.landmark = dispatch.landmark;
+    execution.target_worldspawn_present = summary.target_validation.target_worldspawn_present;
+    execution.target_entity_parse_ok = summary.target_validation.entity_parse_succeeded;
+    execution.current_landmark_origin_available =
+        summary.target_validation.current_landmark_origin_available;
+    execution.current_landmark_origin = summary.target_validation.current_landmark_origin;
+    execution.target_landmark_origin_available =
+        summary.target_validation.target_landmark_origin_available;
+    execution.target_landmark_origin = summary.target_validation.target_landmark_origin;
 
     if (dispatch.dispatch_allowed)
     {
@@ -4951,6 +5258,152 @@ void RefreshChangeLevelLifecycleExecution(EngineShimState& state)
         ? dispatch.short_circuit_reason
         : "changelevel_lifecycle_dispatch blocked";
     execution.action = "no-op execution skipped";
+}
+
+void RefreshChangeLevelBootstrapPlan(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.lifecycle_execution.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLifecycleExecutionSummary& execution =
+        summary.lifecycle_execution;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan =
+        summary.changelevel_bootstrap_plan;
+    plan = {};
+    plan.attempted = true;
+    plan.decision_source = "changelevel_lifecycle_execution";
+    plan.requested_map = execution.requested_map;
+    plan.landmark = execution.landmark;
+
+    if (execution.execution_armed)
+    {
+        plan.prepared = true;
+        plan.skipped = false;
+        plan.current_map = execution.current_map;
+        plan.target_bsp_path = execution.target_bsp_path;
+        plan.target_worldspawn_present = execution.target_worldspawn_present;
+        plan.target_entity_parse_ok = execution.target_entity_parse_ok;
+        plan.current_landmark_origin_available = execution.current_landmark_origin_available;
+        plan.current_landmark_origin = execution.current_landmark_origin;
+        plan.target_landmark_origin_available = execution.target_landmark_origin_available;
+        plan.target_landmark_origin = execution.target_landmark_origin;
+        plan.action = "prepared-no-load";
+        return;
+    }
+
+    plan.prepared = false;
+    plan.skipped = execution.execution_skipped;
+    plan.short_circuit_reason = execution.short_circuit_reason;
+    plan.action = execution.execution_skipped ? "plan skipped" : "plan unavailable";
+}
+
+void RefreshChangeLevelLandmarkTransform(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_bootstrap_plan.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan =
+        summary.changelevel_bootstrap_plan;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLandmarkTransformSummary& transform =
+        summary.changelevel_landmark_transform;
+    transform = {};
+    transform.attempted = true;
+    transform.decision_source = "changelevel_bootstrap_plan";
+    transform.current_landmark_origin_available = plan.current_landmark_origin_available;
+    transform.current_landmark_origin = plan.current_landmark_origin;
+    transform.target_landmark_origin_available = plan.target_landmark_origin_available;
+    transform.target_landmark_origin = plan.target_landmark_origin;
+
+    if (plan.prepared)
+    {
+        Vector current_landmark_origin = Vector(0.0f, 0.0f, 0.0f);
+        Vector target_landmark_origin = Vector(0.0f, 0.0f, 0.0f);
+        if (plan.current_landmark_origin_available
+            && plan.target_landmark_origin_available
+            && ParseStrictVector3(plan.current_landmark_origin, &current_landmark_origin)
+            && ParseStrictVector3(plan.target_landmark_origin, &target_landmark_origin))
+        {
+            transform.transform_computed = true;
+            transform.skipped = false;
+            transform.translation_delta =
+                FormatVector(target_landmark_origin - current_landmark_origin);
+            transform.action = "no-op transform prepared";
+            return;
+        }
+
+        transform.transform_computed = false;
+        transform.skipped = false;
+        transform.short_circuit_reason =
+            (!plan.current_landmark_origin_available || !plan.target_landmark_origin_available)
+            ? "landmark-origin-unavailable"
+            : "landmark-origin-parse-failed";
+        transform.action = "transform unavailable";
+        return;
+    }
+
+    transform.transform_computed = false;
+    transform.skipped = plan.skipped;
+    transform.short_circuit_reason = plan.short_circuit_reason;
+    transform.action = plan.skipped ? "transform skipped" : "transform unavailable";
+}
+
+void RefreshChangeLevelProjectedCarriedOrigin(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_landmark_transform.attempted)
+    {
+        return;
+    }
+
+    const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelLandmarkTransformSummary&
+        transform = summary.changelevel_landmark_transform;
+    hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedCarriedOriginSummary&
+        projected = summary.changelevel_projected_carried_origin;
+    projected = {};
+    projected.attempted = true;
+    projected.decision_source = "changelevel_landmark_transform";
+    projected.translation_delta = transform.translation_delta;
+
+    if (transform.transform_computed)
+    {
+        Vector current_carried_origin = Vector(0.0f, 0.0f, 0.0f);
+        Vector translation_delta = Vector(0.0f, 0.0f, 0.0f);
+        std::string current_carried_origin_text;
+        if (TryResolveRequestTimeCarriedOrigin(
+                summary,
+                &current_carried_origin,
+                &current_carried_origin_text)
+            && ParseStrictVector3(transform.translation_delta, &translation_delta))
+        {
+            projected.projected = true;
+            projected.skipped = false;
+            projected.current_carried_origin_available = true;
+            projected.current_carried_origin = current_carried_origin_text;
+            projected.projected_target_origin =
+                FormatVector(current_carried_origin + translation_delta);
+            projected.action = "no-op carried-origin projection";
+            return;
+        }
+
+        projected.projected = false;
+        projected.skipped = false;
+        projected.short_circuit_reason = current_carried_origin_text.empty()
+            ? "current-carried-origin-unavailable"
+            : "translation-delta-parse-failed";
+        projected.action = "projection unavailable";
+        return;
+    }
+
+    projected.projected = false;
+    projected.skipped = transform.skipped;
+    projected.short_circuit_reason = transform.short_circuit_reason;
+    projected.action = transform.skipped ? "projection skipped" : "projection unavailable";
 }
 
 void CapturePendingChangeLevelRequest(
@@ -5007,6 +5460,9 @@ void ConsumePendingChangeLevelRequest(EngineShimState& state)
     RefreshChangeLevelLifecycleEntry(state);
     RefreshChangeLevelLifecycleDispatch(state);
     RefreshChangeLevelLifecycleExecution(state);
+    RefreshChangeLevelBootstrapPlan(state);
+    RefreshChangeLevelLandmarkTransform(state);
+    RefreshChangeLevelProjectedCarriedOrigin(state);
 }
 
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
@@ -14874,6 +15330,9 @@ void PerformServerFrameLoop()
                 RefreshChangeLevelLifecycleEntry(state);
                 RefreshChangeLevelLifecycleDispatch(state);
                 RefreshChangeLevelLifecycleExecution(state);
+                RefreshChangeLevelBootstrapPlan(state);
+                RefreshChangeLevelLandmarkTransform(state);
+                RefreshChangeLevelProjectedCarriedOrigin(state);
                 const std::string stop_reason =
                     "stop-on-changelevel-request reached: requestedMap="
                     + (changelevel.target_map.empty()

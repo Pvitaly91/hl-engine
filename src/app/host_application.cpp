@@ -351,6 +351,210 @@ void ValidateChangelevelLifecycleExecution(
                 : std::string(expected_short_circuit_reason)));
 }
 
+void ValidateChangelevelBootstrapPlan(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.attempted,
+        "expected changelevel_bootstrap_plan attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.prepared == expected_prepared,
+        std::string("expected changelevel_bootstrap_plan prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.skipped == expected_skipped,
+        std::string("expected changelevel_bootstrap_plan skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.decision_source
+            == "changelevel_lifecycle_execution",
+        "expected changelevel_bootstrap_plan decisionSource=changelevel_lifecycle_execution");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.action == expected_action,
+        std::string("expected changelevel_bootstrap_plan action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_bootstrap_plan shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_prepared)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.current_map == "c0a0",
+        "expected changelevel_bootstrap_plan currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.requested_map == "c0a0a",
+        "expected changelevel_bootstrap_plan requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.landmark == "c0a0toa",
+        "expected changelevel_bootstrap_plan landmark=c0a0toa");
+    AddGuardFailure(
+        failures,
+        ContainsText(
+            summary.changelevel_transition.changelevel_bootstrap_plan.target_bsp_path,
+            "c0a0a.bsp"),
+        "expected changelevel_bootstrap_plan targetBspPath to reference c0a0a.bsp");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.target_worldspawn_present,
+        "expected changelevel_bootstrap_plan targetWorldspawnPresent=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_bootstrap_plan.target_entity_parse_ok,
+        "expected changelevel_bootstrap_plan targetEntityParse=ok");
+}
+
+void ValidateChangelevelLandmarkTransform(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_computed,
+    bool expected_skipped,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.attempted,
+        "expected changelevel_landmark_transform attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.transform_computed
+            == expected_computed,
+        std::string("expected changelevel_landmark_transform transformComputed=")
+            + (expected_computed ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.skipped == expected_skipped,
+        std::string("expected changelevel_landmark_transform skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.decision_source
+            == "changelevel_bootstrap_plan",
+        "expected changelevel_landmark_transform decisionSource=changelevel_bootstrap_plan");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.action == expected_action,
+        std::string("expected changelevel_landmark_transform action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_landmark_transform shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_computed)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.current_landmark_origin
+            == "-2345 -2292 624",
+        "expected changelevel_landmark_transform currentLandmarkOrigin=-2345 -2292 624");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.target_landmark_origin
+            == "-2345 -1476 175",
+        "expected changelevel_landmark_transform targetLandmarkOrigin=-2345 -1476 175");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_landmark_transform.translation_delta
+            == "0 816 -449",
+        "expected changelevel_landmark_transform translationDelta=0 816 -449");
+}
+
+void ValidateChangelevelProjectedCarriedOrigin(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_projected,
+    bool expected_skipped,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.attempted,
+        "expected changelevel_projected_carried_origin attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.projected
+            == expected_projected,
+        std::string("expected changelevel_projected_carried_origin projected=")
+            + (expected_projected ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.skipped
+            == expected_skipped,
+        std::string("expected changelevel_projected_carried_origin skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.decision_source
+            == "changelevel_landmark_transform",
+        "expected changelevel_projected_carried_origin decisionSource=changelevel_landmark_transform");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.action
+            == expected_action,
+        std::string("expected changelevel_projected_carried_origin action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("expected changelevel_projected_carried_origin shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_projected)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin
+            .current_carried_origin == "-2687 -2158.35 514",
+        "expected changelevel_projected_carried_origin currentCarriedOrigin=-2687 -2158.35 514");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin
+            .translation_delta == "0 816 -449",
+        "expected changelevel_projected_carried_origin translationDelta=0 816 -449");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_projected_carried_origin
+            .projected_target_origin == "-2687 -1342.35 65",
+        "expected changelevel_projected_carried_origin projectedTargetOrigin=-2687 -1342.35 65");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -485,6 +689,27 @@ bool ValidateRegressionGuard(
             "no-op execution armed",
             "",
             failures);
+        ValidateChangelevelBootstrapPlan(
+            summary,
+            true,
+            false,
+            "prepared-no-load",
+            "",
+            failures);
+        ValidateChangelevelLandmarkTransform(
+            summary,
+            true,
+            false,
+            "no-op transform prepared",
+            "",
+            failures);
+        ValidateChangelevelProjectedCarriedOrigin(
+            summary,
+            true,
+            false,
+            "no-op carried-origin projection",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -576,6 +801,27 @@ bool ValidateRegressionGuard(
             false,
             true,
             "no-op execution skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelBootstrapPlan(
+            summary,
+            false,
+            true,
+            "plan skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelLandmarkTransform(
+            summary,
+            false,
+            true,
+            "transform skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelProjectedCarriedOrigin(
+            summary,
+            false,
+            true,
+            "projection skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
