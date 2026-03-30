@@ -742,6 +742,36 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferCheckpointSignalHookRegistrationStateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string future_apply_phase;
+        std::string target_runtime_checkpoint;
+        std::string required_signal;
+        std::string observation_mode;
+        std::string runtime_hook_point;
+        std::string registration_state;
+        bool hook_registration_planned = false;
+        bool hook_installed = false;
+        bool signal_observed = false;
+        bool checkpoint_satisfied = false;
+        bool gate_open = false;
+        bool deferred = false;
+        bool runtime_hook_registration_suppressed = false;
+        bool runtime_hook_suppressed = false;
+        bool runtime_observation_suppressed = false;
+        bool runtime_write_suppressed = false;
+        bool hook_registration_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -812,6 +842,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_checkpoint_signal_observation_state;
     ChangeLevelPlayerTransferCheckpointSignalHookPointSummary
         changelevel_player_transfer_checkpoint_signal_hook_point;
+    ChangeLevelPlayerTransferCheckpointSignalHookRegistrationStateSummary
+        changelevel_player_transfer_checkpoint_signal_hook_registration_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
