@@ -472,6 +472,8 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookRegistrationState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallToken(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -521,6 +523,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalHookRegistrationStateSummary&
                 hook_registration_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalHookInstallTokenSummary&
+                install_token);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1537,6 +1545,100 @@ std::string FormatChangeLevelPlayerTransferCheckpointSignalHookInstallTokenSumma
     line += ", installTokenReady=" + std::string(BoolToYesNo(install_token.install_token_ready))
         + ", action="
         + (install_token.action.empty() ? std::string("<none>") : install_token.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary&
+            eligibility_gate =
+                summary.changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(eligibility_gate.prepared)
+        + ", skipped=" + BoolToYesNo(eligibility_gate.skipped);
+    if (!eligibility_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + eligibility_gate.decision_source;
+    }
+    if (!eligibility_gate.apply_target.empty())
+    {
+        line += ", applyTarget=" + eligibility_gate.apply_target;
+    }
+    if (eligibility_gate.prepared)
+    {
+        line += ", currentMap="
+            + (eligibility_gate.current_map.empty()
+                ? std::string("<none>")
+                : eligibility_gate.current_map)
+            + ", requestedMap="
+            + (eligibility_gate.requested_map.empty()
+                ? std::string("<none>")
+                : eligibility_gate.requested_map)
+            + ", futureApplyPhase="
+            + (eligibility_gate.future_apply_phase.empty()
+                ? std::string("<none>")
+                : eligibility_gate.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (eligibility_gate.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : eligibility_gate.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (eligibility_gate.required_signal.empty()
+                ? std::string("<none>")
+                : eligibility_gate.required_signal)
+            + ", observationMode="
+            + (eligibility_gate.observation_mode.empty()
+                ? std::string("<none>")
+                : eligibility_gate.observation_mode)
+            + ", runtimeHookPoint="
+            + (eligibility_gate.runtime_hook_point.empty()
+                ? std::string("<none>")
+                : eligibility_gate.runtime_hook_point)
+            + ", registrationState="
+            + (eligibility_gate.registration_state.empty()
+                ? std::string("<none>")
+                : eligibility_gate.registration_state)
+            + ", installTokenIssued="
+            + BoolToYesNo(eligibility_gate.install_token_issued)
+            + ", hookInstallAuthorized="
+            + BoolToYesNo(eligibility_gate.hook_install_authorized)
+            + ", installEligibility="
+            + BoolToYesNo(eligibility_gate.install_eligibility)
+            + ", installGateOpen=" + BoolToYesNo(eligibility_gate.install_gate_open)
+            + ", installDeferred=" + BoolToYesNo(eligibility_gate.install_deferred)
+            + ", eligibilityReason="
+            + (eligibility_gate.eligibility_reason.empty()
+                ? std::string("<none>")
+                : eligibility_gate.eligibility_reason)
+            + ", hookInstalled=" + BoolToYesNo(eligibility_gate.hook_installed)
+            + ", signalObserved=" + BoolToYesNo(eligibility_gate.signal_observed)
+            + ", checkpointSatisfied="
+            + BoolToYesNo(eligibility_gate.checkpoint_satisfied)
+            + ", gateOpen=" + BoolToYesNo(eligibility_gate.gate_open)
+            + ", deferred=" + BoolToYesNo(eligibility_gate.deferred)
+            + ", runtimeHookInstallationSuppressed="
+            + BoolToYesNo(eligibility_gate.runtime_hook_installation_suppressed)
+            + ", runtimeHookRegistrationSuppressed="
+            + BoolToYesNo(eligibility_gate.runtime_hook_registration_suppressed)
+            + ", runtimeHookSuppressed="
+            + BoolToYesNo(eligibility_gate.runtime_hook_suppressed)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(eligibility_gate.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(eligibility_gate.runtime_write_suppressed);
+    }
+    if (!eligibility_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + eligibility_gate.short_circuit_reason;
+    }
+
+    line += ", installEligibilityGateReady="
+        + std::string(BoolToYesNo(eligibility_gate.install_eligibility_gate_ready))
+        + ", action="
+        + (eligibility_gate.action.empty() ? std::string("<none>")
+                                           : eligibility_gate.action);
     return line;
 }
 
@@ -3714,6 +3816,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_hook_install_token: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallTokenSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -7120,6 +7232,135 @@ BuildChangeLevelPlayerTransferCheckpointSignalHookInstallToken(
     return install_token;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary
+BuildChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallTokenSummary& install_token)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary
+            eligibility_gate;
+    eligibility_gate.attempted = true;
+
+    if (install_token.prepared && install_token.install_token_ready)
+    {
+        eligibility_gate.prepared = true;
+        eligibility_gate.skipped = false;
+        eligibility_gate.decision_source =
+            "player-transfer-checkpoint-signal-hook-install-token";
+        eligibility_gate.apply_target = install_token.apply_target;
+        eligibility_gate.current_map = install_token.current_map;
+        eligibility_gate.requested_map = install_token.requested_map;
+        eligibility_gate.future_apply_phase = install_token.future_apply_phase;
+        eligibility_gate.target_runtime_checkpoint =
+            install_token.target_runtime_checkpoint;
+        eligibility_gate.required_signal = install_token.required_signal;
+        eligibility_gate.observation_mode = install_token.observation_mode;
+        eligibility_gate.runtime_hook_point = install_token.runtime_hook_point;
+        eligibility_gate.registration_state = install_token.registration_state;
+        eligibility_gate.install_token_issued = install_token.install_token_issued;
+        eligibility_gate.hook_install_authorized =
+            install_token.hook_install_authorized;
+        eligibility_gate.install_eligibility =
+            install_token.install_token_issued && install_token.hook_install_authorized;
+        eligibility_gate.install_gate_open = false;
+        eligibility_gate.install_deferred =
+            install_token.deferred || !eligibility_gate.install_eligibility;
+        if (!install_token.install_token_issued)
+        {
+            eligibility_gate.eligibility_reason = "install-token-not-issued";
+        }
+        else if (!install_token.hook_install_authorized)
+        {
+            eligibility_gate.eligibility_reason = "hook-install-not-authorized";
+        }
+        else if (eligibility_gate.install_eligibility)
+        {
+            eligibility_gate.eligibility_reason = "eligible-but-deferred";
+        }
+        eligibility_gate.hook_installed = install_token.hook_installed;
+        eligibility_gate.signal_observed = install_token.signal_observed;
+        eligibility_gate.checkpoint_satisfied = install_token.checkpoint_satisfied;
+        eligibility_gate.gate_open = install_token.gate_open;
+        eligibility_gate.deferred = install_token.deferred;
+        eligibility_gate.runtime_hook_installation_suppressed =
+            install_token.runtime_hook_installation_suppressed;
+        eligibility_gate.runtime_hook_registration_suppressed =
+            install_token.runtime_hook_registration_suppressed;
+        eligibility_gate.runtime_hook_suppressed =
+            install_token.runtime_hook_suppressed;
+        eligibility_gate.runtime_observation_suppressed =
+            install_token.runtime_observation_suppressed;
+        eligibility_gate.runtime_write_suppressed =
+            install_token.runtime_write_suppressed;
+        eligibility_gate.install_eligibility_gate_ready = true;
+        eligibility_gate.action =
+            "no-op player transfer checkpoint signal hook install eligibility gate prepared";
+        return eligibility_gate;
+    }
+
+    eligibility_gate.prepared = false;
+    eligibility_gate.install_eligibility_gate_ready = false;
+    eligibility_gate.short_circuit_reason = install_token.short_circuit_reason;
+
+    if (install_token.skipped)
+    {
+        eligibility_gate.skipped = true;
+        eligibility_gate.action =
+            "player transfer checkpoint signal hook install eligibility gate skipped";
+        return eligibility_gate;
+    }
+
+    eligibility_gate.skipped = false;
+    eligibility_gate.decision_source =
+        "player-transfer-checkpoint-signal-hook-install-token";
+    eligibility_gate.apply_target = install_token.apply_target;
+    eligibility_gate.current_map = install_token.current_map;
+    eligibility_gate.requested_map = install_token.requested_map;
+    eligibility_gate.future_apply_phase = install_token.future_apply_phase;
+    eligibility_gate.target_runtime_checkpoint = install_token.target_runtime_checkpoint;
+    eligibility_gate.required_signal = install_token.required_signal;
+    eligibility_gate.observation_mode = install_token.observation_mode;
+    eligibility_gate.runtime_hook_point = install_token.runtime_hook_point;
+    eligibility_gate.registration_state = install_token.registration_state;
+    eligibility_gate.install_token_issued = install_token.install_token_issued;
+    eligibility_gate.hook_install_authorized = install_token.hook_install_authorized;
+    eligibility_gate.install_eligibility =
+        install_token.install_token_issued && install_token.hook_install_authorized;
+    eligibility_gate.install_gate_open = false;
+    eligibility_gate.install_deferred =
+        install_token.deferred || !eligibility_gate.install_eligibility;
+    if (!install_token.install_token_issued)
+    {
+        eligibility_gate.eligibility_reason = "install-token-not-issued";
+    }
+    else if (!install_token.hook_install_authorized)
+    {
+        eligibility_gate.eligibility_reason = "hook-install-not-authorized";
+    }
+    else if (eligibility_gate.install_eligibility)
+    {
+        eligibility_gate.eligibility_reason = "eligible-but-deferred";
+    }
+    eligibility_gate.hook_installed = install_token.hook_installed;
+    eligibility_gate.signal_observed = install_token.signal_observed;
+    eligibility_gate.checkpoint_satisfied = install_token.checkpoint_satisfied;
+    eligibility_gate.gate_open = install_token.gate_open;
+    eligibility_gate.deferred = install_token.deferred;
+    eligibility_gate.runtime_hook_installation_suppressed =
+        install_token.runtime_hook_installation_suppressed;
+    eligibility_gate.runtime_hook_registration_suppressed =
+        install_token.runtime_hook_registration_suppressed;
+    eligibility_gate.runtime_hook_suppressed = install_token.runtime_hook_suppressed;
+    eligibility_gate.runtime_observation_suppressed =
+        install_token.runtime_observation_suppressed;
+    eligibility_gate.runtime_write_suppressed = install_token.runtime_write_suppressed;
+    eligibility_gate.action =
+        "player transfer checkpoint signal hook install eligibility gate unavailable";
+    return eligibility_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -7264,6 +7505,21 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallToken(EngineShim
     summary.changelevel_player_transfer_checkpoint_signal_hook_install_token =
         BuildChangeLevelPlayerTransferCheckpointSignalHookInstallToken(
             summary.changelevel_player_transfer_checkpoint_signal_hook_registration_state);
+    RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_hook_install_token.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate =
+        BuildChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
+            summary.changelevel_player_transfer_checkpoint_signal_hook_install_token);
 }
 
 void CapturePendingChangeLevelRequest(
