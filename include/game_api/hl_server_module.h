@@ -805,6 +805,42 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string future_apply_phase;
+        std::string target_runtime_checkpoint;
+        std::string required_signal;
+        std::string observation_mode;
+        std::string runtime_hook_point;
+        std::string registration_state;
+        bool install_token_issued = false;
+        bool hook_install_authorized = false;
+        bool install_eligibility = false;
+        bool install_gate_open = false;
+        bool install_deferred = false;
+        std::string eligibility_reason;
+        bool hook_installed = false;
+        bool signal_observed = false;
+        bool checkpoint_satisfied = false;
+        bool gate_open = false;
+        bool deferred = false;
+        bool runtime_hook_installation_suppressed = false;
+        bool runtime_hook_registration_suppressed = false;
+        bool runtime_hook_suppressed = false;
+        bool runtime_observation_suppressed = false;
+        bool runtime_write_suppressed = false;
+        bool install_eligibility_gate_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -879,6 +915,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_checkpoint_signal_hook_registration_state;
     ChangeLevelPlayerTransferCheckpointSignalHookInstallTokenSummary
         changelevel_player_transfer_checkpoint_signal_hook_install_token;
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary
+        changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
