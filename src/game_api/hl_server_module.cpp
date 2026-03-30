@@ -467,6 +467,7 @@ void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalContract(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalObservationState(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookPoint(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -499,6 +500,12 @@ hl::game_api::ChangeLevelTransitionSummary::
     BuildChangeLevelPlayerTransferCheckpointSignalObservationState(
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalContractSummary& contract);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookPointSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalHookPoint(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary&
+                observation_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1280,6 +1287,73 @@ std::string FormatChangeLevelPlayerTransferCheckpointSignalObservationStateSumma
         + std::string(BoolToYesNo(observation_state.observation_state_ready))
         + ", action="
         + (observation_state.action.empty() ? std::string("<none>") : observation_state.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferCheckpointSignalHookPointSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookPointSummary& hook_point =
+            summary.changelevel_player_transfer_checkpoint_signal_hook_point;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(hook_point.prepared)
+        + ", skipped=" + BoolToYesNo(hook_point.skipped);
+    if (!hook_point.decision_source.empty())
+    {
+        line += ", decisionSource=" + hook_point.decision_source;
+    }
+    if (!hook_point.apply_target.empty())
+    {
+        line += ", applyTarget=" + hook_point.apply_target;
+    }
+    if (hook_point.prepared)
+    {
+        line += ", currentMap="
+            + (hook_point.current_map.empty() ? std::string("<none>") : hook_point.current_map)
+            + ", requestedMap="
+            + (hook_point.requested_map.empty()
+                ? std::string("<none>")
+                : hook_point.requested_map)
+            + ", futureApplyPhase="
+            + (hook_point.future_apply_phase.empty()
+                ? std::string("<none>")
+                : hook_point.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (hook_point.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : hook_point.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (hook_point.required_signal.empty()
+                ? std::string("<none>")
+                : hook_point.required_signal)
+            + ", observationMode="
+            + (hook_point.observation_mode.empty()
+                ? std::string("<none>")
+                : hook_point.observation_mode)
+            + ", runtimeHookPoint="
+            + (hook_point.runtime_hook_point.empty()
+                ? std::string("<none>")
+                : hook_point.runtime_hook_point)
+            + ", hookInstalled=" + BoolToYesNo(hook_point.hook_installed)
+            + ", signalObserved=" + BoolToYesNo(hook_point.signal_observed)
+            + ", checkpointSatisfied=" + BoolToYesNo(hook_point.checkpoint_satisfied)
+            + ", gateOpen=" + BoolToYesNo(hook_point.gate_open)
+            + ", deferred=" + BoolToYesNo(hook_point.deferred)
+            + ", runtimeHookSuppressed="
+            + BoolToYesNo(hook_point.runtime_hook_suppressed)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(hook_point.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(hook_point.runtime_write_suppressed);
+    }
+    if (!hook_point.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + hook_point.short_circuit_reason;
+    }
+
+    line += ", hookPointReady=" + std::string(BoolToYesNo(hook_point.hook_point_ready))
+        + ", action=" + (hook_point.action.empty() ? std::string("<none>") : hook_point.action);
     return line;
 }
 
@@ -3428,6 +3502,15 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_observation_state: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalObservationStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_hook_point
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_hook_point: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalHookPointSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -6575,6 +6658,80 @@ hl::game_api::ChangeLevelTransitionSummary::
     return observation_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferCheckpointSignalHookPointSummary
+BuildChangeLevelPlayerTransferCheckpointSignalHookPoint(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary& observation_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookPointSummary hook_point;
+    hook_point.attempted = true;
+
+    if (observation_state.prepared && observation_state.observation_state_ready)
+    {
+        hook_point.prepared = true;
+        hook_point.skipped = false;
+        hook_point.decision_source = "player-transfer-checkpoint-signal-observation-state";
+        hook_point.apply_target = observation_state.apply_target;
+        hook_point.current_map = observation_state.current_map;
+        hook_point.requested_map = observation_state.requested_map;
+        hook_point.future_apply_phase = observation_state.future_apply_phase;
+        hook_point.target_runtime_checkpoint = observation_state.target_runtime_checkpoint;
+        hook_point.required_signal = observation_state.required_signal;
+        hook_point.observation_mode = observation_state.observation_mode;
+        hook_point.runtime_hook_point = observation_state.target_runtime_checkpoint.empty()
+            ? std::string()
+            : "post-" + observation_state.target_runtime_checkpoint;
+        hook_point.hook_installed = false;
+        hook_point.signal_observed = observation_state.signal_observed;
+        hook_point.checkpoint_satisfied = observation_state.checkpoint_satisfied;
+        hook_point.gate_open = observation_state.gate_open;
+        hook_point.deferred = observation_state.deferred;
+        hook_point.runtime_hook_suppressed = true;
+        hook_point.runtime_observation_suppressed =
+            observation_state.runtime_observation_suppressed;
+        hook_point.runtime_write_suppressed = observation_state.runtime_write_suppressed;
+        hook_point.hook_point_ready = true;
+        hook_point.action = "no-op player transfer checkpoint signal hook point prepared";
+        return hook_point;
+    }
+
+    hook_point.prepared = false;
+    hook_point.hook_point_ready = false;
+    hook_point.short_circuit_reason = observation_state.short_circuit_reason;
+
+    if (observation_state.skipped)
+    {
+        hook_point.skipped = true;
+        hook_point.action = "player transfer checkpoint signal hook point skipped";
+        return hook_point;
+    }
+
+    hook_point.skipped = false;
+    hook_point.decision_source = "player-transfer-checkpoint-signal-observation-state";
+    hook_point.apply_target = observation_state.apply_target;
+    hook_point.current_map = observation_state.current_map;
+    hook_point.requested_map = observation_state.requested_map;
+    hook_point.future_apply_phase = observation_state.future_apply_phase;
+    hook_point.target_runtime_checkpoint = observation_state.target_runtime_checkpoint;
+    hook_point.required_signal = observation_state.required_signal;
+    hook_point.observation_mode = observation_state.observation_mode;
+    hook_point.runtime_hook_point = observation_state.target_runtime_checkpoint.empty()
+        ? std::string()
+        : "post-" + observation_state.target_runtime_checkpoint;
+    hook_point.hook_installed = false;
+    hook_point.signal_observed = observation_state.signal_observed;
+    hook_point.checkpoint_satisfied = observation_state.checkpoint_satisfied;
+    hook_point.gate_open = observation_state.gate_open;
+    hook_point.deferred = observation_state.deferred;
+    hook_point.runtime_hook_suppressed = true;
+    hook_point.runtime_observation_suppressed =
+        observation_state.runtime_observation_suppressed;
+    hook_point.runtime_write_suppressed = observation_state.runtime_write_suppressed;
+    hook_point.action = "player transfer checkpoint signal hook point unavailable";
+    return hook_point;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -6677,6 +6834,20 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalObservationState(EngineShim
     summary.changelevel_player_transfer_checkpoint_signal_observation_state =
         BuildChangeLevelPlayerTransferCheckpointSignalObservationState(
             summary.changelevel_player_transfer_checkpoint_signal_contract);
+    RefreshChangeLevelPlayerTransferCheckpointSignalHookPoint(state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookPoint(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_observation_state.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_hook_point =
+        BuildChangeLevelPlayerTransferCheckpointSignalHookPoint(
+            summary.changelevel_player_transfer_checkpoint_signal_observation_state);
 }
 
 void CapturePendingChangeLevelRequest(
