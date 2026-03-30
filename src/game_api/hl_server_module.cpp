@@ -476,6 +476,8 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGate(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecision(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -537,6 +539,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalHookInstallEligibilityGateSummary&
                 eligibility_gate);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecisionSummary&
+                decision);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1730,6 +1738,110 @@ std::string FormatChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssue
         + std::string(BoolToYesNo(decision.token_issue_decision_ready))
         + ", action="
         + (decision.action.empty() ? std::string("<none>") : decision.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary&
+            authorization_state =
+                summary.changelevel_player_transfer_checkpoint_signal_hook_install_authorization_state;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(authorization_state.prepared)
+        + ", skipped=" + BoolToYesNo(authorization_state.skipped);
+    if (!authorization_state.decision_source.empty())
+    {
+        line += ", decisionSource=" + authorization_state.decision_source;
+    }
+    if (!authorization_state.apply_target.empty())
+    {
+        line += ", applyTarget=" + authorization_state.apply_target;
+    }
+    if (authorization_state.prepared)
+    {
+        line += ", currentMap="
+            + (authorization_state.current_map.empty()
+                ? std::string("<none>")
+                : authorization_state.current_map)
+            + ", requestedMap="
+            + (authorization_state.requested_map.empty()
+                ? std::string("<none>")
+                : authorization_state.requested_map)
+            + ", futureApplyPhase="
+            + (authorization_state.future_apply_phase.empty()
+                ? std::string("<none>")
+                : authorization_state.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (authorization_state.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : authorization_state.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (authorization_state.required_signal.empty()
+                ? std::string("<none>")
+                : authorization_state.required_signal)
+            + ", observationMode="
+            + (authorization_state.observation_mode.empty()
+                ? std::string("<none>")
+                : authorization_state.observation_mode)
+            + ", runtimeHookPoint="
+            + (authorization_state.runtime_hook_point.empty()
+                ? std::string("<none>")
+                : authorization_state.runtime_hook_point)
+            + ", registrationState="
+            + (authorization_state.registration_state.empty()
+                ? std::string("<none>")
+                : authorization_state.registration_state)
+            + ", installTokenIssued="
+            + BoolToYesNo(authorization_state.install_token_issued)
+            + ", tokenIssueDecision="
+            + (authorization_state.token_issue_decision.empty()
+                ? std::string("<none>")
+                : authorization_state.token_issue_decision)
+            + ", tokenIssueAllowed="
+            + BoolToYesNo(authorization_state.token_issue_allowed)
+            + ", authorizationState="
+            + (authorization_state.authorization_state.empty()
+                ? std::string("<none>")
+                : authorization_state.authorization_state)
+            + ", installAuthorizationGranted="
+            + BoolToYesNo(authorization_state.install_authorization_granted)
+            + ", authorizationReason="
+            + (authorization_state.authorization_reason.empty()
+                ? std::string("<none>")
+                : authorization_state.authorization_reason)
+            + ", hookInstallAuthorized="
+            + BoolToYesNo(authorization_state.hook_install_authorized)
+            + ", hookInstalled=" + BoolToYesNo(authorization_state.hook_installed)
+            + ", signalObserved=" + BoolToYesNo(authorization_state.signal_observed)
+            + ", checkpointSatisfied="
+            + BoolToYesNo(authorization_state.checkpoint_satisfied)
+            + ", gateOpen=" + BoolToYesNo(authorization_state.gate_open)
+            + ", deferred=" + BoolToYesNo(authorization_state.deferred)
+            + ", runtimeHookAuthorizationSuppressed="
+            + BoolToYesNo(authorization_state.runtime_hook_authorization_suppressed)
+            + ", runtimeHookInstallationSuppressed="
+            + BoolToYesNo(authorization_state.runtime_hook_installation_suppressed)
+            + ", runtimeHookRegistrationSuppressed="
+            + BoolToYesNo(authorization_state.runtime_hook_registration_suppressed)
+            + ", runtimeHookSuppressed="
+            + BoolToYesNo(authorization_state.runtime_hook_suppressed)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(authorization_state.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(authorization_state.runtime_write_suppressed);
+    }
+    if (!authorization_state.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + authorization_state.short_circuit_reason;
+    }
+
+    line += ", installAuthorizationStateReady="
+        + std::string(BoolToYesNo(authorization_state.install_authorization_state_ready))
+        + ", action="
+        + (authorization_state.action.empty() ? std::string("<none>")
+                                              : authorization_state.action);
     return line;
 }
 
@@ -3927,6 +4039,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_hook_install_token_issue_decision: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecisionSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_authorization_state
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_hook_install_authorization_state: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -7571,6 +7693,137 @@ BuildChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecision(
     return decision;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary
+BuildChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecisionSummary&
+            decision)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationStateSummary
+            authorization_state;
+    authorization_state.attempted = true;
+
+    const bool install_authorization_granted =
+        decision.install_token_issued && decision.token_issue_allowed
+        && decision.hook_install_authorized;
+    const std::string derived_authorization_state =
+        install_authorization_granted ? "authorized" : "unauthorized";
+    std::string authorization_reason;
+    if (!decision.install_token_issued)
+    {
+        authorization_reason = "install-token-not-issued";
+    }
+    else if (!decision.token_issue_allowed)
+    {
+        authorization_reason = "token-issue-not-allowed";
+    }
+    else if (!decision.hook_install_authorized)
+    {
+        authorization_reason = "hook-install-not-authorized";
+    }
+    else if (install_authorization_granted)
+    {
+        authorization_reason = "authorized";
+    }
+
+    if (decision.prepared && decision.token_issue_decision_ready)
+    {
+        authorization_state.prepared = true;
+        authorization_state.skipped = false;
+        authorization_state.decision_source =
+            "player-transfer-checkpoint-signal-hook-install-token-issue-decision";
+        authorization_state.apply_target = decision.apply_target;
+        authorization_state.current_map = decision.current_map;
+        authorization_state.requested_map = decision.requested_map;
+        authorization_state.future_apply_phase = decision.future_apply_phase;
+        authorization_state.target_runtime_checkpoint =
+            decision.target_runtime_checkpoint;
+        authorization_state.required_signal = decision.required_signal;
+        authorization_state.observation_mode = decision.observation_mode;
+        authorization_state.runtime_hook_point = decision.runtime_hook_point;
+        authorization_state.registration_state = decision.registration_state;
+        authorization_state.install_token_issued = decision.install_token_issued;
+        authorization_state.token_issue_decision = decision.token_issue_decision;
+        authorization_state.token_issue_allowed = decision.token_issue_allowed;
+        authorization_state.authorization_state = derived_authorization_state;
+        authorization_state.install_authorization_granted =
+            install_authorization_granted;
+        authorization_state.authorization_reason = authorization_reason;
+        authorization_state.hook_install_authorized = decision.hook_install_authorized;
+        authorization_state.hook_installed = decision.hook_installed;
+        authorization_state.signal_observed = decision.signal_observed;
+        authorization_state.checkpoint_satisfied = decision.checkpoint_satisfied;
+        authorization_state.gate_open = decision.gate_open;
+        authorization_state.deferred =
+            decision.deferred || !authorization_state.install_authorization_granted;
+        authorization_state.runtime_hook_authorization_suppressed = true;
+        authorization_state.runtime_hook_installation_suppressed =
+            decision.runtime_hook_installation_suppressed;
+        authorization_state.runtime_hook_registration_suppressed =
+            decision.runtime_hook_registration_suppressed;
+        authorization_state.runtime_hook_suppressed = decision.runtime_hook_suppressed;
+        authorization_state.runtime_observation_suppressed =
+            decision.runtime_observation_suppressed;
+        authorization_state.runtime_write_suppressed = decision.runtime_write_suppressed;
+        authorization_state.install_authorization_state_ready = true;
+        authorization_state.action =
+            "no-op player transfer checkpoint signal hook install authorization state prepared";
+        return authorization_state;
+    }
+
+    authorization_state.prepared = false;
+    authorization_state.install_authorization_state_ready = false;
+    authorization_state.short_circuit_reason = decision.short_circuit_reason;
+
+    if (decision.skipped)
+    {
+        authorization_state.skipped = true;
+        authorization_state.action =
+            "player transfer checkpoint signal hook install authorization state skipped";
+        return authorization_state;
+    }
+
+    authorization_state.skipped = false;
+    authorization_state.decision_source =
+        "player-transfer-checkpoint-signal-hook-install-token-issue-decision";
+    authorization_state.apply_target = decision.apply_target;
+    authorization_state.current_map = decision.current_map;
+    authorization_state.requested_map = decision.requested_map;
+    authorization_state.future_apply_phase = decision.future_apply_phase;
+    authorization_state.target_runtime_checkpoint = decision.target_runtime_checkpoint;
+    authorization_state.required_signal = decision.required_signal;
+    authorization_state.observation_mode = decision.observation_mode;
+    authorization_state.runtime_hook_point = decision.runtime_hook_point;
+    authorization_state.registration_state = decision.registration_state;
+    authorization_state.install_token_issued = decision.install_token_issued;
+    authorization_state.token_issue_decision = decision.token_issue_decision;
+    authorization_state.token_issue_allowed = decision.token_issue_allowed;
+    authorization_state.authorization_state = derived_authorization_state;
+    authorization_state.install_authorization_granted = install_authorization_granted;
+    authorization_state.authorization_reason = authorization_reason;
+    authorization_state.hook_install_authorized = decision.hook_install_authorized;
+    authorization_state.hook_installed = decision.hook_installed;
+    authorization_state.signal_observed = decision.signal_observed;
+    authorization_state.checkpoint_satisfied = decision.checkpoint_satisfied;
+    authorization_state.gate_open = decision.gate_open;
+    authorization_state.deferred =
+        decision.deferred || !authorization_state.install_authorization_granted;
+    authorization_state.runtime_hook_authorization_suppressed = true;
+    authorization_state.runtime_hook_installation_suppressed =
+        decision.runtime_hook_installation_suppressed;
+    authorization_state.runtime_hook_registration_suppressed =
+        decision.runtime_hook_registration_suppressed;
+    authorization_state.runtime_hook_suppressed = decision.runtime_hook_suppressed;
+    authorization_state.runtime_observation_suppressed =
+        decision.runtime_observation_suppressed;
+    authorization_state.runtime_write_suppressed = decision.runtime_write_suppressed;
+    authorization_state.action =
+        "player transfer checkpoint signal hook install authorization state unavailable";
+    return authorization_state;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -7746,6 +7999,22 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecisi
     summary.changelevel_player_transfer_checkpoint_signal_hook_install_token_issue_decision =
         BuildChangeLevelPlayerTransferCheckpointSignalHookInstallTokenIssueDecision(
             summary.changelevel_player_transfer_checkpoint_signal_hook_install_eligibility_gate);
+    RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_hook_install_token_issue_decision
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_hook_install_authorization_state =
+        BuildChangeLevelPlayerTransferCheckpointSignalHookInstallAuthorizationState(
+            summary.changelevel_player_transfer_checkpoint_signal_hook_install_token_issue_decision);
 }
 
 void CapturePendingChangeLevelRequest(
