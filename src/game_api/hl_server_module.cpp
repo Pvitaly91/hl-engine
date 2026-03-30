@@ -465,6 +465,7 @@ void RefreshChangeLevelPlayerTransferApplyPlan(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalContract(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -488,6 +489,10 @@ hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferGateOpenChe
 BuildChangeLevelPlayerTransferGateOpenCheckpoint(
     const hl::game_api::ChangeLevelTransitionSummary::
         ChangeLevelPlayerTransferDeferredApplyGateSummary& gate);
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferCheckpointSignalContractSummary
+BuildChangeLevelPlayerTransferCheckpointSignalContract(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferGateOpenCheckpointSummary& checkpoint);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1145,6 +1150,63 @@ std::string FormatChangeLevelPlayerTransferGateOpenCheckpointSummary(
     line += ", checkpointReady=" + std::string(BoolToYesNo(checkpoint.checkpoint_ready))
         + ", action="
         + (checkpoint.action.empty() ? std::string("<none>") : checkpoint.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferCheckpointSignalContractSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalContractSummary& contract =
+            summary.changelevel_player_transfer_checkpoint_signal_contract;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(contract.prepared)
+        + ", skipped=" + BoolToYesNo(contract.skipped);
+    if (!contract.decision_source.empty())
+    {
+        line += ", decisionSource=" + contract.decision_source;
+    }
+    if (!contract.apply_target.empty())
+    {
+        line += ", applyTarget=" + contract.apply_target;
+    }
+    if (contract.prepared)
+    {
+        line += ", currentMap="
+            + (contract.current_map.empty() ? std::string("<none>") : contract.current_map)
+            + ", requestedMap="
+            + (contract.requested_map.empty()
+                ? std::string("<none>")
+                : contract.requested_map)
+            + ", futureApplyPhase="
+            + (contract.future_apply_phase.empty()
+                ? std::string("<none>")
+                : contract.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (contract.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : contract.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (contract.required_signal.empty()
+                ? std::string("<none>")
+                : contract.required_signal)
+            + ", pendingWriteCount=" + std::to_string(contract.pending_write_count)
+            + ", signalObserved=" + BoolToYesNo(contract.signal_observed)
+            + ", checkpointSatisfied=" + BoolToYesNo(contract.checkpoint_satisfied)
+            + ", gateEligibleAtCheckpoint="
+            + BoolToYesNo(contract.gate_eligible_at_checkpoint)
+            + ", gateOpen=" + BoolToYesNo(contract.gate_open)
+            + ", deferred=" + BoolToYesNo(contract.deferred)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(contract.runtime_write_suppressed);
+    }
+    if (!contract.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + contract.short_circuit_reason;
+    }
+
+    line += ", signalContractReady=" + std::string(BoolToYesNo(contract.signal_contract_ready))
+        + ", action=" + (contract.action.empty() ? std::string("<none>") : contract.action);
     return line;
 }
 
@@ -3274,6 +3336,15 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_gate_open_checkpoint: "
                     + FormatChangeLevelPlayerTransferGateOpenCheckpointSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_contract: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalContractSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -6293,6 +6364,68 @@ BuildChangeLevelPlayerTransferGateOpenCheckpoint(
     return checkpoint;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferCheckpointSignalContractSummary
+BuildChangeLevelPlayerTransferCheckpointSignalContract(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferGateOpenCheckpointSummary& checkpoint)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalContractSummary contract;
+    contract.attempted = true;
+
+    if (checkpoint.prepared && checkpoint.checkpoint_ready)
+    {
+        contract.prepared = true;
+        contract.skipped = false;
+        contract.decision_source = "player-transfer-gate-open-checkpoint";
+        contract.apply_target = checkpoint.apply_target;
+        contract.current_map = checkpoint.current_map;
+        contract.requested_map = checkpoint.requested_map;
+        contract.future_apply_phase = checkpoint.future_apply_phase;
+        contract.target_runtime_checkpoint = checkpoint.target_runtime_checkpoint;
+        contract.required_signal = checkpoint.target_runtime_checkpoint;
+        contract.pending_write_count = checkpoint.pending_write_count;
+        contract.signal_observed = false;
+        contract.checkpoint_satisfied = checkpoint.checkpoint_satisfied;
+        contract.gate_eligible_at_checkpoint = checkpoint.gate_eligible_at_checkpoint;
+        contract.gate_open = checkpoint.gate_open;
+        contract.deferred = checkpoint.deferred;
+        contract.runtime_write_suppressed = checkpoint.runtime_write_suppressed;
+        contract.signal_contract_ready = true;
+        contract.action = "no-op player transfer checkpoint signal contract prepared";
+        return contract;
+    }
+
+    contract.prepared = false;
+    contract.signal_contract_ready = false;
+    contract.short_circuit_reason = checkpoint.short_circuit_reason;
+
+    if (checkpoint.skipped)
+    {
+        contract.skipped = true;
+        contract.action = "player transfer checkpoint signal contract skipped";
+        return contract;
+    }
+
+    contract.skipped = false;
+    contract.decision_source = "player-transfer-gate-open-checkpoint";
+    contract.apply_target = checkpoint.apply_target;
+    contract.current_map = checkpoint.current_map;
+    contract.requested_map = checkpoint.requested_map;
+    contract.future_apply_phase = checkpoint.future_apply_phase;
+    contract.target_runtime_checkpoint = checkpoint.target_runtime_checkpoint;
+    contract.required_signal = checkpoint.target_runtime_checkpoint;
+    contract.pending_write_count = checkpoint.pending_write_count;
+    contract.signal_observed = false;
+    contract.checkpoint_satisfied = checkpoint.checkpoint_satisfied;
+    contract.gate_eligible_at_checkpoint = checkpoint.gate_eligible_at_checkpoint;
+    contract.gate_open = checkpoint.gate_open;
+    contract.deferred = checkpoint.deferred;
+    contract.runtime_write_suppressed = checkpoint.runtime_write_suppressed;
+    contract.action = "player transfer checkpoint signal contract unavailable";
+    return contract;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -6367,6 +6500,20 @@ void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state)
     summary.changelevel_player_transfer_gate_open_checkpoint =
         BuildChangeLevelPlayerTransferGateOpenCheckpoint(
             summary.changelevel_player_transfer_deferred_apply_gate);
+    RefreshChangeLevelPlayerTransferCheckpointSignalContract(state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalContract(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_gate_open_checkpoint.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_contract =
+        BuildChangeLevelPlayerTransferCheckpointSignalContract(
+            summary.changelevel_player_transfer_gate_open_checkpoint);
 }
 
 void CapturePendingChangeLevelRequest(

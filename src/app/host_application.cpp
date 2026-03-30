@@ -1282,6 +1282,162 @@ void ValidateChangelevelPlayerTransferGateOpenCheckpoint(
         "expected changelevel_player_transfer_gate_open_checkpoint runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferCheckpointSignalContract(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_signal_contract_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .attempted,
+        "expected changelevel_player_transfer_checkpoint_signal_contract attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .prepared
+            == expected_prepared,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .skipped
+            == expected_skipped,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_signal_contract_ready
+            ? std::string_view("player-transfer-gate-open-checkpoint")
+            : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .decision_source
+            == expected_decision_source,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_signal_contract_ready ? std::string_view("player") : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .apply_target
+            == expected_apply_target,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract applyTarget=")
+            + (expected_apply_target.empty()
+                ? std::string("<empty>")
+                : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .signal_contract_ready
+            == expected_signal_contract_ready,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract signalContractReady=")
+            + (expected_signal_contract_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .action
+            == expected_action,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_contract shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_signal_contract_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_checkpoint_signal_contract currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_checkpoint_signal_contract requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .future_apply_phase
+            == "post-target-bootstrap-pre-player-resume",
+        "expected changelevel_player_transfer_checkpoint_signal_contract futureApplyPhase=post-target-bootstrap-pre-player-resume");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .target_runtime_checkpoint
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_contract targetRuntimeCheckpoint=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .required_signal
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_contract requiredSignal=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .pending_write_count
+            == 2,
+        "expected changelevel_player_transfer_checkpoint_signal_contract pendingWriteCount=2");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+             .signal_observed,
+        "expected changelevel_player_transfer_checkpoint_signal_contract signalObserved=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+             .checkpoint_satisfied,
+        "expected changelevel_player_transfer_checkpoint_signal_contract checkpointSatisfied=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .gate_eligible_at_checkpoint,
+        "expected changelevel_player_transfer_checkpoint_signal_contract gateEligibleAtCheckpoint=yes");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+             .gate_open,
+        "expected changelevel_player_transfer_checkpoint_signal_contract gateOpen=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .deferred,
+        "expected changelevel_player_transfer_checkpoint_signal_contract deferred=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition.changelevel_player_transfer_checkpoint_signal_contract
+            .runtime_write_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_contract runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -1484,6 +1640,14 @@ bool ValidateRegressionGuard(
             "no-op player transfer gate-open checkpoint prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalContract(
+            summary,
+            true,
+            false,
+            true,
+            "no-op player transfer checkpoint signal contract prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -1643,6 +1807,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player transfer gate-open checkpoint skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalContract(
+            summary,
+            false,
+            true,
+            false,
+            "player transfer checkpoint signal contract skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
