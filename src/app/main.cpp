@@ -25,6 +25,7 @@ struct GitRevisionIdentity
 struct CodexRunIdentity
 {
     std::string session_id;
+    std::string run_instance_id;
     std::string run_label;
     std::string regression_guard = "<none>";
     bool stop_on_changelevel_request = false;
@@ -298,6 +299,7 @@ CodexRunIdentity BuildCodexRunIdentity(
 {
     CodexRunIdentity identity;
     identity.session_id = session_info.session_id;
+    identity.run_instance_id = session_info.run_instance_id;
     identity.run_label = options.run_label.value_or(std::string());
     if (options.regression_guard.has_value())
     {
@@ -316,6 +318,7 @@ CodexRunIdentity BuildCodexRunIdentity(
 std::string BuildCodexRunIdentityLine(const CodexRunIdentity& identity)
 {
     return "codex_run_identity: sessionId=" + identity.session_id
+        + ", runInstanceId=" + identity.run_instance_id
         + ", runLabel=" + identity.run_label
         + ", regressionGuard=" + identity.regression_guard
         + ", stopOnChangelevelRequest="
@@ -365,7 +368,7 @@ std::optional<std::filesystem::path> WriteCodexRunManifest(
     const CodexRunIdentity& identity,
     const hl::common::LoggerSessionInfo& session_info)
 {
-    if (identity.run_label.empty() || session_info.session_id.empty())
+    if (identity.run_label.empty() || identity.run_instance_id.empty())
     {
         return std::nullopt;
     }
@@ -381,7 +384,7 @@ std::optional<std::filesystem::path> WriteCodexRunManifest(
 
     const std::filesystem::path manifest_path =
         codex_directory
-        / ("hlhost_" + session_info.session_id + "__" + identity.run_label + "_manifest.json");
+        / ("hlhost_" + identity.run_instance_id + "__" + identity.run_label + "_manifest.json");
 
     std::ofstream stream(manifest_path, std::ios::out | std::ios::binary | std::ios::trunc);
     if (!stream.is_open())
@@ -391,6 +394,7 @@ std::optional<std::filesystem::path> WriteCodexRunManifest(
 
     stream << "{\n";
     stream << "  \"sessionId\": \"" << EscapeJson(identity.session_id) << "\",\n";
+    stream << "  \"runInstanceId\": \"" << EscapeJson(identity.run_instance_id) << "\",\n";
     stream << "  \"runLabel\": \"" << EscapeJson(identity.run_label) << "\",\n";
     stream << "  \"regressionGuard\": \"" << EscapeJson(identity.regression_guard) << "\",\n";
     stream << "  \"stopOnChangelevelRequest\": "

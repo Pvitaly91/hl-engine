@@ -11,6 +11,7 @@
 #include <iostream>
 #include <map>
 #include <mutex>
+#include <process.h>
 #include <sstream>
 #include <utility>
 
@@ -112,12 +113,12 @@ void AppendRunLabel(std::string* filename, std::string_view run_label)
 std::filesystem::path BuildRollingLogPath(
     const std::filesystem::path& directory,
     std::string_view session_prefix,
-    std::string_view session_id,
+    std::string_view file_id,
     std::string_view run_label,
     std::string_view suffix,
     std::size_t part)
 {
-    std::string filename = std::string(session_prefix) + "_" + std::string(session_id);
+    std::string filename = std::string(session_prefix) + "_" + std::string(file_id);
     AppendRunLabel(&filename, run_label);
     if (!suffix.empty())
     {
@@ -130,10 +131,10 @@ std::filesystem::path BuildRollingLogPath(
 std::filesystem::path BuildSummaryLogPath(
     const std::filesystem::path& directory,
     std::string_view session_prefix,
-    std::string_view session_id,
+    std::string_view file_id,
     std::string_view run_label)
 {
-    std::string filename = std::string(session_prefix) + "_" + std::string(session_id);
+    std::string filename = std::string(session_prefix) + "_" + std::string(file_id);
     AppendRunLabel(&filename, run_label);
     filename += "_summary.log";
     return directory / filename;
@@ -194,6 +195,75 @@ std::string MakeUniqueSessionId(
         }
 
         session_id = base_session_id + "_" + FormatPartNumber(suffix++);
+    }
+}
+
+std::string BuildBaseRunInstanceId(std::string_view session_id)
+{
+    const auto now = std::chrono::system_clock::now();
+    const auto epoch_ms =
+        std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
+    const auto milliseconds = static_cast<int>(epoch_ms % 1000);
+
+    std::ostringstream stream;
+    stream << session_id
+           << '_'
+           << std::setw(3) << std::setfill('0') << milliseconds
+           << "_pid"
+           << _getpid();
+    return stream.str();
+}
+
+std::string MakeUniqueRunInstanceId(
+    const std::filesystem::path& directory,
+    const LoggerOptions& options,
+    std::string_view session_id)
+{
+    const std::string base_run_instance_id = BuildBaseRunInstanceId(session_id);
+    std::string run_instance_id = base_run_instance_id;
+    std::size_t suffix = 1;
+
+    for (;;)
+    {
+        bool conflict = PathExists(BuildRollingLogPath(
+            directory,
+            options.session_prefix,
+            run_instance_id,
+            options.run_label,
+            "",
+            1));
+        if (!conflict && options.log_summary_file)
+        {
+            conflict = PathExists(BuildSummaryLogPath(
+                directory,
+                options.session_prefix,
+                run_instance_id,
+                options.run_label));
+        }
+        if (!conflict)
+        {
+            for (LogCategory category : options.category_file_sinks)
+            {
+                if (PathExists(BuildRollingLogPath(
+                        directory,
+                        options.session_prefix,
+                        run_instance_id,
+                        options.run_label,
+                        hl::common::ToString(category),
+                        1)))
+                {
+                    conflict = true;
+                    break;
+                }
+            }
+        }
+
+        if (!conflict)
+        {
+            return run_instance_id;
+        }
+
+        run_instance_id = base_run_instance_id + "_" + FormatPartNumber(suffix++);
     }
 }
 
@@ -302,7 +372,7 @@ struct RollingFileSink
     bool enabled = false;
     std::filesystem::path directory;
     std::string session_prefix;
-    std::string session_id;
+    std::string run_instance_id;
     std::string run_label;
     std::string suffix;
     std::uintmax_t max_file_size_bytes = kDefaultMaxFileSizeBytes;
@@ -340,6 +410,7 @@ struct LoggerState
     LoggerOptions options;
     std::filesystem::path resolved_log_directory;
     std::string session_id;
+    std::string run_instance_id;
     ConsoleSink console_sink;
     RollingFileSink main_file_sink;
     PlainFileSink summary_file_sink;
@@ -510,7 +581,7 @@ bool RollingFileSink::OpenNextPart()
     current_path = BuildRollingLogPath(
         directory,
         session_prefix,
-        session_id,
+        run_instance_id,
         run_label,
         suffix,
         next_part++);
@@ -642,6 +713,7 @@ void ResetStateNoLock(LoggerState& state)
     state.state_values.clear();
     state.resolved_log_directory.clear();
     state.session_id.clear();
+    state.run_instance_id.clear();
     state.configured = false;
 }
 
@@ -722,6 +794,7 @@ LoggerSessionInfo BuildSessionInfoNoLock(const LoggerState& state)
     info.configured = state.configured;
     info.log_directory = state.resolved_log_directory;
     info.session_id = state.session_id;
+    info.run_instance_id = state.run_instance_id;
     info.run_label = state.options.run_label;
     info.max_file_size_bytes = state.options.max_file_size_bytes;
     info.current_file_path = state.main_file_sink.current_path;
@@ -974,11 +1047,16 @@ void Logger::Configure(const LoggerOptions& options)
     }
 
     state.session_id = MakeUniqueSessionId(state.resolved_log_directory, state.options);
+    state.run_instance_id =
+        MakeUniqueRunInstanceId(
+            state.resolved_log_directory,
+            state.options,
+            state.session_id);
 
     state.main_file_sink.enabled = state.options.log_to_file;
     state.main_file_sink.directory = state.resolved_log_directory;
     state.main_file_sink.session_prefix = state.options.session_prefix;
-    state.main_file_sink.session_id = state.session_id;
+    state.main_file_sink.run_instance_id = state.run_instance_id;
     state.main_file_sink.run_label = state.options.run_label;
     state.main_file_sink.max_file_size_bytes = state.options.max_file_size_bytes;
     if (state.main_file_sink.enabled && !state.main_file_sink.OpenNextPart())
@@ -995,7 +1073,7 @@ void Logger::Configure(const LoggerOptions& options)
         && !state.summary_file_sink.Open(BuildSummaryLogPath(
             state.resolved_log_directory,
             state.options.session_prefix,
-            state.session_id,
+            state.run_instance_id,
             state.options.run_label)))
     {
         state.summary_file_sink.enabled = false;
@@ -1012,7 +1090,7 @@ void Logger::Configure(const LoggerOptions& options)
         category_sink.sink.enabled = true;
         category_sink.sink.directory = state.resolved_log_directory;
         category_sink.sink.session_prefix = state.options.session_prefix;
-        category_sink.sink.session_id = state.session_id;
+        category_sink.sink.run_instance_id = state.run_instance_id;
         category_sink.sink.run_label = state.options.run_label;
         category_sink.sink.suffix = std::string(ToString(category));
         category_sink.sink.max_file_size_bytes = state.options.max_file_size_bytes;
@@ -1035,6 +1113,11 @@ void Logger::Configure(const LoggerOptions& options)
         LogCategory::Startup,
         LogLevel::Info,
         "Session id: " + state.session_id);
+    WriteConfiguredNoLock(
+        state,
+        LogCategory::Startup,
+        LogLevel::Info,
+        "Run instance id: " + state.run_instance_id);
     WriteConfiguredNoLock(
         state,
         LogCategory::Startup,
