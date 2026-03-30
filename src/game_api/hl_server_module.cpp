@@ -466,6 +466,7 @@ void RefreshChangeLevelPlayerTransferWriteSet(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferDeferredApplyGate(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferGateOpenCheckpoint(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalContract(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalObservationState(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -493,6 +494,11 @@ hl::game_api::ChangeLevelTransitionSummary::ChangeLevelPlayerTransferCheckpointS
 BuildChangeLevelPlayerTransferCheckpointSignalContract(
     const hl::game_api::ChangeLevelTransitionSummary::
         ChangeLevelPlayerTransferGateOpenCheckpointSummary& checkpoint);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalObservationState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalContractSummary& contract);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -1207,6 +1213,73 @@ std::string FormatChangeLevelPlayerTransferCheckpointSignalContractSummary(
 
     line += ", signalContractReady=" + std::string(BoolToYesNo(contract.signal_contract_ready))
         + ", action=" + (contract.action.empty() ? std::string("<none>") : contract.action);
+    return line;
+}
+
+std::string FormatChangeLevelPlayerTransferCheckpointSignalObservationStateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary& observation_state =
+            summary.changelevel_player_transfer_checkpoint_signal_observation_state;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(observation_state.prepared)
+        + ", skipped=" + BoolToYesNo(observation_state.skipped);
+    if (!observation_state.decision_source.empty())
+    {
+        line += ", decisionSource=" + observation_state.decision_source;
+    }
+    if (!observation_state.apply_target.empty())
+    {
+        line += ", applyTarget=" + observation_state.apply_target;
+    }
+    if (observation_state.prepared)
+    {
+        line += ", currentMap="
+            + (observation_state.current_map.empty()
+                ? std::string("<none>")
+                : observation_state.current_map)
+            + ", requestedMap="
+            + (observation_state.requested_map.empty()
+                ? std::string("<none>")
+                : observation_state.requested_map)
+            + ", futureApplyPhase="
+            + (observation_state.future_apply_phase.empty()
+                ? std::string("<none>")
+                : observation_state.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (observation_state.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : observation_state.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (observation_state.required_signal.empty()
+                ? std::string("<none>")
+                : observation_state.required_signal)
+            + ", observationMode="
+            + (observation_state.observation_mode.empty()
+                ? std::string("<none>")
+                : observation_state.observation_mode)
+            + ", signalObserved=" + BoolToYesNo(observation_state.signal_observed)
+            + ", checkpointSatisfied="
+            + BoolToYesNo(observation_state.checkpoint_satisfied)
+            + ", gateEligibleAtCheckpoint="
+            + BoolToYesNo(observation_state.gate_eligible_at_checkpoint)
+            + ", gateOpen=" + BoolToYesNo(observation_state.gate_open)
+            + ", deferred=" + BoolToYesNo(observation_state.deferred)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(observation_state.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(observation_state.runtime_write_suppressed);
+    }
+    if (!observation_state.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + observation_state.short_circuit_reason;
+    }
+
+    line += ", observationStateReady="
+        + std::string(BoolToYesNo(observation_state.observation_state_ready))
+        + ", action="
+        + (observation_state.action.empty() ? std::string("<none>") : observation_state.action);
     return line;
 }
 
@@ -3345,6 +3418,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_contract: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalContractSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_observation_state
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_observation_state: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalObservationStateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -6426,6 +6509,72 @@ BuildChangeLevelPlayerTransferCheckpointSignalContract(
     return contract;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalObservationState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalContractSummary& contract)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalObservationStateSummary observation_state;
+    observation_state.attempted = true;
+
+    if (contract.prepared && contract.signal_contract_ready)
+    {
+        observation_state.prepared = true;
+        observation_state.skipped = false;
+        observation_state.decision_source = "player-transfer-checkpoint-signal-contract";
+        observation_state.apply_target = contract.apply_target;
+        observation_state.current_map = contract.current_map;
+        observation_state.requested_map = contract.requested_map;
+        observation_state.future_apply_phase = contract.future_apply_phase;
+        observation_state.target_runtime_checkpoint = contract.target_runtime_checkpoint;
+        observation_state.required_signal = contract.required_signal;
+        observation_state.observation_mode = "passive-no-op";
+        observation_state.signal_observed = contract.signal_observed;
+        observation_state.checkpoint_satisfied = contract.checkpoint_satisfied;
+        observation_state.gate_eligible_at_checkpoint = contract.gate_eligible_at_checkpoint;
+        observation_state.gate_open = contract.gate_open;
+        observation_state.deferred = contract.deferred;
+        observation_state.runtime_observation_suppressed = true;
+        observation_state.runtime_write_suppressed = contract.runtime_write_suppressed;
+        observation_state.observation_state_ready = true;
+        observation_state.action =
+            "no-op player transfer checkpoint signal observation state prepared";
+        return observation_state;
+    }
+
+    observation_state.prepared = false;
+    observation_state.observation_state_ready = false;
+    observation_state.short_circuit_reason = contract.short_circuit_reason;
+
+    if (contract.skipped)
+    {
+        observation_state.skipped = true;
+        observation_state.action = "player transfer checkpoint signal observation state skipped";
+        return observation_state;
+    }
+
+    observation_state.skipped = false;
+    observation_state.decision_source = "player-transfer-checkpoint-signal-contract";
+    observation_state.apply_target = contract.apply_target;
+    observation_state.current_map = contract.current_map;
+    observation_state.requested_map = contract.requested_map;
+    observation_state.future_apply_phase = contract.future_apply_phase;
+    observation_state.target_runtime_checkpoint = contract.target_runtime_checkpoint;
+    observation_state.required_signal = contract.required_signal;
+    observation_state.observation_mode = "passive-no-op";
+    observation_state.signal_observed = contract.signal_observed;
+    observation_state.checkpoint_satisfied = contract.checkpoint_satisfied;
+    observation_state.gate_eligible_at_checkpoint = contract.gate_eligible_at_checkpoint;
+    observation_state.gate_open = contract.gate_open;
+    observation_state.deferred = contract.deferred;
+    observation_state.runtime_observation_suppressed = true;
+    observation_state.runtime_write_suppressed = contract.runtime_write_suppressed;
+    observation_state.action = "player transfer checkpoint signal observation state unavailable";
+    return observation_state;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -6514,6 +6663,20 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalContract(EngineShimState& s
     summary.changelevel_player_transfer_checkpoint_signal_contract =
         BuildChangeLevelPlayerTransferCheckpointSignalContract(
             summary.changelevel_player_transfer_gate_open_checkpoint);
+    RefreshChangeLevelPlayerTransferCheckpointSignalObservationState(state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalObservationState(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_contract.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_observation_state =
+        BuildChangeLevelPlayerTransferCheckpointSignalObservationState(
+            summary.changelevel_player_transfer_checkpoint_signal_contract);
 }
 
 void CapturePendingChangeLevelRequest(
