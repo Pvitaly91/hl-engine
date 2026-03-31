@@ -512,6 +512,8 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBi
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationState(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -681,6 +683,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationGateSummary&
                 activation_gate);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationStateSummary&
+                activation_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -4805,6 +4813,258 @@ FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingA
     return line;
 }
 
+std::string
+FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary&
+            activation_outcome = summary
+                                     .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_outcome;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(activation_outcome.prepared)
+        + ", skipped=" + BoolToYesNo(activation_outcome.skipped);
+    if (!activation_outcome.decision_source.empty())
+    {
+        line += ", decisionSource=" + activation_outcome.decision_source;
+    }
+    if (!activation_outcome.apply_target.empty())
+    {
+        line += ", applyTarget=" + activation_outcome.apply_target;
+    }
+    if (activation_outcome.prepared)
+    {
+        line += ", currentMap="
+            + (activation_outcome.current_map.empty()
+                ? std::string("<none>")
+                : activation_outcome.current_map)
+            + ", requestedMap="
+            + (activation_outcome.requested_map.empty()
+                ? std::string("<none>")
+                : activation_outcome.requested_map)
+            + ", futureApplyPhase="
+            + (activation_outcome.future_apply_phase.empty()
+                ? std::string("<none>")
+                : activation_outcome.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (activation_outcome.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : activation_outcome.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (activation_outcome.required_signal.empty()
+                ? std::string("<none>")
+                : activation_outcome.required_signal)
+            + ", observationMode="
+            + (activation_outcome.observation_mode.empty()
+                ? std::string("<none>")
+                : activation_outcome.observation_mode)
+            + ", runtimeHookPoint="
+            + (activation_outcome.runtime_hook_point.empty()
+                ? std::string("<none>")
+                : activation_outcome.runtime_hook_point)
+            + ", registrationState="
+            + (activation_outcome.registration_state.empty()
+                ? std::string("<none>")
+                : activation_outcome.registration_state)
+            + ", installTokenIssued="
+            + BoolToYesNo(activation_outcome.install_token_issued)
+            + ", tokenIssueDecision="
+            + (activation_outcome.token_issue_decision.empty()
+                ? std::string("<none>")
+                : activation_outcome.token_issue_decision)
+            + ", tokenIssueAllowed="
+            + BoolToYesNo(activation_outcome.token_issue_allowed)
+            + ", authorizationState="
+            + (activation_outcome.authorization_state.empty()
+                ? std::string("<none>")
+                : activation_outcome.authorization_state)
+            + ", installAuthorizationGranted="
+            + BoolToYesNo(activation_outcome.install_authorization_granted)
+            + ", installExecutionOutcome="
+            + (activation_outcome.install_execution_outcome.empty()
+                ? std::string("<none>")
+                : activation_outcome.install_execution_outcome)
+            + ", resultState="
+            + (activation_outcome.result_state.empty()
+                ? std::string("<none>")
+                : activation_outcome.result_state)
+            + ", resultProduced="
+            + BoolToYesNo(activation_outcome.result_produced)
+            + ", resultConsumable="
+            + BoolToYesNo(activation_outcome.result_consumable)
+            + ", resultConsumptionOutcome="
+            + (activation_outcome.result_consumption_outcome.empty()
+                ? std::string("<none>")
+                : activation_outcome.result_consumption_outcome)
+            + ", resultConsumptionOutcomeAvailable="
+            + BoolToYesNo(
+                activation_outcome.result_consumption_outcome_available)
+            + ", resultConsumerContractDefined="
+            + BoolToYesNo(activation_outcome.result_consumer_contract_defined)
+            + ", resultConsumerAvailable="
+            + BoolToYesNo(activation_outcome.result_consumer_available)
+            + ", resultConsumerAllowed="
+            + BoolToYesNo(activation_outcome.result_consumer_allowed)
+            + ", resultConsumerReady="
+            + BoolToYesNo(activation_outcome.result_consumer_ready)
+            + ", resultConsumerActivated="
+            + BoolToYesNo(activation_outcome.result_consumer_activated)
+            + ", resultConsumerActivationOutcome="
+            + (activation_outcome.result_consumer_activation_outcome.empty()
+                ? std::string("<none>")
+                : activation_outcome.result_consumer_activation_outcome)
+            + ", resultConsumerActivationOutcomeAvailable="
+            + BoolToYesNo(
+                activation_outcome
+                    .result_consumer_activation_outcome_available)
+            + ", resultBindingContractDefined="
+            + BoolToYesNo(activation_outcome.result_binding_contract_defined)
+            + ", resultBindingAvailable="
+            + BoolToYesNo(activation_outcome.result_binding_available)
+            + ", resultBindingAllowed="
+            + BoolToYesNo(activation_outcome.result_binding_allowed)
+            + ", resultBindingReady="
+            + BoolToYesNo(activation_outcome.result_binding_ready)
+            + ", resultBindingActivationAllowed="
+            + BoolToYesNo(
+                activation_outcome.result_binding_activation_allowed)
+            + ", resultBindingActivationDeferred="
+            + BoolToYesNo(
+                activation_outcome.result_binding_activation_deferred)
+            + ", resultBindingActivationGate="
+            + (activation_outcome.result_binding_activation_gate.empty()
+                ? std::string("<none>")
+                : activation_outcome.result_binding_activation_gate)
+            + ", resultBindingActivationAttempted="
+            + BoolToYesNo(
+                activation_outcome.result_binding_activation_attempted)
+            + ", resultBindingActivated="
+            + BoolToYesNo(activation_outcome.result_binding_activated)
+            + ", resultBindingActivationCompleted="
+            + BoolToYesNo(
+                activation_outcome.result_binding_activation_completed)
+            + ", resultBindingActivationSucceeded="
+            + BoolToYesNo(
+                activation_outcome.result_binding_activation_succeeded)
+            + ", resultBindingActivationOutcome="
+            + (activation_outcome.result_binding_activation_outcome.empty()
+                ? std::string("<none>")
+                : activation_outcome.result_binding_activation_outcome)
+            + ", resultBindingActivationOutcomeAvailable="
+            + BoolToYesNo(
+                activation_outcome
+                    .result_binding_activation_outcome_available)
+            + ", resultBindingActivationOutcomeReason="
+            + (activation_outcome.result_binding_activation_outcome_reason.empty()
+                ? std::string("<none>")
+                : activation_outcome
+                      .result_binding_activation_outcome_reason)
+            + ", completionState="
+            + (activation_outcome.completion_state.empty()
+                ? std::string("<none>")
+                : activation_outcome.completion_state)
+            + ", hookInstallAuthorized="
+            + BoolToYesNo(activation_outcome.hook_install_authorized)
+            + ", hookInstalled="
+            + BoolToYesNo(activation_outcome.hook_installed)
+            + ", signalObserved="
+            + BoolToYesNo(activation_outcome.signal_observed)
+            + ", checkpointSatisfied="
+            + BoolToYesNo(activation_outcome.checkpoint_satisfied)
+            + ", gateOpen=" + BoolToYesNo(activation_outcome.gate_open)
+            + ", deferred=" + BoolToYesNo(activation_outcome.deferred)
+            + ", runtimeHookResultBindingActivationOutcomeSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_binding_activation_outcome_suppressed)
+            + ", runtimeHookResultBindingActivationStateSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_binding_activation_state_suppressed)
+            + ", runtimeHookResultBindingActivationSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_binding_activation_suppressed)
+            + ", runtimeHookResultBindingReadinessSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_binding_readiness_suppressed)
+            + ", runtimeHookResultBindingSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_result_binding_suppressed)
+            + ", runtimeHookResultConsumerActivationOutcomeSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumer_activation_outcome_suppressed)
+            + ", runtimeHookResultConsumerActivationStateSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumer_activation_state_suppressed)
+            + ", runtimeHookResultConsumerActivationSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumer_activation_suppressed)
+            + ", runtimeHookResultConsumerReadinessSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumer_readiness_suppressed)
+            + ", runtimeHookResultConsumerSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_result_consumer_suppressed)
+            + ", runtimeHookResultConsumptionOutcomeSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumption_outcome_suppressed)
+            + ", runtimeHookResultConsumptionStateSuppressed="
+            + BoolToYesNo(
+                activation_outcome
+                    .runtime_hook_result_consumption_state_suppressed)
+            + ", runtimeHookResultConsumptionSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_result_consumption_suppressed)
+            + ", runtimeHookResultStateSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_result_state_suppressed)
+            + ", runtimeHookOutcomeSuppressed="
+            + BoolToYesNo(activation_outcome.runtime_hook_outcome_suppressed)
+            + ", runtimeHookExecutionSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_execution_suppressed)
+            + ", runtimeHookAttemptSuppressed="
+            + BoolToYesNo(activation_outcome.runtime_hook_attempt_suppressed)
+            + ", runtimeHookAuthorizationSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_authorization_suppressed)
+            + ", runtimeHookInstallationSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_installation_suppressed)
+            + ", runtimeHookRegistrationSuppressed="
+            + BoolToYesNo(
+                activation_outcome.runtime_hook_registration_suppressed)
+            + ", runtimeHookSuppressed="
+            + BoolToYesNo(activation_outcome.runtime_hook_suppressed)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(activation_outcome.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(activation_outcome.runtime_write_suppressed);
+    }
+    if (!activation_outcome.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + activation_outcome.short_circuit_reason;
+    }
+
+    line += ", installResultBindingActivationOutcomeReady="
+        + std::string(
+            BoolToYesNo(
+                activation_outcome
+                    .install_result_binding_activation_outcome_ready))
+        + ", action="
+        + (activation_outcome.action.empty() ? std::string("<none>")
+                                             : activation_outcome.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -7179,6 +7439,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_state: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_outcome
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_outcome: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -14218,6 +14488,292 @@ BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingAc
     return activation_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary
+BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationStateSummary&
+            activation_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcomeSummary
+            activation_outcome;
+    activation_outcome.attempted = true;
+
+    if (activation_state.prepared
+        && activation_state.install_result_binding_activation_state_ready)
+    {
+        activation_outcome.prepared = true;
+        activation_outcome.skipped = false;
+        activation_outcome.decision_source =
+            "player-transfer-checkpoint-signal-hook-install-result-consumer-binding-activation-state";
+        activation_outcome.apply_target = activation_state.apply_target;
+        activation_outcome.current_map = activation_state.current_map;
+        activation_outcome.requested_map = activation_state.requested_map;
+        activation_outcome.future_apply_phase =
+            activation_state.future_apply_phase;
+        activation_outcome.target_runtime_checkpoint =
+            activation_state.target_runtime_checkpoint;
+        activation_outcome.required_signal =
+            activation_state.required_signal;
+        activation_outcome.observation_mode =
+            activation_state.observation_mode;
+        activation_outcome.runtime_hook_point =
+            activation_state.runtime_hook_point;
+        activation_outcome.registration_state =
+            activation_state.registration_state;
+        activation_outcome.install_token_issued =
+            activation_state.install_token_issued;
+        activation_outcome.token_issue_decision =
+            activation_state.token_issue_decision;
+        activation_outcome.token_issue_allowed =
+            activation_state.token_issue_allowed;
+        activation_outcome.authorization_state =
+            activation_state.authorization_state;
+        activation_outcome.install_authorization_granted =
+            activation_state.install_authorization_granted;
+        activation_outcome.install_execution_outcome =
+            activation_state.install_execution_outcome;
+        activation_outcome.result_state = activation_state.result_state;
+        activation_outcome.result_produced =
+            activation_state.result_produced;
+        activation_outcome.result_consumable =
+            activation_state.result_consumable;
+        activation_outcome.result_consumption_outcome =
+            activation_state.result_consumption_outcome;
+        activation_outcome.result_consumption_outcome_available =
+            activation_state.result_consumption_outcome_available;
+        activation_outcome.result_consumer_contract_defined =
+            activation_state.result_consumer_contract_defined;
+        activation_outcome.result_consumer_available =
+            activation_state.result_consumer_available;
+        activation_outcome.result_consumer_allowed =
+            activation_state.result_consumer_allowed;
+        activation_outcome.result_consumer_ready =
+            activation_state.result_consumer_ready;
+        activation_outcome.result_consumer_activated =
+            activation_state.result_consumer_activated;
+        activation_outcome.result_consumer_activation_outcome =
+            activation_state.result_consumer_activation_outcome;
+        activation_outcome.result_consumer_activation_outcome_available =
+            activation_state.result_consumer_activation_outcome_available;
+        activation_outcome.result_binding_contract_defined =
+            activation_state.result_binding_contract_defined;
+        activation_outcome.result_binding_available =
+            activation_state.result_binding_available;
+        activation_outcome.result_binding_allowed =
+            activation_state.result_binding_allowed;
+        activation_outcome.result_binding_ready =
+            activation_state.result_binding_ready;
+        activation_outcome.result_binding_activation_allowed =
+            activation_state.result_binding_activation_allowed;
+        activation_outcome.result_binding_activation_deferred =
+            activation_state.result_binding_activation_deferred;
+        activation_outcome.result_binding_activation_gate =
+            activation_state.result_binding_activation_gate;
+        activation_outcome.result_binding_activation_attempted = false;
+        activation_outcome.result_binding_activated = false;
+        activation_outcome.result_binding_activation_completed = false;
+        activation_outcome.result_binding_activation_succeeded = false;
+        activation_outcome.result_binding_activation_outcome =
+            "not-produced";
+        activation_outcome.result_binding_activation_outcome_available =
+            false;
+        activation_outcome.result_binding_activation_outcome_reason =
+            "binding-activation-not-attempted";
+        activation_outcome.completion_state =
+            activation_state.completion_state;
+        activation_outcome.hook_install_authorized =
+            activation_state.hook_install_authorized;
+        activation_outcome.hook_installed =
+            activation_state.hook_installed;
+        activation_outcome.signal_observed =
+            activation_state.signal_observed;
+        activation_outcome.checkpoint_satisfied =
+            activation_state.checkpoint_satisfied;
+        activation_outcome.gate_open = activation_state.gate_open;
+        activation_outcome.deferred = activation_state.deferred;
+        activation_outcome
+            .runtime_hook_result_binding_activation_outcome_suppressed = true;
+        activation_outcome
+            .runtime_hook_result_binding_activation_state_suppressed =
+            activation_state
+                .runtime_hook_result_binding_activation_state_suppressed;
+        activation_outcome.runtime_hook_result_binding_activation_suppressed =
+            activation_state
+                .runtime_hook_result_binding_activation_suppressed;
+        activation_outcome.runtime_hook_result_binding_readiness_suppressed =
+            activation_state
+                .runtime_hook_result_binding_readiness_suppressed;
+        activation_outcome.runtime_hook_result_binding_suppressed =
+            activation_state.runtime_hook_result_binding_suppressed;
+        activation_outcome
+            .runtime_hook_result_consumer_activation_outcome_suppressed =
+            activation_state
+                .runtime_hook_result_consumer_activation_outcome_suppressed;
+        activation_outcome
+            .runtime_hook_result_consumer_activation_state_suppressed =
+            activation_state
+                .runtime_hook_result_consumer_activation_state_suppressed;
+        activation_outcome.runtime_hook_result_consumer_activation_suppressed =
+            activation_state
+                .runtime_hook_result_consumer_activation_suppressed;
+        activation_outcome.runtime_hook_result_consumer_readiness_suppressed =
+            activation_state
+                .runtime_hook_result_consumer_readiness_suppressed;
+        activation_outcome.runtime_hook_result_consumer_suppressed =
+            activation_state.runtime_hook_result_consumer_suppressed;
+        activation_outcome
+            .runtime_hook_result_consumption_outcome_suppressed =
+            activation_state
+                .runtime_hook_result_consumption_outcome_suppressed;
+        activation_outcome.runtime_hook_result_consumption_state_suppressed =
+            activation_state
+                .runtime_hook_result_consumption_state_suppressed;
+        activation_outcome.runtime_hook_result_consumption_suppressed =
+            activation_state.runtime_hook_result_consumption_suppressed;
+        activation_outcome.runtime_hook_result_state_suppressed =
+            activation_state.runtime_hook_result_state_suppressed;
+        activation_outcome.runtime_hook_outcome_suppressed =
+            activation_state.runtime_hook_outcome_suppressed;
+        activation_outcome.runtime_hook_execution_suppressed =
+            activation_state.runtime_hook_execution_suppressed;
+        activation_outcome.runtime_hook_attempt_suppressed =
+            activation_state.runtime_hook_attempt_suppressed;
+        activation_outcome.runtime_hook_authorization_suppressed =
+            activation_state.runtime_hook_authorization_suppressed;
+        activation_outcome.runtime_hook_installation_suppressed =
+            activation_state.runtime_hook_installation_suppressed;
+        activation_outcome.runtime_hook_registration_suppressed =
+            activation_state.runtime_hook_registration_suppressed;
+        activation_outcome.runtime_hook_suppressed =
+            activation_state.runtime_hook_suppressed;
+        activation_outcome.runtime_observation_suppressed =
+            activation_state.runtime_observation_suppressed;
+        activation_outcome.runtime_write_suppressed =
+            activation_state.runtime_write_suppressed;
+        activation_outcome.install_result_binding_activation_outcome_ready =
+            true;
+        activation_outcome.action =
+            "no-op player transfer checkpoint signal hook install result consumer binding activation outcome prepared";
+        return activation_outcome;
+    }
+
+    activation_outcome.prepared = false;
+    activation_outcome.install_result_binding_activation_outcome_ready = false;
+    activation_outcome.short_circuit_reason =
+        activation_state.short_circuit_reason;
+
+    if (activation_state.skipped)
+    {
+        activation_outcome.skipped = true;
+        activation_outcome.action =
+            "player transfer checkpoint signal hook install result consumer binding activation outcome skipped";
+        return activation_outcome;
+    }
+
+    activation_outcome.skipped = false;
+    activation_outcome.decision_source =
+        "player-transfer-checkpoint-signal-hook-install-result-consumer-binding-activation-state";
+    activation_outcome.apply_target = activation_state.apply_target;
+    activation_outcome.result_consumer_contract_defined =
+        activation_state.result_consumer_contract_defined;
+    activation_outcome.result_consumer_available =
+        activation_state.result_consumer_available;
+    activation_outcome.result_consumer_allowed =
+        activation_state.result_consumer_allowed;
+    activation_outcome.result_consumer_ready =
+        activation_state.result_consumer_ready;
+    activation_outcome.result_consumer_activated =
+        activation_state.result_consumer_activated;
+    activation_outcome.result_consumer_activation_outcome =
+        activation_state.result_consumer_activation_outcome.empty()
+            ? std::string("not-produced")
+            : activation_state.result_consumer_activation_outcome;
+    activation_outcome.result_consumer_activation_outcome_available =
+        activation_state.result_consumer_activation_outcome_available;
+    activation_outcome.result_binding_contract_defined =
+        activation_state.result_binding_contract_defined;
+    activation_outcome.result_binding_available =
+        activation_state.result_binding_available;
+    activation_outcome.result_binding_allowed =
+        activation_state.result_binding_allowed;
+    activation_outcome.result_binding_ready =
+        activation_state.result_binding_ready;
+    activation_outcome.result_binding_activation_allowed =
+        activation_state.result_binding_activation_allowed;
+    activation_outcome.result_binding_activation_deferred =
+        activation_state.result_binding_activation_deferred;
+    activation_outcome.result_binding_activation_gate =
+        activation_state.result_binding_activation_gate;
+    activation_outcome.result_binding_activation_attempted = false;
+    activation_outcome.result_binding_activated = false;
+    activation_outcome.result_binding_activation_completed = false;
+    activation_outcome.result_binding_activation_succeeded = false;
+    activation_outcome.result_binding_activation_outcome = "not-produced";
+    activation_outcome.result_binding_activation_outcome_available = false;
+    activation_outcome.result_binding_activation_outcome_reason =
+        activation_state.result_binding_activation_state_reason.empty()
+            ? std::string("binding-activation-state-unavailable")
+            : activation_state.result_binding_activation_state_reason;
+    activation_outcome.completion_state =
+        activation_state.completion_state;
+    activation_outcome
+        .runtime_hook_result_binding_activation_outcome_suppressed = true;
+    activation_outcome
+        .runtime_hook_result_binding_activation_state_suppressed =
+        activation_state.runtime_hook_result_binding_activation_state_suppressed;
+    activation_outcome.runtime_hook_result_binding_activation_suppressed =
+        activation_state.runtime_hook_result_binding_activation_suppressed;
+    activation_outcome.runtime_hook_result_binding_readiness_suppressed =
+        activation_state.runtime_hook_result_binding_readiness_suppressed;
+    activation_outcome.runtime_hook_result_binding_suppressed =
+        activation_state.runtime_hook_result_binding_suppressed;
+    activation_outcome
+        .runtime_hook_result_consumer_activation_outcome_suppressed =
+        activation_state
+            .runtime_hook_result_consumer_activation_outcome_suppressed;
+    activation_outcome
+        .runtime_hook_result_consumer_activation_state_suppressed =
+        activation_state
+            .runtime_hook_result_consumer_activation_state_suppressed;
+    activation_outcome.runtime_hook_result_consumer_activation_suppressed =
+        activation_state.runtime_hook_result_consumer_activation_suppressed;
+    activation_outcome.runtime_hook_result_consumer_readiness_suppressed =
+        activation_state.runtime_hook_result_consumer_readiness_suppressed;
+    activation_outcome.runtime_hook_result_consumer_suppressed =
+        activation_state.runtime_hook_result_consumer_suppressed;
+    activation_outcome.runtime_hook_result_consumption_outcome_suppressed =
+        activation_state.runtime_hook_result_consumption_outcome_suppressed;
+    activation_outcome.runtime_hook_result_consumption_state_suppressed =
+        activation_state.runtime_hook_result_consumption_state_suppressed;
+    activation_outcome.runtime_hook_result_consumption_suppressed =
+        activation_state.runtime_hook_result_consumption_suppressed;
+    activation_outcome.runtime_hook_result_state_suppressed =
+        activation_state.runtime_hook_result_state_suppressed;
+    activation_outcome.runtime_hook_outcome_suppressed =
+        activation_state.runtime_hook_outcome_suppressed;
+    activation_outcome.runtime_hook_execution_suppressed =
+        activation_state.runtime_hook_execution_suppressed;
+    activation_outcome.runtime_hook_attempt_suppressed =
+        activation_state.runtime_hook_attempt_suppressed;
+    activation_outcome.runtime_hook_authorization_suppressed =
+        activation_state.runtime_hook_authorization_suppressed;
+    activation_outcome.runtime_hook_installation_suppressed =
+        activation_state.runtime_hook_installation_suppressed;
+    activation_outcome.runtime_hook_registration_suppressed =
+        activation_state.runtime_hook_registration_suppressed;
+    activation_outcome.runtime_hook_suppressed =
+        activation_state.runtime_hook_suppressed;
+    activation_outcome.runtime_observation_suppressed =
+        activation_state.runtime_observation_suppressed;
+    activation_outcome.runtime_write_suppressed =
+        activation_state.runtime_write_suppressed;
+    activation_outcome.action =
+        "player transfer checkpoint signal hook install result consumer binding activation outcome unavailable";
+    return activation_outcome;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -14692,6 +15248,23 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBi
     summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_state =
         BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationState(
             summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_gate);
+    RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+        state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_state
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_outcome =
+        BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingActivationOutcome(
+            summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_state);
 }
 
 void CapturePendingChangeLevelRequest(
