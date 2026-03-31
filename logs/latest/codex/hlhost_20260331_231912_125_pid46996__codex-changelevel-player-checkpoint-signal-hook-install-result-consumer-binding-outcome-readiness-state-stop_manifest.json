@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260331_231912",
+  "runInstanceId": "20260331_231912_125_pid46996",
+  "runLabel": "codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-readiness-state-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "a9f58eb66b581e17470d7d52740f01e44213afe0",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260331_231912_125_pid46996__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-readiness-state-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260331_231912_125_pid46996__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-readiness-state-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260331_231912_125_pid46996__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-readiness-state-stop_part01.log"]
+}

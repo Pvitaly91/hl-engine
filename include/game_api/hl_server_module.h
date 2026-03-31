@@ -2088,6 +2088,90 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeReadinessStateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string future_apply_phase;
+        std::string target_runtime_checkpoint;
+        std::string required_signal;
+        std::string observation_mode;
+        std::string runtime_hook_point;
+        std::string registration_state;
+        bool install_token_issued = false;
+        std::string token_issue_decision;
+        bool token_issue_allowed = false;
+        std::string authorization_state;
+        bool install_authorization_granted = false;
+        std::string install_execution_outcome;
+        std::string result_state;
+        bool result_produced = false;
+        bool result_consumable = false;
+        std::string result_consumption_outcome;
+        bool result_consumption_outcome_available = false;
+        bool result_consumer_contract_defined = false;
+        bool result_consumer_available = false;
+        bool result_consumer_allowed = false;
+        bool result_consumer_ready = false;
+        bool result_consumer_activated = false;
+        std::string result_consumer_activation_outcome;
+        bool result_consumer_activation_outcome_available = false;
+        bool result_binding_contract_defined = false;
+        bool result_binding_available = false;
+        bool result_binding_allowed = false;
+        bool result_binding_ready = false;
+        bool result_binding_activated = false;
+        std::string result_binding_activation_outcome;
+        bool result_binding_activation_outcome_available = false;
+        bool result_binding_outcome_contract_defined = false;
+        bool result_binding_outcome_available = false;
+        bool result_binding_outcome_allowed = false;
+        bool result_binding_outcome_ready = false;
+        bool result_binding_outcome_deferred = false;
+        std::string result_binding_outcome_readiness_state;
+        std::string result_binding_outcome_readiness_reason;
+        std::string completion_state;
+        bool hook_install_authorized = false;
+        bool hook_installed = false;
+        bool signal_observed = false;
+        bool checkpoint_satisfied = false;
+        bool gate_open = false;
+        bool deferred = false;
+        bool runtime_hook_result_binding_outcome_readiness_suppressed = false;
+        bool runtime_hook_result_binding_outcome_suppressed = false;
+        bool runtime_hook_result_binding_activation_outcome_suppressed = false;
+        bool runtime_hook_result_binding_activation_state_suppressed = false;
+        bool runtime_hook_result_binding_activation_suppressed = false;
+        bool runtime_hook_result_binding_readiness_suppressed = false;
+        bool runtime_hook_result_binding_suppressed = false;
+        bool runtime_hook_result_consumer_activation_outcome_suppressed = false;
+        bool runtime_hook_result_consumer_activation_state_suppressed = false;
+        bool runtime_hook_result_consumer_activation_suppressed = false;
+        bool runtime_hook_result_consumer_readiness_suppressed = false;
+        bool runtime_hook_result_consumer_suppressed = false;
+        bool runtime_hook_result_consumption_outcome_suppressed = false;
+        bool runtime_hook_result_consumption_state_suppressed = false;
+        bool runtime_hook_result_consumption_suppressed = false;
+        bool runtime_hook_result_state_suppressed = false;
+        bool runtime_hook_outcome_suppressed = false;
+        bool runtime_hook_execution_suppressed = false;
+        bool runtime_hook_attempt_suppressed = false;
+        bool runtime_hook_authorization_suppressed = false;
+        bool runtime_hook_installation_suppressed = false;
+        bool runtime_hook_registration_suppressed = false;
+        bool runtime_hook_suppressed = false;
+        bool runtime_observation_suppressed = false;
+        bool runtime_write_suppressed = false;
+        bool install_result_binding_outcome_readiness_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -2206,6 +2290,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_activation_outcome;
     ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeContractSummary
         changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_contract;
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeReadinessStateSummary
+        changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_readiness_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
