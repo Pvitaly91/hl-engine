@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260401_000120",
+  "runInstanceId": "20260401_000120_176_pid14080",
+  "runLabel": "codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-gate-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "b74ff6d77508ee7534ec98af3a99ed1e4919289c",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_000120_176_pid14080__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-gate-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_000120_176_pid14080__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-gate-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_000120_176_pid14080__codex-changelevel-player-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-gate-stop_part01.log"]
+}
