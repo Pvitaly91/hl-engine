@@ -5317,6 +5317,404 @@ void ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumpti
         "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_state runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumptionOutcome(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_install_result_consumption_outcome_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .attempted,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .prepared
+            == expected_prepared,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .skipped
+            == expected_skipped,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_install_result_consumption_outcome_ready
+            ? std::string_view(
+                  "player-transfer-checkpoint-signal-hook-install-result-consumption-state")
+            : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .decision_source
+            == expected_decision_source,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_install_result_consumption_outcome_ready
+            ? std::string_view("player")
+            : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .apply_target
+            == expected_apply_target,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome applyTarget=")
+            + (expected_apply_target.empty() ? std::string("<empty>")
+                                             : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .install_result_consumption_outcome_ready
+            == expected_install_result_consumption_outcome_ready,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome installResultConsumptionOutcomeReady=")
+            + (expected_install_result_consumption_outcome_ready ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .action
+            == expected_action,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_install_result_consumption_outcome_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .future_apply_phase
+            == "post-target-bootstrap-pre-player-resume",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome futureApplyPhase=post-target-bootstrap-pre-player-resume");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .target_runtime_checkpoint
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome targetRuntimeCheckpoint=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .required_signal
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome requiredSignal=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .observation_mode
+            == "passive-no-op",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome observationMode=passive-no-op");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_point
+            == "post-serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookPoint=post-serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .registration_state
+            == "uninstalled",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome registrationState=uninstalled");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .install_token_issued,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome installTokenIssued=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .token_issue_decision
+            == "deferred",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome tokenIssueDecision=deferred");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .token_issue_allowed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome tokenIssueAllowed=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .authorization_state
+            == "unauthorized",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome authorizationState=unauthorized");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .install_authorization_granted,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome installAuthorizationGranted=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .install_execution_outcome
+            == "not-produced",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome installExecutionOutcome=not-produced");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .result_state
+            == "blocked",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultState=blocked");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_produced,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultProduced=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumable,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumable=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumption_allowed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionAllowed=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .result_consumption_deferred,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionDeferred=yes");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumption_attempted,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionAttempted=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumed=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .result_consumption_state
+            == "not-consumed",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionState=not-consumed");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumption_completed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionCompleted=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumption_succeeded,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionSucceeded=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .result_consumption_outcome
+            == "not-produced",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionOutcome=not-produced");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .result_consumption_outcome_available,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionOutcomeAvailable=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .result_consumption_outcome_reason
+            == "consumption-not-attempted",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome resultConsumptionOutcomeReason=consumption-not-attempted");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+                .completion_state
+            == "incomplete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome completionState=incomplete");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .hook_install_authorized,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome hookInstallAuthorized=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .hook_installed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome hookInstalled=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .signal_observed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome signalObserved=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .checkpoint_satisfied,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome checkpointSatisfied=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+             .gate_open,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome gateOpen=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .deferred,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome deferred=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_result_consumption_outcome_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookResultConsumptionOutcomeSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_result_consumption_state_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookResultConsumptionStateSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_result_consumption_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookResultConsumptionSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_result_state_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookResultStateSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_outcome_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookOutcomeSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_execution_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookExecutionSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_attempt_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookAttemptSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_authorization_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookAuthorizationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_installation_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookInstallationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_registration_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookRegistrationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_hook_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeHookSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_observation_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeObservationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome
+            .runtime_write_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_outcome runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -5639,6 +6037,14 @@ bool ValidateRegressionGuard(
             "no-op player transfer checkpoint signal hook install result consumption state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumptionOutcome(
+            summary,
+            true,
+            false,
+            true,
+            "no-op player transfer checkpoint signal hook install result consumption outcome prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -5918,6 +6324,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player transfer checkpoint signal hook install result consumption state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumptionOutcome(
+            summary,
+            false,
+            true,
+            false,
+            "player transfer checkpoint signal hook install result consumption outcome skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
