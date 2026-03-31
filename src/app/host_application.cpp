@@ -6498,6 +6498,424 @@ void ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumerR
         "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_readiness_state runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumerActivationGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_install_result_consumer_activation_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .attempted,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate attempted=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .prepared
+            == expected_prepared,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate prepared=")
+            + (expected_prepared ? "yes" : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .skipped
+            == expected_skipped,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate skipped=")
+            + (expected_skipped ? "yes" : "no"));
+    const std::string_view expected_decision_source =
+        expected_install_result_consumer_activation_gate_ready
+            ? std::string_view(
+                  "player-transfer-checkpoint-signal-hook-install-result-consumer-readiness-state")
+            : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .decision_source
+            == expected_decision_source,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate decisionSource=")
+            + (expected_decision_source.empty()
+                ? std::string("<empty>")
+                : std::string(expected_decision_source)));
+    const std::string_view expected_apply_target =
+        expected_install_result_consumer_activation_gate_ready
+            ? std::string_view("player")
+            : std::string_view();
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .apply_target
+            == expected_apply_target,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate applyTarget=")
+            + (expected_apply_target.empty() ? std::string("<empty>")
+                                             : std::string(expected_apply_target)));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .install_result_consumer_activation_gate_ready
+            == expected_install_result_consumer_activation_gate_ready,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate installResultConsumerActivationGateReady=")
+            + (expected_install_result_consumer_activation_gate_ready
+                ? "yes"
+                : "no"));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .action
+            == expected_action,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate action=")
+            + std::string(expected_action));
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string(
+            "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                ? std::string("<empty>")
+                : std::string(expected_short_circuit_reason)));
+
+    if (!expected_install_result_consumer_activation_gate_ready)
+    {
+        return;
+    }
+
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .current_map
+            == "c0a0",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate currentMap=c0a0");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .requested_map
+            == "c0a0a",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate requestedMap=c0a0a");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .future_apply_phase
+            == "post-target-bootstrap-pre-player-resume",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate futureApplyPhase=post-target-bootstrap-pre-player-resume");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .target_runtime_checkpoint
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate targetRuntimeCheckpoint=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .required_signal
+            == "serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate requiredSignal=serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .observation_mode
+            == "passive-no-op",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate observationMode=passive-no-op");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_point
+            == "post-serveractivate-complete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookPoint=post-serveractivate-complete");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .registration_state
+            == "uninstalled",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate registrationState=uninstalled");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .install_token_issued,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate installTokenIssued=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .token_issue_decision
+            == "deferred",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate tokenIssueDecision=deferred");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .token_issue_allowed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate tokenIssueAllowed=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .authorization_state
+            == "unauthorized",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate authorizationState=unauthorized");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .install_authorization_granted,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate installAuthorizationGranted=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .install_execution_outcome
+            == "not-produced",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate installExecutionOutcome=not-produced");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .result_state
+            == "blocked",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultState=blocked");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_produced,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultProduced=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumable,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumable=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .result_consumption_outcome
+            == "not-produced",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumptionOutcome=not-produced");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumption_outcome_available,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumptionOutcomeAvailable=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .result_consumer_contract_defined,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerContractDefined=yes");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumer_available,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerAvailable=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumer_allowed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerAllowed=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumer_ready,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerReady=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .result_consumer_activation_allowed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerActivationAllowed=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .result_consumer_activation_deferred,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerActivationDeferred=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .result_consumer_activation_gate
+            == "closed",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerActivationGate=closed");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .result_consumer_activation_reason
+            == "result-consumer-not-ready",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate resultConsumerActivationReason=result-consumer-not-ready");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+                .completion_state
+            == "incomplete",
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate completionState=incomplete");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .hook_install_authorized,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate hookInstallAuthorized=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .hook_installed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate hookInstalled=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .signal_observed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate signalObserved=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .checkpoint_satisfied,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate checkpointSatisfied=no");
+    AddGuardFailure(
+        failures,
+        !summary.changelevel_transition
+             .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+             .gate_open,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate gateOpen=no");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .deferred,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate deferred=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumer_activation_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumerActivationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumer_readiness_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumerReadinessSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumer_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumerSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumption_outcome_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumptionOutcomeSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumption_state_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumptionStateSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_consumption_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultConsumptionSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_result_state_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookResultStateSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_outcome_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookOutcomeSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_execution_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookExecutionSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_attempt_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookAttemptSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_authorization_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookAuthorizationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_installation_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookInstallationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_registration_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookRegistrationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_hook_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeHookSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_observation_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeObservationSuppressed=yes");
+    AddGuardFailure(
+        failures,
+        summary.changelevel_transition
+            .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate
+            .runtime_write_suppressed,
+        "expected changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_activation_gate runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -6844,6 +7262,14 @@ bool ValidateRegressionGuard(
             "no-op player transfer checkpoint signal hook install result consumer readiness state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumerActivationGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op player transfer checkpoint signal hook install result consumer activation gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -7147,6 +7573,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player transfer checkpoint signal hook install result consumer readiness state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumerActivationGate(
+            summary,
+            false,
+            true,
+            false,
+            "player transfer checkpoint signal hook install result consumer activation gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
