@@ -488,6 +488,8 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallExecutionOutcome
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultState(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -585,6 +587,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalHookInstallExecutionOutcomeSummary&
                 execution_outcome);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary
+    BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalHookInstallResultStateSummary&
+                result_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -2500,6 +2508,139 @@ std::string FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultStat
         + ", action="
         + (result_state.action.empty() ? std::string("<none>")
                                        : result_state.action);
+    return line;
+}
+
+std::string
+FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary&
+            consumption_gate = summary
+                                   .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_gate;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(consumption_gate.prepared)
+        + ", skipped=" + BoolToYesNo(consumption_gate.skipped);
+    if (!consumption_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + consumption_gate.decision_source;
+    }
+    if (!consumption_gate.apply_target.empty())
+    {
+        line += ", applyTarget=" + consumption_gate.apply_target;
+    }
+    if (consumption_gate.prepared)
+    {
+        line += ", currentMap="
+            + (consumption_gate.current_map.empty() ? std::string("<none>")
+                                                    : consumption_gate.current_map)
+            + ", requestedMap="
+            + (consumption_gate.requested_map.empty() ? std::string("<none>")
+                                                      : consumption_gate.requested_map)
+            + ", futureApplyPhase="
+            + (consumption_gate.future_apply_phase.empty()
+                ? std::string("<none>")
+                : consumption_gate.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (consumption_gate.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : consumption_gate.target_runtime_checkpoint)
+            + ", requiredSignal="
+            + (consumption_gate.required_signal.empty() ? std::string("<none>")
+                                                        : consumption_gate.required_signal)
+            + ", observationMode="
+            + (consumption_gate.observation_mode.empty() ? std::string("<none>")
+                                                         : consumption_gate.observation_mode)
+            + ", runtimeHookPoint="
+            + (consumption_gate.runtime_hook_point.empty()
+                ? std::string("<none>")
+                : consumption_gate.runtime_hook_point)
+            + ", registrationState="
+            + (consumption_gate.registration_state.empty()
+                ? std::string("<none>")
+                : consumption_gate.registration_state)
+            + ", installTokenIssued="
+            + BoolToYesNo(consumption_gate.install_token_issued)
+            + ", tokenIssueDecision="
+            + (consumption_gate.token_issue_decision.empty()
+                ? std::string("<none>")
+                : consumption_gate.token_issue_decision)
+            + ", tokenIssueAllowed="
+            + BoolToYesNo(consumption_gate.token_issue_allowed)
+            + ", authorizationState="
+            + (consumption_gate.authorization_state.empty()
+                ? std::string("<none>")
+                : consumption_gate.authorization_state)
+            + ", installAuthorizationGranted="
+            + BoolToYesNo(consumption_gate.install_authorization_granted)
+            + ", installExecutionOutcome="
+            + (consumption_gate.install_execution_outcome.empty()
+                ? std::string("<none>")
+                : consumption_gate.install_execution_outcome)
+            + ", resultState="
+            + (consumption_gate.result_state.empty() ? std::string("<none>")
+                                                     : consumption_gate.result_state)
+            + ", resultProduced="
+            + BoolToYesNo(consumption_gate.result_produced)
+            + ", resultConsumable="
+            + BoolToYesNo(consumption_gate.result_consumable)
+            + ", resultConsumptionAllowed="
+            + BoolToYesNo(consumption_gate.result_consumption_allowed)
+            + ", resultConsumptionDeferred="
+            + BoolToYesNo(consumption_gate.result_consumption_deferred)
+            + ", resultConsumptionReason="
+            + (consumption_gate.result_consumption_reason.empty()
+                ? std::string("<none>")
+                : consumption_gate.result_consumption_reason)
+            + ", completionState="
+            + (consumption_gate.completion_state.empty() ? std::string("<none>")
+                                                         : consumption_gate.completion_state)
+            + ", hookInstallAuthorized="
+            + BoolToYesNo(consumption_gate.hook_install_authorized)
+            + ", hookInstalled="
+            + BoolToYesNo(consumption_gate.hook_installed)
+            + ", signalObserved="
+            + BoolToYesNo(consumption_gate.signal_observed)
+            + ", checkpointSatisfied="
+            + BoolToYesNo(consumption_gate.checkpoint_satisfied)
+            + ", gateOpen=" + BoolToYesNo(consumption_gate.gate_open)
+            + ", deferred=" + BoolToYesNo(consumption_gate.deferred)
+            + ", runtimeHookResultConsumptionSuppressed="
+            + BoolToYesNo(
+                consumption_gate.runtime_hook_result_consumption_suppressed)
+            + ", runtimeHookResultStateSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_result_state_suppressed)
+            + ", runtimeHookOutcomeSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_outcome_suppressed)
+            + ", runtimeHookExecutionSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_execution_suppressed)
+            + ", runtimeHookAttemptSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_attempt_suppressed)
+            + ", runtimeHookAuthorizationSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_authorization_suppressed)
+            + ", runtimeHookInstallationSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_installation_suppressed)
+            + ", runtimeHookRegistrationSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_registration_suppressed)
+            + ", runtimeHookSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_hook_suppressed)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(consumption_gate.runtime_write_suppressed);
+    }
+    if (!consumption_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + consumption_gate.short_circuit_reason;
+    }
+
+    line += ", installResultConsumptionGateReady="
+        + std::string(
+            BoolToYesNo(consumption_gate.install_result_consumption_gate_ready))
+        + ", action="
+        + (consumption_gate.action.empty() ? std::string("<none>")
+                                           : consumption_gate.action);
     return line;
 }
 
@@ -4757,6 +4898,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_hook_install_result_state: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_gate: "
+                    + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -9293,6 +9444,158 @@ BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultState(
     return result_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary
+BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultStateSummary&
+            result_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGateSummary
+            consumption_gate;
+    consumption_gate.attempted = true;
+
+    if (result_state.prepared && result_state.install_result_state_ready)
+    {
+        consumption_gate.prepared = true;
+        consumption_gate.skipped = false;
+        consumption_gate.decision_source =
+            "player-transfer-checkpoint-signal-hook-install-result-state";
+        consumption_gate.apply_target = result_state.apply_target;
+        consumption_gate.current_map = result_state.current_map;
+        consumption_gate.requested_map = result_state.requested_map;
+        consumption_gate.future_apply_phase = result_state.future_apply_phase;
+        consumption_gate.target_runtime_checkpoint =
+            result_state.target_runtime_checkpoint;
+        consumption_gate.required_signal = result_state.required_signal;
+        consumption_gate.observation_mode = result_state.observation_mode;
+        consumption_gate.runtime_hook_point = result_state.runtime_hook_point;
+        consumption_gate.registration_state = result_state.registration_state;
+        consumption_gate.install_token_issued = result_state.install_token_issued;
+        consumption_gate.token_issue_decision = result_state.token_issue_decision;
+        consumption_gate.token_issue_allowed = result_state.token_issue_allowed;
+        consumption_gate.authorization_state = result_state.authorization_state;
+        consumption_gate.install_authorization_granted =
+            result_state.install_authorization_granted;
+        consumption_gate.install_execution_outcome =
+            result_state.install_execution_outcome;
+        consumption_gate.result_state = result_state.result_state;
+        consumption_gate.result_produced = result_state.result_produced;
+        consumption_gate.result_consumable = result_state.result_consumable;
+        consumption_gate.result_consumption_allowed = false;
+        consumption_gate.result_consumption_deferred = true;
+        consumption_gate.result_consumption_reason =
+            result_state.result_produced ? "result-consumption-suppressed"
+                                         : "result-not-produced";
+        consumption_gate.completion_state = result_state.completion_state;
+        consumption_gate.hook_install_authorized =
+            result_state.hook_install_authorized;
+        consumption_gate.hook_installed = result_state.hook_installed;
+        consumption_gate.signal_observed = result_state.signal_observed;
+        consumption_gate.checkpoint_satisfied = result_state.checkpoint_satisfied;
+        consumption_gate.gate_open = result_state.gate_open;
+        consumption_gate.deferred = result_state.deferred;
+        consumption_gate.runtime_hook_result_consumption_suppressed = true;
+        consumption_gate.runtime_hook_result_state_suppressed =
+            result_state.runtime_hook_result_state_suppressed;
+        consumption_gate.runtime_hook_outcome_suppressed =
+            result_state.runtime_hook_outcome_suppressed;
+        consumption_gate.runtime_hook_execution_suppressed =
+            result_state.runtime_hook_execution_suppressed;
+        consumption_gate.runtime_hook_attempt_suppressed =
+            result_state.runtime_hook_attempt_suppressed;
+        consumption_gate.runtime_hook_authorization_suppressed =
+            result_state.runtime_hook_authorization_suppressed;
+        consumption_gate.runtime_hook_installation_suppressed =
+            result_state.runtime_hook_installation_suppressed;
+        consumption_gate.runtime_hook_registration_suppressed =
+            result_state.runtime_hook_registration_suppressed;
+        consumption_gate.runtime_hook_suppressed =
+            result_state.runtime_hook_suppressed;
+        consumption_gate.runtime_observation_suppressed =
+            result_state.runtime_observation_suppressed;
+        consumption_gate.runtime_write_suppressed =
+            result_state.runtime_write_suppressed;
+        consumption_gate.install_result_consumption_gate_ready = true;
+        consumption_gate.action =
+            "no-op player transfer checkpoint signal hook install result consumption gate prepared";
+        return consumption_gate;
+    }
+
+    consumption_gate.prepared = false;
+    consumption_gate.install_result_consumption_gate_ready = false;
+    consumption_gate.short_circuit_reason = result_state.short_circuit_reason;
+
+    if (result_state.skipped)
+    {
+        consumption_gate.skipped = true;
+        consumption_gate.action =
+            "player transfer checkpoint signal hook install result consumption gate skipped";
+        return consumption_gate;
+    }
+
+    consumption_gate.skipped = false;
+    consumption_gate.decision_source =
+        "player-transfer-checkpoint-signal-hook-install-result-state";
+    consumption_gate.apply_target = result_state.apply_target;
+    consumption_gate.current_map = result_state.current_map;
+    consumption_gate.requested_map = result_state.requested_map;
+    consumption_gate.future_apply_phase = result_state.future_apply_phase;
+    consumption_gate.target_runtime_checkpoint =
+        result_state.target_runtime_checkpoint;
+    consumption_gate.required_signal = result_state.required_signal;
+    consumption_gate.observation_mode = result_state.observation_mode;
+    consumption_gate.runtime_hook_point = result_state.runtime_hook_point;
+    consumption_gate.registration_state = result_state.registration_state;
+    consumption_gate.install_token_issued = result_state.install_token_issued;
+    consumption_gate.token_issue_decision = result_state.token_issue_decision;
+    consumption_gate.token_issue_allowed = result_state.token_issue_allowed;
+    consumption_gate.authorization_state = result_state.authorization_state;
+    consumption_gate.install_authorization_granted =
+        result_state.install_authorization_granted;
+    consumption_gate.install_execution_outcome = result_state.install_execution_outcome;
+    consumption_gate.result_state = result_state.result_state;
+    consumption_gate.result_produced = result_state.result_produced;
+    consumption_gate.result_consumable = result_state.result_consumable;
+    consumption_gate.result_consumption_allowed = false;
+    consumption_gate.result_consumption_deferred = true;
+    consumption_gate.result_consumption_reason =
+        result_state.result_reason.empty()
+            ? std::string("result-consumption-gate-unavailable")
+            : result_state.result_reason;
+    consumption_gate.completion_state = result_state.completion_state;
+    consumption_gate.hook_install_authorized = result_state.hook_install_authorized;
+    consumption_gate.hook_installed = result_state.hook_installed;
+    consumption_gate.signal_observed = result_state.signal_observed;
+    consumption_gate.checkpoint_satisfied = result_state.checkpoint_satisfied;
+    consumption_gate.gate_open = result_state.gate_open;
+    consumption_gate.deferred = result_state.deferred;
+    consumption_gate.runtime_hook_result_consumption_suppressed = true;
+    consumption_gate.runtime_hook_result_state_suppressed =
+        result_state.runtime_hook_result_state_suppressed;
+    consumption_gate.runtime_hook_outcome_suppressed =
+        result_state.runtime_hook_outcome_suppressed;
+    consumption_gate.runtime_hook_execution_suppressed =
+        result_state.runtime_hook_execution_suppressed;
+    consumption_gate.runtime_hook_attempt_suppressed =
+        result_state.runtime_hook_attempt_suppressed;
+    consumption_gate.runtime_hook_authorization_suppressed =
+        result_state.runtime_hook_authorization_suppressed;
+    consumption_gate.runtime_hook_installation_suppressed =
+        result_state.runtime_hook_installation_suppressed;
+    consumption_gate.runtime_hook_registration_suppressed =
+        result_state.runtime_hook_registration_suppressed;
+    consumption_gate.runtime_hook_suppressed = result_state.runtime_hook_suppressed;
+    consumption_gate.runtime_observation_suppressed =
+        result_state.runtime_observation_suppressed;
+    consumption_gate.runtime_write_suppressed =
+        result_state.runtime_write_suppressed;
+    consumption_gate.action =
+        "player transfer checkpoint signal hook install result consumption gate unavailable";
+    return consumption_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -9563,6 +9866,23 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultState(
     summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_state =
         BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultState(
             summary.changelevel_player_transfer_checkpoint_signal_hook_install_execution_outcome);
+    RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+        state);
+}
+
+void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_state
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumption_gate =
+        BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumptionGate(
+            summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_state);
 }
 
 void CapturePendingChangeLevelRequest(
