@@ -12946,6 +12946,175 @@ void ValidateChangelevelPlayerTransferTargetRuntimeMaterializationOutcome(
         "targetRuntimeMaterializationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeActivationGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_activation_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& activation_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_activation_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_activation_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(activation_gate.attempted, "attempted=yes");
+    check(
+        activation_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        activation_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        activation_gate.target_runtime_activation_gate_ready
+            == expected_target_runtime_activation_gate_ready,
+        std::string("targetRuntimeActivationGateReady=")
+            + (expected_target_runtime_activation_gate_ready ? "yes" : "no"));
+    check(
+        activation_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        activation_gate.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_activation_gate_ready)
+    {
+        return;
+    }
+
+    check(
+        activation_gate.decision_source
+            == "target-runtime-materialization-outcome",
+        "decisionSource=target-runtime-materialization-outcome");
+    check(
+        activation_gate.bootstrap_execution_outcome == "not-produced",
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        activation_gate.bootstrap_result_state == "blocked",
+        "bootstrapResultState=blocked");
+    check(
+        !activation_gate.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        !activation_gate.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        !activation_gate.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        activation_gate.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        !activation_gate.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(
+        !activation_gate.bootstrap_result_consumed,
+        "bootstrapResultConsumed=no");
+    check(
+        activation_gate.bootstrap_result_consumption_state == "not-consumed",
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        activation_gate.bootstrap_result_consumption_outcome == "not-produced",
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        !activation_gate.bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        activation_gate.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted",
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        activation_gate.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        !activation_gate.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        activation_gate.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        !activation_gate.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        !activation_gate.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        !activation_gate.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        activation_gate.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        activation_gate.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced",
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        !activation_gate.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        !activation_gate.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        activation_gate.target_runtime_materialization_state
+            == "not-materialized",
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        activation_gate.target_runtime_materialization_state_reason
+            == "materialization-not-started",
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        activation_gate.target_runtime_materialization_outcome == "not-produced",
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        !activation_gate.target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        activation_gate.target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted",
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        activation_gate.target_runtime_activation_candidate,
+        "targetRuntimeActivationCandidate=yes");
+    check(
+        !activation_gate.target_runtime_activation_allowed,
+        "targetRuntimeActivationAllowed=no");
+    check(
+        activation_gate.target_runtime_activation_deferred,
+        "targetRuntimeActivationDeferred=yes");
+    check(
+        !activation_gate.target_runtime_activation_attempted,
+        "targetRuntimeActivationAttempted=no");
+    check(
+        !activation_gate.target_runtime_activation_completed,
+        "targetRuntimeActivationCompleted=no");
+    check(
+        !activation_gate.target_runtime_activation_succeeded,
+        "targetRuntimeActivationSucceeded=no");
+    check(
+        activation_gate.target_runtime_activation_blocked,
+        "targetRuntimeActivationBlocked=yes");
+    check(
+        activation_gate.target_runtime_activation_block_reason
+            == "target-runtime-materialization-outcome-not-produced",
+        "targetRuntimeActivationBlockReason=target-runtime-materialization-outcome-not-produced");
+    check(
+        !activation_gate.target_runtime_activation_ready,
+        "targetRuntimeActivationReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -13508,6 +13677,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime materialization outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeActivationGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime activation gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -14027,6 +14204,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime materialization outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeActivationGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime activation gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
