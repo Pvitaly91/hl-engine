@@ -2978,6 +2978,57 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeActivationStateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string bootstrap_execution_outcome;
+        std::string bootstrap_result_state;
+        bool bootstrap_result_produced = false;
+        bool bootstrap_result_consumable = false;
+        bool bootstrap_result_consumption_allowed = false;
+        bool bootstrap_result_consumption_deferred = false;
+        bool bootstrap_result_consumption_attempted = false;
+        bool bootstrap_result_consumed = false;
+        std::string bootstrap_result_consumption_state;
+        std::string bootstrap_result_consumption_outcome;
+        bool bootstrap_result_consumption_outcome_available = false;
+        std::string bootstrap_result_consumption_outcome_reason;
+        bool target_runtime_materialization_candidate = false;
+        bool target_runtime_materialization_allowed = false;
+        bool target_runtime_materialization_deferred = false;
+        bool target_runtime_materialization_attempted = false;
+        bool target_runtime_materialization_completed = false;
+        bool target_runtime_materialization_succeeded = false;
+        bool target_runtime_materialization_blocked = false;
+        std::string target_runtime_materialization_block_reason;
+        bool target_runtime_materialization_started = false;
+        bool target_runtime_materialized = false;
+        std::string target_runtime_materialization_state;
+        std::string target_runtime_materialization_state_reason;
+        std::string target_runtime_materialization_outcome;
+        bool target_runtime_materialization_outcome_available = false;
+        std::string target_runtime_materialization_outcome_reason;
+        bool target_runtime_activation_candidate = false;
+        bool target_runtime_activation_allowed = false;
+        bool target_runtime_activation_deferred = false;
+        bool target_runtime_activation_attempted = false;
+        bool target_runtime_activation_completed = false;
+        bool target_runtime_activation_succeeded = false;
+        bool target_runtime_activation_blocked = false;
+        std::string target_runtime_activation_block_reason;
+        bool target_runtime_activation_started = false;
+        bool target_runtime_activated = false;
+        std::string target_runtime_activation_state;
+        std::string target_runtime_activation_state_reason;
+        bool target_runtime_activation_ready = false;
+        bool target_runtime_activation_state_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -3134,6 +3185,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_materialization_outcome;
     ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary
         changelevel_player_transfer_target_runtime_activation_gate;
+    ChangeLevelPlayerTransferTargetRuntimeActivationStateSummary
+        changelevel_player_transfer_target_runtime_activation_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
