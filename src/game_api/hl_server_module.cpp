@@ -532,6 +532,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -764,6 +766,12 @@ hl::game_api::ChangeLevelTransitionSummary::
                 target_runtime_observation,
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelBootstrapPlanSummary& plan);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary&
+                materialization_plan);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -6829,6 +6837,103 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSumma
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary&
+            bootstrap_execution_gate =
+                summary
+                    .changelevel_player_transfer_target_runtime_bootstrap_execution_gate;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(bootstrap_execution_gate.prepared)
+        + ", skipped=" + BoolToYesNo(bootstrap_execution_gate.skipped);
+    if (!bootstrap_execution_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + bootstrap_execution_gate.decision_source;
+    }
+    if (!bootstrap_execution_gate.apply_target.empty())
+    {
+        line += ", applyTarget=" + bootstrap_execution_gate.apply_target;
+    }
+    if (bootstrap_execution_gate.prepared)
+    {
+        line += ", currentMap="
+            + (bootstrap_execution_gate.current_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.current_map)
+            + ", requestedMap="
+            + (bootstrap_execution_gate.requested_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.requested_map)
+            + ", activeRuntimeMap="
+            + (bootstrap_execution_gate.active_runtime_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (bootstrap_execution_gate.target_runtime_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.target_runtime_map)
+            + ", targetBspPath="
+            + (bootstrap_execution_gate.target_bsp_path.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.target_bsp_path)
+            + ", landmark="
+            + (bootstrap_execution_gate.landmark.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.landmark)
+            + ", targetWorldspawnPresent="
+            + BoolToYesNo(bootstrap_execution_gate.target_worldspawn_present)
+            + ", targetEntityParse="
+            + (bootstrap_execution_gate.target_entity_parse_ok ? "ok" : "fail")
+            + ", materializationCandidate="
+            + BoolToYesNo(bootstrap_execution_gate.materialization_candidate)
+            + ", materializationPlanned="
+            + BoolToYesNo(bootstrap_execution_gate.materialization_planned)
+            + ", materializationExecutionSuppressed="
+            + BoolToYesNo(
+                bootstrap_execution_gate.materialization_execution_suppressed)
+            + ", bootstrapExecutionCandidate="
+            + BoolToYesNo(
+                bootstrap_execution_gate.bootstrap_execution_candidate)
+            + ", bootstrapExecutionAllowed="
+            + BoolToYesNo(bootstrap_execution_gate.bootstrap_execution_allowed)
+            + ", bootstrapExecutionDeferred="
+            + BoolToYesNo(
+                bootstrap_execution_gate.bootstrap_execution_deferred)
+            + ", bootstrapExecutionReason="
+            + (bootstrap_execution_gate.bootstrap_execution_reason.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_gate.bootstrap_execution_reason)
+            + ", mapLoadSuppressed="
+            + BoolToYesNo(bootstrap_execution_gate.map_load_suppressed)
+            + ", bspSwitchSuppressed="
+            + BoolToYesNo(bootstrap_execution_gate.bsp_switch_suppressed)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(
+                bootstrap_execution_gate.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(bootstrap_execution_gate.runtime_write_suppressed);
+    }
+    if (!bootstrap_execution_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + bootstrap_execution_gate.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeBootstrapExecutionGateReady="
+        + std::string(
+            BoolToYesNo(
+                bootstrap_execution_gate
+                    .target_runtime_bootstrap_execution_gate_ready))
+        + ", action="
+        + (bootstrap_execution_gate.action.empty()
+               ? std::string("<none>")
+               : bootstrap_execution_gate.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -9303,6 +9408,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_materialization_plan: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_bootstrap_execution_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_bootstrap_execution_gate: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -18302,6 +18417,128 @@ hl::game_api::ChangeLevelTransitionSummary::
     return materialization_plan;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary&
+                materialization_plan)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary
+            bootstrap_execution_gate;
+    bootstrap_execution_gate.attempted = true;
+
+    if (materialization_plan.prepared
+        && materialization_plan.target_runtime_materialization_plan_ready
+        && materialization_plan.materialization_candidate
+        && materialization_plan.materialization_planned
+        && materialization_plan.materialization_execution_suppressed
+        && !materialization_plan.target_runtime_available
+        && !materialization_plan.target_runtime_checkpoint_observed)
+    {
+        bootstrap_execution_gate.prepared = true;
+        bootstrap_execution_gate.skipped = false;
+        bootstrap_execution_gate.decision_source =
+            "target-runtime-materialization-plan";
+        bootstrap_execution_gate.apply_target =
+            materialization_plan.apply_target;
+        bootstrap_execution_gate.current_map =
+            materialization_plan.current_map;
+        bootstrap_execution_gate.requested_map =
+            materialization_plan.requested_map;
+        bootstrap_execution_gate.active_runtime_map =
+            materialization_plan.active_runtime_map;
+        bootstrap_execution_gate.target_runtime_map =
+            materialization_plan.target_runtime_map;
+        bootstrap_execution_gate.target_bsp_path =
+            materialization_plan.target_bsp_path;
+        bootstrap_execution_gate.landmark = materialization_plan.landmark;
+        bootstrap_execution_gate.target_worldspawn_present =
+            materialization_plan.target_worldspawn_present;
+        bootstrap_execution_gate.target_entity_parse_ok =
+            materialization_plan.target_entity_parse_ok;
+        bootstrap_execution_gate.materialization_candidate =
+            materialization_plan.materialization_candidate;
+        bootstrap_execution_gate.materialization_planned =
+            materialization_plan.materialization_planned;
+        bootstrap_execution_gate.materialization_execution_suppressed =
+            materialization_plan.materialization_execution_suppressed;
+        bootstrap_execution_gate.bootstrap_execution_candidate = true;
+        bootstrap_execution_gate.bootstrap_execution_allowed = false;
+        bootstrap_execution_gate.bootstrap_execution_deferred = true;
+        bootstrap_execution_gate.bootstrap_execution_reason =
+            "target-runtime-not-materialized";
+        bootstrap_execution_gate.map_load_suppressed = true;
+        bootstrap_execution_gate.bsp_switch_suppressed = true;
+        bootstrap_execution_gate.runtime_observation_read_only =
+            materialization_plan.runtime_observation_read_only;
+        bootstrap_execution_gate.runtime_write_suppressed =
+            materialization_plan.runtime_write_suppressed;
+        bootstrap_execution_gate
+            .target_runtime_bootstrap_execution_gate_ready = true;
+        bootstrap_execution_gate.action =
+            "no-op target runtime bootstrap execution gate prepared";
+        return bootstrap_execution_gate;
+    }
+
+    bootstrap_execution_gate.prepared = false;
+    bootstrap_execution_gate.target_runtime_bootstrap_execution_gate_ready =
+        false;
+    bootstrap_execution_gate.short_circuit_reason =
+        materialization_plan.short_circuit_reason;
+
+    if (materialization_plan.skipped)
+    {
+        bootstrap_execution_gate.skipped = true;
+        bootstrap_execution_gate.action =
+            "target runtime bootstrap execution gate skipped";
+        return bootstrap_execution_gate;
+    }
+
+    bootstrap_execution_gate.skipped = false;
+    bootstrap_execution_gate.decision_source =
+        materialization_plan.attempted
+        ? std::string("target-runtime-materialization-plan")
+        : std::string();
+    bootstrap_execution_gate.apply_target = materialization_plan.apply_target;
+    bootstrap_execution_gate.current_map = materialization_plan.current_map;
+    bootstrap_execution_gate.requested_map =
+        materialization_plan.requested_map;
+    bootstrap_execution_gate.active_runtime_map =
+        materialization_plan.active_runtime_map;
+    bootstrap_execution_gate.target_runtime_map =
+        materialization_plan.target_runtime_map;
+    bootstrap_execution_gate.target_bsp_path =
+        materialization_plan.target_bsp_path;
+    bootstrap_execution_gate.landmark = materialization_plan.landmark;
+    bootstrap_execution_gate.target_worldspawn_present =
+        materialization_plan.target_worldspawn_present;
+    bootstrap_execution_gate.target_entity_parse_ok =
+        materialization_plan.target_entity_parse_ok;
+    bootstrap_execution_gate.materialization_candidate =
+        materialization_plan.materialization_candidate;
+    bootstrap_execution_gate.materialization_planned =
+        materialization_plan.materialization_planned;
+    bootstrap_execution_gate.materialization_execution_suppressed =
+        materialization_plan.materialization_execution_suppressed;
+    bootstrap_execution_gate.runtime_observation_read_only =
+        materialization_plan.runtime_observation_read_only;
+    bootstrap_execution_gate.runtime_write_suppressed =
+        materialization_plan.runtime_write_suppressed;
+
+    if (!materialization_plan.target_runtime_materialization_plan_ready)
+    {
+        bootstrap_execution_gate.action =
+            "target runtime bootstrap execution gate waiting on target runtime materialization plan";
+        return bootstrap_execution_gate;
+    }
+
+    bootstrap_execution_gate.action =
+        "target runtime bootstrap execution gate not required";
+    return bootstrap_execution_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -18947,6 +19184,23 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
             summary
                 .changelevel_player_transfer_target_runtime_checkpoint_observation,
             summary.changelevel_bootstrap_plan);
+    RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_target_runtime_materialization_plan
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_bootstrap_execution_gate =
+        BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+            summary
+                .changelevel_player_transfer_target_runtime_materialization_plan);
 }
 
 void CapturePendingChangeLevelRequest(
