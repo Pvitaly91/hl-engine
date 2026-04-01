@@ -11143,6 +11143,202 @@ void ValidateChangelevelPlayerTransferCheckpointSignalHookInstallResultConsumerB
         "runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_integration_blocker_snapshot_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& blocker_snapshot =
+        summary.changelevel_transition
+            .changelevel_player_transfer_runtime_integration_blocker_snapshot;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_runtime_integration_blocker_snapshot";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(blocker_snapshot.attempted, "attempted=yes");
+    check(
+        blocker_snapshot.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        blocker_snapshot.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        blocker_snapshot.integration_blocker_snapshot_ready
+            == expected_integration_blocker_snapshot_ready,
+        std::string("integrationBlockerSnapshotReady=")
+            + (expected_integration_blocker_snapshot_ready ? "yes" : "no"));
+    check(
+        blocker_snapshot.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        blocker_snapshot.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_integration_blocker_snapshot_ready)
+    {
+        return;
+    }
+
+    check(
+        blocker_snapshot.decision_source
+            == "player-transfer-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-outcome",
+        "decisionSource=player-transfer-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-outcome");
+    check(blocker_snapshot.apply_target == "player", "applyTarget=player");
+    check(blocker_snapshot.current_map == "c0a0", "currentMap=c0a0");
+    check(blocker_snapshot.requested_map == "c0a0a", "requestedMap=c0a0a");
+    check(
+        blocker_snapshot.future_apply_phase
+            == "post-target-bootstrap-pre-player-resume",
+        "futureApplyPhase=post-target-bootstrap-pre-player-resume");
+    check(
+        blocker_snapshot.target_runtime_checkpoint
+            == "serveractivate-complete",
+        "targetRuntimeCheckpoint=serveractivate-complete");
+    check(
+        !blocker_snapshot.runtime_integration_candidate,
+        "runtimeIntegrationCandidate=no");
+    check(
+        blocker_snapshot.runtime_integration_blocked,
+        "runtimeIntegrationBlocked=yes");
+    check(
+        blocker_snapshot.runtime_integration_deferred,
+        "runtimeIntegrationDeferred=yes");
+    check(
+        blocker_snapshot.blocking_stage
+            == "result-consumer-binding-outcome-activation-outcome",
+        "blockingStage=result-consumer-binding-outcome-activation-outcome");
+    check(
+        blocker_snapshot.blocking_reason
+            == "binding-outcome-activation-not-attempted",
+        "blockingReason=binding-outcome-activation-not-attempted");
+    check(
+        blocker_snapshot.next_required_integration
+            == "produce-binding-outcome-activation",
+        "nextRequiredIntegration=produce-binding-outcome-activation");
+    check(blocker_snapshot.chain_terminal, "chainTerminal=yes");
+    check(
+        blocker_snapshot.runtime_observation_suppressed,
+        "runtimeObservationSuppressed=yes");
+    check(
+        blocker_snapshot.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
+void ValidateChangelevelPlayerTransferRuntimeCheckpointObservation(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_runtime_checkpoint_observation_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& checkpoint_observation =
+        summary.changelevel_transition
+            .changelevel_player_transfer_runtime_checkpoint_observation;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_runtime_checkpoint_observation";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(checkpoint_observation.attempted, "attempted=yes");
+    check(
+        checkpoint_observation.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        checkpoint_observation.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        checkpoint_observation.runtime_checkpoint_observation_ready
+            == expected_runtime_checkpoint_observation_ready,
+        std::string("runtimeCheckpointObservationReady=")
+            + (expected_runtime_checkpoint_observation_ready ? "yes" : "no"));
+    check(
+        checkpoint_observation.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        checkpoint_observation.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_runtime_checkpoint_observation_ready)
+    {
+        return;
+    }
+
+    check(
+        checkpoint_observation.decision_source
+            == "runtime-integration-blocker-snapshot",
+        "decisionSource=runtime-integration-blocker-snapshot");
+    check(checkpoint_observation.apply_target == "player", "applyTarget=player");
+    check(checkpoint_observation.current_map == "c0a0", "currentMap=c0a0");
+    check(
+        checkpoint_observation.requested_map == "c0a0a",
+        "requestedMap=c0a0a");
+    check(
+        checkpoint_observation.required_runtime_checkpoint
+            == "serveractivate-complete",
+        "requiredRuntimeCheckpoint=serveractivate-complete");
+    check(
+        checkpoint_observation.runtime_signal_source
+            == "current-runtime-serveractivate-complete",
+        "runtimeSignalSource=current-runtime-serveractivate-complete");
+    check(
+        checkpoint_observation.runtime_checkpoint_observed,
+        "runtimeCheckpointObserved=yes");
+    check(
+        checkpoint_observation.runtime_signal_backed,
+        "runtimeSignalBacked=yes");
+    check(
+        checkpoint_observation.observation_scope == "current-runtime-only",
+        "observationScope=current-runtime-only");
+    check(
+        !checkpoint_observation.target_runtime_observed,
+        "targetRuntimeObserved=no");
+    check(
+        checkpoint_observation.runtime_integration_candidate,
+        "runtimeIntegrationCandidate=yes");
+    check(
+        checkpoint_observation.runtime_integration_blocked,
+        "runtimeIntegrationBlocked=yes");
+    check(
+        checkpoint_observation.blocking_reason
+            == "target-map-runtime-not-yet-available",
+        "blockingReason=target-map-runtime-not-yet-available");
+    check(
+        checkpoint_observation.next_required_integration
+            == "target-map-serveractivate-observation",
+        "nextRequiredIntegration=target-map-serveractivate-observation");
+    check(
+        checkpoint_observation.runtime_observation_read_only,
+        "runtimeObservationReadOnly=yes");
+    check(
+        checkpoint_observation.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -11593,6 +11789,22 @@ bool ValidateRegressionGuard(
             "no-op player transfer checkpoint signal hook install result consumer binding outcome activation outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+            summary,
+            true,
+            false,
+            true,
+            "no-op runtime integration blocker snapshot prepared",
+            "",
+            failures);
+        ValidateChangelevelPlayerTransferRuntimeCheckpointObservation(
+            summary,
+            true,
+            false,
+            true,
+            "runtime checkpoint observation latched",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -12000,6 +12212,22 @@ bool ValidateRegressionGuard(
             true,
             false,
             "player transfer checkpoint signal hook install result consumer binding outcome activation outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+            summary,
+            false,
+            true,
+            false,
+            "runtime integration blocker snapshot skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferRuntimeCheckpointObservation(
+            summary,
+            false,
+            true,
+            false,
+            "runtime checkpoint observation skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
