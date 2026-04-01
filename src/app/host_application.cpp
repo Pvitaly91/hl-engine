@@ -11556,6 +11556,120 @@ void ValidateChangelevelPlayerTransferTargetRuntimeMaterializationPlan(
         "runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_bootstrap_execution_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& bootstrap_execution_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_bootstrap_execution_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_bootstrap_execution_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(bootstrap_execution_gate.attempted, "attempted=yes");
+    check(
+        bootstrap_execution_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        bootstrap_execution_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        bootstrap_execution_gate.target_runtime_bootstrap_execution_gate_ready
+            == expected_target_runtime_bootstrap_execution_gate_ready,
+        std::string("targetRuntimeBootstrapExecutionGateReady=")
+            + (expected_target_runtime_bootstrap_execution_gate_ready ? "yes"
+                                                                     : "no"));
+    check(
+        bootstrap_execution_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        bootstrap_execution_gate.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_bootstrap_execution_gate_ready)
+    {
+        return;
+    }
+
+    check(
+        bootstrap_execution_gate.decision_source
+            == "target-runtime-materialization-plan",
+        "decisionSource=target-runtime-materialization-plan");
+    check(bootstrap_execution_gate.apply_target == "player", "applyTarget=player");
+    check(bootstrap_execution_gate.current_map == "c0a0", "currentMap=c0a0");
+    check(
+        bootstrap_execution_gate.requested_map == "c0a0a",
+        "requestedMap=c0a0a");
+    check(
+        bootstrap_execution_gate.active_runtime_map == "c0a0",
+        "activeRuntimeMap=c0a0");
+    check(
+        bootstrap_execution_gate.target_runtime_map == "c0a0a",
+        "targetRuntimeMap=c0a0a");
+    check(
+        ContainsText(bootstrap_execution_gate.target_bsp_path, "c0a0a.bsp"),
+        "targetBspPath to reference c0a0a.bsp");
+    check(
+        bootstrap_execution_gate.landmark == "c0a0toa",
+        "landmark=c0a0toa");
+    check(
+        bootstrap_execution_gate.target_worldspawn_present,
+        "targetWorldspawnPresent=yes");
+    check(
+        bootstrap_execution_gate.target_entity_parse_ok,
+        "targetEntityParse=ok");
+    check(
+        bootstrap_execution_gate.materialization_candidate,
+        "materializationCandidate=yes");
+    check(
+        bootstrap_execution_gate.materialization_planned,
+        "materializationPlanned=yes");
+    check(
+        bootstrap_execution_gate.materialization_execution_suppressed,
+        "materializationExecutionSuppressed=yes");
+    check(
+        bootstrap_execution_gate.bootstrap_execution_candidate,
+        "bootstrapExecutionCandidate=yes");
+    check(
+        !bootstrap_execution_gate.bootstrap_execution_allowed,
+        "bootstrapExecutionAllowed=no");
+    check(
+        bootstrap_execution_gate.bootstrap_execution_deferred,
+        "bootstrapExecutionDeferred=yes");
+    check(
+        bootstrap_execution_gate.bootstrap_execution_reason
+            == "target-runtime-not-materialized",
+        "bootstrapExecutionReason=target-runtime-not-materialized");
+    check(
+        bootstrap_execution_gate.map_load_suppressed,
+        "mapLoadSuppressed=yes");
+    check(
+        bootstrap_execution_gate.bsp_switch_suppressed,
+        "bspSwitchSuppressed=yes");
+    check(
+        bootstrap_execution_gate.runtime_observation_read_only,
+        "runtimeObservationReadOnly=yes");
+    check(
+        bootstrap_execution_gate.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -12038,6 +12152,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime materialization plan prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime bootstrap execution gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -12477,6 +12599,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime materialization plan skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime bootstrap execution gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(

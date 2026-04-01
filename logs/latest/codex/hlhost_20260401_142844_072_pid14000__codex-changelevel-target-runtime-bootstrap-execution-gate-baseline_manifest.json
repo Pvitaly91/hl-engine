@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260401_142844",
+  "runInstanceId": "20260401_142844_072_pid14000",
+  "runLabel": "codex-changelevel-target-runtime-bootstrap-execution-gate-baseline",
+  "regressionGuard": "changelevel-latch-only-continuation",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "f530ac2537924b3e4539ce6c8e03b8aa24547326",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_142844_072_pid14000__codex-changelevel-target-runtime-bootstrap-execution-gate-baseline_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_142844_072_pid14000__codex-changelevel-target-runtime-bootstrap-execution-gate-baseline_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260401_142844_072_pid14000__codex-changelevel-target-runtime-bootstrap-execution-gate-baseline_part01.log"]
+}
