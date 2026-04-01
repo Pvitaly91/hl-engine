@@ -544,6 +544,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -812,6 +814,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary&
                 consumption_gate);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary&
+                consumption_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -7572,6 +7580,152 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumpti
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary&
+            consumption_outcome =
+                summary
+                    .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_outcome;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(consumption_outcome.prepared)
+        + ", skipped=" + BoolToYesNo(consumption_outcome.skipped);
+    if (!consumption_outcome.decision_source.empty())
+    {
+        line += ", decisionSource=" + consumption_outcome.decision_source;
+    }
+    if (!consumption_outcome.apply_target.empty())
+    {
+        line += ", applyTarget=" + consumption_outcome.apply_target;
+    }
+    if (consumption_outcome.prepared)
+    {
+        line += ", currentMap="
+            + (consumption_outcome.current_map.empty()
+                ? std::string("<none>")
+                : consumption_outcome.current_map)
+            + ", requestedMap="
+            + (consumption_outcome.requested_map.empty()
+                ? std::string("<none>")
+                : consumption_outcome.requested_map)
+            + ", activeRuntimeMap="
+            + (consumption_outcome.active_runtime_map.empty()
+                ? std::string("<none>")
+                : consumption_outcome.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (consumption_outcome.target_runtime_map.empty()
+                ? std::string("<none>")
+                : consumption_outcome.target_runtime_map)
+            + ", targetBspPath="
+            + (consumption_outcome.target_bsp_path.empty()
+                ? std::string("<none>")
+                : consumption_outcome.target_bsp_path)
+            + ", landmark="
+            + (consumption_outcome.landmark.empty()
+                ? std::string("<none>")
+                : consumption_outcome.landmark)
+            + ", targetWorldspawnPresent="
+            + BoolToYesNo(consumption_outcome.target_worldspawn_present)
+            + ", targetEntityParse="
+            + (consumption_outcome.target_entity_parse_ok ? "ok" : "fail")
+            + ", materializationCandidate="
+            + BoolToYesNo(consumption_outcome.materialization_candidate)
+            + ", materializationPlanned="
+            + BoolToYesNo(consumption_outcome.materialization_planned)
+            + ", materializationExecutionSuppressed="
+            + BoolToYesNo(
+                consumption_outcome.materialization_execution_suppressed)
+            + ", bootstrapExecutionCandidate="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_candidate)
+            + ", bootstrapExecutionAllowed="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_allowed)
+            + ", bootstrapExecutionDeferred="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_deferred)
+            + ", bootstrapExecutionAttempted="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_attempted)
+            + ", bootstrapExecutionCompleted="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_completed)
+            + ", bootstrapExecutionSucceeded="
+            + BoolToYesNo(consumption_outcome.bootstrap_execution_succeeded)
+            + ", bootstrapExecutionOutcome="
+            + (consumption_outcome.bootstrap_execution_outcome.empty()
+                ? std::string("<none>")
+                : consumption_outcome.bootstrap_execution_outcome)
+            + ", bootstrapExecutionOutcomeAvailable="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_execution_outcome_available)
+            + ", bootstrapResultState="
+            + (consumption_outcome.bootstrap_result_state.empty()
+                ? std::string("<none>")
+                : consumption_outcome.bootstrap_result_state)
+            + ", bootstrapResultProduced="
+            + BoolToYesNo(consumption_outcome.bootstrap_result_produced)
+            + ", bootstrapResultConsumable="
+            + BoolToYesNo(consumption_outcome.bootstrap_result_consumable)
+            + ", bootstrapResultConsumptionAllowed="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_result_consumption_allowed)
+            + ", bootstrapResultConsumptionDeferred="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_result_consumption_deferred)
+            + ", bootstrapResultConsumptionAttempted="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_result_consumption_attempted)
+            + ", bootstrapResultConsumed="
+            + BoolToYesNo(consumption_outcome.bootstrap_result_consumed)
+            + ", bootstrapResultConsumptionState="
+            + (consumption_outcome.bootstrap_result_consumption_state.empty()
+                ? std::string("<none>")
+                : consumption_outcome.bootstrap_result_consumption_state)
+            + ", bootstrapResultConsumptionCompleted="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_result_consumption_completed)
+            + ", bootstrapResultConsumptionSucceeded="
+            + BoolToYesNo(
+                consumption_outcome.bootstrap_result_consumption_succeeded)
+            + ", bootstrapResultConsumptionOutcome="
+            + (consumption_outcome.bootstrap_result_consumption_outcome.empty()
+                ? std::string("<none>")
+                : consumption_outcome.bootstrap_result_consumption_outcome)
+            + ", bootstrapResultConsumptionOutcomeAvailable="
+            + BoolToYesNo(
+                consumption_outcome
+                    .bootstrap_result_consumption_outcome_available)
+            + ", bootstrapResultConsumptionOutcomeReason="
+            + (consumption_outcome
+                       .bootstrap_result_consumption_outcome_reason.empty()
+                ? std::string("<none>")
+                : consumption_outcome
+                      .bootstrap_result_consumption_outcome_reason)
+            + ", mapLoadSuppressed="
+            + BoolToYesNo(consumption_outcome.map_load_suppressed)
+            + ", bspSwitchSuppressed="
+            + BoolToYesNo(consumption_outcome.bsp_switch_suppressed)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(consumption_outcome.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(consumption_outcome.runtime_write_suppressed);
+    }
+    if (!consumption_outcome.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + consumption_outcome.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeBootstrapResultConsumptionOutcomeReady="
+        + std::string(
+            BoolToYesNo(
+                consumption_outcome
+                    .target_runtime_bootstrap_result_consumption_outcome_ready))
+        + ", action="
+        + (consumption_outcome.action.empty()
+               ? std::string("<none>")
+               : consumption_outcome.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -10106,6 +10260,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_outcome
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_bootstrap_result_consumption_outcome: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -20071,6 +20235,220 @@ BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
     return consumption_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary
+BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary&
+            consumption_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcomeSummary
+            consumption_outcome;
+    consumption_outcome.attempted = true;
+
+    if (consumption_state.prepared
+        && consumption_state
+               .target_runtime_bootstrap_result_consumption_state_ready
+        && consumption_state.materialization_candidate
+        && consumption_state.materialization_planned
+        && consumption_state.materialization_execution_suppressed
+        && consumption_state.bootstrap_execution_candidate
+        && !consumption_state.bootstrap_execution_allowed
+        && consumption_state.bootstrap_execution_deferred
+        && !consumption_state.bootstrap_execution_attempted
+        && !consumption_state.bootstrap_execution_completed
+        && !consumption_state.bootstrap_execution_succeeded
+        && consumption_state.bootstrap_execution_outcome == "not-produced"
+        && !consumption_state.bootstrap_execution_outcome_available
+        && consumption_state.bootstrap_result_state == "blocked"
+        && !consumption_state.bootstrap_result_produced
+        && !consumption_state.bootstrap_result_consumable
+        && !consumption_state.bootstrap_result_consumption_allowed
+        && consumption_state.bootstrap_result_consumption_deferred
+        && !consumption_state.bootstrap_result_consumption_attempted
+        && !consumption_state.bootstrap_result_consumed
+        && consumption_state.bootstrap_result_consumption_state
+            == "not-consumed")
+    {
+        consumption_outcome.prepared = true;
+        consumption_outcome.skipped = false;
+        consumption_outcome.decision_source =
+            "target-runtime-bootstrap-result-consumption-state";
+        consumption_outcome.apply_target = consumption_state.apply_target;
+        consumption_outcome.current_map = consumption_state.current_map;
+        consumption_outcome.requested_map = consumption_state.requested_map;
+        consumption_outcome.active_runtime_map =
+            consumption_state.active_runtime_map;
+        consumption_outcome.target_runtime_map =
+            consumption_state.target_runtime_map;
+        consumption_outcome.target_bsp_path =
+            consumption_state.target_bsp_path;
+        consumption_outcome.landmark = consumption_state.landmark;
+        consumption_outcome.target_worldspawn_present =
+            consumption_state.target_worldspawn_present;
+        consumption_outcome.target_entity_parse_ok =
+            consumption_state.target_entity_parse_ok;
+        consumption_outcome.materialization_candidate =
+            consumption_state.materialization_candidate;
+        consumption_outcome.materialization_planned =
+            consumption_state.materialization_planned;
+        consumption_outcome.materialization_execution_suppressed =
+            consumption_state.materialization_execution_suppressed;
+        consumption_outcome.bootstrap_execution_candidate =
+            consumption_state.bootstrap_execution_candidate;
+        consumption_outcome.bootstrap_execution_allowed =
+            consumption_state.bootstrap_execution_allowed;
+        consumption_outcome.bootstrap_execution_deferred =
+            consumption_state.bootstrap_execution_deferred;
+        consumption_outcome.bootstrap_execution_attempted =
+            consumption_state.bootstrap_execution_attempted;
+        consumption_outcome.bootstrap_execution_completed =
+            consumption_state.bootstrap_execution_completed;
+        consumption_outcome.bootstrap_execution_succeeded =
+            consumption_state.bootstrap_execution_succeeded;
+        consumption_outcome.bootstrap_execution_outcome =
+            consumption_state.bootstrap_execution_outcome;
+        consumption_outcome.bootstrap_execution_outcome_available =
+            consumption_state.bootstrap_execution_outcome_available;
+        consumption_outcome.bootstrap_result_state =
+            consumption_state.bootstrap_result_state;
+        consumption_outcome.bootstrap_result_produced =
+            consumption_state.bootstrap_result_produced;
+        consumption_outcome.bootstrap_result_consumable =
+            consumption_state.bootstrap_result_consumable;
+        consumption_outcome.bootstrap_result_consumption_allowed =
+            consumption_state.bootstrap_result_consumption_allowed;
+        consumption_outcome.bootstrap_result_consumption_deferred =
+            consumption_state.bootstrap_result_consumption_deferred;
+        consumption_outcome.bootstrap_result_consumption_attempted =
+            consumption_state.bootstrap_result_consumption_attempted;
+        consumption_outcome.bootstrap_result_consumed =
+            consumption_state.bootstrap_result_consumed;
+        consumption_outcome.bootstrap_result_consumption_state =
+            consumption_state.bootstrap_result_consumption_state;
+        consumption_outcome.bootstrap_result_consumption_completed = false;
+        consumption_outcome.bootstrap_result_consumption_succeeded = false;
+        consumption_outcome.bootstrap_result_consumption_outcome =
+            "not-produced";
+        consumption_outcome.bootstrap_result_consumption_outcome_available =
+            false;
+        consumption_outcome.bootstrap_result_consumption_outcome_reason =
+            "consumption-not-attempted";
+        consumption_outcome.map_load_suppressed =
+            consumption_state.map_load_suppressed;
+        consumption_outcome.bsp_switch_suppressed =
+            consumption_state.bsp_switch_suppressed;
+        consumption_outcome.runtime_observation_read_only =
+            consumption_state.runtime_observation_read_only;
+        consumption_outcome.runtime_write_suppressed =
+            consumption_state.runtime_write_suppressed;
+        consumption_outcome
+            .target_runtime_bootstrap_result_consumption_outcome_ready = true;
+        consumption_outcome.action =
+            "no-op target runtime bootstrap result consumption outcome prepared";
+        return consumption_outcome;
+    }
+
+    consumption_outcome.prepared = false;
+    consumption_outcome
+        .target_runtime_bootstrap_result_consumption_outcome_ready = false;
+    consumption_outcome.short_circuit_reason =
+        consumption_state.short_circuit_reason;
+
+    if (consumption_state.skipped)
+    {
+        consumption_outcome.skipped = true;
+        consumption_outcome.action =
+            "target runtime bootstrap result consumption outcome skipped";
+        return consumption_outcome;
+    }
+
+    consumption_outcome.skipped = false;
+    consumption_outcome.decision_source =
+        consumption_state.attempted
+        ? std::string("target-runtime-bootstrap-result-consumption-state")
+        : std::string();
+    consumption_outcome.apply_target = consumption_state.apply_target;
+    consumption_outcome.current_map = consumption_state.current_map;
+    consumption_outcome.requested_map = consumption_state.requested_map;
+    consumption_outcome.active_runtime_map =
+        consumption_state.active_runtime_map;
+    consumption_outcome.target_runtime_map =
+        consumption_state.target_runtime_map;
+    consumption_outcome.target_bsp_path = consumption_state.target_bsp_path;
+    consumption_outcome.landmark = consumption_state.landmark;
+    consumption_outcome.target_worldspawn_present =
+        consumption_state.target_worldspawn_present;
+    consumption_outcome.target_entity_parse_ok =
+        consumption_state.target_entity_parse_ok;
+    consumption_outcome.materialization_candidate =
+        consumption_state.materialization_candidate;
+    consumption_outcome.materialization_planned =
+        consumption_state.materialization_planned;
+    consumption_outcome.materialization_execution_suppressed =
+        consumption_state.materialization_execution_suppressed;
+    consumption_outcome.bootstrap_execution_candidate =
+        consumption_state.bootstrap_execution_candidate;
+    consumption_outcome.bootstrap_execution_allowed =
+        consumption_state.bootstrap_execution_allowed;
+    consumption_outcome.bootstrap_execution_deferred =
+        consumption_state.bootstrap_execution_deferred;
+    consumption_outcome.bootstrap_execution_attempted =
+        consumption_state.bootstrap_execution_attempted;
+    consumption_outcome.bootstrap_execution_completed =
+        consumption_state.bootstrap_execution_completed;
+    consumption_outcome.bootstrap_execution_succeeded =
+        consumption_state.bootstrap_execution_succeeded;
+    consumption_outcome.bootstrap_execution_outcome =
+        consumption_state.bootstrap_execution_outcome;
+    consumption_outcome.bootstrap_execution_outcome_available =
+        consumption_state.bootstrap_execution_outcome_available;
+    consumption_outcome.bootstrap_result_state =
+        consumption_state.bootstrap_result_state;
+    consumption_outcome.bootstrap_result_produced =
+        consumption_state.bootstrap_result_produced;
+    consumption_outcome.bootstrap_result_consumable =
+        consumption_state.bootstrap_result_consumable;
+    consumption_outcome.bootstrap_result_consumption_allowed =
+        consumption_state.bootstrap_result_consumption_allowed;
+    consumption_outcome.bootstrap_result_consumption_deferred =
+        consumption_state.bootstrap_result_consumption_deferred;
+    consumption_outcome.bootstrap_result_consumption_attempted =
+        consumption_state.bootstrap_result_consumption_attempted;
+    consumption_outcome.bootstrap_result_consumed =
+        consumption_state.bootstrap_result_consumed;
+    consumption_outcome.bootstrap_result_consumption_state =
+        consumption_state.bootstrap_result_consumption_state;
+    consumption_outcome.map_load_suppressed =
+        consumption_state.map_load_suppressed;
+    consumption_outcome.bsp_switch_suppressed =
+        consumption_state.bsp_switch_suppressed;
+    consumption_outcome.runtime_observation_read_only =
+        consumption_state.runtime_observation_read_only;
+    consumption_outcome.runtime_write_suppressed =
+        consumption_state.runtime_write_suppressed;
+
+    if (!consumption_state.target_runtime_bootstrap_result_consumption_state_ready)
+    {
+        consumption_outcome.action =
+            "target runtime bootstrap result consumption outcome waiting on target runtime bootstrap result consumption state";
+        return consumption_outcome;
+    }
+
+    consumption_outcome.bootstrap_result_consumption_completed = false;
+    consumption_outcome.bootstrap_result_consumption_succeeded = false;
+    consumption_outcome.bootstrap_result_consumption_outcome = "not-produced";
+    consumption_outcome.bootstrap_result_consumption_outcome_available = false;
+    consumption_outcome.bootstrap_result_consumption_outcome_reason =
+        consumption_state.bootstrap_result_consumption_attempted
+        ? std::string("consumption-incomplete")
+        : std::string("consumption-not-attempted");
+    consumption_outcome.action =
+        "target runtime bootstrap result consumption outcome not required";
+    return consumption_outcome;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -20823,6 +21201,26 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStat
         BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
             summary
                 .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate);
+    RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+        state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state
+             .attempted)
+    {
+        return;
+    }
+
+    summary
+        .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_outcome =
+        BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionOutcome(
+            summary
+                .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state);
 }
 
 void CapturePendingChangeLevelRequest(
