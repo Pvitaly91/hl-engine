@@ -13499,6 +13499,215 @@ void ValidateChangelevelPlayerTransferTargetRuntimeActivationOutcome(
         "targetRuntimeActivationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCutoverGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_cutover_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& cutover_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_cutover_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_cutover_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(cutover_gate.attempted, "attempted=yes");
+    check(
+        cutover_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        cutover_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        cutover_gate.target_runtime_cutover_gate_ready
+            == expected_target_runtime_cutover_gate_ready,
+        std::string("targetRuntimeCutoverGateReady=")
+            + (expected_target_runtime_cutover_gate_ready ? "yes" : "no"));
+    check(
+        cutover_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        cutover_gate.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_cutover_gate_ready)
+    {
+        return;
+    }
+
+    check(
+        cutover_gate.decision_source == "target-runtime-activation-outcome",
+        "decisionSource=target-runtime-activation-outcome");
+    check(
+        cutover_gate.bootstrap_execution_outcome == "not-produced",
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        cutover_gate.bootstrap_result_state == "blocked",
+        "bootstrapResultState=blocked");
+    check(!cutover_gate.bootstrap_result_produced, "bootstrapResultProduced=no");
+    check(
+        !cutover_gate.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        !cutover_gate.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        cutover_gate.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        !cutover_gate.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(!cutover_gate.bootstrap_result_consumed, "bootstrapResultConsumed=no");
+    check(
+        cutover_gate.bootstrap_result_consumption_state == "not-consumed",
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        cutover_gate.bootstrap_result_consumption_outcome == "not-produced",
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        !cutover_gate.bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        cutover_gate.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted",
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        cutover_gate.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        !cutover_gate.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        cutover_gate.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        !cutover_gate.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        !cutover_gate.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        !cutover_gate.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        cutover_gate.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        cutover_gate.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced",
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        !cutover_gate.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        !cutover_gate.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        cutover_gate.target_runtime_materialization_state == "not-materialized",
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        cutover_gate.target_runtime_materialization_state_reason
+            == "materialization-not-started",
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        cutover_gate.target_runtime_materialization_outcome == "not-produced",
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        !cutover_gate.target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        cutover_gate.target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted",
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        cutover_gate.target_runtime_activation_candidate,
+        "targetRuntimeActivationCandidate=yes");
+    check(
+        !cutover_gate.target_runtime_activation_allowed,
+        "targetRuntimeActivationAllowed=no");
+    check(
+        cutover_gate.target_runtime_activation_deferred,
+        "targetRuntimeActivationDeferred=yes");
+    check(
+        !cutover_gate.target_runtime_activation_attempted,
+        "targetRuntimeActivationAttempted=no");
+    check(
+        !cutover_gate.target_runtime_activation_completed,
+        "targetRuntimeActivationCompleted=no");
+    check(
+        !cutover_gate.target_runtime_activation_succeeded,
+        "targetRuntimeActivationSucceeded=no");
+    check(
+        cutover_gate.target_runtime_activation_blocked,
+        "targetRuntimeActivationBlocked=yes");
+    check(
+        cutover_gate.target_runtime_activation_block_reason
+            == "target-runtime-materialization-outcome-not-produced",
+        "targetRuntimeActivationBlockReason=target-runtime-materialization-outcome-not-produced");
+    check(
+        !cutover_gate.target_runtime_activation_started,
+        "targetRuntimeActivationStarted=no");
+    check(!cutover_gate.target_runtime_activated, "targetRuntimeActivated=no");
+    check(
+        cutover_gate.target_runtime_activation_state == "not-activated",
+        "targetRuntimeActivationState=not-activated");
+    check(
+        cutover_gate.target_runtime_activation_state_reason
+            == "activation-not-started",
+        "targetRuntimeActivationStateReason=activation-not-started");
+    check(
+        cutover_gate.target_runtime_activation_outcome == "not-produced",
+        "targetRuntimeActivationOutcome=not-produced");
+    check(
+        !cutover_gate.target_runtime_activation_outcome_available,
+        "targetRuntimeActivationOutcomeAvailable=no");
+    check(
+        cutover_gate.target_runtime_activation_outcome_reason
+            == "activation-not-attempted",
+        "targetRuntimeActivationOutcomeReason=activation-not-attempted");
+    check(
+        cutover_gate.target_runtime_cutover_candidate,
+        "targetRuntimeCutoverCandidate=yes");
+    check(
+        !cutover_gate.target_runtime_cutover_allowed,
+        "targetRuntimeCutoverAllowed=no");
+    check(
+        cutover_gate.target_runtime_cutover_deferred,
+        "targetRuntimeCutoverDeferred=yes");
+    check(
+        !cutover_gate.target_runtime_cutover_attempted,
+        "targetRuntimeCutoverAttempted=no");
+    check(
+        !cutover_gate.target_runtime_cutover_completed,
+        "targetRuntimeCutoverCompleted=no");
+    check(
+        !cutover_gate.target_runtime_cutover_succeeded,
+        "targetRuntimeCutoverSucceeded=no");
+    check(
+        cutover_gate.target_runtime_cutover_blocked,
+        "targetRuntimeCutoverBlocked=yes");
+    check(
+        cutover_gate.target_runtime_cutover_block_reason
+            == "target-runtime-activation-outcome-not-produced",
+        "targetRuntimeCutoverBlockReason=target-runtime-activation-outcome-not-produced");
+    check(
+        !cutover_gate.target_runtime_cutover_ready,
+        "targetRuntimeCutoverReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -14085,6 +14294,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime activation outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCutoverGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime cutover gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -14628,6 +14845,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime activation outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCutoverGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime cutover gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
