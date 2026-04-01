@@ -11450,6 +11450,112 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointObservation(
         "runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeMaterializationPlan(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_materialization_plan_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& materialization_plan =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_materialization_plan;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_materialization_plan";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(materialization_plan.attempted, "attempted=yes");
+    check(
+        materialization_plan.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        materialization_plan.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        materialization_plan.target_runtime_materialization_plan_ready
+            == expected_target_runtime_materialization_plan_ready,
+        std::string("targetRuntimeMaterializationPlanReady=")
+            + (expected_target_runtime_materialization_plan_ready ? "yes"
+                                                                 : "no"));
+    check(
+        materialization_plan.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        materialization_plan.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_materialization_plan_ready)
+    {
+        return;
+    }
+
+    check(
+        materialization_plan.decision_source
+            == "target-runtime-checkpoint-observation",
+        "decisionSource=target-runtime-checkpoint-observation");
+    check(materialization_plan.apply_target == "player", "applyTarget=player");
+    check(materialization_plan.current_map == "c0a0", "currentMap=c0a0");
+    check(
+        materialization_plan.requested_map == "c0a0a",
+        "requestedMap=c0a0a");
+    check(
+        materialization_plan.active_runtime_map == "c0a0",
+        "activeRuntimeMap=c0a0");
+    check(
+        materialization_plan.target_runtime_map == "c0a0a",
+        "targetRuntimeMap=c0a0a");
+    check(
+        ContainsText(materialization_plan.target_bsp_path, "c0a0a.bsp"),
+        "targetBspPath to reference c0a0a.bsp");
+    check(materialization_plan.landmark == "c0a0toa", "landmark=c0a0toa");
+    check(
+        materialization_plan.target_worldspawn_present,
+        "targetWorldspawnPresent=yes");
+    check(
+        materialization_plan.target_entity_parse_ok,
+        "targetEntityParse=ok");
+    check(
+        materialization_plan.materialization_candidate,
+        "materializationCandidate=yes");
+    check(
+        materialization_plan.materialization_planned,
+        "materializationPlanned=yes");
+    check(
+        materialization_plan.materialization_execution_suppressed,
+        "materializationExecutionSuppressed=yes");
+    check(
+        materialization_plan.materialization_mode == "no-op",
+        "materializationMode=no-op");
+    check(
+        !materialization_plan.target_runtime_available,
+        "targetRuntimeAvailable=no");
+    check(
+        !materialization_plan.target_runtime_checkpoint_observed,
+        "targetRuntimeCheckpointObserved=no");
+    check(
+        materialization_plan.next_required_integration
+            == "target-runtime-bootstrap-execution",
+        "nextRequiredIntegration=target-runtime-bootstrap-execution");
+    check(
+        materialization_plan.runtime_observation_read_only,
+        "runtimeObservationReadOnly=yes");
+    check(
+        materialization_plan.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -11924,6 +12030,14 @@ bool ValidateRegressionGuard(
             "target runtime checkpoint not yet observable",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeMaterializationPlan(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime materialization plan prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -12355,6 +12469,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime checkpoint observation skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeMaterializationPlan(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime materialization plan skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
