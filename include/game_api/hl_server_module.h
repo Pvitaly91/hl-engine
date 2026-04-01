@@ -2856,6 +2856,42 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeMaterializationStateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string bootstrap_execution_outcome;
+        std::string bootstrap_result_state;
+        bool bootstrap_result_produced = false;
+        bool bootstrap_result_consumable = false;
+        bool bootstrap_result_consumption_allowed = false;
+        bool bootstrap_result_consumption_deferred = false;
+        bool bootstrap_result_consumption_attempted = false;
+        bool bootstrap_result_consumed = false;
+        std::string bootstrap_result_consumption_state;
+        std::string bootstrap_result_consumption_outcome;
+        bool bootstrap_result_consumption_outcome_available = false;
+        std::string bootstrap_result_consumption_outcome_reason;
+        bool target_runtime_materialization_candidate = false;
+        bool target_runtime_materialization_allowed = false;
+        bool target_runtime_materialization_deferred = false;
+        bool target_runtime_materialization_attempted = false;
+        bool target_runtime_materialization_completed = false;
+        bool target_runtime_materialization_succeeded = false;
+        bool target_runtime_materialization_blocked = false;
+        std::string target_runtime_materialization_block_reason;
+        bool target_runtime_materialization_started = false;
+        bool target_runtime_materialized = false;
+        std::string target_runtime_materialization_state;
+        std::string target_runtime_materialization_state_reason;
+        bool target_runtime_materialization_ready = false;
+        bool target_runtime_materialization_state_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -3006,6 +3042,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_bootstrap_result_consumption_outcome;
     ChangeLevelPlayerTransferTargetRuntimeMaterializationGateSummary
         changelevel_player_transfer_target_runtime_materialization_gate;
+    ChangeLevelPlayerTransferTargetRuntimeMaterializationStateSummary
+        changelevel_player_transfer_target_runtime_materialization_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
