@@ -558,6 +558,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeActivationState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeActivationOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeCutoverGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -868,6 +870,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeActivationStateSummary&
                 activation_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCutoverGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary&
+                activation_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -8655,6 +8663,172 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary& cutover_gate =
+            summary.changelevel_player_transfer_target_runtime_cutover_gate;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(cutover_gate.prepared)
+        + ", skipped=" + BoolToYesNo(cutover_gate.skipped);
+    if (!cutover_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + cutover_gate.decision_source;
+    }
+    if (cutover_gate.prepared)
+    {
+        line += ", bootstrapExecutionOutcome="
+            + (cutover_gate.bootstrap_execution_outcome.empty()
+                ? std::string("<none>")
+                : cutover_gate.bootstrap_execution_outcome)
+            + ", bootstrapResultState="
+            + (cutover_gate.bootstrap_result_state.empty()
+                ? std::string("<none>")
+                : cutover_gate.bootstrap_result_state)
+            + ", bootstrapResultProduced="
+            + BoolToYesNo(cutover_gate.bootstrap_result_produced)
+            + ", bootstrapResultConsumable="
+            + BoolToYesNo(cutover_gate.bootstrap_result_consumable)
+            + ", bootstrapResultConsumptionAllowed="
+            + BoolToYesNo(cutover_gate.bootstrap_result_consumption_allowed)
+            + ", bootstrapResultConsumptionDeferred="
+            + BoolToYesNo(cutover_gate.bootstrap_result_consumption_deferred)
+            + ", bootstrapResultConsumptionAttempted="
+            + BoolToYesNo(cutover_gate.bootstrap_result_consumption_attempted)
+            + ", bootstrapResultConsumed="
+            + BoolToYesNo(cutover_gate.bootstrap_result_consumed)
+            + ", bootstrapResultConsumptionState="
+            + (cutover_gate.bootstrap_result_consumption_state.empty()
+                ? std::string("<none>")
+                : cutover_gate.bootstrap_result_consumption_state)
+            + ", bootstrapResultConsumptionOutcome="
+            + (cutover_gate.bootstrap_result_consumption_outcome.empty()
+                ? std::string("<none>")
+                : cutover_gate.bootstrap_result_consumption_outcome)
+            + ", bootstrapResultConsumptionOutcomeAvailable="
+            + BoolToYesNo(
+                cutover_gate.bootstrap_result_consumption_outcome_available)
+            + ", bootstrapResultConsumptionOutcomeReason="
+            + (cutover_gate.bootstrap_result_consumption_outcome_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.bootstrap_result_consumption_outcome_reason)
+            + ", targetRuntimeMaterializationCandidate="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_candidate)
+            + ", targetRuntimeMaterializationAllowed="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_allowed)
+            + ", targetRuntimeMaterializationDeferred="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_deferred)
+            + ", targetRuntimeMaterializationAttempted="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_attempted)
+            + ", targetRuntimeMaterializationCompleted="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_completed)
+            + ", targetRuntimeMaterializationSucceeded="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_succeeded)
+            + ", targetRuntimeMaterializationBlocked="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_blocked)
+            + ", targetRuntimeMaterializationBlockReason="
+            + (cutover_gate.target_runtime_materialization_block_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_materialization_block_reason)
+            + ", targetRuntimeMaterializationStarted="
+            + BoolToYesNo(cutover_gate.target_runtime_materialization_started)
+            + ", targetRuntimeMaterialized="
+            + BoolToYesNo(cutover_gate.target_runtime_materialized)
+            + ", targetRuntimeMaterializationState="
+            + (cutover_gate.target_runtime_materialization_state.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_materialization_state)
+            + ", targetRuntimeMaterializationStateReason="
+            + (cutover_gate.target_runtime_materialization_state_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_materialization_state_reason)
+            + ", targetRuntimeMaterializationOutcome="
+            + (cutover_gate.target_runtime_materialization_outcome.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_materialization_outcome)
+            + ", targetRuntimeMaterializationOutcomeAvailable="
+            + BoolToYesNo(
+                cutover_gate.target_runtime_materialization_outcome_available)
+            + ", targetRuntimeMaterializationOutcomeReason="
+            + (cutover_gate.target_runtime_materialization_outcome_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_materialization_outcome_reason)
+            + ", targetRuntimeActivationCandidate="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_candidate)
+            + ", targetRuntimeActivationAllowed="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_allowed)
+            + ", targetRuntimeActivationDeferred="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_deferred)
+            + ", targetRuntimeActivationAttempted="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_attempted)
+            + ", targetRuntimeActivationCompleted="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_completed)
+            + ", targetRuntimeActivationSucceeded="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_succeeded)
+            + ", targetRuntimeActivationBlocked="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_blocked)
+            + ", targetRuntimeActivationBlockReason="
+            + (cutover_gate.target_runtime_activation_block_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_activation_block_reason)
+            + ", targetRuntimeActivationStarted="
+            + BoolToYesNo(cutover_gate.target_runtime_activation_started)
+            + ", targetRuntimeActivated="
+            + BoolToYesNo(cutover_gate.target_runtime_activated)
+            + ", targetRuntimeActivationState="
+            + (cutover_gate.target_runtime_activation_state.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_activation_state)
+            + ", targetRuntimeActivationStateReason="
+            + (cutover_gate.target_runtime_activation_state_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_activation_state_reason)
+            + ", targetRuntimeActivationOutcome="
+            + (cutover_gate.target_runtime_activation_outcome.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_activation_outcome)
+            + ", targetRuntimeActivationOutcomeAvailable="
+            + BoolToYesNo(
+                cutover_gate.target_runtime_activation_outcome_available)
+            + ", targetRuntimeActivationOutcomeReason="
+            + (cutover_gate.target_runtime_activation_outcome_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_activation_outcome_reason)
+            + ", targetRuntimeCutoverCandidate="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_candidate)
+            + ", targetRuntimeCutoverAllowed="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_allowed)
+            + ", targetRuntimeCutoverDeferred="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_deferred)
+            + ", targetRuntimeCutoverAttempted="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_attempted)
+            + ", targetRuntimeCutoverCompleted="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_completed)
+            + ", targetRuntimeCutoverSucceeded="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_succeeded)
+            + ", targetRuntimeCutoverBlocked="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_blocked)
+            + ", targetRuntimeCutoverBlockReason="
+            + (cutover_gate.target_runtime_cutover_block_reason.empty()
+                ? std::string("<none>")
+                : cutover_gate.target_runtime_cutover_block_reason)
+            + ", targetRuntimeCutoverReady="
+            + BoolToYesNo(cutover_gate.target_runtime_cutover_ready);
+    }
+    if (!cutover_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + cutover_gate.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeCutoverGateReady="
+        + std::string(BoolToYesNo(cutover_gate.target_runtime_cutover_gate_ready))
+        + ", action="
+        + (cutover_gate.action.empty() ? std::string("<none>")
+                                       : cutover_gate.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -11259,6 +11433,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_activation_outcome: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_cutover_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_cutover_gate: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -22742,6 +22926,308 @@ hl::game_api::ChangeLevelTransitionSummary::
     return activation_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCutoverGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary&
+                activation_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary cutover_gate;
+    cutover_gate.attempted = true;
+
+    if (activation_outcome.prepared
+        && activation_outcome.target_runtime_activation_outcome_ready
+        && activation_outcome.bootstrap_execution_outcome == "not-produced"
+        && activation_outcome.bootstrap_result_state == "blocked"
+        && !activation_outcome.bootstrap_result_produced
+        && !activation_outcome.bootstrap_result_consumable
+        && !activation_outcome.bootstrap_result_consumption_allowed
+        && activation_outcome.bootstrap_result_consumption_deferred
+        && !activation_outcome.bootstrap_result_consumption_attempted
+        && !activation_outcome.bootstrap_result_consumed
+        && activation_outcome.bootstrap_result_consumption_state
+            == "not-consumed"
+        && activation_outcome.bootstrap_result_consumption_outcome
+            == "not-produced"
+        && !activation_outcome
+                .bootstrap_result_consumption_outcome_available
+        && activation_outcome.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted"
+        && activation_outcome.target_runtime_materialization_candidate
+        && !activation_outcome.target_runtime_materialization_allowed
+        && activation_outcome.target_runtime_materialization_deferred
+        && !activation_outcome.target_runtime_materialization_attempted
+        && !activation_outcome.target_runtime_materialization_completed
+        && !activation_outcome.target_runtime_materialization_succeeded
+        && activation_outcome.target_runtime_materialization_blocked
+        && activation_outcome.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced"
+        && !activation_outcome.target_runtime_materialization_started
+        && !activation_outcome.target_runtime_materialized
+        && activation_outcome.target_runtime_materialization_state
+            == "not-materialized"
+        && activation_outcome.target_runtime_materialization_state_reason
+            == "materialization-not-started"
+        && activation_outcome.target_runtime_materialization_outcome
+            == "not-produced"
+        && !activation_outcome
+                .target_runtime_materialization_outcome_available
+        && activation_outcome.target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted"
+        && activation_outcome.target_runtime_activation_candidate
+        && !activation_outcome.target_runtime_activation_allowed
+        && activation_outcome.target_runtime_activation_deferred
+        && !activation_outcome.target_runtime_activation_attempted
+        && !activation_outcome.target_runtime_activation_completed
+        && !activation_outcome.target_runtime_activation_succeeded
+        && activation_outcome.target_runtime_activation_blocked
+        && activation_outcome.target_runtime_activation_block_reason
+            == "target-runtime-materialization-outcome-not-produced"
+        && !activation_outcome.target_runtime_activation_started
+        && !activation_outcome.target_runtime_activated
+        && activation_outcome.target_runtime_activation_state
+            == "not-activated"
+        && activation_outcome.target_runtime_activation_state_reason
+            == "activation-not-started"
+        && activation_outcome.target_runtime_activation_outcome
+            == "not-produced"
+        && !activation_outcome.target_runtime_activation_outcome_available
+        && activation_outcome.target_runtime_activation_outcome_reason
+            == "activation-not-attempted")
+    {
+        cutover_gate.prepared = true;
+        cutover_gate.skipped = false;
+        cutover_gate.decision_source = "target-runtime-activation-outcome";
+        cutover_gate.bootstrap_execution_outcome =
+            activation_outcome.bootstrap_execution_outcome;
+        cutover_gate.bootstrap_result_state =
+            activation_outcome.bootstrap_result_state;
+        cutover_gate.bootstrap_result_produced =
+            activation_outcome.bootstrap_result_produced;
+        cutover_gate.bootstrap_result_consumable =
+            activation_outcome.bootstrap_result_consumable;
+        cutover_gate.bootstrap_result_consumption_allowed =
+            activation_outcome.bootstrap_result_consumption_allowed;
+        cutover_gate.bootstrap_result_consumption_deferred =
+            activation_outcome.bootstrap_result_consumption_deferred;
+        cutover_gate.bootstrap_result_consumption_attempted =
+            activation_outcome.bootstrap_result_consumption_attempted;
+        cutover_gate.bootstrap_result_consumed =
+            activation_outcome.bootstrap_result_consumed;
+        cutover_gate.bootstrap_result_consumption_state =
+            activation_outcome.bootstrap_result_consumption_state;
+        cutover_gate.bootstrap_result_consumption_outcome =
+            activation_outcome.bootstrap_result_consumption_outcome;
+        cutover_gate.bootstrap_result_consumption_outcome_available =
+            activation_outcome
+                .bootstrap_result_consumption_outcome_available;
+        cutover_gate.bootstrap_result_consumption_outcome_reason =
+            activation_outcome.bootstrap_result_consumption_outcome_reason;
+        cutover_gate.target_runtime_materialization_candidate =
+            activation_outcome.target_runtime_materialization_candidate;
+        cutover_gate.target_runtime_materialization_allowed =
+            activation_outcome.target_runtime_materialization_allowed;
+        cutover_gate.target_runtime_materialization_deferred =
+            activation_outcome.target_runtime_materialization_deferred;
+        cutover_gate.target_runtime_materialization_attempted =
+            activation_outcome.target_runtime_materialization_attempted;
+        cutover_gate.target_runtime_materialization_completed =
+            activation_outcome.target_runtime_materialization_completed;
+        cutover_gate.target_runtime_materialization_succeeded =
+            activation_outcome.target_runtime_materialization_succeeded;
+        cutover_gate.target_runtime_materialization_blocked =
+            activation_outcome.target_runtime_materialization_blocked;
+        cutover_gate.target_runtime_materialization_block_reason =
+            activation_outcome.target_runtime_materialization_block_reason;
+        cutover_gate.target_runtime_materialization_started =
+            activation_outcome.target_runtime_materialization_started;
+        cutover_gate.target_runtime_materialized =
+            activation_outcome.target_runtime_materialized;
+        cutover_gate.target_runtime_materialization_state =
+            activation_outcome.target_runtime_materialization_state;
+        cutover_gate.target_runtime_materialization_state_reason =
+            activation_outcome.target_runtime_materialization_state_reason;
+        cutover_gate.target_runtime_materialization_outcome =
+            activation_outcome.target_runtime_materialization_outcome;
+        cutover_gate.target_runtime_materialization_outcome_available =
+            activation_outcome
+                .target_runtime_materialization_outcome_available;
+        cutover_gate.target_runtime_materialization_outcome_reason =
+            activation_outcome.target_runtime_materialization_outcome_reason;
+        cutover_gate.target_runtime_activation_candidate =
+            activation_outcome.target_runtime_activation_candidate;
+        cutover_gate.target_runtime_activation_allowed =
+            activation_outcome.target_runtime_activation_allowed;
+        cutover_gate.target_runtime_activation_deferred =
+            activation_outcome.target_runtime_activation_deferred;
+        cutover_gate.target_runtime_activation_attempted =
+            activation_outcome.target_runtime_activation_attempted;
+        cutover_gate.target_runtime_activation_completed =
+            activation_outcome.target_runtime_activation_completed;
+        cutover_gate.target_runtime_activation_succeeded =
+            activation_outcome.target_runtime_activation_succeeded;
+        cutover_gate.target_runtime_activation_blocked =
+            activation_outcome.target_runtime_activation_blocked;
+        cutover_gate.target_runtime_activation_block_reason =
+            activation_outcome.target_runtime_activation_block_reason;
+        cutover_gate.target_runtime_activation_started =
+            activation_outcome.target_runtime_activation_started;
+        cutover_gate.target_runtime_activated =
+            activation_outcome.target_runtime_activated;
+        cutover_gate.target_runtime_activation_state =
+            activation_outcome.target_runtime_activation_state;
+        cutover_gate.target_runtime_activation_state_reason =
+            activation_outcome.target_runtime_activation_state_reason;
+        cutover_gate.target_runtime_activation_outcome =
+            activation_outcome.target_runtime_activation_outcome;
+        cutover_gate.target_runtime_activation_outcome_available =
+            activation_outcome.target_runtime_activation_outcome_available;
+        cutover_gate.target_runtime_activation_outcome_reason =
+            activation_outcome.target_runtime_activation_outcome_reason;
+        cutover_gate.target_runtime_cutover_candidate =
+            activation_outcome.target_runtime_activation_candidate;
+        cutover_gate.target_runtime_cutover_allowed = false;
+        cutover_gate.target_runtime_cutover_deferred = true;
+        cutover_gate.target_runtime_cutover_attempted = false;
+        cutover_gate.target_runtime_cutover_completed = false;
+        cutover_gate.target_runtime_cutover_succeeded = false;
+        cutover_gate.target_runtime_cutover_blocked = true;
+        cutover_gate.target_runtime_cutover_block_reason =
+            "target-runtime-activation-outcome-not-produced";
+        cutover_gate.target_runtime_cutover_ready = false;
+        cutover_gate.target_runtime_cutover_gate_ready = true;
+        cutover_gate.action = "no-op target runtime cutover gate prepared";
+        return cutover_gate;
+    }
+
+    cutover_gate.prepared = false;
+    cutover_gate.target_runtime_cutover_gate_ready = false;
+    cutover_gate.short_circuit_reason = activation_outcome.short_circuit_reason;
+
+    if (activation_outcome.skipped)
+    {
+        cutover_gate.skipped = true;
+        cutover_gate.action = "target runtime cutover gate skipped";
+        return cutover_gate;
+    }
+
+    cutover_gate.skipped = false;
+    cutover_gate.decision_source =
+        activation_outcome.attempted
+        ? std::string("target-runtime-activation-outcome")
+        : std::string();
+    cutover_gate.bootstrap_execution_outcome =
+        activation_outcome.bootstrap_execution_outcome;
+    cutover_gate.bootstrap_result_state =
+        activation_outcome.bootstrap_result_state;
+    cutover_gate.bootstrap_result_produced =
+        activation_outcome.bootstrap_result_produced;
+    cutover_gate.bootstrap_result_consumable =
+        activation_outcome.bootstrap_result_consumable;
+    cutover_gate.bootstrap_result_consumption_allowed =
+        activation_outcome.bootstrap_result_consumption_allowed;
+    cutover_gate.bootstrap_result_consumption_deferred =
+        activation_outcome.bootstrap_result_consumption_deferred;
+    cutover_gate.bootstrap_result_consumption_attempted =
+        activation_outcome.bootstrap_result_consumption_attempted;
+    cutover_gate.bootstrap_result_consumed =
+        activation_outcome.bootstrap_result_consumed;
+    cutover_gate.bootstrap_result_consumption_state =
+        activation_outcome.bootstrap_result_consumption_state;
+    cutover_gate.bootstrap_result_consumption_outcome =
+        activation_outcome.bootstrap_result_consumption_outcome;
+    cutover_gate.bootstrap_result_consumption_outcome_available =
+        activation_outcome.bootstrap_result_consumption_outcome_available;
+    cutover_gate.bootstrap_result_consumption_outcome_reason =
+        activation_outcome.bootstrap_result_consumption_outcome_reason;
+    cutover_gate.target_runtime_materialization_candidate =
+        activation_outcome.target_runtime_materialization_candidate;
+    cutover_gate.target_runtime_materialization_allowed =
+        activation_outcome.target_runtime_materialization_allowed;
+    cutover_gate.target_runtime_materialization_deferred =
+        activation_outcome.target_runtime_materialization_deferred;
+    cutover_gate.target_runtime_materialization_attempted =
+        activation_outcome.target_runtime_materialization_attempted;
+    cutover_gate.target_runtime_materialization_completed =
+        activation_outcome.target_runtime_materialization_completed;
+    cutover_gate.target_runtime_materialization_succeeded =
+        activation_outcome.target_runtime_materialization_succeeded;
+    cutover_gate.target_runtime_materialization_blocked =
+        activation_outcome.target_runtime_materialization_blocked;
+    cutover_gate.target_runtime_materialization_block_reason =
+        activation_outcome.target_runtime_materialization_block_reason;
+    cutover_gate.target_runtime_materialization_started =
+        activation_outcome.target_runtime_materialization_started;
+    cutover_gate.target_runtime_materialized =
+        activation_outcome.target_runtime_materialized;
+    cutover_gate.target_runtime_materialization_state =
+        activation_outcome.target_runtime_materialization_state;
+    cutover_gate.target_runtime_materialization_state_reason =
+        activation_outcome.target_runtime_materialization_state_reason;
+    cutover_gate.target_runtime_materialization_outcome =
+        activation_outcome.target_runtime_materialization_outcome;
+    cutover_gate.target_runtime_materialization_outcome_available =
+        activation_outcome.target_runtime_materialization_outcome_available;
+    cutover_gate.target_runtime_materialization_outcome_reason =
+        activation_outcome.target_runtime_materialization_outcome_reason;
+    cutover_gate.target_runtime_activation_candidate =
+        activation_outcome.target_runtime_activation_candidate;
+    cutover_gate.target_runtime_activation_allowed =
+        activation_outcome.target_runtime_activation_allowed;
+    cutover_gate.target_runtime_activation_deferred =
+        activation_outcome.target_runtime_activation_deferred;
+    cutover_gate.target_runtime_activation_attempted =
+        activation_outcome.target_runtime_activation_attempted;
+    cutover_gate.target_runtime_activation_completed =
+        activation_outcome.target_runtime_activation_completed;
+    cutover_gate.target_runtime_activation_succeeded =
+        activation_outcome.target_runtime_activation_succeeded;
+    cutover_gate.target_runtime_activation_blocked =
+        activation_outcome.target_runtime_activation_blocked;
+    cutover_gate.target_runtime_activation_block_reason =
+        activation_outcome.target_runtime_activation_block_reason;
+    cutover_gate.target_runtime_activation_started =
+        activation_outcome.target_runtime_activation_started;
+    cutover_gate.target_runtime_activated =
+        activation_outcome.target_runtime_activated;
+    cutover_gate.target_runtime_activation_state =
+        activation_outcome.target_runtime_activation_state;
+    cutover_gate.target_runtime_activation_state_reason =
+        activation_outcome.target_runtime_activation_state_reason;
+    cutover_gate.target_runtime_activation_outcome =
+        activation_outcome.target_runtime_activation_outcome;
+    cutover_gate.target_runtime_activation_outcome_available =
+        activation_outcome.target_runtime_activation_outcome_available;
+    cutover_gate.target_runtime_activation_outcome_reason =
+        activation_outcome.target_runtime_activation_outcome_reason;
+    cutover_gate.target_runtime_cutover_candidate =
+        activation_outcome.target_runtime_activation_candidate;
+
+    if (!activation_outcome.target_runtime_activation_outcome_ready)
+    {
+        cutover_gate.action =
+            "target runtime cutover gate waiting on target runtime activation outcome";
+        return cutover_gate;
+    }
+
+    cutover_gate.target_runtime_cutover_allowed = false;
+    cutover_gate.target_runtime_cutover_deferred =
+        !activation_outcome.target_runtime_activation_outcome_available;
+    cutover_gate.target_runtime_cutover_attempted = false;
+    cutover_gate.target_runtime_cutover_completed = false;
+    cutover_gate.target_runtime_cutover_succeeded = false;
+    cutover_gate.target_runtime_cutover_blocked = true;
+    cutover_gate.target_runtime_cutover_block_reason =
+        activation_outcome.target_runtime_activation_outcome == "not-produced"
+        ? std::string("target-runtime-activation-outcome-not-produced")
+        : std::string("target-runtime-activation-outcome-not-ready");
+    cutover_gate.target_runtime_cutover_ready = false;
+    cutover_gate.action = "target runtime cutover gate not required";
+    return cutover_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -23622,6 +24108,24 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeActivationOutcome(
         BuildChangeLevelPlayerTransferTargetRuntimeActivationOutcome(
             summary
                 .changelevel_player_transfer_target_runtime_activation_state);
+    RefreshChangeLevelPlayerTransferTargetRuntimeCutoverGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeCutoverGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_activation_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_cutover_gate =
+        BuildChangeLevelPlayerTransferTargetRuntimeCutoverGate(
+            summary
+                .changelevel_player_transfer_target_runtime_activation_outcome);
 }
 
 void CapturePendingChangeLevelRequest(
