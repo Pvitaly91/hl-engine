@@ -552,6 +552,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeActivationGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -844,6 +846,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeMaterializationStateSummary&
                 materialization_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeActivationGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary&
+                materialization_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -8131,6 +8139,155 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSu
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeActivationGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary&
+            activation_gate =
+                summary
+                    .changelevel_player_transfer_target_runtime_activation_gate;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(activation_gate.prepared)
+        + ", skipped=" + BoolToYesNo(activation_gate.skipped);
+    if (!activation_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + activation_gate.decision_source;
+    }
+    if (activation_gate.prepared)
+    {
+        line += ", bootstrapExecutionOutcome="
+            + (activation_gate.bootstrap_execution_outcome.empty()
+                ? std::string("<none>")
+                : activation_gate.bootstrap_execution_outcome)
+            + ", bootstrapResultState="
+            + (activation_gate.bootstrap_result_state.empty()
+                ? std::string("<none>")
+                : activation_gate.bootstrap_result_state)
+            + ", bootstrapResultProduced="
+            + BoolToYesNo(activation_gate.bootstrap_result_produced)
+            + ", bootstrapResultConsumable="
+            + BoolToYesNo(activation_gate.bootstrap_result_consumable)
+            + ", bootstrapResultConsumptionAllowed="
+            + BoolToYesNo(
+                activation_gate.bootstrap_result_consumption_allowed)
+            + ", bootstrapResultConsumptionDeferred="
+            + BoolToYesNo(
+                activation_gate.bootstrap_result_consumption_deferred)
+            + ", bootstrapResultConsumptionAttempted="
+            + BoolToYesNo(
+                activation_gate.bootstrap_result_consumption_attempted)
+            + ", bootstrapResultConsumed="
+            + BoolToYesNo(activation_gate.bootstrap_result_consumed)
+            + ", bootstrapResultConsumptionState="
+            + (activation_gate.bootstrap_result_consumption_state.empty()
+                ? std::string("<none>")
+                : activation_gate.bootstrap_result_consumption_state)
+            + ", bootstrapResultConsumptionOutcome="
+            + (activation_gate.bootstrap_result_consumption_outcome.empty()
+                ? std::string("<none>")
+                : activation_gate.bootstrap_result_consumption_outcome)
+            + ", bootstrapResultConsumptionOutcomeAvailable="
+            + BoolToYesNo(
+                activation_gate
+                    .bootstrap_result_consumption_outcome_available)
+            + ", bootstrapResultConsumptionOutcomeReason="
+            + (activation_gate.bootstrap_result_consumption_outcome_reason.empty()
+                ? std::string("<none>")
+                : activation_gate.bootstrap_result_consumption_outcome_reason)
+            + ", targetRuntimeMaterializationCandidate="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_candidate)
+            + ", targetRuntimeMaterializationAllowed="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_allowed)
+            + ", targetRuntimeMaterializationDeferred="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_deferred)
+            + ", targetRuntimeMaterializationAttempted="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_attempted)
+            + ", targetRuntimeMaterializationCompleted="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_completed)
+            + ", targetRuntimeMaterializationSucceeded="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_succeeded)
+            + ", targetRuntimeMaterializationBlocked="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_blocked)
+            + ", targetRuntimeMaterializationBlockReason="
+            + (activation_gate
+                       .target_runtime_materialization_block_reason.empty()
+                ? std::string("<none>")
+                : activation_gate
+                      .target_runtime_materialization_block_reason)
+            + ", targetRuntimeMaterializationStarted="
+            + BoolToYesNo(
+                activation_gate.target_runtime_materialization_started)
+            + ", targetRuntimeMaterialized="
+            + BoolToYesNo(activation_gate.target_runtime_materialized)
+            + ", targetRuntimeMaterializationState="
+            + (activation_gate.target_runtime_materialization_state.empty()
+                ? std::string("<none>")
+                : activation_gate.target_runtime_materialization_state)
+            + ", targetRuntimeMaterializationStateReason="
+            + (activation_gate
+                       .target_runtime_materialization_state_reason.empty()
+                ? std::string("<none>")
+                : activation_gate
+                      .target_runtime_materialization_state_reason)
+            + ", targetRuntimeMaterializationOutcome="
+            + (activation_gate.target_runtime_materialization_outcome.empty()
+                ? std::string("<none>")
+                : activation_gate.target_runtime_materialization_outcome)
+            + ", targetRuntimeMaterializationOutcomeAvailable="
+            + BoolToYesNo(
+                activation_gate
+                    .target_runtime_materialization_outcome_available)
+            + ", targetRuntimeMaterializationOutcomeReason="
+            + (activation_gate
+                       .target_runtime_materialization_outcome_reason.empty()
+                ? std::string("<none>")
+                : activation_gate
+                      .target_runtime_materialization_outcome_reason)
+            + ", targetRuntimeActivationCandidate="
+            + BoolToYesNo(activation_gate.target_runtime_activation_candidate)
+            + ", targetRuntimeActivationAllowed="
+            + BoolToYesNo(activation_gate.target_runtime_activation_allowed)
+            + ", targetRuntimeActivationDeferred="
+            + BoolToYesNo(activation_gate.target_runtime_activation_deferred)
+            + ", targetRuntimeActivationAttempted="
+            + BoolToYesNo(activation_gate.target_runtime_activation_attempted)
+            + ", targetRuntimeActivationCompleted="
+            + BoolToYesNo(activation_gate.target_runtime_activation_completed)
+            + ", targetRuntimeActivationSucceeded="
+            + BoolToYesNo(activation_gate.target_runtime_activation_succeeded)
+            + ", targetRuntimeActivationBlocked="
+            + BoolToYesNo(activation_gate.target_runtime_activation_blocked)
+            + ", targetRuntimeActivationBlockReason="
+            + (activation_gate.target_runtime_activation_block_reason.empty()
+                ? std::string("<none>")
+                : activation_gate.target_runtime_activation_block_reason)
+            + ", targetRuntimeActivationReady="
+            + BoolToYesNo(activation_gate.target_runtime_activation_ready);
+    }
+    if (!activation_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + activation_gate.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeActivationGateReady="
+        + std::string(
+            BoolToYesNo(activation_gate.target_runtime_activation_gate_ready))
+        + ", action="
+        + (activation_gate.action.empty()
+               ? std::string("<none>")
+               : activation_gate.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -10705,6 +10862,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_materialization_outcome: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_activation_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_activation_gate: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeActivationGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -21419,6 +21586,235 @@ hl::game_api::ChangeLevelTransitionSummary::
     return materialization_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeActivationGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary&
+                materialization_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary
+            activation_gate;
+    activation_gate.attempted = true;
+
+    if (materialization_outcome.prepared
+        && materialization_outcome.target_runtime_materialization_outcome_ready
+        && materialization_outcome.bootstrap_execution_outcome == "not-produced"
+        && materialization_outcome.bootstrap_result_state == "blocked"
+        && !materialization_outcome.bootstrap_result_produced
+        && !materialization_outcome.bootstrap_result_consumable
+        && !materialization_outcome.bootstrap_result_consumption_allowed
+        && materialization_outcome.bootstrap_result_consumption_deferred
+        && !materialization_outcome.bootstrap_result_consumption_attempted
+        && !materialization_outcome.bootstrap_result_consumed
+        && materialization_outcome.bootstrap_result_consumption_state
+            == "not-consumed"
+        && materialization_outcome.bootstrap_result_consumption_outcome
+            == "not-produced"
+        && !materialization_outcome
+                .bootstrap_result_consumption_outcome_available
+        && materialization_outcome.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted"
+        && materialization_outcome.target_runtime_materialization_candidate
+        && !materialization_outcome.target_runtime_materialization_allowed
+        && materialization_outcome.target_runtime_materialization_deferred
+        && !materialization_outcome.target_runtime_materialization_attempted
+        && !materialization_outcome.target_runtime_materialization_completed
+        && !materialization_outcome.target_runtime_materialization_succeeded
+        && materialization_outcome.target_runtime_materialization_blocked
+        && materialization_outcome.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced"
+        && !materialization_outcome.target_runtime_materialization_started
+        && !materialization_outcome.target_runtime_materialized
+        && materialization_outcome.target_runtime_materialization_state
+            == "not-materialized"
+        && materialization_outcome.target_runtime_materialization_state_reason
+            == "materialization-not-started"
+        && materialization_outcome.target_runtime_materialization_outcome
+            == "not-produced"
+        && !materialization_outcome
+                .target_runtime_materialization_outcome_available
+        && materialization_outcome
+               .target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted")
+    {
+        activation_gate.prepared = true;
+        activation_gate.skipped = false;
+        activation_gate.decision_source =
+            "target-runtime-materialization-outcome";
+        activation_gate.bootstrap_execution_outcome =
+            materialization_outcome.bootstrap_execution_outcome;
+        activation_gate.bootstrap_result_state =
+            materialization_outcome.bootstrap_result_state;
+        activation_gate.bootstrap_result_produced =
+            materialization_outcome.bootstrap_result_produced;
+        activation_gate.bootstrap_result_consumable =
+            materialization_outcome.bootstrap_result_consumable;
+        activation_gate.bootstrap_result_consumption_allowed =
+            materialization_outcome.bootstrap_result_consumption_allowed;
+        activation_gate.bootstrap_result_consumption_deferred =
+            materialization_outcome.bootstrap_result_consumption_deferred;
+        activation_gate.bootstrap_result_consumption_attempted =
+            materialization_outcome.bootstrap_result_consumption_attempted;
+        activation_gate.bootstrap_result_consumed =
+            materialization_outcome.bootstrap_result_consumed;
+        activation_gate.bootstrap_result_consumption_state =
+            materialization_outcome.bootstrap_result_consumption_state;
+        activation_gate.bootstrap_result_consumption_outcome =
+            materialization_outcome.bootstrap_result_consumption_outcome;
+        activation_gate.bootstrap_result_consumption_outcome_available =
+            materialization_outcome
+                .bootstrap_result_consumption_outcome_available;
+        activation_gate.bootstrap_result_consumption_outcome_reason =
+            materialization_outcome.bootstrap_result_consumption_outcome_reason;
+        activation_gate.target_runtime_materialization_candidate =
+            materialization_outcome.target_runtime_materialization_candidate;
+        activation_gate.target_runtime_materialization_allowed =
+            materialization_outcome.target_runtime_materialization_allowed;
+        activation_gate.target_runtime_materialization_deferred =
+            materialization_outcome.target_runtime_materialization_deferred;
+        activation_gate.target_runtime_materialization_attempted =
+            materialization_outcome.target_runtime_materialization_attempted;
+        activation_gate.target_runtime_materialization_completed =
+            materialization_outcome.target_runtime_materialization_completed;
+        activation_gate.target_runtime_materialization_succeeded =
+            materialization_outcome.target_runtime_materialization_succeeded;
+        activation_gate.target_runtime_materialization_blocked =
+            materialization_outcome.target_runtime_materialization_blocked;
+        activation_gate.target_runtime_materialization_block_reason =
+            materialization_outcome.target_runtime_materialization_block_reason;
+        activation_gate.target_runtime_materialization_started =
+            materialization_outcome.target_runtime_materialization_started;
+        activation_gate.target_runtime_materialized =
+            materialization_outcome.target_runtime_materialized;
+        activation_gate.target_runtime_materialization_state =
+            materialization_outcome.target_runtime_materialization_state;
+        activation_gate.target_runtime_materialization_state_reason =
+            materialization_outcome.target_runtime_materialization_state_reason;
+        activation_gate.target_runtime_materialization_outcome =
+            materialization_outcome.target_runtime_materialization_outcome;
+        activation_gate.target_runtime_materialization_outcome_available =
+            materialization_outcome
+                .target_runtime_materialization_outcome_available;
+        activation_gate.target_runtime_materialization_outcome_reason =
+            materialization_outcome
+                .target_runtime_materialization_outcome_reason;
+        activation_gate.target_runtime_activation_candidate =
+            materialization_outcome.target_runtime_materialization_candidate;
+        activation_gate.target_runtime_activation_allowed = false;
+        activation_gate.target_runtime_activation_deferred = true;
+        activation_gate.target_runtime_activation_attempted = false;
+        activation_gate.target_runtime_activation_completed = false;
+        activation_gate.target_runtime_activation_succeeded = false;
+        activation_gate.target_runtime_activation_blocked = true;
+        activation_gate.target_runtime_activation_block_reason =
+            "target-runtime-materialization-outcome-not-produced";
+        activation_gate.target_runtime_activation_ready = false;
+        activation_gate.target_runtime_activation_gate_ready = true;
+        activation_gate.action =
+            "no-op target runtime activation gate prepared";
+        return activation_gate;
+    }
+
+    activation_gate.prepared = false;
+    activation_gate.target_runtime_activation_gate_ready = false;
+    activation_gate.short_circuit_reason =
+        materialization_outcome.short_circuit_reason;
+
+    if (materialization_outcome.skipped)
+    {
+        activation_gate.skipped = true;
+        activation_gate.action = "target runtime activation gate skipped";
+        return activation_gate;
+    }
+
+    activation_gate.skipped = false;
+    activation_gate.decision_source =
+        materialization_outcome.attempted
+        ? std::string("target-runtime-materialization-outcome")
+        : std::string();
+    activation_gate.bootstrap_execution_outcome =
+        materialization_outcome.bootstrap_execution_outcome;
+    activation_gate.bootstrap_result_state =
+        materialization_outcome.bootstrap_result_state;
+    activation_gate.bootstrap_result_produced =
+        materialization_outcome.bootstrap_result_produced;
+    activation_gate.bootstrap_result_consumable =
+        materialization_outcome.bootstrap_result_consumable;
+    activation_gate.bootstrap_result_consumption_allowed =
+        materialization_outcome.bootstrap_result_consumption_allowed;
+    activation_gate.bootstrap_result_consumption_deferred =
+        materialization_outcome.bootstrap_result_consumption_deferred;
+    activation_gate.bootstrap_result_consumption_attempted =
+        materialization_outcome.bootstrap_result_consumption_attempted;
+    activation_gate.bootstrap_result_consumed =
+        materialization_outcome.bootstrap_result_consumed;
+    activation_gate.bootstrap_result_consumption_state =
+        materialization_outcome.bootstrap_result_consumption_state;
+    activation_gate.bootstrap_result_consumption_outcome =
+        materialization_outcome.bootstrap_result_consumption_outcome;
+    activation_gate.bootstrap_result_consumption_outcome_available =
+        materialization_outcome.bootstrap_result_consumption_outcome_available;
+    activation_gate.bootstrap_result_consumption_outcome_reason =
+        materialization_outcome.bootstrap_result_consumption_outcome_reason;
+    activation_gate.target_runtime_materialization_candidate =
+        materialization_outcome.target_runtime_materialization_candidate;
+    activation_gate.target_runtime_materialization_allowed =
+        materialization_outcome.target_runtime_materialization_allowed;
+    activation_gate.target_runtime_materialization_deferred =
+        materialization_outcome.target_runtime_materialization_deferred;
+    activation_gate.target_runtime_materialization_attempted =
+        materialization_outcome.target_runtime_materialization_attempted;
+    activation_gate.target_runtime_materialization_completed =
+        materialization_outcome.target_runtime_materialization_completed;
+    activation_gate.target_runtime_materialization_succeeded =
+        materialization_outcome.target_runtime_materialization_succeeded;
+    activation_gate.target_runtime_materialization_blocked =
+        materialization_outcome.target_runtime_materialization_blocked;
+    activation_gate.target_runtime_materialization_block_reason =
+        materialization_outcome.target_runtime_materialization_block_reason;
+    activation_gate.target_runtime_materialization_started =
+        materialization_outcome.target_runtime_materialization_started;
+    activation_gate.target_runtime_materialized =
+        materialization_outcome.target_runtime_materialized;
+    activation_gate.target_runtime_materialization_state =
+        materialization_outcome.target_runtime_materialization_state;
+    activation_gate.target_runtime_materialization_state_reason =
+        materialization_outcome.target_runtime_materialization_state_reason;
+    activation_gate.target_runtime_materialization_outcome =
+        materialization_outcome.target_runtime_materialization_outcome;
+    activation_gate.target_runtime_materialization_outcome_available =
+        materialization_outcome.target_runtime_materialization_outcome_available;
+    activation_gate.target_runtime_materialization_outcome_reason =
+        materialization_outcome.target_runtime_materialization_outcome_reason;
+    activation_gate.target_runtime_activation_candidate =
+        materialization_outcome.target_runtime_materialization_candidate;
+
+    if (!materialization_outcome.target_runtime_materialization_outcome_ready)
+    {
+        activation_gate.action =
+            "target runtime activation gate waiting on target runtime materialization outcome";
+        return activation_gate;
+    }
+
+    activation_gate.target_runtime_activation_allowed = false;
+    activation_gate.target_runtime_activation_deferred =
+        !materialization_outcome.target_runtime_materialization_outcome_available;
+    activation_gate.target_runtime_activation_attempted = false;
+    activation_gate.target_runtime_activation_completed = false;
+    activation_gate.target_runtime_activation_succeeded = false;
+    activation_gate.target_runtime_activation_blocked = true;
+    activation_gate.target_runtime_activation_block_reason =
+        materialization_outcome.target_runtime_materialization_outcome
+            == "not-produced"
+        ? std::string("target-runtime-materialization-outcome-not-produced")
+        : std::string("target-runtime-materialization-outcome-not-ready");
+    activation_gate.target_runtime_activation_ready = false;
+    activation_gate.action = "target runtime activation gate not required";
+    return activation_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -22245,6 +22641,24 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationOutcome(
         BuildChangeLevelPlayerTransferTargetRuntimeMaterializationOutcome(
             summary
                 .changelevel_player_transfer_target_runtime_materialization_state);
+    RefreshChangeLevelPlayerTransferTargetRuntimeActivationGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeActivationGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_materialization_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_activation_gate =
+        BuildChangeLevelPlayerTransferTargetRuntimeActivationGate(
+            summary
+                .changelevel_player_transfer_target_runtime_materialization_outcome);
 }
 
 void CapturePendingChangeLevelRequest(
