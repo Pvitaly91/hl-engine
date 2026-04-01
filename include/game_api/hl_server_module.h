@@ -2691,6 +2691,47 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string active_runtime_map;
+        std::string target_runtime_map;
+        std::string target_bsp_path;
+        std::string landmark;
+        bool target_worldspawn_present = false;
+        bool target_entity_parse_ok = false;
+        bool materialization_candidate = false;
+        bool materialization_planned = false;
+        bool materialization_execution_suppressed = false;
+        bool bootstrap_execution_candidate = false;
+        bool bootstrap_execution_allowed = false;
+        bool bootstrap_execution_deferred = false;
+        bool bootstrap_execution_attempted = false;
+        bool bootstrap_execution_completed = false;
+        bool bootstrap_execution_succeeded = false;
+        std::string bootstrap_execution_outcome;
+        bool bootstrap_execution_outcome_available = false;
+        std::string bootstrap_result_state;
+        bool bootstrap_result_produced = false;
+        bool bootstrap_result_consumable = false;
+        bool bootstrap_result_consumption_allowed = false;
+        bool bootstrap_result_consumption_deferred = false;
+        std::string bootstrap_result_consumption_reason;
+        bool map_load_suppressed = false;
+        bool bsp_switch_suppressed = false;
+        bool runtime_observation_read_only = false;
+        bool runtime_write_suppressed = false;
+        bool target_runtime_bootstrap_result_consumption_gate_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -2833,6 +2874,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_bootstrap_execution_outcome;
     ChangeLevelPlayerTransferTargetRuntimeBootstrapResultStateSummary
         changelevel_player_transfer_target_runtime_bootstrap_result_state;
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary
+        changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
