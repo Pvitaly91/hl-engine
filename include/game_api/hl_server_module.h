@@ -2522,6 +2522,35 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string active_runtime_map;
+        std::string target_runtime_map;
+        std::string target_bsp_path;
+        std::string landmark;
+        bool target_worldspawn_present = false;
+        bool target_entity_parse_ok = false;
+        bool materialization_candidate = false;
+        bool materialization_planned = false;
+        bool materialization_execution_suppressed = false;
+        std::string materialization_mode;
+        bool target_runtime_available = false;
+        bool target_runtime_checkpoint_observed = false;
+        std::string next_required_integration;
+        bool runtime_observation_read_only = false;
+        bool runtime_write_suppressed = false;
+        bool target_runtime_materialization_plan_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -2654,6 +2683,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_runtime_checkpoint_observation;
     ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary
         changelevel_player_transfer_target_runtime_checkpoint_observation;
+    ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary
+        changelevel_player_transfer_target_runtime_materialization_plan;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

@@ -530,6 +530,8 @@ void RefreshChangeLevelPlayerTransferRuntimeCheckpointObservation(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -754,6 +756,14 @@ hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferRuntimeCheckpointObservationSummary&
                 checkpoint_observation,
         std::string_view active_runtime_map);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary&
+                target_runtime_observation,
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelBootstrapPlanSummary& plan);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -6727,6 +6737,98 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSum
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary&
+            materialization_plan =
+                summary
+                    .changelevel_player_transfer_target_runtime_materialization_plan;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(materialization_plan.prepared)
+        + ", skipped=" + BoolToYesNo(materialization_plan.skipped);
+    if (!materialization_plan.decision_source.empty())
+    {
+        line += ", decisionSource=" + materialization_plan.decision_source;
+    }
+    if (!materialization_plan.apply_target.empty())
+    {
+        line += ", applyTarget=" + materialization_plan.apply_target;
+    }
+    if (materialization_plan.prepared)
+    {
+        line += ", currentMap="
+            + (materialization_plan.current_map.empty()
+                ? std::string("<none>")
+                : materialization_plan.current_map)
+            + ", requestedMap="
+            + (materialization_plan.requested_map.empty()
+                ? std::string("<none>")
+                : materialization_plan.requested_map)
+            + ", activeRuntimeMap="
+            + (materialization_plan.active_runtime_map.empty()
+                ? std::string("<none>")
+                : materialization_plan.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (materialization_plan.target_runtime_map.empty()
+                ? std::string("<none>")
+                : materialization_plan.target_runtime_map)
+            + ", targetBspPath="
+            + (materialization_plan.target_bsp_path.empty()
+                ? std::string("<none>")
+                : materialization_plan.target_bsp_path)
+            + ", landmark="
+            + (materialization_plan.landmark.empty()
+                ? std::string("<none>")
+                : materialization_plan.landmark)
+            + ", targetWorldspawnPresent="
+            + BoolToYesNo(materialization_plan.target_worldspawn_present)
+            + ", targetEntityParse="
+            + (materialization_plan.target_entity_parse_ok ? "ok" : "fail")
+            + ", materializationCandidate="
+            + BoolToYesNo(materialization_plan.materialization_candidate)
+            + ", materializationPlanned="
+            + BoolToYesNo(materialization_plan.materialization_planned)
+            + ", materializationExecutionSuppressed="
+            + BoolToYesNo(
+                materialization_plan.materialization_execution_suppressed)
+            + ", materializationMode="
+            + (materialization_plan.materialization_mode.empty()
+                ? std::string("<none>")
+                : materialization_plan.materialization_mode)
+            + ", targetRuntimeAvailable="
+            + BoolToYesNo(materialization_plan.target_runtime_available)
+            + ", targetRuntimeCheckpointObserved="
+            + BoolToYesNo(
+                materialization_plan.target_runtime_checkpoint_observed)
+            + ", nextRequiredIntegration="
+            + (materialization_plan.next_required_integration.empty()
+                ? std::string("<none>")
+                : materialization_plan.next_required_integration)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(
+                materialization_plan.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(materialization_plan.runtime_write_suppressed);
+    }
+    if (!materialization_plan.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + materialization_plan.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeMaterializationPlanReady="
+        + std::string(
+            BoolToYesNo(
+                materialization_plan
+                    .target_runtime_materialization_plan_ready))
+        + ", action="
+        + (materialization_plan.action.empty() ? std::string("<none>")
+                                               : materialization_plan.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -9191,6 +9293,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_checkpoint_observation: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_materialization_plan
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_materialization_plan: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -18076,6 +18188,120 @@ hl::game_api::ChangeLevelTransitionSummary::
     return target_runtime_observation;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary&
+                target_runtime_observation,
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelBootstrapPlanSummary& plan)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeMaterializationPlanSummary
+            materialization_plan;
+    materialization_plan.attempted = true;
+
+    if (target_runtime_observation.prepared
+        && target_runtime_observation
+               .target_runtime_checkpoint_observation_ready
+        && plan.prepared && !target_runtime_observation.target_runtime_available
+        && !target_runtime_observation.target_runtime_checkpoint_observed)
+    {
+        materialization_plan.prepared = true;
+        materialization_plan.skipped = false;
+        materialization_plan.decision_source =
+            "target-runtime-checkpoint-observation";
+        materialization_plan.apply_target =
+            target_runtime_observation.apply_target;
+        materialization_plan.current_map =
+            target_runtime_observation.current_map;
+        materialization_plan.requested_map =
+            target_runtime_observation.requested_map;
+        materialization_plan.active_runtime_map =
+            target_runtime_observation.active_runtime_map;
+        materialization_plan.target_runtime_map =
+            target_runtime_observation.target_runtime_map;
+        materialization_plan.target_bsp_path = plan.target_bsp_path;
+        materialization_plan.landmark = plan.landmark;
+        materialization_plan.target_worldspawn_present =
+            plan.target_worldspawn_present;
+        materialization_plan.target_entity_parse_ok =
+            plan.target_entity_parse_ok;
+        materialization_plan.materialization_candidate = true;
+        materialization_plan.materialization_planned = true;
+        materialization_plan.materialization_execution_suppressed = true;
+        materialization_plan.materialization_mode = "no-op";
+        materialization_plan.target_runtime_available =
+            target_runtime_observation.target_runtime_available;
+        materialization_plan.target_runtime_checkpoint_observed =
+            target_runtime_observation.target_runtime_checkpoint_observed;
+        materialization_plan.next_required_integration =
+            "target-runtime-bootstrap-execution";
+        materialization_plan.runtime_observation_read_only =
+            target_runtime_observation.runtime_observation_read_only;
+        materialization_plan.runtime_write_suppressed =
+            target_runtime_observation.runtime_write_suppressed;
+        materialization_plan.target_runtime_materialization_plan_ready = true;
+        materialization_plan.action =
+            "no-op target runtime materialization plan prepared";
+        return materialization_plan;
+    }
+
+    materialization_plan.prepared = false;
+    materialization_plan.target_runtime_materialization_plan_ready = false;
+    materialization_plan.short_circuit_reason =
+        !target_runtime_observation.short_circuit_reason.empty()
+        ? target_runtime_observation.short_circuit_reason
+        : plan.short_circuit_reason;
+
+    if (target_runtime_observation.skipped || plan.skipped)
+    {
+        materialization_plan.skipped = true;
+        materialization_plan.action =
+            "target runtime materialization plan skipped";
+        return materialization_plan;
+    }
+
+    materialization_plan.skipped = false;
+    materialization_plan.decision_source =
+        target_runtime_observation.attempted
+        ? std::string("target-runtime-checkpoint-observation")
+        : std::string();
+    materialization_plan.apply_target = target_runtime_observation.apply_target;
+    materialization_plan.current_map = target_runtime_observation.current_map;
+    materialization_plan.requested_map =
+        target_runtime_observation.requested_map;
+    materialization_plan.active_runtime_map =
+        target_runtime_observation.active_runtime_map;
+    materialization_plan.target_runtime_map =
+        target_runtime_observation.target_runtime_map;
+    materialization_plan.target_bsp_path = plan.target_bsp_path;
+    materialization_plan.landmark = plan.landmark;
+    materialization_plan.target_worldspawn_present =
+        plan.target_worldspawn_present;
+    materialization_plan.target_entity_parse_ok = plan.target_entity_parse_ok;
+    materialization_plan.target_runtime_available =
+        target_runtime_observation.target_runtime_available;
+    materialization_plan.target_runtime_checkpoint_observed =
+        target_runtime_observation.target_runtime_checkpoint_observed;
+    materialization_plan.runtime_observation_read_only =
+        target_runtime_observation.runtime_observation_read_only;
+    materialization_plan.runtime_write_suppressed =
+        target_runtime_observation.runtime_write_suppressed;
+
+    if (!target_runtime_observation.target_runtime_checkpoint_observation_ready)
+    {
+        materialization_plan.action =
+            "target runtime materialization plan waiting on target runtime checkpoint observation";
+        return materialization_plan;
+    }
+
+    materialization_plan.action =
+        "target runtime materialization plan not required";
+    return materialization_plan;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -18702,6 +18928,25 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
         BuildChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
             summary.changelevel_player_transfer_runtime_checkpoint_observation,
             state.server_activation_state.map_name);
+    RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_target_runtime_checkpoint_observation
+             .attempted
+        || !summary.changelevel_bootstrap_plan.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_materialization_plan =
+        BuildChangeLevelPlayerTransferTargetRuntimeMaterializationPlan(
+            summary
+                .changelevel_player_transfer_target_runtime_checkpoint_observation,
+            summary.changelevel_bootstrap_plan);
 }
 
 void CapturePendingChangeLevelRequest(
