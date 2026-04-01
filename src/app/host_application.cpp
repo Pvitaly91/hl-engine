@@ -12795,6 +12795,157 @@ void ValidateChangelevelPlayerTransferTargetRuntimeMaterializationState(
         "targetRuntimeMaterializationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeMaterializationOutcome(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_materialization_outcome_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& materialization_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_materialization_outcome;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_materialization_outcome";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(materialization_outcome.attempted, "attempted=yes");
+    check(
+        materialization_outcome.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        materialization_outcome.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        materialization_outcome.target_runtime_materialization_outcome_ready
+            == expected_target_runtime_materialization_outcome_ready,
+        std::string("targetRuntimeMaterializationOutcomeReady=")
+            + (expected_target_runtime_materialization_outcome_ready ? "yes"
+                                                                     : "no"));
+    check(
+        materialization_outcome.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        materialization_outcome.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_materialization_outcome_ready)
+    {
+        return;
+    }
+
+    check(
+        materialization_outcome.decision_source
+            == "target-runtime-materialization-state",
+        "decisionSource=target-runtime-materialization-state");
+    check(
+        materialization_outcome.bootstrap_execution_outcome == "not-produced",
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        materialization_outcome.bootstrap_result_state == "blocked",
+        "bootstrapResultState=blocked");
+    check(
+        !materialization_outcome.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        !materialization_outcome.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        !materialization_outcome.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        materialization_outcome.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        !materialization_outcome.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(
+        !materialization_outcome.bootstrap_result_consumed,
+        "bootstrapResultConsumed=no");
+    check(
+        materialization_outcome.bootstrap_result_consumption_state
+            == "not-consumed",
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        materialization_outcome.bootstrap_result_consumption_outcome
+            == "not-produced",
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        !materialization_outcome
+             .bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        materialization_outcome.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted",
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        materialization_outcome.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        !materialization_outcome.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        materialization_outcome.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        !materialization_outcome.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        !materialization_outcome.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        !materialization_outcome.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        materialization_outcome.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        materialization_outcome.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced",
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        !materialization_outcome.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        !materialization_outcome.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        materialization_outcome.target_runtime_materialization_state
+            == "not-materialized",
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        materialization_outcome.target_runtime_materialization_state_reason
+            == "materialization-not-started",
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        materialization_outcome.target_runtime_materialization_outcome
+            == "not-produced",
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        !materialization_outcome
+             .target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        materialization_outcome.target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted",
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        !materialization_outcome.target_runtime_materialization_ready,
+        "targetRuntimeMaterializationReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -13349,6 +13500,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime materialization state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeMaterializationOutcome(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime materialization outcome prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -13860,6 +14019,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime materialization state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeMaterializationOutcome(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime materialization outcome skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
