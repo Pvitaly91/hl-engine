@@ -2442,6 +2442,31 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string apply_target;
+        std::string current_map;
+        std::string requested_map;
+        std::string future_apply_phase;
+        std::string target_runtime_checkpoint;
+        bool runtime_integration_candidate = false;
+        bool runtime_integration_blocked = false;
+        bool runtime_integration_deferred = false;
+        std::string blocking_stage;
+        std::string blocking_reason;
+        std::string next_required_integration;
+        bool chain_terminal = false;
+        bool runtime_observation_suppressed = false;
+        bool runtime_write_suppressed = false;
+        bool integration_blocker_snapshot_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -2568,6 +2593,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_state;
     ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcomeSummary
         changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_outcome;
+    ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary
+        changelevel_player_transfer_runtime_integration_blocker_snapshot;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

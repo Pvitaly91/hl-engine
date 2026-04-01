@@ -524,6 +524,8 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBi
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -729,6 +731,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationStateSummary&
                 activation_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary
+    BuildChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcomeSummary&
+                activation_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -6449,6 +6457,82 @@ FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingO
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary&
+            blocker_snapshot = summary
+                                   .changelevel_player_transfer_runtime_integration_blocker_snapshot;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(blocker_snapshot.prepared)
+        + ", skipped=" + BoolToYesNo(blocker_snapshot.skipped);
+    if (!blocker_snapshot.decision_source.empty())
+    {
+        line += ", decisionSource=" + blocker_snapshot.decision_source;
+    }
+    if (!blocker_snapshot.apply_target.empty())
+    {
+        line += ", applyTarget=" + blocker_snapshot.apply_target;
+    }
+    if (blocker_snapshot.prepared)
+    {
+        line += ", currentMap="
+            + (blocker_snapshot.current_map.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.current_map)
+            + ", requestedMap="
+            + (blocker_snapshot.requested_map.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.requested_map)
+            + ", futureApplyPhase="
+            + (blocker_snapshot.future_apply_phase.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.future_apply_phase)
+            + ", targetRuntimeCheckpoint="
+            + (blocker_snapshot.target_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.target_runtime_checkpoint)
+            + ", runtimeIntegrationCandidate="
+            + BoolToYesNo(blocker_snapshot.runtime_integration_candidate)
+            + ", runtimeIntegrationBlocked="
+            + BoolToYesNo(blocker_snapshot.runtime_integration_blocked)
+            + ", runtimeIntegrationDeferred="
+            + BoolToYesNo(blocker_snapshot.runtime_integration_deferred)
+            + ", blockingStage="
+            + (blocker_snapshot.blocking_stage.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.blocking_stage)
+            + ", blockingReason="
+            + (blocker_snapshot.blocking_reason.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.blocking_reason)
+            + ", nextRequiredIntegration="
+            + (blocker_snapshot.next_required_integration.empty()
+                ? std::string("<none>")
+                : blocker_snapshot.next_required_integration)
+            + ", chainTerminal="
+            + BoolToYesNo(blocker_snapshot.chain_terminal)
+            + ", runtimeObservationSuppressed="
+            + BoolToYesNo(blocker_snapshot.runtime_observation_suppressed)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(blocker_snapshot.runtime_write_suppressed);
+    }
+    if (!blocker_snapshot.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + blocker_snapshot.short_circuit_reason;
+    }
+
+    line += ", integrationBlockerSnapshotReady="
+        + std::string(
+            BoolToYesNo(blocker_snapshot.integration_blocker_snapshot_ready))
+        + ", action="
+        + (blocker_snapshot.action.empty() ? std::string("<none>")
+                                           : blocker_snapshot.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -8883,6 +8967,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_outcome: "
                     + FormatChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_runtime_integration_blocker_snapshot
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_runtime_integration_blocker_snapshot: "
+                    + FormatChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -17394,6 +17488,111 @@ BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOu
     return activation_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary
+BuildChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcomeSummary&
+            activation_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary
+            blocker_snapshot;
+    blocker_snapshot.attempted = true;
+
+    if (activation_outcome.prepared
+        && activation_outcome
+               .install_result_binding_outcome_activation_outcome_ready)
+    {
+        blocker_snapshot.prepared = true;
+        blocker_snapshot.skipped = false;
+        blocker_snapshot.decision_source =
+            "player-transfer-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-outcome";
+        blocker_snapshot.apply_target = activation_outcome.apply_target;
+        blocker_snapshot.current_map = activation_outcome.current_map;
+        blocker_snapshot.requested_map = activation_outcome.requested_map;
+        blocker_snapshot.future_apply_phase =
+            activation_outcome.future_apply_phase;
+        blocker_snapshot.target_runtime_checkpoint =
+            activation_outcome.target_runtime_checkpoint;
+        blocker_snapshot.runtime_integration_candidate =
+            activation_outcome.result_binding_outcome_activation_attempted
+            && activation_outcome
+                   .result_binding_outcome_activation_succeeded;
+        blocker_snapshot.runtime_integration_blocked =
+            !blocker_snapshot.runtime_integration_candidate;
+        blocker_snapshot.runtime_integration_deferred =
+            activation_outcome.result_binding_outcome_activation_deferred
+            || activation_outcome.deferred;
+        blocker_snapshot.blocking_stage =
+            "result-consumer-binding-outcome-activation-outcome";
+        blocker_snapshot.blocking_reason =
+            activation_outcome
+                    .result_binding_outcome_activation_outcome_reason.empty()
+                ? std::string("binding-outcome-activation-outcome-reason-unavailable")
+                : activation_outcome
+                      .result_binding_outcome_activation_outcome_reason;
+        blocker_snapshot.next_required_integration =
+            "produce-binding-outcome-activation";
+        blocker_snapshot.chain_terminal = true;
+        blocker_snapshot.runtime_observation_suppressed =
+            activation_outcome.runtime_observation_suppressed;
+        blocker_snapshot.runtime_write_suppressed =
+            activation_outcome.runtime_write_suppressed;
+        blocker_snapshot.integration_blocker_snapshot_ready = true;
+        blocker_snapshot.action =
+            "no-op runtime integration blocker snapshot prepared";
+        return blocker_snapshot;
+    }
+
+    blocker_snapshot.prepared = false;
+    blocker_snapshot.integration_blocker_snapshot_ready = false;
+    blocker_snapshot.short_circuit_reason =
+        activation_outcome.short_circuit_reason;
+
+    if (activation_outcome.skipped)
+    {
+        blocker_snapshot.skipped = true;
+        blocker_snapshot.action = "runtime integration blocker snapshot skipped";
+        return blocker_snapshot;
+    }
+
+    blocker_snapshot.skipped = false;
+    blocker_snapshot.decision_source =
+        "player-transfer-checkpoint-signal-hook-install-result-consumer-binding-outcome-activation-outcome";
+    blocker_snapshot.apply_target = activation_outcome.apply_target;
+    blocker_snapshot.current_map = activation_outcome.current_map;
+    blocker_snapshot.requested_map = activation_outcome.requested_map;
+    blocker_snapshot.future_apply_phase = activation_outcome.future_apply_phase;
+    blocker_snapshot.target_runtime_checkpoint =
+        activation_outcome.target_runtime_checkpoint;
+    blocker_snapshot.runtime_integration_candidate = false;
+    blocker_snapshot.runtime_integration_blocked = true;
+    blocker_snapshot.runtime_integration_deferred =
+        activation_outcome.result_binding_outcome_activation_deferred
+        || activation_outcome.deferred;
+    blocker_snapshot.blocking_stage =
+        "result-consumer-binding-outcome-activation-outcome";
+    blocker_snapshot.blocking_reason =
+        activation_outcome
+                .result_binding_outcome_activation_outcome_reason.empty()
+            ? (activation_outcome.short_circuit_reason.empty()
+                   ? std::string(
+                         "binding-outcome-activation-outcome-unavailable")
+                   : activation_outcome.short_circuit_reason)
+            : activation_outcome
+                  .result_binding_outcome_activation_outcome_reason;
+    blocker_snapshot.next_required_integration =
+        "produce-binding-outcome-activation";
+    blocker_snapshot.chain_terminal = true;
+    blocker_snapshot.runtime_observation_suppressed =
+        activation_outcome.runtime_observation_suppressed;
+    blocker_snapshot.runtime_write_suppressed =
+        activation_outcome.runtime_write_suppressed;
+    blocker_snapshot.action = "runtime integration blocker snapshot unavailable";
+    return blocker_snapshot;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -17970,6 +18169,22 @@ void RefreshChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBi
     summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_outcome =
         BuildChangeLevelPlayerTransferCheckpointSignalHookInstallResultConsumerBindingOutcomeActivationOutcome(
             summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_state);
+    RefreshChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(state);
+}
+
+void RefreshChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_runtime_integration_blocker_snapshot =
+        BuildChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
+            summary.changelevel_player_transfer_checkpoint_signal_hook_install_result_consumer_binding_outcome_activation_outcome);
 }
 
 void CapturePendingChangeLevelRequest(
