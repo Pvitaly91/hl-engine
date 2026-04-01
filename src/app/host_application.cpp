@@ -12069,6 +12069,149 @@ void ValidateChangelevelPlayerTransferTargetRuntimeBootstrapResultState(
         "runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_bootstrap_result_consumption_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& consumption_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(consumption_gate.attempted, "attempted=yes");
+    check(
+        consumption_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        consumption_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        consumption_gate.target_runtime_bootstrap_result_consumption_gate_ready
+            == expected_target_runtime_bootstrap_result_consumption_gate_ready,
+        std::string("targetRuntimeBootstrapResultConsumptionGateReady=")
+            + (expected_target_runtime_bootstrap_result_consumption_gate_ready
+                   ? "yes"
+                   : "no"));
+    check(
+        consumption_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        consumption_gate.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_bootstrap_result_consumption_gate_ready)
+    {
+        return;
+    }
+
+    check(
+        consumption_gate.decision_source
+            == "target-runtime-bootstrap-result-state",
+        "decisionSource=target-runtime-bootstrap-result-state");
+    check(consumption_gate.apply_target == "player", "applyTarget=player");
+    check(consumption_gate.current_map == "c0a0", "currentMap=c0a0");
+    check(
+        consumption_gate.requested_map == "c0a0a",
+        "requestedMap=c0a0a");
+    check(
+        consumption_gate.active_runtime_map == "c0a0",
+        "activeRuntimeMap=c0a0");
+    check(
+        consumption_gate.target_runtime_map == "c0a0a",
+        "targetRuntimeMap=c0a0a");
+    check(
+        ContainsText(consumption_gate.target_bsp_path, "c0a0a.bsp"),
+        "targetBspPath to reference c0a0a.bsp");
+    check(consumption_gate.landmark == "c0a0toa", "landmark=c0a0toa");
+    check(
+        consumption_gate.target_worldspawn_present,
+        "targetWorldspawnPresent=yes");
+    check(
+        consumption_gate.target_entity_parse_ok,
+        "targetEntityParse=ok");
+    check(
+        consumption_gate.materialization_candidate,
+        "materializationCandidate=yes");
+    check(
+        consumption_gate.materialization_planned,
+        "materializationPlanned=yes");
+    check(
+        consumption_gate.materialization_execution_suppressed,
+        "materializationExecutionSuppressed=yes");
+    check(
+        consumption_gate.bootstrap_execution_candidate,
+        "bootstrapExecutionCandidate=yes");
+    check(
+        !consumption_gate.bootstrap_execution_allowed,
+        "bootstrapExecutionAllowed=no");
+    check(
+        consumption_gate.bootstrap_execution_deferred,
+        "bootstrapExecutionDeferred=yes");
+    check(
+        !consumption_gate.bootstrap_execution_attempted,
+        "bootstrapExecutionAttempted=no");
+    check(
+        !consumption_gate.bootstrap_execution_completed,
+        "bootstrapExecutionCompleted=no");
+    check(
+        !consumption_gate.bootstrap_execution_succeeded,
+        "bootstrapExecutionSucceeded=no");
+    check(
+        consumption_gate.bootstrap_execution_outcome == "not-produced",
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        !consumption_gate.bootstrap_execution_outcome_available,
+        "bootstrapExecutionOutcomeAvailable=no");
+    check(
+        consumption_gate.bootstrap_result_state == "blocked",
+        "bootstrapResultState=blocked");
+    check(
+        !consumption_gate.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        !consumption_gate.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        !consumption_gate.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        consumption_gate.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        consumption_gate.bootstrap_result_consumption_reason
+            == "result-not-produced",
+        "bootstrapResultConsumptionReason=result-not-produced");
+    check(
+        consumption_gate.map_load_suppressed,
+        "mapLoadSuppressed=yes");
+    check(
+        consumption_gate.bsp_switch_suppressed,
+        "bspSwitchSuppressed=yes");
+    check(
+        consumption_gate.runtime_observation_read_only,
+        "runtimeObservationReadOnly=yes");
+    check(
+        consumption_gate.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -12583,6 +12726,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime bootstrap result state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime bootstrap result consumption gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -13054,6 +13205,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime bootstrap result state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime bootstrap result consumption gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
