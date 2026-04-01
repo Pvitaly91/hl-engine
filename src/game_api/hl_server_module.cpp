@@ -528,6 +528,8 @@ void RefreshChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshot(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferRuntimeCheckpointObservation(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -745,6 +747,13 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferRuntimeIntegrationBlockerSnapshotSummary& blocker_snapshot,
         bool current_runtime_serveractivate_complete);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferRuntimeCheckpointObservationSummary&
+                checkpoint_observation,
+        std::string_view active_runtime_map);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -6620,6 +6629,104 @@ std::string FormatChangeLevelPlayerTransferRuntimeCheckpointObservationSummary(
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary&
+            target_runtime_observation =
+                summary.changelevel_player_transfer_target_runtime_checkpoint_observation;
+    std::string line =
+        std::string("prepared=") + BoolToYesNo(target_runtime_observation.prepared)
+        + ", skipped=" + BoolToYesNo(target_runtime_observation.skipped);
+    if (!target_runtime_observation.decision_source.empty())
+    {
+        line += ", decisionSource="
+            + target_runtime_observation.decision_source;
+    }
+    if (!target_runtime_observation.apply_target.empty())
+    {
+        line += ", applyTarget=" + target_runtime_observation.apply_target;
+    }
+    if (target_runtime_observation.prepared)
+    {
+        line += ", currentMap="
+            + (target_runtime_observation.current_map.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.current_map)
+            + ", requestedMap="
+            + (target_runtime_observation.requested_map.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.requested_map)
+            + ", requiredRuntimeCheckpoint="
+            + (target_runtime_observation.required_runtime_checkpoint.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.required_runtime_checkpoint)
+            + ", runtimeSignalSource="
+            + (target_runtime_observation.runtime_signal_source.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.runtime_signal_source)
+            + ", activeRuntimeMap="
+            + (target_runtime_observation.active_runtime_map.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (target_runtime_observation.target_runtime_map.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.target_runtime_map)
+            + ", runtimeSignalBacked="
+            + BoolToYesNo(target_runtime_observation.runtime_signal_backed)
+            + ", observationScope="
+            + (target_runtime_observation.observation_scope.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.observation_scope)
+            + ", currentRuntimeCheckpointObserved="
+            + BoolToYesNo(
+                target_runtime_observation.current_runtime_checkpoint_observed)
+            + ", targetRuntimeAvailable="
+            + BoolToYesNo(target_runtime_observation.target_runtime_available)
+            + ", targetRuntimeCheckpointObserved="
+            + BoolToYesNo(
+                target_runtime_observation.target_runtime_checkpoint_observed)
+            + ", targetRuntimeCheckpointObservable="
+            + BoolToYesNo(
+                target_runtime_observation.target_runtime_checkpoint_observable)
+            + ", targetRuntimeObservationBlocked="
+            + BoolToYesNo(
+                target_runtime_observation.target_runtime_observation_blocked)
+            + ", targetRuntimeObservationReason="
+            + (target_runtime_observation.target_runtime_observation_reason.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.target_runtime_observation_reason)
+            + ", nextRequiredIntegration="
+            + (target_runtime_observation.next_required_integration.empty()
+                ? std::string("<none>")
+                : target_runtime_observation.next_required_integration)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(
+                target_runtime_observation.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(
+                target_runtime_observation.runtime_write_suppressed);
+    }
+    if (!target_runtime_observation.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + target_runtime_observation.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeCheckpointObservationReady="
+        + std::string(
+            BoolToYesNo(
+                target_runtime_observation
+                    .target_runtime_checkpoint_observation_ready))
+        + ", action="
+        + (target_runtime_observation.action.empty()
+               ? std::string("<none>")
+               : target_runtime_observation.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -9074,6 +9181,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_runtime_checkpoint_observation: "
                     + FormatChangeLevelPlayerTransferRuntimeCheckpointObservationSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_checkpoint_observation
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_checkpoint_observation: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -17790,6 +17907,175 @@ BuildChangeLevelPlayerTransferRuntimeCheckpointObservation(
     return checkpoint_observation;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferRuntimeCheckpointObservationSummary&
+                checkpoint_observation,
+        std::string_view active_runtime_map)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCheckpointObservationSummary
+            target_runtime_observation;
+    target_runtime_observation.attempted = true;
+
+    const std::string active_runtime_map_text(active_runtime_map);
+    const bool active_runtime_map_available = !active_runtime_map_text.empty();
+    const bool active_runtime_matches_current =
+        active_runtime_map_available
+        && active_runtime_map_text == checkpoint_observation.current_map;
+    const bool target_runtime_available =
+        active_runtime_map_available
+        && active_runtime_map_text == checkpoint_observation.requested_map;
+
+    if (checkpoint_observation.prepared
+        && checkpoint_observation.runtime_checkpoint_observation_ready
+        && active_runtime_matches_current)
+    {
+        target_runtime_observation.prepared = true;
+        target_runtime_observation.skipped = false;
+        target_runtime_observation.decision_source =
+            "runtime-checkpoint-observation";
+        target_runtime_observation.apply_target =
+            checkpoint_observation.apply_target;
+        target_runtime_observation.current_map =
+            checkpoint_observation.current_map;
+        target_runtime_observation.requested_map =
+            checkpoint_observation.requested_map;
+        target_runtime_observation.required_runtime_checkpoint =
+            checkpoint_observation.required_runtime_checkpoint;
+        target_runtime_observation.runtime_signal_source =
+            checkpoint_observation.runtime_signal_source;
+        target_runtime_observation.active_runtime_map = active_runtime_map_text;
+        target_runtime_observation.target_runtime_map =
+            checkpoint_observation.requested_map;
+        target_runtime_observation.runtime_signal_backed =
+            checkpoint_observation.runtime_signal_backed;
+        target_runtime_observation.observation_scope = "target-runtime";
+        target_runtime_observation.current_runtime_checkpoint_observed =
+            checkpoint_observation.runtime_checkpoint_observed;
+        target_runtime_observation.target_runtime_available =
+            target_runtime_available;
+        target_runtime_observation.target_runtime_checkpoint_observed =
+            target_runtime_available
+            && checkpoint_observation.runtime_checkpoint_observed;
+        target_runtime_observation.target_runtime_checkpoint_observable =
+            target_runtime_available
+            && checkpoint_observation.runtime_checkpoint_observed;
+        target_runtime_observation.target_runtime_observation_blocked =
+            !target_runtime_observation.target_runtime_checkpoint_observable;
+        target_runtime_observation.target_runtime_observation_reason =
+            target_runtime_available ? std::string()
+                                     : std::string("target-map-not-active");
+        target_runtime_observation.next_required_integration =
+            target_runtime_available
+            ? std::string("observe-target-runtime-checkpoint")
+            : std::string("materialize-target-map-runtime");
+        target_runtime_observation.runtime_observation_read_only =
+            checkpoint_observation.runtime_observation_read_only;
+        target_runtime_observation.runtime_write_suppressed =
+            checkpoint_observation.runtime_write_suppressed;
+        target_runtime_observation.target_runtime_checkpoint_observation_ready =
+            true;
+        target_runtime_observation.action =
+            target_runtime_available
+            ? "target runtime checkpoint observable"
+            : "target runtime checkpoint not yet observable";
+        return target_runtime_observation;
+    }
+
+    target_runtime_observation.prepared = false;
+    target_runtime_observation.target_runtime_checkpoint_observation_ready = false;
+    target_runtime_observation.short_circuit_reason =
+        checkpoint_observation.short_circuit_reason;
+
+    if (checkpoint_observation.skipped)
+    {
+        target_runtime_observation.skipped = true;
+        target_runtime_observation.action =
+            "target runtime checkpoint observation skipped";
+        return target_runtime_observation;
+    }
+
+    target_runtime_observation.skipped = false;
+    target_runtime_observation.decision_source =
+        checkpoint_observation.attempted ? "runtime-checkpoint-observation"
+                                         : std::string();
+    target_runtime_observation.apply_target = checkpoint_observation.apply_target;
+    target_runtime_observation.current_map = checkpoint_observation.current_map;
+    target_runtime_observation.requested_map =
+        checkpoint_observation.requested_map;
+    target_runtime_observation.required_runtime_checkpoint =
+        checkpoint_observation.required_runtime_checkpoint;
+    target_runtime_observation.runtime_signal_source =
+        checkpoint_observation.runtime_signal_source;
+    target_runtime_observation.active_runtime_map = active_runtime_map_text;
+    target_runtime_observation.target_runtime_map =
+        checkpoint_observation.requested_map;
+    target_runtime_observation.runtime_signal_backed =
+        checkpoint_observation.runtime_signal_backed;
+    target_runtime_observation.observation_scope = "target-runtime";
+    target_runtime_observation.current_runtime_checkpoint_observed =
+        checkpoint_observation.runtime_checkpoint_observed;
+    target_runtime_observation.target_runtime_available =
+        target_runtime_available;
+    target_runtime_observation.target_runtime_checkpoint_observed =
+        target_runtime_available
+        && checkpoint_observation.runtime_checkpoint_observed;
+    target_runtime_observation.target_runtime_checkpoint_observable =
+        target_runtime_available
+        && checkpoint_observation.runtime_checkpoint_observed;
+    target_runtime_observation.target_runtime_observation_blocked =
+        !target_runtime_observation.target_runtime_checkpoint_observable;
+    target_runtime_observation.runtime_observation_read_only =
+        checkpoint_observation.runtime_observation_read_only;
+    target_runtime_observation.runtime_write_suppressed =
+        checkpoint_observation.runtime_write_suppressed;
+
+    if (!checkpoint_observation.runtime_checkpoint_observation_ready)
+    {
+        target_runtime_observation.target_runtime_observation_reason =
+            checkpoint_observation.runtime_checkpoint_observed
+            ? std::string("current-runtime-checkpoint-observation-unavailable")
+            : std::string("current-runtime-checkpoint-not-observed");
+        target_runtime_observation.next_required_integration =
+            checkpoint_observation.next_required_integration;
+        target_runtime_observation.action =
+            "target runtime checkpoint observation waiting on current runtime checkpoint";
+        return target_runtime_observation;
+    }
+
+    if (!active_runtime_map_available)
+    {
+        target_runtime_observation.target_runtime_observation_reason =
+            "active-runtime-map-unavailable";
+        target_runtime_observation.next_required_integration =
+            "capture-active-runtime-map-identity";
+    }
+    else if (!active_runtime_matches_current)
+    {
+        target_runtime_observation.target_runtime_observation_reason =
+            "active-runtime-map-mismatch";
+        target_runtime_observation.next_required_integration =
+            "reconcile-active-runtime-map-identity";
+    }
+    else
+    {
+        target_runtime_observation.target_runtime_observation_reason =
+            target_runtime_available ? std::string()
+                                     : std::string("target-map-not-active");
+        target_runtime_observation.next_required_integration =
+            target_runtime_available
+            ? std::string("observe-target-runtime-checkpoint")
+            : std::string("materialize-target-map-runtime");
+    }
+
+    target_runtime_observation.action =
+        "target runtime checkpoint observation unavailable";
+    return target_runtime_observation;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -18399,6 +18685,23 @@ void RefreshChangeLevelPlayerTransferRuntimeCheckpointObservation(
         BuildChangeLevelPlayerTransferRuntimeCheckpointObservation(
             summary.changelevel_player_transfer_runtime_integration_blocker_snapshot,
             state.server_activation_state.succeeded);
+    RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_runtime_checkpoint_observation
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_checkpoint_observation =
+        BuildChangeLevelPlayerTransferTargetRuntimeCheckpointObservation(
+            summary.changelevel_player_transfer_runtime_checkpoint_observation,
+            state.server_activation_state.map_name);
 }
 
 void CapturePendingChangeLevelRequest(

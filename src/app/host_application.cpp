@@ -11339,6 +11339,117 @@ void ValidateChangelevelPlayerTransferRuntimeCheckpointObservation(
         "runtimeWriteSuppressed=yes");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointObservation(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_checkpoint_observation_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& target_runtime_observation =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_checkpoint_observation;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_checkpoint_observation";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(target_runtime_observation.attempted, "attempted=yes");
+    check(
+        target_runtime_observation.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        target_runtime_observation.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        target_runtime_observation.target_runtime_checkpoint_observation_ready
+            == expected_target_runtime_checkpoint_observation_ready,
+        std::string("targetRuntimeCheckpointObservationReady=")
+            + (expected_target_runtime_checkpoint_observation_ready ? "yes"
+                                                                   : "no"));
+    check(
+        target_runtime_observation.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        target_runtime_observation.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_checkpoint_observation_ready)
+    {
+        return;
+    }
+
+    check(
+        target_runtime_observation.decision_source
+            == "runtime-checkpoint-observation",
+        "decisionSource=runtime-checkpoint-observation");
+    check(target_runtime_observation.apply_target == "player", "applyTarget=player");
+    check(target_runtime_observation.current_map == "c0a0", "currentMap=c0a0");
+    check(
+        target_runtime_observation.requested_map == "c0a0a",
+        "requestedMap=c0a0a");
+    check(
+        target_runtime_observation.required_runtime_checkpoint
+            == "serveractivate-complete",
+        "requiredRuntimeCheckpoint=serveractivate-complete");
+    check(
+        target_runtime_observation.runtime_signal_source
+            == "current-runtime-serveractivate-complete",
+        "runtimeSignalSource=current-runtime-serveractivate-complete");
+    check(
+        target_runtime_observation.active_runtime_map == "c0a0",
+        "activeRuntimeMap=c0a0");
+    check(
+        target_runtime_observation.target_runtime_map == "c0a0a",
+        "targetRuntimeMap=c0a0a");
+    check(
+        target_runtime_observation.runtime_signal_backed,
+        "runtimeSignalBacked=yes");
+    check(
+        target_runtime_observation.observation_scope == "target-runtime",
+        "observationScope=target-runtime");
+    check(
+        target_runtime_observation.current_runtime_checkpoint_observed,
+        "currentRuntimeCheckpointObserved=yes");
+    check(
+        !target_runtime_observation.target_runtime_available,
+        "targetRuntimeAvailable=no");
+    check(
+        !target_runtime_observation.target_runtime_checkpoint_observed,
+        "targetRuntimeCheckpointObserved=no");
+    check(
+        !target_runtime_observation.target_runtime_checkpoint_observable,
+        "targetRuntimeCheckpointObservable=no");
+    check(
+        target_runtime_observation.target_runtime_observation_blocked,
+        "targetRuntimeObservationBlocked=yes");
+    check(
+        target_runtime_observation.target_runtime_observation_reason
+            == "target-map-not-active",
+        "targetRuntimeObservationReason=target-map-not-active");
+    check(
+        target_runtime_observation.next_required_integration
+            == "materialize-target-map-runtime",
+        "nextRequiredIntegration=materialize-target-map-runtime");
+    check(
+        target_runtime_observation.runtime_observation_read_only,
+        "runtimeObservationReadOnly=yes");
+    check(
+        target_runtime_observation.runtime_write_suppressed,
+        "runtimeWriteSuppressed=yes");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -11805,6 +11916,14 @@ bool ValidateRegressionGuard(
             "runtime checkpoint observation latched",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointObservation(
+            summary,
+            true,
+            false,
+            true,
+            "target runtime checkpoint not yet observable",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -12228,6 +12347,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "runtime checkpoint observation skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointObservation(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime checkpoint observation skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
