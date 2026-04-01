@@ -542,6 +542,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -804,6 +806,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeBootstrapResultStateSummary&
                 bootstrap_result_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary&
+                consumption_gate);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -7434,6 +7442,136 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumpti
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary&
+            consumption_state =
+                summary
+                    .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(consumption_state.prepared)
+        + ", skipped=" + BoolToYesNo(consumption_state.skipped);
+    if (!consumption_state.decision_source.empty())
+    {
+        line += ", decisionSource=" + consumption_state.decision_source;
+    }
+    if (!consumption_state.apply_target.empty())
+    {
+        line += ", applyTarget=" + consumption_state.apply_target;
+    }
+    if (consumption_state.prepared)
+    {
+        line += ", currentMap="
+            + (consumption_state.current_map.empty()
+                ? std::string("<none>")
+                : consumption_state.current_map)
+            + ", requestedMap="
+            + (consumption_state.requested_map.empty()
+                ? std::string("<none>")
+                : consumption_state.requested_map)
+            + ", activeRuntimeMap="
+            + (consumption_state.active_runtime_map.empty()
+                ? std::string("<none>")
+                : consumption_state.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (consumption_state.target_runtime_map.empty()
+                ? std::string("<none>")
+                : consumption_state.target_runtime_map)
+            + ", targetBspPath="
+            + (consumption_state.target_bsp_path.empty()
+                ? std::string("<none>")
+                : consumption_state.target_bsp_path)
+            + ", landmark="
+            + (consumption_state.landmark.empty()
+                ? std::string("<none>")
+                : consumption_state.landmark)
+            + ", targetWorldspawnPresent="
+            + BoolToYesNo(consumption_state.target_worldspawn_present)
+            + ", targetEntityParse="
+            + (consumption_state.target_entity_parse_ok ? "ok" : "fail")
+            + ", materializationCandidate="
+            + BoolToYesNo(consumption_state.materialization_candidate)
+            + ", materializationPlanned="
+            + BoolToYesNo(consumption_state.materialization_planned)
+            + ", materializationExecutionSuppressed="
+            + BoolToYesNo(
+                consumption_state.materialization_execution_suppressed)
+            + ", bootstrapExecutionCandidate="
+            + BoolToYesNo(consumption_state.bootstrap_execution_candidate)
+            + ", bootstrapExecutionAllowed="
+            + BoolToYesNo(consumption_state.bootstrap_execution_allowed)
+            + ", bootstrapExecutionDeferred="
+            + BoolToYesNo(consumption_state.bootstrap_execution_deferred)
+            + ", bootstrapExecutionAttempted="
+            + BoolToYesNo(consumption_state.bootstrap_execution_attempted)
+            + ", bootstrapExecutionCompleted="
+            + BoolToYesNo(consumption_state.bootstrap_execution_completed)
+            + ", bootstrapExecutionSucceeded="
+            + BoolToYesNo(consumption_state.bootstrap_execution_succeeded)
+            + ", bootstrapExecutionOutcome="
+            + (consumption_state.bootstrap_execution_outcome.empty()
+                ? std::string("<none>")
+                : consumption_state.bootstrap_execution_outcome)
+            + ", bootstrapExecutionOutcomeAvailable="
+            + BoolToYesNo(
+                consumption_state.bootstrap_execution_outcome_available)
+            + ", bootstrapResultState="
+            + (consumption_state.bootstrap_result_state.empty()
+                ? std::string("<none>")
+                : consumption_state.bootstrap_result_state)
+            + ", bootstrapResultProduced="
+            + BoolToYesNo(consumption_state.bootstrap_result_produced)
+            + ", bootstrapResultConsumable="
+            + BoolToYesNo(consumption_state.bootstrap_result_consumable)
+            + ", bootstrapResultConsumptionAllowed="
+            + BoolToYesNo(
+                consumption_state.bootstrap_result_consumption_allowed)
+            + ", bootstrapResultConsumptionDeferred="
+            + BoolToYesNo(
+                consumption_state.bootstrap_result_consumption_deferred)
+            + ", bootstrapResultConsumptionAttempted="
+            + BoolToYesNo(
+                consumption_state.bootstrap_result_consumption_attempted)
+            + ", bootstrapResultConsumed="
+            + BoolToYesNo(consumption_state.bootstrap_result_consumed)
+            + ", bootstrapResultConsumptionState="
+            + (consumption_state.bootstrap_result_consumption_state.empty()
+                ? std::string("<none>")
+                : consumption_state.bootstrap_result_consumption_state)
+            + ", bootstrapResultConsumptionStateReason="
+            + (consumption_state.bootstrap_result_consumption_state_reason.empty()
+                ? std::string("<none>")
+                : consumption_state.bootstrap_result_consumption_state_reason)
+            + ", mapLoadSuppressed="
+            + BoolToYesNo(consumption_state.map_load_suppressed)
+            + ", bspSwitchSuppressed="
+            + BoolToYesNo(consumption_state.bsp_switch_suppressed)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(consumption_state.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(consumption_state.runtime_write_suppressed);
+    }
+    if (!consumption_state.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + consumption_state.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeBootstrapResultConsumptionStateReady="
+        + std::string(
+            BoolToYesNo(
+                consumption_state
+                    .target_runtime_bootstrap_result_consumption_state_ready))
+        + ", action="
+        + (consumption_state.action.empty()
+               ? std::string("<none>")
+               : consumption_state.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -9958,6 +10096,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -19733,6 +19881,196 @@ BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
     return consumption_gate;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary
+BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGateSummary&
+            consumption_gate)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionStateSummary
+            consumption_state;
+    consumption_state.attempted = true;
+
+    if (consumption_gate.prepared
+        && consumption_gate
+               .target_runtime_bootstrap_result_consumption_gate_ready
+        && consumption_gate.materialization_candidate
+        && consumption_gate.materialization_planned
+        && consumption_gate.materialization_execution_suppressed
+        && consumption_gate.bootstrap_execution_candidate
+        && !consumption_gate.bootstrap_execution_allowed
+        && consumption_gate.bootstrap_execution_deferred
+        && !consumption_gate.bootstrap_execution_attempted
+        && !consumption_gate.bootstrap_execution_completed
+        && !consumption_gate.bootstrap_execution_succeeded
+        && consumption_gate.bootstrap_execution_outcome == "not-produced"
+        && !consumption_gate.bootstrap_execution_outcome_available
+        && consumption_gate.bootstrap_result_state == "blocked"
+        && !consumption_gate.bootstrap_result_produced
+        && !consumption_gate.bootstrap_result_consumable
+        && !consumption_gate.bootstrap_result_consumption_allowed
+        && consumption_gate.bootstrap_result_consumption_deferred
+        && consumption_gate.bootstrap_result_consumption_reason
+            == "result-not-produced")
+    {
+        consumption_state.prepared = true;
+        consumption_state.skipped = false;
+        consumption_state.decision_source =
+            "target-runtime-bootstrap-result-consumption-gate";
+        consumption_state.apply_target = consumption_gate.apply_target;
+        consumption_state.current_map = consumption_gate.current_map;
+        consumption_state.requested_map = consumption_gate.requested_map;
+        consumption_state.active_runtime_map =
+            consumption_gate.active_runtime_map;
+        consumption_state.target_runtime_map =
+            consumption_gate.target_runtime_map;
+        consumption_state.target_bsp_path = consumption_gate.target_bsp_path;
+        consumption_state.landmark = consumption_gate.landmark;
+        consumption_state.target_worldspawn_present =
+            consumption_gate.target_worldspawn_present;
+        consumption_state.target_entity_parse_ok =
+            consumption_gate.target_entity_parse_ok;
+        consumption_state.materialization_candidate =
+            consumption_gate.materialization_candidate;
+        consumption_state.materialization_planned =
+            consumption_gate.materialization_planned;
+        consumption_state.materialization_execution_suppressed =
+            consumption_gate.materialization_execution_suppressed;
+        consumption_state.bootstrap_execution_candidate =
+            consumption_gate.bootstrap_execution_candidate;
+        consumption_state.bootstrap_execution_allowed =
+            consumption_gate.bootstrap_execution_allowed;
+        consumption_state.bootstrap_execution_deferred =
+            consumption_gate.bootstrap_execution_deferred;
+        consumption_state.bootstrap_execution_attempted =
+            consumption_gate.bootstrap_execution_attempted;
+        consumption_state.bootstrap_execution_completed =
+            consumption_gate.bootstrap_execution_completed;
+        consumption_state.bootstrap_execution_succeeded =
+            consumption_gate.bootstrap_execution_succeeded;
+        consumption_state.bootstrap_execution_outcome =
+            consumption_gate.bootstrap_execution_outcome;
+        consumption_state.bootstrap_execution_outcome_available =
+            consumption_gate.bootstrap_execution_outcome_available;
+        consumption_state.bootstrap_result_state =
+            consumption_gate.bootstrap_result_state;
+        consumption_state.bootstrap_result_produced =
+            consumption_gate.bootstrap_result_produced;
+        consumption_state.bootstrap_result_consumable =
+            consumption_gate.bootstrap_result_consumable;
+        consumption_state.bootstrap_result_consumption_allowed =
+            consumption_gate.bootstrap_result_consumption_allowed;
+        consumption_state.bootstrap_result_consumption_deferred =
+            consumption_gate.bootstrap_result_consumption_deferred;
+        consumption_state.bootstrap_result_consumption_attempted = false;
+        consumption_state.bootstrap_result_consumed = false;
+        consumption_state.bootstrap_result_consumption_state = "not-consumed";
+        consumption_state.bootstrap_result_consumption_state_reason =
+            consumption_gate.bootstrap_result_consumption_reason;
+        consumption_state.map_load_suppressed =
+            consumption_gate.map_load_suppressed;
+        consumption_state.bsp_switch_suppressed =
+            consumption_gate.bsp_switch_suppressed;
+        consumption_state.runtime_observation_read_only =
+            consumption_gate.runtime_observation_read_only;
+        consumption_state.runtime_write_suppressed =
+            consumption_gate.runtime_write_suppressed;
+        consumption_state
+            .target_runtime_bootstrap_result_consumption_state_ready = true;
+        consumption_state.action =
+            "no-op target runtime bootstrap result consumption state prepared";
+        return consumption_state;
+    }
+
+    consumption_state.prepared = false;
+    consumption_state.target_runtime_bootstrap_result_consumption_state_ready =
+        false;
+    consumption_state.short_circuit_reason =
+        consumption_gate.short_circuit_reason;
+
+    if (consumption_gate.skipped)
+    {
+        consumption_state.skipped = true;
+        consumption_state.action =
+            "target runtime bootstrap result consumption state skipped";
+        return consumption_state;
+    }
+
+    consumption_state.skipped = false;
+    consumption_state.decision_source =
+        consumption_gate.attempted
+        ? std::string("target-runtime-bootstrap-result-consumption-gate")
+        : std::string();
+    consumption_state.apply_target = consumption_gate.apply_target;
+    consumption_state.current_map = consumption_gate.current_map;
+    consumption_state.requested_map = consumption_gate.requested_map;
+    consumption_state.active_runtime_map = consumption_gate.active_runtime_map;
+    consumption_state.target_runtime_map = consumption_gate.target_runtime_map;
+    consumption_state.target_bsp_path = consumption_gate.target_bsp_path;
+    consumption_state.landmark = consumption_gate.landmark;
+    consumption_state.target_worldspawn_present =
+        consumption_gate.target_worldspawn_present;
+    consumption_state.target_entity_parse_ok =
+        consumption_gate.target_entity_parse_ok;
+    consumption_state.materialization_candidate =
+        consumption_gate.materialization_candidate;
+    consumption_state.materialization_planned =
+        consumption_gate.materialization_planned;
+    consumption_state.materialization_execution_suppressed =
+        consumption_gate.materialization_execution_suppressed;
+    consumption_state.bootstrap_execution_candidate =
+        consumption_gate.bootstrap_execution_candidate;
+    consumption_state.bootstrap_execution_allowed =
+        consumption_gate.bootstrap_execution_allowed;
+    consumption_state.bootstrap_execution_deferred =
+        consumption_gate.bootstrap_execution_deferred;
+    consumption_state.bootstrap_execution_attempted =
+        consumption_gate.bootstrap_execution_attempted;
+    consumption_state.bootstrap_execution_completed =
+        consumption_gate.bootstrap_execution_completed;
+    consumption_state.bootstrap_execution_succeeded =
+        consumption_gate.bootstrap_execution_succeeded;
+    consumption_state.bootstrap_execution_outcome =
+        consumption_gate.bootstrap_execution_outcome;
+    consumption_state.bootstrap_execution_outcome_available =
+        consumption_gate.bootstrap_execution_outcome_available;
+    consumption_state.bootstrap_result_state =
+        consumption_gate.bootstrap_result_state;
+    consumption_state.bootstrap_result_produced =
+        consumption_gate.bootstrap_result_produced;
+    consumption_state.bootstrap_result_consumable =
+        consumption_gate.bootstrap_result_consumable;
+    consumption_state.bootstrap_result_consumption_allowed =
+        consumption_gate.bootstrap_result_consumption_allowed;
+    consumption_state.bootstrap_result_consumption_deferred =
+        consumption_gate.bootstrap_result_consumption_deferred;
+    consumption_state.map_load_suppressed = consumption_gate.map_load_suppressed;
+    consumption_state.bsp_switch_suppressed =
+        consumption_gate.bsp_switch_suppressed;
+    consumption_state.runtime_observation_read_only =
+        consumption_gate.runtime_observation_read_only;
+    consumption_state.runtime_write_suppressed =
+        consumption_gate.runtime_write_suppressed;
+
+    if (!consumption_gate.target_runtime_bootstrap_result_consumption_gate_ready)
+    {
+        consumption_state.action =
+            "target runtime bootstrap result consumption state waiting on target runtime bootstrap result consumption gate";
+        return consumption_state;
+    }
+
+    consumption_state.bootstrap_result_consumption_attempted = false;
+    consumption_state.bootstrap_result_consumed = false;
+    consumption_state.bootstrap_result_consumption_state = "not-consumed";
+    consumption_state.bootstrap_result_consumption_state_reason =
+        consumption_gate.bootstrap_result_consumption_reason;
+    consumption_state.action =
+        "target runtime bootstrap result consumption state not required";
+    return consumption_state;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -20465,6 +20803,26 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate
         BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionGate(
             summary
                 .changelevel_player_transfer_target_runtime_bootstrap_result_state);
+    RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+        state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate
+             .attempted)
+    {
+        return;
+    }
+
+    summary
+        .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_state =
+        BuildChangeLevelPlayerTransferTargetRuntimeBootstrapResultConsumptionState(
+            summary
+                .changelevel_player_transfer_target_runtime_bootstrap_result_consumption_gate);
 }
 
 void CapturePendingChangeLevelRequest(
