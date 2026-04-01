@@ -536,6 +536,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGate(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionState(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -780,6 +782,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionGateSummary&
                 bootstrap_execution_gate);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionStateSummary&
+                bootstrap_execution_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -7050,6 +7058,124 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionStateS
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary&
+            bootstrap_execution_outcome =
+                summary
+                    .changelevel_player_transfer_target_runtime_bootstrap_execution_outcome;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(bootstrap_execution_outcome.prepared)
+        + ", skipped=" + BoolToYesNo(bootstrap_execution_outcome.skipped);
+    if (!bootstrap_execution_outcome.decision_source.empty())
+    {
+        line += ", decisionSource=" + bootstrap_execution_outcome.decision_source;
+    }
+    if (!bootstrap_execution_outcome.apply_target.empty())
+    {
+        line += ", applyTarget=" + bootstrap_execution_outcome.apply_target;
+    }
+    if (bootstrap_execution_outcome.prepared)
+    {
+        line += ", currentMap="
+            + (bootstrap_execution_outcome.current_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.current_map)
+            + ", requestedMap="
+            + (bootstrap_execution_outcome.requested_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.requested_map)
+            + ", activeRuntimeMap="
+            + (bootstrap_execution_outcome.active_runtime_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.active_runtime_map)
+            + ", targetRuntimeMap="
+            + (bootstrap_execution_outcome.target_runtime_map.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.target_runtime_map)
+            + ", targetBspPath="
+            + (bootstrap_execution_outcome.target_bsp_path.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.target_bsp_path)
+            + ", landmark="
+            + (bootstrap_execution_outcome.landmark.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.landmark)
+            + ", targetWorldspawnPresent="
+            + BoolToYesNo(bootstrap_execution_outcome.target_worldspawn_present)
+            + ", targetEntityParse="
+            + (bootstrap_execution_outcome.target_entity_parse_ok ? "ok" : "fail")
+            + ", materializationCandidate="
+            + BoolToYesNo(bootstrap_execution_outcome.materialization_candidate)
+            + ", materializationPlanned="
+            + BoolToYesNo(bootstrap_execution_outcome.materialization_planned)
+            + ", materializationExecutionSuppressed="
+            + BoolToYesNo(
+                bootstrap_execution_outcome
+                    .materialization_execution_suppressed)
+            + ", bootstrapExecutionCandidate="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_candidate)
+            + ", bootstrapExecutionAllowed="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_allowed)
+            + ", bootstrapExecutionDeferred="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_deferred)
+            + ", bootstrapExecutionAttempted="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_attempted)
+            + ", bootstrapExecutionCompleted="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_completed)
+            + ", bootstrapExecutionSucceeded="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.bootstrap_execution_succeeded)
+            + ", bootstrapExecutionOutcome="
+            + (bootstrap_execution_outcome.bootstrap_execution_outcome.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome.bootstrap_execution_outcome)
+            + ", bootstrapExecutionOutcomeAvailable="
+            + BoolToYesNo(
+                bootstrap_execution_outcome
+                    .bootstrap_execution_outcome_available)
+            + ", bootstrapExecutionOutcomeReason="
+            + (bootstrap_execution_outcome
+                       .bootstrap_execution_outcome_reason.empty()
+                ? std::string("<none>")
+                : bootstrap_execution_outcome
+                      .bootstrap_execution_outcome_reason)
+            + ", mapLoadSuppressed="
+            + BoolToYesNo(bootstrap_execution_outcome.map_load_suppressed)
+            + ", bspSwitchSuppressed="
+            + BoolToYesNo(bootstrap_execution_outcome.bsp_switch_suppressed)
+            + ", runtimeObservationReadOnly="
+            + BoolToYesNo(
+                bootstrap_execution_outcome.runtime_observation_read_only)
+            + ", runtimeWriteSuppressed="
+            + BoolToYesNo(bootstrap_execution_outcome.runtime_write_suppressed);
+    }
+    if (!bootstrap_execution_outcome.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + bootstrap_execution_outcome.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeBootstrapExecutionOutcomeReady="
+        + std::string(
+            BoolToYesNo(
+                bootstrap_execution_outcome
+                    .target_runtime_bootstrap_execution_outcome_ready))
+        + ", action="
+        + (bootstrap_execution_outcome.action.empty()
+               ? std::string("<none>")
+               : bootstrap_execution_outcome.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -9544,6 +9670,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_bootstrap_execution_state: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_bootstrap_execution_outcome
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_bootstrap_execution_outcome: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -18806,6 +18942,162 @@ hl::game_api::ChangeLevelTransitionSummary::
     return bootstrap_execution_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionStateSummary&
+                bootstrap_execution_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcomeSummary
+            bootstrap_execution_outcome;
+    bootstrap_execution_outcome.attempted = true;
+
+    if (bootstrap_execution_state.prepared
+        && bootstrap_execution_state
+               .target_runtime_bootstrap_execution_state_ready
+        && bootstrap_execution_state.bootstrap_execution_candidate
+        && !bootstrap_execution_state.bootstrap_execution_allowed
+        && bootstrap_execution_state.bootstrap_execution_deferred
+        && !bootstrap_execution_state.bootstrap_execution_attempted
+        && !bootstrap_execution_state.bootstrap_execution_completed
+        && bootstrap_execution_state.bootstrap_execution_state == "not-executed")
+    {
+        bootstrap_execution_outcome.prepared = true;
+        bootstrap_execution_outcome.skipped = false;
+        bootstrap_execution_outcome.decision_source =
+            "target-runtime-bootstrap-execution-state";
+        bootstrap_execution_outcome.apply_target =
+            bootstrap_execution_state.apply_target;
+        bootstrap_execution_outcome.current_map =
+            bootstrap_execution_state.current_map;
+        bootstrap_execution_outcome.requested_map =
+            bootstrap_execution_state.requested_map;
+        bootstrap_execution_outcome.active_runtime_map =
+            bootstrap_execution_state.active_runtime_map;
+        bootstrap_execution_outcome.target_runtime_map =
+            bootstrap_execution_state.target_runtime_map;
+        bootstrap_execution_outcome.target_bsp_path =
+            bootstrap_execution_state.target_bsp_path;
+        bootstrap_execution_outcome.landmark =
+            bootstrap_execution_state.landmark;
+        bootstrap_execution_outcome.target_worldspawn_present =
+            bootstrap_execution_state.target_worldspawn_present;
+        bootstrap_execution_outcome.target_entity_parse_ok =
+            bootstrap_execution_state.target_entity_parse_ok;
+        bootstrap_execution_outcome.materialization_candidate =
+            bootstrap_execution_state.materialization_candidate;
+        bootstrap_execution_outcome.materialization_planned =
+            bootstrap_execution_state.materialization_planned;
+        bootstrap_execution_outcome.materialization_execution_suppressed =
+            bootstrap_execution_state.materialization_execution_suppressed;
+        bootstrap_execution_outcome.bootstrap_execution_candidate =
+            bootstrap_execution_state.bootstrap_execution_candidate;
+        bootstrap_execution_outcome.bootstrap_execution_allowed =
+            bootstrap_execution_state.bootstrap_execution_allowed;
+        bootstrap_execution_outcome.bootstrap_execution_deferred =
+            bootstrap_execution_state.bootstrap_execution_deferred;
+        bootstrap_execution_outcome.bootstrap_execution_attempted =
+            bootstrap_execution_state.bootstrap_execution_attempted;
+        bootstrap_execution_outcome.bootstrap_execution_completed =
+            bootstrap_execution_state.bootstrap_execution_completed;
+        bootstrap_execution_outcome.bootstrap_execution_succeeded = false;
+        bootstrap_execution_outcome.bootstrap_execution_outcome =
+            "not-produced";
+        bootstrap_execution_outcome.bootstrap_execution_outcome_available =
+            false;
+        bootstrap_execution_outcome.bootstrap_execution_outcome_reason =
+            "execution-not-attempted";
+        bootstrap_execution_outcome.map_load_suppressed =
+            bootstrap_execution_state.map_load_suppressed;
+        bootstrap_execution_outcome.bsp_switch_suppressed =
+            bootstrap_execution_state.bsp_switch_suppressed;
+        bootstrap_execution_outcome.runtime_observation_read_only =
+            bootstrap_execution_state.runtime_observation_read_only;
+        bootstrap_execution_outcome.runtime_write_suppressed =
+            bootstrap_execution_state.runtime_write_suppressed;
+        bootstrap_execution_outcome
+            .target_runtime_bootstrap_execution_outcome_ready = true;
+        bootstrap_execution_outcome.action =
+            "no-op target runtime bootstrap execution outcome prepared";
+        return bootstrap_execution_outcome;
+    }
+
+    bootstrap_execution_outcome.prepared = false;
+    bootstrap_execution_outcome.target_runtime_bootstrap_execution_outcome_ready =
+        false;
+    bootstrap_execution_outcome.short_circuit_reason =
+        bootstrap_execution_state.short_circuit_reason;
+
+    if (bootstrap_execution_state.skipped)
+    {
+        bootstrap_execution_outcome.skipped = true;
+        bootstrap_execution_outcome.action =
+            "target runtime bootstrap execution outcome skipped";
+        return bootstrap_execution_outcome;
+    }
+
+    bootstrap_execution_outcome.skipped = false;
+    bootstrap_execution_outcome.decision_source =
+        bootstrap_execution_state.attempted
+        ? std::string("target-runtime-bootstrap-execution-state")
+        : std::string();
+    bootstrap_execution_outcome.apply_target =
+        bootstrap_execution_state.apply_target;
+    bootstrap_execution_outcome.current_map =
+        bootstrap_execution_state.current_map;
+    bootstrap_execution_outcome.requested_map =
+        bootstrap_execution_state.requested_map;
+    bootstrap_execution_outcome.active_runtime_map =
+        bootstrap_execution_state.active_runtime_map;
+    bootstrap_execution_outcome.target_runtime_map =
+        bootstrap_execution_state.target_runtime_map;
+    bootstrap_execution_outcome.target_bsp_path =
+        bootstrap_execution_state.target_bsp_path;
+    bootstrap_execution_outcome.landmark =
+        bootstrap_execution_state.landmark;
+    bootstrap_execution_outcome.target_worldspawn_present =
+        bootstrap_execution_state.target_worldspawn_present;
+    bootstrap_execution_outcome.target_entity_parse_ok =
+        bootstrap_execution_state.target_entity_parse_ok;
+    bootstrap_execution_outcome.materialization_candidate =
+        bootstrap_execution_state.materialization_candidate;
+    bootstrap_execution_outcome.materialization_planned =
+        bootstrap_execution_state.materialization_planned;
+    bootstrap_execution_outcome.materialization_execution_suppressed =
+        bootstrap_execution_state.materialization_execution_suppressed;
+    bootstrap_execution_outcome.bootstrap_execution_candidate =
+        bootstrap_execution_state.bootstrap_execution_candidate;
+    bootstrap_execution_outcome.bootstrap_execution_allowed =
+        bootstrap_execution_state.bootstrap_execution_allowed;
+    bootstrap_execution_outcome.bootstrap_execution_deferred =
+        bootstrap_execution_state.bootstrap_execution_deferred;
+    bootstrap_execution_outcome.bootstrap_execution_attempted =
+        bootstrap_execution_state.bootstrap_execution_attempted;
+    bootstrap_execution_outcome.bootstrap_execution_completed =
+        bootstrap_execution_state.bootstrap_execution_completed;
+    bootstrap_execution_outcome.map_load_suppressed =
+        bootstrap_execution_state.map_load_suppressed;
+    bootstrap_execution_outcome.bsp_switch_suppressed =
+        bootstrap_execution_state.bsp_switch_suppressed;
+    bootstrap_execution_outcome.runtime_observation_read_only =
+        bootstrap_execution_state.runtime_observation_read_only;
+    bootstrap_execution_outcome.runtime_write_suppressed =
+        bootstrap_execution_state.runtime_write_suppressed;
+
+    if (!bootstrap_execution_state.target_runtime_bootstrap_execution_state_ready)
+    {
+        bootstrap_execution_outcome.action =
+            "target runtime bootstrap execution outcome waiting on target runtime bootstrap execution state";
+        return bootstrap_execution_outcome;
+    }
+
+    bootstrap_execution_outcome.action =
+        "target runtime bootstrap execution outcome not required";
+    return bootstrap_execution_outcome;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -19485,6 +19777,23 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionState(
         BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionState(
             summary
                 .changelevel_player_transfer_target_runtime_bootstrap_execution_gate);
+    RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_target_runtime_bootstrap_execution_state
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_bootstrap_execution_outcome =
+        BuildChangeLevelPlayerTransferTargetRuntimeBootstrapExecutionOutcome(
+            summary
+                .changelevel_player_transfer_target_runtime_bootstrap_execution_state);
 }
 
 void CapturePendingChangeLevelRequest(
