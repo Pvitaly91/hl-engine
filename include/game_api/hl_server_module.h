@@ -3438,6 +3438,90 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferCurrentRuntimeDeactivationOutcomeSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string bootstrap_execution_outcome;
+        std::string bootstrap_result_state;
+        bool bootstrap_result_produced = false;
+        bool bootstrap_result_consumable = false;
+        bool bootstrap_result_consumption_allowed = false;
+        bool bootstrap_result_consumption_deferred = false;
+        bool bootstrap_result_consumption_attempted = false;
+        bool bootstrap_result_consumed = false;
+        std::string bootstrap_result_consumption_state;
+        std::string bootstrap_result_consumption_outcome;
+        bool bootstrap_result_consumption_outcome_available = false;
+        std::string bootstrap_result_consumption_outcome_reason;
+        bool target_runtime_materialization_candidate = false;
+        bool target_runtime_materialization_allowed = false;
+        bool target_runtime_materialization_deferred = false;
+        bool target_runtime_materialization_attempted = false;
+        bool target_runtime_materialization_completed = false;
+        bool target_runtime_materialization_succeeded = false;
+        bool target_runtime_materialization_blocked = false;
+        std::string target_runtime_materialization_block_reason;
+        bool target_runtime_materialization_started = false;
+        bool target_runtime_materialized = false;
+        std::string target_runtime_materialization_state;
+        std::string target_runtime_materialization_state_reason;
+        std::string target_runtime_materialization_outcome;
+        bool target_runtime_materialization_outcome_available = false;
+        std::string target_runtime_materialization_outcome_reason;
+        bool target_runtime_activation_candidate = false;
+        bool target_runtime_activation_allowed = false;
+        bool target_runtime_activation_deferred = false;
+        bool target_runtime_activation_attempted = false;
+        bool target_runtime_activation_completed = false;
+        bool target_runtime_activation_succeeded = false;
+        bool target_runtime_activation_blocked = false;
+        std::string target_runtime_activation_block_reason;
+        bool target_runtime_activation_started = false;
+        bool target_runtime_activated = false;
+        std::string target_runtime_activation_state;
+        std::string target_runtime_activation_state_reason;
+        std::string target_runtime_activation_outcome;
+        bool target_runtime_activation_outcome_available = false;
+        std::string target_runtime_activation_outcome_reason;
+        bool target_runtime_cutover_candidate = false;
+        bool target_runtime_cutover_allowed = false;
+        bool target_runtime_cutover_deferred = false;
+        bool target_runtime_cutover_attempted = false;
+        bool target_runtime_cutover_completed = false;
+        bool target_runtime_cutover_succeeded = false;
+        bool target_runtime_cutover_blocked = false;
+        std::string target_runtime_cutover_block_reason;
+        bool target_runtime_cutover_started = false;
+        bool target_runtime_cutover_applied = false;
+        std::string target_runtime_cutover_state;
+        std::string target_runtime_cutover_state_reason;
+        std::string target_runtime_cutover_outcome;
+        bool target_runtime_cutover_outcome_available = false;
+        std::string target_runtime_cutover_outcome_reason;
+        bool current_runtime_deactivation_candidate = false;
+        bool current_runtime_deactivation_allowed = false;
+        bool current_runtime_deactivation_deferred = false;
+        bool current_runtime_deactivation_attempted = false;
+        bool current_runtime_deactivation_completed = false;
+        bool current_runtime_deactivation_succeeded = false;
+        bool current_runtime_deactivation_blocked = false;
+        std::string current_runtime_deactivation_block_reason;
+        bool current_runtime_deactivation_started = false;
+        bool current_runtime_deactivated = false;
+        std::string current_runtime_deactivation_state;
+        std::string current_runtime_deactivation_state_reason;
+        std::string current_runtime_deactivation_outcome;
+        bool current_runtime_deactivation_outcome_available = false;
+        std::string current_runtime_deactivation_outcome_reason;
+        bool current_runtime_deactivation_ready = false;
+        bool current_runtime_deactivation_outcome_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -3608,6 +3692,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_current_runtime_deactivation_gate;
     ChangeLevelPlayerTransferCurrentRuntimeDeactivationStateSummary
         changelevel_player_transfer_current_runtime_deactivation_state;
+    ChangeLevelPlayerTransferCurrentRuntimeDeactivationOutcomeSummary
+        changelevel_player_transfer_current_runtime_deactivation_outcome;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
