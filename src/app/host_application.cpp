@@ -15962,6 +15962,242 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationState(
         "targetRuntimeCheckpointApplicationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_checkpoint_application_outcome_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& checkpoint_application_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_checkpoint_application_outcome;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_checkpoint_application_outcome";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(checkpoint_application_outcome.attempted, "attempted=yes");
+    check(
+        checkpoint_application_outcome.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        checkpoint_application_outcome.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome_ready
+            == expected_target_runtime_checkpoint_application_outcome_ready,
+        std::string("targetRuntimeCheckpointApplicationOutcomeReady=")
+            + (expected_target_runtime_checkpoint_application_outcome_ready
+                   ? "yes"
+                   : "no"));
+    check(
+        checkpoint_application_outcome.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        checkpoint_application_outcome.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_checkpoint_application_outcome_ready)
+    {
+        return;
+    }
+
+    const auto& checkpoint_application_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_checkpoint_application_state;
+
+    check(
+        checkpoint_application_outcome.decision_source
+            == "target-runtime-checkpoint-application-state",
+        "decisionSource=target-runtime-checkpoint-application-state");
+    check(
+        checkpoint_application_outcome.target_runtime_cutover_outcome
+            == checkpoint_application_state.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-state");
+    check(
+        checkpoint_application_outcome.target_runtime_cutover_outcome_available
+            == checkpoint_application_state
+                   .target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable inherited-from-state");
+    check(
+        checkpoint_application_outcome.target_runtime_cutover_outcome_reason
+            == checkpoint_application_state.target_runtime_cutover_outcome_reason,
+        "targetRuntimeCutoverOutcomeReason inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_candidate
+            == checkpoint_application_state
+                   .current_runtime_deactivation_candidate,
+        "currentRuntimeDeactivationCandidate inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_allowed
+            == checkpoint_application_state.current_runtime_deactivation_allowed,
+        "currentRuntimeDeactivationAllowed inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_deferred
+            == checkpoint_application_state
+                   .current_runtime_deactivation_deferred,
+        "currentRuntimeDeactivationDeferred inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_attempted
+            == checkpoint_application_state
+                   .current_runtime_deactivation_attempted,
+        "currentRuntimeDeactivationAttempted inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_completed
+            == checkpoint_application_state
+                   .current_runtime_deactivation_completed,
+        "currentRuntimeDeactivationCompleted inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_succeeded
+            == checkpoint_application_state
+                   .current_runtime_deactivation_succeeded,
+        "currentRuntimeDeactivationSucceeded inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_blocked
+            == checkpoint_application_state.current_runtime_deactivation_blocked,
+        "currentRuntimeDeactivationBlocked inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_block_reason
+            == checkpoint_application_state
+                   .current_runtime_deactivation_block_reason,
+        "currentRuntimeDeactivationBlockReason inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_started
+            == checkpoint_application_state.current_runtime_deactivation_started,
+        "currentRuntimeDeactivationStarted inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivated
+            == checkpoint_application_state.current_runtime_deactivated,
+        "currentRuntimeDeactivated inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_state
+            == checkpoint_application_state.current_runtime_deactivation_state,
+        "currentRuntimeDeactivationState inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_state_reason
+            == checkpoint_application_state
+                   .current_runtime_deactivation_state_reason,
+        "currentRuntimeDeactivationStateReason inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_outcome
+            == checkpoint_application_state.current_runtime_deactivation_outcome,
+        "currentRuntimeDeactivationOutcome inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .current_runtime_deactivation_outcome_available
+            == checkpoint_application_state
+                   .current_runtime_deactivation_outcome_available,
+        "currentRuntimeDeactivationOutcomeAvailable inherited-from-state");
+    check(
+        checkpoint_application_outcome.current_runtime_deactivation_outcome_reason
+            == checkpoint_application_state
+                   .current_runtime_deactivation_outcome_reason,
+        "currentRuntimeDeactivationOutcomeReason inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_candidate
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_candidate,
+        "targetRuntimeCheckpointApplicationCandidate inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_allowed
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_allowed,
+        "targetRuntimeCheckpointApplicationAllowed inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_deferred
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_deferred,
+        "targetRuntimeCheckpointApplicationDeferred inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_attempted
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_attempted,
+        "targetRuntimeCheckpointApplicationAttempted inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_completed
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_completed,
+        "targetRuntimeCheckpointApplicationCompleted inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_succeeded
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_succeeded,
+        "targetRuntimeCheckpointApplicationSucceeded inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_blocked
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_blocked,
+        "targetRuntimeCheckpointApplicationBlocked inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_block_reason
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_block_reason,
+        "targetRuntimeCheckpointApplicationBlockReason inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_started
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_started,
+        "targetRuntimeCheckpointApplicationStarted inherited-from-state");
+    check(
+        checkpoint_application_outcome.target_runtime_checkpoint_applied
+            == checkpoint_application_state.target_runtime_checkpoint_applied,
+        "targetRuntimeCheckpointApplied inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_state
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_state,
+        "targetRuntimeCheckpointApplicationState inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_state_reason
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_state_reason,
+        "targetRuntimeCheckpointApplicationStateReason inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_ready
+            == checkpoint_application_state
+                   .target_runtime_checkpoint_application_ready,
+        "targetRuntimeCheckpointApplicationReady inherited-from-state");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome
+            == "not-produced",
+        "targetRuntimeCheckpointApplicationOutcome=not-produced");
+    check(
+        !checkpoint_application_outcome
+             .target_runtime_checkpoint_application_outcome_available,
+        "targetRuntimeCheckpointApplicationOutcomeAvailable=no");
+    check(
+        checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome_reason
+            == "checkpoint-application-not-attempted",
+        "targetRuntimeCheckpointApplicationOutcomeReason=checkpoint-application-not-attempted");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -16612,6 +16848,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime checkpoint application state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime checkpoint application outcome prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -17219,6 +17463,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime checkpoint application state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime checkpoint application outcome skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
