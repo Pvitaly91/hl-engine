@@ -15528,6 +15528,440 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationGate(
         "targetRuntimeCheckpointApplicationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_checkpoint_application_state_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& checkpoint_application_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_checkpoint_application_state;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_checkpoint_application_state";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(checkpoint_application_state.attempted, "attempted=yes");
+    check(
+        checkpoint_application_state.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        checkpoint_application_state.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_state_ready
+            == expected_target_runtime_checkpoint_application_state_ready,
+        std::string("targetRuntimeCheckpointApplicationStateReady=")
+            + (expected_target_runtime_checkpoint_application_state_ready ? "yes"
+                                                                          : "no"));
+    check(
+        checkpoint_application_state.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        checkpoint_application_state.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_checkpoint_application_state_ready)
+    {
+        return;
+    }
+
+    const auto& checkpoint_application_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_checkpoint_application_gate;
+
+    check(
+        checkpoint_application_state.decision_source
+            == "target-runtime-checkpoint-application-gate",
+        "decisionSource=target-runtime-checkpoint-application-gate");
+    check(
+        checkpoint_application_state.bootstrap_execution_outcome
+            == checkpoint_application_gate.bootstrap_execution_outcome,
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        checkpoint_application_state.bootstrap_result_state
+            == checkpoint_application_gate.bootstrap_result_state,
+        "bootstrapResultState=blocked");
+    check(
+        checkpoint_application_state.bootstrap_result_produced
+            == checkpoint_application_gate.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumable
+            == checkpoint_application_gate.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_allowed
+            == checkpoint_application_gate.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_deferred
+            == checkpoint_application_gate.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_attempted
+            == checkpoint_application_gate.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumed
+            == checkpoint_application_gate.bootstrap_result_consumed,
+        "bootstrapResultConsumed=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_state
+            == checkpoint_application_gate.bootstrap_result_consumption_state,
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_outcome
+            == checkpoint_application_gate.bootstrap_result_consumption_outcome,
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        checkpoint_application_state
+                .bootstrap_result_consumption_outcome_available
+            == checkpoint_application_gate
+                   .bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        checkpoint_application_state.bootstrap_result_consumption_outcome_reason
+            == checkpoint_application_gate
+                   .bootstrap_result_consumption_outcome_reason,
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        checkpoint_application_state.target_runtime_materialization_candidate
+            == checkpoint_application_gate.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        checkpoint_application_state.target_runtime_materialization_allowed
+            == checkpoint_application_gate.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_deferred
+            == checkpoint_application_gate.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        checkpoint_application_state.target_runtime_materialization_attempted
+            == checkpoint_application_gate.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_completed
+            == checkpoint_application_gate.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_succeeded
+            == checkpoint_application_gate.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_blocked
+            == checkpoint_application_gate.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        checkpoint_application_state.target_runtime_materialization_block_reason
+            == checkpoint_application_gate
+                   .target_runtime_materialization_block_reason,
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        checkpoint_application_state.target_runtime_materialization_started
+            == checkpoint_application_gate.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        checkpoint_application_state.target_runtime_materialized
+            == checkpoint_application_gate.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_state
+            == checkpoint_application_gate.target_runtime_materialization_state,
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        checkpoint_application_state.target_runtime_materialization_state_reason
+            == checkpoint_application_gate
+                   .target_runtime_materialization_state_reason,
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        checkpoint_application_state.target_runtime_materialization_outcome
+            == checkpoint_application_gate.target_runtime_materialization_outcome,
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        checkpoint_application_state
+                .target_runtime_materialization_outcome_available
+            == checkpoint_application_gate
+                   .target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        checkpoint_application_state.target_runtime_materialization_outcome_reason
+            == checkpoint_application_gate
+                   .target_runtime_materialization_outcome_reason,
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        checkpoint_application_state.target_runtime_activation_candidate
+            == checkpoint_application_gate.target_runtime_activation_candidate,
+        "targetRuntimeActivationCandidate=yes");
+    check(
+        checkpoint_application_state.target_runtime_activation_allowed
+            == checkpoint_application_gate.target_runtime_activation_allowed,
+        "targetRuntimeActivationAllowed=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_deferred
+            == checkpoint_application_gate.target_runtime_activation_deferred,
+        "targetRuntimeActivationDeferred=yes");
+    check(
+        checkpoint_application_state.target_runtime_activation_attempted
+            == checkpoint_application_gate.target_runtime_activation_attempted,
+        "targetRuntimeActivationAttempted=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_completed
+            == checkpoint_application_gate.target_runtime_activation_completed,
+        "targetRuntimeActivationCompleted=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_succeeded
+            == checkpoint_application_gate.target_runtime_activation_succeeded,
+        "targetRuntimeActivationSucceeded=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_blocked
+            == checkpoint_application_gate.target_runtime_activation_blocked,
+        "targetRuntimeActivationBlocked=yes");
+    check(
+        checkpoint_application_state.target_runtime_activation_block_reason
+            == checkpoint_application_gate.target_runtime_activation_block_reason,
+        "targetRuntimeActivationBlockReason=target-runtime-materialization-outcome-not-produced");
+    check(
+        checkpoint_application_state.target_runtime_activation_started
+            == checkpoint_application_gate.target_runtime_activation_started,
+        "targetRuntimeActivationStarted=no");
+    check(
+        checkpoint_application_state.target_runtime_activated
+            == checkpoint_application_gate.target_runtime_activated,
+        "targetRuntimeActivated=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_state
+            == checkpoint_application_gate.target_runtime_activation_state,
+        "targetRuntimeActivationState=not-activated");
+    check(
+        checkpoint_application_state.target_runtime_activation_state_reason
+            == checkpoint_application_gate.target_runtime_activation_state_reason,
+        "targetRuntimeActivationStateReason=activation-not-started");
+    check(
+        checkpoint_application_state.target_runtime_activation_outcome
+            == checkpoint_application_gate.target_runtime_activation_outcome,
+        "targetRuntimeActivationOutcome=not-produced");
+    check(
+        checkpoint_application_state.target_runtime_activation_outcome_available
+            == checkpoint_application_gate
+                   .target_runtime_activation_outcome_available,
+        "targetRuntimeActivationOutcomeAvailable=no");
+    check(
+        checkpoint_application_state.target_runtime_activation_outcome_reason
+            == checkpoint_application_gate.target_runtime_activation_outcome_reason,
+        "targetRuntimeActivationOutcomeReason=activation-not-attempted");
+    check(
+        checkpoint_application_state.target_runtime_cutover_candidate
+            == checkpoint_application_gate.target_runtime_cutover_candidate,
+        "targetRuntimeCutoverCandidate=yes");
+    check(
+        checkpoint_application_state.target_runtime_cutover_allowed
+            == checkpoint_application_gate.target_runtime_cutover_allowed,
+        "targetRuntimeCutoverAllowed=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_deferred
+            == checkpoint_application_gate.target_runtime_cutover_deferred,
+        "targetRuntimeCutoverDeferred=yes");
+    check(
+        checkpoint_application_state.target_runtime_cutover_attempted
+            == checkpoint_application_gate.target_runtime_cutover_attempted,
+        "targetRuntimeCutoverAttempted=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_completed
+            == checkpoint_application_gate.target_runtime_cutover_completed,
+        "targetRuntimeCutoverCompleted=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_succeeded
+            == checkpoint_application_gate.target_runtime_cutover_succeeded,
+        "targetRuntimeCutoverSucceeded=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_blocked
+            == checkpoint_application_gate.target_runtime_cutover_blocked,
+        "targetRuntimeCutoverBlocked=yes");
+    check(
+        checkpoint_application_state.target_runtime_cutover_block_reason
+            == checkpoint_application_gate.target_runtime_cutover_block_reason,
+        "targetRuntimeCutoverBlockReason=target-runtime-activation-outcome-not-produced");
+    check(
+        checkpoint_application_state.target_runtime_cutover_started
+            == checkpoint_application_gate.target_runtime_cutover_started,
+        "targetRuntimeCutoverStarted=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_applied
+            == checkpoint_application_gate.target_runtime_cutover_applied,
+        "targetRuntimeCutoverApplied=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_state
+            == checkpoint_application_gate.target_runtime_cutover_state,
+        "targetRuntimeCutoverState=not-cut-over");
+    check(
+        checkpoint_application_state.target_runtime_cutover_state_reason
+            == checkpoint_application_gate.target_runtime_cutover_state_reason,
+        "targetRuntimeCutoverStateReason=cutover-not-started");
+    check(
+        checkpoint_application_state.target_runtime_cutover_outcome
+            == checkpoint_application_gate.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome=not-produced");
+    check(
+        checkpoint_application_state.target_runtime_cutover_outcome_available
+            == checkpoint_application_gate.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable=no");
+    check(
+        checkpoint_application_state.target_runtime_cutover_outcome_reason
+            == checkpoint_application_gate.target_runtime_cutover_outcome_reason,
+        "targetRuntimeCutoverOutcomeReason=cutover-not-attempted");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_candidate
+            == checkpoint_application_gate.current_runtime_deactivation_candidate,
+        "currentRuntimeDeactivationCandidate=yes");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_allowed
+            == checkpoint_application_gate.current_runtime_deactivation_allowed,
+        "currentRuntimeDeactivationAllowed=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_deferred
+            == checkpoint_application_gate.current_runtime_deactivation_deferred,
+        "currentRuntimeDeactivationDeferred=yes");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_attempted
+            == checkpoint_application_gate.current_runtime_deactivation_attempted,
+        "currentRuntimeDeactivationAttempted=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_completed
+            == checkpoint_application_gate.current_runtime_deactivation_completed,
+        "currentRuntimeDeactivationCompleted=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_succeeded
+            == checkpoint_application_gate.current_runtime_deactivation_succeeded,
+        "currentRuntimeDeactivationSucceeded=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_blocked
+            == checkpoint_application_gate.current_runtime_deactivation_blocked,
+        "currentRuntimeDeactivationBlocked=yes");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_block_reason
+            == checkpoint_application_gate.current_runtime_deactivation_block_reason,
+        "currentRuntimeDeactivationBlockReason=target-runtime-cutover-outcome-not-produced");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_started
+            == checkpoint_application_gate.current_runtime_deactivation_started,
+        "currentRuntimeDeactivationStarted=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivated
+            == checkpoint_application_gate.current_runtime_deactivated,
+        "currentRuntimeDeactivated=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_state
+            == checkpoint_application_gate.current_runtime_deactivation_state,
+        "currentRuntimeDeactivationState=not-deactivated");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_state_reason
+            == checkpoint_application_gate.current_runtime_deactivation_state_reason,
+        "currentRuntimeDeactivationStateReason=deactivation-not-started");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_outcome
+            == checkpoint_application_gate.current_runtime_deactivation_outcome,
+        "currentRuntimeDeactivationOutcome=not-produced");
+    check(
+        checkpoint_application_state
+                .current_runtime_deactivation_outcome_available
+            == checkpoint_application_gate
+                   .current_runtime_deactivation_outcome_available,
+        "currentRuntimeDeactivationOutcomeAvailable=no");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_outcome_reason
+            == checkpoint_application_gate.current_runtime_deactivation_outcome_reason,
+        "currentRuntimeDeactivationOutcomeReason=deactivation-not-attempted");
+    check(
+        checkpoint_application_state.current_runtime_deactivation_ready
+            == checkpoint_application_gate.current_runtime_deactivation_ready,
+        "currentRuntimeDeactivationReady=no");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_candidate
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_candidate,
+        "targetRuntimeCheckpointApplicationCandidate=yes");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_allowed
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_allowed,
+        "targetRuntimeCheckpointApplicationAllowed=no");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_deferred
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_deferred,
+        "targetRuntimeCheckpointApplicationDeferred=yes");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_attempted
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_attempted,
+        "targetRuntimeCheckpointApplicationAttempted=no");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_completed
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_completed,
+        "targetRuntimeCheckpointApplicationCompleted=no");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_succeeded
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_succeeded,
+        "targetRuntimeCheckpointApplicationSucceeded=no");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_blocked
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_blocked,
+        "targetRuntimeCheckpointApplicationBlocked=yes");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_block_reason
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_block_reason,
+        "targetRuntimeCheckpointApplicationBlockReason=current-runtime-deactivation-outcome-not-produced");
+    check(
+        !checkpoint_application_state
+             .target_runtime_checkpoint_application_started,
+        "targetRuntimeCheckpointApplicationStarted=no");
+    check(
+        !checkpoint_application_state.target_runtime_checkpoint_applied,
+        "targetRuntimeCheckpointApplied=no");
+    check(
+        checkpoint_application_state.target_runtime_checkpoint_application_state
+            == "not-applied",
+        "targetRuntimeCheckpointApplicationState=not-applied");
+    check(
+        checkpoint_application_state
+                .target_runtime_checkpoint_application_state_reason
+            == "checkpoint-application-not-started",
+        "targetRuntimeCheckpointApplicationStateReason=checkpoint-application-not-started");
+    check(
+        checkpoint_application_state.target_runtime_checkpoint_application_ready
+            == checkpoint_application_gate
+                   .target_runtime_checkpoint_application_ready,
+        "targetRuntimeCheckpointApplicationReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -16170,6 +16604,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime checkpoint application gate prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationState(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime checkpoint application state prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -16769,6 +17211,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime checkpoint application gate skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationState(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime checkpoint application state skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
