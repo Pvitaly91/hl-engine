@@ -14491,6 +14491,345 @@ void ValidateChangelevelPlayerTransferCurrentRuntimeDeactivationGate(
         "currentRuntimeDeactivationReady=no");
 }
 
+void ValidateChangelevelPlayerTransferCurrentRuntimeDeactivationState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_current_runtime_deactivation_state_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& deactivation_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_current_runtime_deactivation_state;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_current_runtime_deactivation_state";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(deactivation_state.attempted, "attempted=yes");
+    check(
+        deactivation_state.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        deactivation_state.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        deactivation_state.current_runtime_deactivation_state_ready
+            == expected_current_runtime_deactivation_state_ready,
+        std::string("currentRuntimeDeactivationStateReady=")
+            + (expected_current_runtime_deactivation_state_ready ? "yes"
+                                                                 : "no"));
+    check(
+        deactivation_state.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        deactivation_state.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_current_runtime_deactivation_state_ready)
+    {
+        return;
+    }
+
+    const auto& deactivation_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_current_runtime_deactivation_gate;
+
+    check(
+        deactivation_state.decision_source == "current-runtime-deactivation-gate",
+        "decisionSource=current-runtime-deactivation-gate");
+    check(
+        deactivation_state.bootstrap_execution_outcome
+            == deactivation_gate.bootstrap_execution_outcome,
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        deactivation_state.bootstrap_result_state
+            == deactivation_gate.bootstrap_result_state,
+        "bootstrapResultState=blocked");
+    check(
+        deactivation_state.bootstrap_result_produced
+            == deactivation_gate.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        deactivation_state.bootstrap_result_consumable
+            == deactivation_gate.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        deactivation_state.bootstrap_result_consumption_allowed
+            == deactivation_gate.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        deactivation_state.bootstrap_result_consumption_deferred
+            == deactivation_gate.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        deactivation_state.bootstrap_result_consumption_attempted
+            == deactivation_gate.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(
+        deactivation_state.bootstrap_result_consumed
+            == deactivation_gate.bootstrap_result_consumed,
+        "bootstrapResultConsumed=no");
+    check(
+        deactivation_state.bootstrap_result_consumption_state
+            == deactivation_gate.bootstrap_result_consumption_state,
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        deactivation_state.bootstrap_result_consumption_outcome
+            == deactivation_gate.bootstrap_result_consumption_outcome,
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        deactivation_state.bootstrap_result_consumption_outcome_available
+            == deactivation_gate
+                   .bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        deactivation_state.bootstrap_result_consumption_outcome_reason
+            == deactivation_gate.bootstrap_result_consumption_outcome_reason,
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        deactivation_state.target_runtime_materialization_candidate
+            == deactivation_gate.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        deactivation_state.target_runtime_materialization_allowed
+            == deactivation_gate.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        deactivation_state.target_runtime_materialization_deferred
+            == deactivation_gate.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        deactivation_state.target_runtime_materialization_attempted
+            == deactivation_gate.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        deactivation_state.target_runtime_materialization_completed
+            == deactivation_gate.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        deactivation_state.target_runtime_materialization_succeeded
+            == deactivation_gate.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        deactivation_state.target_runtime_materialization_blocked
+            == deactivation_gate.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        deactivation_state.target_runtime_materialization_block_reason
+            == deactivation_gate.target_runtime_materialization_block_reason,
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        deactivation_state.target_runtime_materialization_started
+            == deactivation_gate.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        deactivation_state.target_runtime_materialized
+            == deactivation_gate.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        deactivation_state.target_runtime_materialization_state
+            == deactivation_gate.target_runtime_materialization_state,
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        deactivation_state.target_runtime_materialization_state_reason
+            == deactivation_gate.target_runtime_materialization_state_reason,
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        deactivation_state.target_runtime_materialization_outcome
+            == deactivation_gate.target_runtime_materialization_outcome,
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        deactivation_state.target_runtime_materialization_outcome_available
+            == deactivation_gate
+                   .target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        deactivation_state.target_runtime_materialization_outcome_reason
+            == deactivation_gate.target_runtime_materialization_outcome_reason,
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        deactivation_state.target_runtime_activation_candidate
+            == deactivation_gate.target_runtime_activation_candidate,
+        "targetRuntimeActivationCandidate=yes");
+    check(
+        deactivation_state.target_runtime_activation_allowed
+            == deactivation_gate.target_runtime_activation_allowed,
+        "targetRuntimeActivationAllowed=no");
+    check(
+        deactivation_state.target_runtime_activation_deferred
+            == deactivation_gate.target_runtime_activation_deferred,
+        "targetRuntimeActivationDeferred=yes");
+    check(
+        deactivation_state.target_runtime_activation_attempted
+            == deactivation_gate.target_runtime_activation_attempted,
+        "targetRuntimeActivationAttempted=no");
+    check(
+        deactivation_state.target_runtime_activation_completed
+            == deactivation_gate.target_runtime_activation_completed,
+        "targetRuntimeActivationCompleted=no");
+    check(
+        deactivation_state.target_runtime_activation_succeeded
+            == deactivation_gate.target_runtime_activation_succeeded,
+        "targetRuntimeActivationSucceeded=no");
+    check(
+        deactivation_state.target_runtime_activation_blocked
+            == deactivation_gate.target_runtime_activation_blocked,
+        "targetRuntimeActivationBlocked=yes");
+    check(
+        deactivation_state.target_runtime_activation_block_reason
+            == deactivation_gate.target_runtime_activation_block_reason,
+        "targetRuntimeActivationBlockReason=target-runtime-materialization-outcome-not-produced");
+    check(
+        deactivation_state.target_runtime_activation_started
+            == deactivation_gate.target_runtime_activation_started,
+        "targetRuntimeActivationStarted=no");
+    check(
+        deactivation_state.target_runtime_activated
+            == deactivation_gate.target_runtime_activated,
+        "targetRuntimeActivated=no");
+    check(
+        deactivation_state.target_runtime_activation_state
+            == deactivation_gate.target_runtime_activation_state,
+        "targetRuntimeActivationState=not-activated");
+    check(
+        deactivation_state.target_runtime_activation_state_reason
+            == deactivation_gate.target_runtime_activation_state_reason,
+        "targetRuntimeActivationStateReason=activation-not-started");
+    check(
+        deactivation_state.target_runtime_activation_outcome
+            == deactivation_gate.target_runtime_activation_outcome,
+        "targetRuntimeActivationOutcome=not-produced");
+    check(
+        deactivation_state.target_runtime_activation_outcome_available
+            == deactivation_gate.target_runtime_activation_outcome_available,
+        "targetRuntimeActivationOutcomeAvailable=no");
+    check(
+        deactivation_state.target_runtime_activation_outcome_reason
+            == deactivation_gate.target_runtime_activation_outcome_reason,
+        "targetRuntimeActivationOutcomeReason=activation-not-attempted");
+    check(
+        deactivation_state.target_runtime_cutover_candidate
+            == deactivation_gate.target_runtime_cutover_candidate,
+        "targetRuntimeCutoverCandidate=yes");
+    check(
+        deactivation_state.target_runtime_cutover_allowed
+            == deactivation_gate.target_runtime_cutover_allowed,
+        "targetRuntimeCutoverAllowed=no");
+    check(
+        deactivation_state.target_runtime_cutover_deferred
+            == deactivation_gate.target_runtime_cutover_deferred,
+        "targetRuntimeCutoverDeferred=yes");
+    check(
+        deactivation_state.target_runtime_cutover_attempted
+            == deactivation_gate.target_runtime_cutover_attempted,
+        "targetRuntimeCutoverAttempted=no");
+    check(
+        deactivation_state.target_runtime_cutover_completed
+            == deactivation_gate.target_runtime_cutover_completed,
+        "targetRuntimeCutoverCompleted=no");
+    check(
+        deactivation_state.target_runtime_cutover_succeeded
+            == deactivation_gate.target_runtime_cutover_succeeded,
+        "targetRuntimeCutoverSucceeded=no");
+    check(
+        deactivation_state.target_runtime_cutover_blocked
+            == deactivation_gate.target_runtime_cutover_blocked,
+        "targetRuntimeCutoverBlocked=yes");
+    check(
+        deactivation_state.target_runtime_cutover_block_reason
+            == deactivation_gate.target_runtime_cutover_block_reason,
+        "targetRuntimeCutoverBlockReason=target-runtime-activation-outcome-not-produced");
+    check(
+        deactivation_state.target_runtime_cutover_started
+            == deactivation_gate.target_runtime_cutover_started,
+        "targetRuntimeCutoverStarted=no");
+    check(
+        deactivation_state.target_runtime_cutover_applied
+            == deactivation_gate.target_runtime_cutover_applied,
+        "targetRuntimeCutoverApplied=no");
+    check(
+        deactivation_state.target_runtime_cutover_state
+            == deactivation_gate.target_runtime_cutover_state,
+        "targetRuntimeCutoverState=not-cut-over");
+    check(
+        deactivation_state.target_runtime_cutover_state_reason
+            == deactivation_gate.target_runtime_cutover_state_reason,
+        "targetRuntimeCutoverStateReason=cutover-not-started");
+    check(
+        deactivation_state.target_runtime_cutover_outcome
+            == deactivation_gate.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome=not-produced");
+    check(
+        deactivation_state.target_runtime_cutover_outcome_available
+            == deactivation_gate.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable=no");
+    check(
+        deactivation_state.target_runtime_cutover_outcome_reason
+            == deactivation_gate.target_runtime_cutover_outcome_reason,
+        "targetRuntimeCutoverOutcomeReason=cutover-not-attempted");
+    check(
+        deactivation_state.current_runtime_deactivation_candidate
+            == deactivation_gate.current_runtime_deactivation_candidate,
+        "currentRuntimeDeactivationCandidate=yes");
+    check(
+        deactivation_state.current_runtime_deactivation_allowed
+            == deactivation_gate.current_runtime_deactivation_allowed,
+        "currentRuntimeDeactivationAllowed=no");
+    check(
+        deactivation_state.current_runtime_deactivation_deferred
+            == deactivation_gate.current_runtime_deactivation_deferred,
+        "currentRuntimeDeactivationDeferred=yes");
+    check(
+        deactivation_state.current_runtime_deactivation_attempted
+            == deactivation_gate.current_runtime_deactivation_attempted,
+        "currentRuntimeDeactivationAttempted=no");
+    check(
+        deactivation_state.current_runtime_deactivation_completed
+            == deactivation_gate.current_runtime_deactivation_completed,
+        "currentRuntimeDeactivationCompleted=no");
+    check(
+        deactivation_state.current_runtime_deactivation_succeeded
+            == deactivation_gate.current_runtime_deactivation_succeeded,
+        "currentRuntimeDeactivationSucceeded=no");
+    check(
+        deactivation_state.current_runtime_deactivation_blocked
+            == deactivation_gate.current_runtime_deactivation_blocked,
+        "currentRuntimeDeactivationBlocked=yes");
+    check(
+        deactivation_state.current_runtime_deactivation_block_reason
+            == "target-runtime-cutover-outcome-not-produced",
+        "currentRuntimeDeactivationBlockReason=target-runtime-cutover-outcome-not-produced");
+    check(
+        !deactivation_state.current_runtime_deactivation_started,
+        "currentRuntimeDeactivationStarted=no");
+    check(
+        !deactivation_state.current_runtime_deactivated,
+        "currentRuntimeDeactivated=no");
+    check(
+        deactivation_state.current_runtime_deactivation_state
+            == "not-deactivated",
+        "currentRuntimeDeactivationState=not-deactivated");
+    check(
+        deactivation_state.current_runtime_deactivation_state_reason
+            == "deactivation-not-started",
+        "currentRuntimeDeactivationStateReason=deactivation-not-started");
+    check(
+        deactivation_state.current_runtime_deactivation_ready
+            == deactivation_gate.current_runtime_deactivation_ready,
+        "currentRuntimeDeactivationReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -15109,6 +15448,14 @@ bool ValidateRegressionGuard(
             "no-op current runtime deactivation gate prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferCurrentRuntimeDeactivationState(
+            summary,
+            true,
+            false,
+            true,
+            "no-op current runtime deactivation state prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -15684,6 +16031,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "current runtime deactivation gate skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferCurrentRuntimeDeactivationState(
+            summary,
+            false,
+            true,
+            false,
+            "current runtime deactivation state skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
