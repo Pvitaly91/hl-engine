@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260402_202631",
+  "runInstanceId": "20260402_202631_366_pid38164",
+  "runLabel": "codex-changelevel-target-runtime-checkpoint-application-outcome-baseline",
+  "regressionGuard": "changelevel-latch-only-continuation",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "1741a89c6c7c3d4f55f1b634c3698910dc0d875c",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_202631_366_pid38164__codex-changelevel-target-runtime-checkpoint-application-outcome-baseline_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_202631_366_pid38164__codex-changelevel-target-runtime-checkpoint-application-outcome-baseline_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_202631_366_pid38164__codex-changelevel-target-runtime-checkpoint-application-outcome-baseline_part01.log"]
+}
