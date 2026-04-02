@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260402_132932",
+  "runInstanceId": "20260402_132932_341_pid12372",
+  "runLabel": "codex-changelevel-target-runtime-cutover-outcome-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "fa402a692eabbd4a415df19efb82fc2be4e12fe2",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_132932_341_pid12372__codex-changelevel-target-runtime-cutover-outcome-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_132932_341_pid12372__codex-changelevel-target-runtime-cutover-outcome-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260402_132932_341_pid12372__codex-changelevel-target-runtime-cutover-outcome-stop_part01.log"]
+}
