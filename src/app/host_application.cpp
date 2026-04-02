@@ -13936,6 +13936,246 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCutoverState(
         "targetRuntimeCutoverReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCutoverOutcome(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_cutover_outcome_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& cutover_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_cutover_outcome;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_cutover_outcome";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(cutover_outcome.attempted, "attempted=yes");
+    check(
+        cutover_outcome.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        cutover_outcome.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        cutover_outcome.target_runtime_cutover_outcome_ready
+            == expected_target_runtime_cutover_outcome_ready,
+        std::string("targetRuntimeCutoverOutcomeReady=")
+            + (expected_target_runtime_cutover_outcome_ready ? "yes" : "no"));
+    check(
+        cutover_outcome.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        cutover_outcome.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_cutover_outcome_ready)
+    {
+        return;
+    }
+
+    check(
+        cutover_outcome.decision_source == "target-runtime-cutover-state",
+        "decisionSource=target-runtime-cutover-state");
+    check(
+        cutover_outcome.bootstrap_execution_outcome == "not-produced",
+        "bootstrapExecutionOutcome=not-produced");
+    check(
+        cutover_outcome.bootstrap_result_state == "blocked",
+        "bootstrapResultState=blocked");
+    check(
+        !cutover_outcome.bootstrap_result_produced,
+        "bootstrapResultProduced=no");
+    check(
+        !cutover_outcome.bootstrap_result_consumable,
+        "bootstrapResultConsumable=no");
+    check(
+        !cutover_outcome.bootstrap_result_consumption_allowed,
+        "bootstrapResultConsumptionAllowed=no");
+    check(
+        cutover_outcome.bootstrap_result_consumption_deferred,
+        "bootstrapResultConsumptionDeferred=yes");
+    check(
+        !cutover_outcome.bootstrap_result_consumption_attempted,
+        "bootstrapResultConsumptionAttempted=no");
+    check(
+        !cutover_outcome.bootstrap_result_consumed,
+        "bootstrapResultConsumed=no");
+    check(
+        cutover_outcome.bootstrap_result_consumption_state == "not-consumed",
+        "bootstrapResultConsumptionState=not-consumed");
+    check(
+        cutover_outcome.bootstrap_result_consumption_outcome == "not-produced",
+        "bootstrapResultConsumptionOutcome=not-produced");
+    check(
+        !cutover_outcome.bootstrap_result_consumption_outcome_available,
+        "bootstrapResultConsumptionOutcomeAvailable=no");
+    check(
+        cutover_outcome.bootstrap_result_consumption_outcome_reason
+            == "consumption-not-attempted",
+        "bootstrapResultConsumptionOutcomeReason=consumption-not-attempted");
+    check(
+        cutover_outcome.target_runtime_materialization_candidate,
+        "targetRuntimeMaterializationCandidate=yes");
+    check(
+        !cutover_outcome.target_runtime_materialization_allowed,
+        "targetRuntimeMaterializationAllowed=no");
+    check(
+        cutover_outcome.target_runtime_materialization_deferred,
+        "targetRuntimeMaterializationDeferred=yes");
+    check(
+        !cutover_outcome.target_runtime_materialization_attempted,
+        "targetRuntimeMaterializationAttempted=no");
+    check(
+        !cutover_outcome.target_runtime_materialization_completed,
+        "targetRuntimeMaterializationCompleted=no");
+    check(
+        !cutover_outcome.target_runtime_materialization_succeeded,
+        "targetRuntimeMaterializationSucceeded=no");
+    check(
+        cutover_outcome.target_runtime_materialization_blocked,
+        "targetRuntimeMaterializationBlocked=yes");
+    check(
+        cutover_outcome.target_runtime_materialization_block_reason
+            == "bootstrap-result-consumption-outcome-not-produced",
+        "targetRuntimeMaterializationBlockReason=bootstrap-result-consumption-outcome-not-produced");
+    check(
+        !cutover_outcome.target_runtime_materialization_started,
+        "targetRuntimeMaterializationStarted=no");
+    check(
+        !cutover_outcome.target_runtime_materialized,
+        "targetRuntimeMaterialized=no");
+    check(
+        cutover_outcome.target_runtime_materialization_state
+            == "not-materialized",
+        "targetRuntimeMaterializationState=not-materialized");
+    check(
+        cutover_outcome.target_runtime_materialization_state_reason
+            == "materialization-not-started",
+        "targetRuntimeMaterializationStateReason=materialization-not-started");
+    check(
+        cutover_outcome.target_runtime_materialization_outcome
+            == "not-produced",
+        "targetRuntimeMaterializationOutcome=not-produced");
+    check(
+        !cutover_outcome.target_runtime_materialization_outcome_available,
+        "targetRuntimeMaterializationOutcomeAvailable=no");
+    check(
+        cutover_outcome.target_runtime_materialization_outcome_reason
+            == "materialization-not-attempted",
+        "targetRuntimeMaterializationOutcomeReason=materialization-not-attempted");
+    check(
+        cutover_outcome.target_runtime_activation_candidate,
+        "targetRuntimeActivationCandidate=yes");
+    check(
+        !cutover_outcome.target_runtime_activation_allowed,
+        "targetRuntimeActivationAllowed=no");
+    check(
+        cutover_outcome.target_runtime_activation_deferred,
+        "targetRuntimeActivationDeferred=yes");
+    check(
+        !cutover_outcome.target_runtime_activation_attempted,
+        "targetRuntimeActivationAttempted=no");
+    check(
+        !cutover_outcome.target_runtime_activation_completed,
+        "targetRuntimeActivationCompleted=no");
+    check(
+        !cutover_outcome.target_runtime_activation_succeeded,
+        "targetRuntimeActivationSucceeded=no");
+    check(
+        cutover_outcome.target_runtime_activation_blocked,
+        "targetRuntimeActivationBlocked=yes");
+    check(
+        cutover_outcome.target_runtime_activation_block_reason
+            == "target-runtime-materialization-outcome-not-produced",
+        "targetRuntimeActivationBlockReason=target-runtime-materialization-outcome-not-produced");
+    check(
+        !cutover_outcome.target_runtime_activation_started,
+        "targetRuntimeActivationStarted=no");
+    check(
+        !cutover_outcome.target_runtime_activated,
+        "targetRuntimeActivated=no");
+    check(
+        cutover_outcome.target_runtime_activation_state == "not-activated",
+        "targetRuntimeActivationState=not-activated");
+    check(
+        cutover_outcome.target_runtime_activation_state_reason
+            == "activation-not-started",
+        "targetRuntimeActivationStateReason=activation-not-started");
+    check(
+        cutover_outcome.target_runtime_activation_outcome == "not-produced",
+        "targetRuntimeActivationOutcome=not-produced");
+    check(
+        !cutover_outcome.target_runtime_activation_outcome_available,
+        "targetRuntimeActivationOutcomeAvailable=no");
+    check(
+        cutover_outcome.target_runtime_activation_outcome_reason
+            == "activation-not-attempted",
+        "targetRuntimeActivationOutcomeReason=activation-not-attempted");
+    check(
+        cutover_outcome.target_runtime_cutover_candidate,
+        "targetRuntimeCutoverCandidate=yes");
+    check(
+        !cutover_outcome.target_runtime_cutover_allowed,
+        "targetRuntimeCutoverAllowed=no");
+    check(
+        cutover_outcome.target_runtime_cutover_deferred,
+        "targetRuntimeCutoverDeferred=yes");
+    check(
+        !cutover_outcome.target_runtime_cutover_attempted,
+        "targetRuntimeCutoverAttempted=no");
+    check(
+        !cutover_outcome.target_runtime_cutover_completed,
+        "targetRuntimeCutoverCompleted=no");
+    check(
+        !cutover_outcome.target_runtime_cutover_succeeded,
+        "targetRuntimeCutoverSucceeded=no");
+    check(
+        cutover_outcome.target_runtime_cutover_blocked,
+        "targetRuntimeCutoverBlocked=yes");
+    check(
+        cutover_outcome.target_runtime_cutover_block_reason
+            == "target-runtime-activation-outcome-not-produced",
+        "targetRuntimeCutoverBlockReason=target-runtime-activation-outcome-not-produced");
+    check(
+        !cutover_outcome.target_runtime_cutover_started,
+        "targetRuntimeCutoverStarted=no");
+    check(
+        !cutover_outcome.target_runtime_cutover_applied,
+        "targetRuntimeCutoverApplied=no");
+    check(
+        cutover_outcome.target_runtime_cutover_state == "not-cut-over",
+        "targetRuntimeCutoverState=not-cut-over");
+    check(
+        cutover_outcome.target_runtime_cutover_state_reason
+            == "cutover-not-started",
+        "targetRuntimeCutoverStateReason=cutover-not-started");
+    check(
+        cutover_outcome.target_runtime_cutover_outcome == "not-produced",
+        "targetRuntimeCutoverOutcome=not-produced");
+    check(
+        !cutover_outcome.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable=no");
+    check(
+        cutover_outcome.target_runtime_cutover_outcome_reason
+            == "cutover-not-attempted",
+        "targetRuntimeCutoverOutcomeReason=cutover-not-attempted");
+    check(
+        !cutover_outcome.target_runtime_cutover_ready,
+        "targetRuntimeCutoverReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -14538,6 +14778,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime cutover state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCutoverOutcome(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime cutover outcome prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -15097,6 +15345,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime cutover state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCutoverOutcome(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime cutover outcome skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
