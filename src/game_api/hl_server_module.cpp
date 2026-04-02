@@ -576,6 +576,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -940,6 +942,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationStateSummary&
                 checkpoint_application_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary&
+                checkpoint_application_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -11269,6 +11277,217 @@ FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary(
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary&
+            player_placement_gate =
+                summary
+                    .changelevel_player_transfer_target_runtime_player_placement_gate;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(player_placement_gate.prepared)
+        + ", skipped=" + BoolToYesNo(player_placement_gate.skipped);
+    if (!player_placement_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + player_placement_gate.decision_source;
+    }
+    if (player_placement_gate.prepared)
+    {
+        line += ", targetRuntimeCutoverOutcome="
+            + (player_placement_gate.target_runtime_cutover_outcome.empty()
+                   ? std::string("<none>")
+                   : player_placement_gate.target_runtime_cutover_outcome)
+            + ", targetRuntimeCutoverOutcomeAvailable="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_cutover_outcome_available)
+            + ", targetRuntimeCutoverOutcomeReason="
+            + (player_placement_gate.target_runtime_cutover_outcome_reason.empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_cutover_outcome_reason)
+            + ", currentRuntimeDeactivationCandidate="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_candidate)
+            + ", currentRuntimeDeactivationAllowed="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_allowed)
+            + ", currentRuntimeDeactivationDeferred="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_deferred)
+            + ", currentRuntimeDeactivationAttempted="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_attempted)
+            + ", currentRuntimeDeactivationCompleted="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_completed)
+            + ", currentRuntimeDeactivationSucceeded="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_succeeded)
+            + ", currentRuntimeDeactivationBlocked="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_blocked)
+            + ", currentRuntimeDeactivationBlockReason="
+            + (player_placement_gate.current_runtime_deactivation_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .current_runtime_deactivation_block_reason)
+            + ", currentRuntimeDeactivationStarted="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivation_started)
+            + ", currentRuntimeDeactivated="
+            + BoolToYesNo(
+                player_placement_gate.current_runtime_deactivated)
+            + ", currentRuntimeDeactivationState="
+            + (player_placement_gate.current_runtime_deactivation_state.empty()
+                   ? std::string("<none>")
+                   : player_placement_gate.current_runtime_deactivation_state)
+            + ", currentRuntimeDeactivationStateReason="
+            + (player_placement_gate
+                       .current_runtime_deactivation_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .current_runtime_deactivation_state_reason)
+            + ", currentRuntimeDeactivationOutcome="
+            + (player_placement_gate.current_runtime_deactivation_outcome.empty()
+                   ? std::string("<none>")
+                   : player_placement_gate.current_runtime_deactivation_outcome)
+            + ", currentRuntimeDeactivationOutcomeAvailable="
+            + BoolToYesNo(
+                player_placement_gate
+                    .current_runtime_deactivation_outcome_available)
+            + ", currentRuntimeDeactivationOutcomeReason="
+            + (player_placement_gate
+                       .current_runtime_deactivation_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .current_runtime_deactivation_outcome_reason)
+            + ", targetRuntimeCheckpointApplicationCandidate="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_candidate)
+            + ", targetRuntimeCheckpointApplicationAllowed="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_allowed)
+            + ", targetRuntimeCheckpointApplicationDeferred="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_deferred)
+            + ", targetRuntimeCheckpointApplicationAttempted="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_attempted)
+            + ", targetRuntimeCheckpointApplicationCompleted="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_completed)
+            + ", targetRuntimeCheckpointApplicationSucceeded="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_succeeded)
+            + ", targetRuntimeCheckpointApplicationBlocked="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_blocked)
+            + ", targetRuntimeCheckpointApplicationBlockReason="
+            + (player_placement_gate
+                       .target_runtime_checkpoint_application_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_checkpoint_application_block_reason)
+            + ", targetRuntimeCheckpointApplicationStarted="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_started)
+            + ", targetRuntimeCheckpointApplied="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_checkpoint_applied)
+            + ", targetRuntimeCheckpointApplicationState="
+            + (player_placement_gate
+                       .target_runtime_checkpoint_application_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_checkpoint_application_state)
+            + ", targetRuntimeCheckpointApplicationStateReason="
+            + (player_placement_gate
+                       .target_runtime_checkpoint_application_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_checkpoint_application_state_reason)
+            + ", targetRuntimeCheckpointApplicationOutcome="
+            + (player_placement_gate
+                       .target_runtime_checkpoint_application_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_checkpoint_application_outcome)
+            + ", targetRuntimeCheckpointApplicationOutcomeAvailable="
+            + BoolToYesNo(
+                player_placement_gate
+                    .target_runtime_checkpoint_application_outcome_available)
+            + ", targetRuntimeCheckpointApplicationOutcomeReason="
+            + (player_placement_gate
+                       .target_runtime_checkpoint_application_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_checkpoint_application_outcome_reason)
+            + ", targetRuntimePlayerPlacementCandidate="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_candidate)
+            + ", targetRuntimePlayerPlacementAllowed="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_allowed)
+            + ", targetRuntimePlayerPlacementDeferred="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_deferred)
+            + ", targetRuntimePlayerPlacementAttempted="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_attempted)
+            + ", targetRuntimePlayerPlacementCompleted="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_completed)
+            + ", targetRuntimePlayerPlacementSucceeded="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_succeeded)
+            + ", targetRuntimePlayerPlacementBlocked="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_blocked)
+            + ", targetRuntimePlayerPlacementBlockReason="
+            + (player_placement_gate
+                       .target_runtime_player_placement_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_placement_gate
+                         .target_runtime_player_placement_block_reason)
+            + ", targetRuntimePlayerPlacementReady="
+            + BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_ready);
+    }
+    if (!player_placement_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + player_placement_gate.short_circuit_reason;
+    }
+
+    line += ", targetRuntimePlayerPlacementGateReady="
+        + std::string(
+            BoolToYesNo(
+                player_placement_gate.target_runtime_player_placement_gate_ready))
+        + ", action="
+        + (player_placement_gate.action.empty() ? std::string("<none>")
+                                                : player_placement_gate.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -13963,6 +14182,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_checkpoint_application_outcome: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_player_placement_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_player_placement_gate: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -28583,6 +28812,232 @@ hl::game_api::ChangeLevelTransitionSummary::
     return checkpoint_application_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary&
+                checkpoint_application_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary
+            player_placement_gate;
+    player_placement_gate.attempted = true;
+
+    const auto copy_inherited = [&]()
+    {
+        player_placement_gate.target_runtime_cutover_outcome =
+            checkpoint_application_outcome.target_runtime_cutover_outcome;
+        player_placement_gate.target_runtime_cutover_outcome_available =
+            checkpoint_application_outcome.target_runtime_cutover_outcome_available;
+        player_placement_gate.target_runtime_cutover_outcome_reason =
+            checkpoint_application_outcome.target_runtime_cutover_outcome_reason;
+        player_placement_gate.current_runtime_deactivation_candidate =
+            checkpoint_application_outcome.current_runtime_deactivation_candidate;
+        player_placement_gate.current_runtime_deactivation_allowed =
+            checkpoint_application_outcome.current_runtime_deactivation_allowed;
+        player_placement_gate.current_runtime_deactivation_deferred =
+            checkpoint_application_outcome.current_runtime_deactivation_deferred;
+        player_placement_gate.current_runtime_deactivation_attempted =
+            checkpoint_application_outcome.current_runtime_deactivation_attempted;
+        player_placement_gate.current_runtime_deactivation_completed =
+            checkpoint_application_outcome.current_runtime_deactivation_completed;
+        player_placement_gate.current_runtime_deactivation_succeeded =
+            checkpoint_application_outcome.current_runtime_deactivation_succeeded;
+        player_placement_gate.current_runtime_deactivation_blocked =
+            checkpoint_application_outcome.current_runtime_deactivation_blocked;
+        player_placement_gate.current_runtime_deactivation_block_reason =
+            checkpoint_application_outcome.current_runtime_deactivation_block_reason;
+        player_placement_gate.current_runtime_deactivation_started =
+            checkpoint_application_outcome.current_runtime_deactivation_started;
+        player_placement_gate.current_runtime_deactivated =
+            checkpoint_application_outcome.current_runtime_deactivated;
+        player_placement_gate.current_runtime_deactivation_state =
+            checkpoint_application_outcome.current_runtime_deactivation_state;
+        player_placement_gate.current_runtime_deactivation_state_reason =
+            checkpoint_application_outcome
+                .current_runtime_deactivation_state_reason;
+        player_placement_gate.current_runtime_deactivation_outcome =
+            checkpoint_application_outcome.current_runtime_deactivation_outcome;
+        player_placement_gate.current_runtime_deactivation_outcome_available =
+            checkpoint_application_outcome
+                .current_runtime_deactivation_outcome_available;
+        player_placement_gate.current_runtime_deactivation_outcome_reason =
+            checkpoint_application_outcome
+                .current_runtime_deactivation_outcome_reason;
+        player_placement_gate.target_runtime_checkpoint_application_candidate =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_candidate;
+        player_placement_gate.target_runtime_checkpoint_application_allowed =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_allowed;
+        player_placement_gate.target_runtime_checkpoint_application_deferred =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_deferred;
+        player_placement_gate.target_runtime_checkpoint_application_attempted =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_attempted;
+        player_placement_gate.target_runtime_checkpoint_application_completed =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_completed;
+        player_placement_gate.target_runtime_checkpoint_application_succeeded =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_succeeded;
+        player_placement_gate.target_runtime_checkpoint_application_blocked =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_blocked;
+        player_placement_gate.target_runtime_checkpoint_application_block_reason =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_block_reason;
+        player_placement_gate.target_runtime_checkpoint_application_started =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_started;
+        player_placement_gate.target_runtime_checkpoint_applied =
+            checkpoint_application_outcome.target_runtime_checkpoint_applied;
+        player_placement_gate.target_runtime_checkpoint_application_state =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_state;
+        player_placement_gate.target_runtime_checkpoint_application_state_reason =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_state_reason;
+        player_placement_gate.target_runtime_checkpoint_application_outcome =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome;
+        player_placement_gate
+            .target_runtime_checkpoint_application_outcome_available =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome_available;
+        player_placement_gate.target_runtime_checkpoint_application_outcome_reason =
+            checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome_reason;
+    };
+
+    const auto set_player_placement_blocked = [&]()
+    {
+        player_placement_gate.target_runtime_player_placement_candidate = true;
+        player_placement_gate.target_runtime_player_placement_allowed = false;
+        player_placement_gate.target_runtime_player_placement_deferred = true;
+        player_placement_gate.target_runtime_player_placement_attempted = false;
+        player_placement_gate.target_runtime_player_placement_completed = false;
+        player_placement_gate.target_runtime_player_placement_succeeded = false;
+        player_placement_gate.target_runtime_player_placement_blocked = true;
+        player_placement_gate.target_runtime_player_placement_block_reason =
+            "target-runtime-checkpoint-application-outcome-not-produced";
+        player_placement_gate.target_runtime_player_placement_ready = false;
+    };
+
+    if (checkpoint_application_outcome.prepared
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_outcome_ready
+        && checkpoint_application_outcome.target_runtime_cutover_outcome
+            == "not-produced"
+        && !checkpoint_application_outcome.target_runtime_cutover_outcome_available
+        && checkpoint_application_outcome.target_runtime_cutover_outcome_reason
+            == "cutover-not-attempted"
+        && checkpoint_application_outcome.current_runtime_deactivation_candidate
+        && !checkpoint_application_outcome.current_runtime_deactivation_allowed
+        && checkpoint_application_outcome.current_runtime_deactivation_deferred
+        && !checkpoint_application_outcome.current_runtime_deactivation_attempted
+        && !checkpoint_application_outcome.current_runtime_deactivation_completed
+        && !checkpoint_application_outcome.current_runtime_deactivation_succeeded
+        && checkpoint_application_outcome.current_runtime_deactivation_blocked
+        && checkpoint_application_outcome.current_runtime_deactivation_block_reason
+            == "target-runtime-cutover-outcome-not-produced"
+        && !checkpoint_application_outcome.current_runtime_deactivation_started
+        && !checkpoint_application_outcome.current_runtime_deactivated
+        && checkpoint_application_outcome.current_runtime_deactivation_state
+            == "not-deactivated"
+        && checkpoint_application_outcome.current_runtime_deactivation_state_reason
+            == "deactivation-not-started"
+        && checkpoint_application_outcome.current_runtime_deactivation_outcome
+            == "not-produced"
+        && !checkpoint_application_outcome
+                .current_runtime_deactivation_outcome_available
+        && checkpoint_application_outcome
+               .current_runtime_deactivation_outcome_reason
+            == "deactivation-not-attempted"
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_candidate
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_allowed
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_deferred
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_attempted
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_completed
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_succeeded
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_blocked
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_block_reason
+            == "current-runtime-deactivation-outcome-not-produced"
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_started
+        && !checkpoint_application_outcome.target_runtime_checkpoint_applied
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_state
+            == "not-applied"
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_state_reason
+            == "checkpoint-application-not-started"
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_outcome
+            == "not-produced"
+        && !checkpoint_application_outcome
+                .target_runtime_checkpoint_application_outcome_available
+        && checkpoint_application_outcome
+               .target_runtime_checkpoint_application_outcome_reason
+            == "checkpoint-application-not-attempted")
+    {
+        player_placement_gate.prepared = true;
+        player_placement_gate.skipped = false;
+        player_placement_gate.decision_source =
+            "target-runtime-checkpoint-application-outcome";
+        copy_inherited();
+        set_player_placement_blocked();
+        player_placement_gate.target_runtime_player_placement_gate_ready = true;
+        player_placement_gate.action =
+            "no-op target runtime player placement gate prepared";
+        return player_placement_gate;
+    }
+
+    player_placement_gate.prepared = false;
+    player_placement_gate.target_runtime_player_placement_gate_ready = false;
+    player_placement_gate.short_circuit_reason =
+        checkpoint_application_outcome.short_circuit_reason;
+
+    if (checkpoint_application_outcome.skipped)
+    {
+        player_placement_gate.skipped = true;
+        player_placement_gate.action =
+            "target runtime player placement gate skipped";
+        return player_placement_gate;
+    }
+
+    player_placement_gate.skipped = false;
+    player_placement_gate.decision_source =
+        checkpoint_application_outcome.attempted
+        ? std::string("target-runtime-checkpoint-application-outcome")
+        : std::string();
+    copy_inherited();
+
+    if (!checkpoint_application_outcome
+             .target_runtime_checkpoint_application_outcome_ready)
+    {
+        player_placement_gate.action =
+            "target runtime player placement gate waiting on target runtime checkpoint application outcome";
+        return player_placement_gate;
+    }
+
+    set_player_placement_blocked();
+    player_placement_gate.target_runtime_player_placement_gate_ready = true;
+    player_placement_gate.action =
+        "target runtime player placement gate not required";
+    return player_placement_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -29628,6 +30083,24 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
         BuildChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
             summary
                 .changelevel_player_transfer_target_runtime_checkpoint_application_state);
+    RefreshChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_checkpoint_application_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_player_placement_gate =
+        BuildChangeLevelPlayerTransferTargetRuntimePlayerPlacementGate(
+            summary
+                .changelevel_player_transfer_target_runtime_checkpoint_application_outcome);
 }
 
 void CapturePendingChangeLevelRequest(

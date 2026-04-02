@@ -16198,6 +16198,203 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
         "targetRuntimeCheckpointApplicationOutcomeReason=checkpoint-application-not-attempted");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimePlayerPlacementGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_player_placement_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& player_placement_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_placement_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_player_placement_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(player_placement_gate.attempted, "attempted=yes");
+    check(
+        player_placement_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        player_placement_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        player_placement_gate.target_runtime_player_placement_gate_ready
+            == expected_target_runtime_player_placement_gate_ready,
+        std::string("targetRuntimePlayerPlacementGateReady=")
+            + (expected_target_runtime_player_placement_gate_ready ? "yes"
+                                                                   : "no"));
+    check(
+        player_placement_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        player_placement_gate.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_player_placement_gate_ready)
+    {
+        return;
+    }
+
+    check(
+        player_placement_gate.decision_source
+            == "target-runtime-checkpoint-application-outcome",
+        "decisionSource=target-runtime-checkpoint-application-outcome");
+    check(
+        player_placement_gate.target_runtime_cutover_outcome == "not-produced",
+        "targetRuntimeCutoverOutcome=not-produced");
+    check(
+        !player_placement_gate.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable=no");
+    check(
+        player_placement_gate.target_runtime_cutover_outcome_reason
+            == "cutover-not-attempted",
+        "targetRuntimeCutoverOutcomeReason=cutover-not-attempted");
+    check(
+        player_placement_gate.current_runtime_deactivation_candidate,
+        "currentRuntimeDeactivationCandidate=yes");
+    check(
+        !player_placement_gate.current_runtime_deactivation_allowed,
+        "currentRuntimeDeactivationAllowed=no");
+    check(
+        player_placement_gate.current_runtime_deactivation_deferred,
+        "currentRuntimeDeactivationDeferred=yes");
+    check(
+        !player_placement_gate.current_runtime_deactivation_attempted,
+        "currentRuntimeDeactivationAttempted=no");
+    check(
+        !player_placement_gate.current_runtime_deactivation_completed,
+        "currentRuntimeDeactivationCompleted=no");
+    check(
+        !player_placement_gate.current_runtime_deactivation_succeeded,
+        "currentRuntimeDeactivationSucceeded=no");
+    check(
+        player_placement_gate.current_runtime_deactivation_blocked,
+        "currentRuntimeDeactivationBlocked=yes");
+    check(
+        player_placement_gate.current_runtime_deactivation_block_reason
+            == "target-runtime-cutover-outcome-not-produced",
+        "currentRuntimeDeactivationBlockReason=target-runtime-cutover-outcome-not-produced");
+    check(
+        !player_placement_gate.current_runtime_deactivation_started,
+        "currentRuntimeDeactivationStarted=no");
+    check(
+        !player_placement_gate.current_runtime_deactivated,
+        "currentRuntimeDeactivated=no");
+    check(
+        player_placement_gate.current_runtime_deactivation_state
+            == "not-deactivated",
+        "currentRuntimeDeactivationState=not-deactivated");
+    check(
+        player_placement_gate.current_runtime_deactivation_state_reason
+            == "deactivation-not-started",
+        "currentRuntimeDeactivationStateReason=deactivation-not-started");
+    check(
+        player_placement_gate.current_runtime_deactivation_outcome
+            == "not-produced",
+        "currentRuntimeDeactivationOutcome=not-produced");
+    check(
+        !player_placement_gate.current_runtime_deactivation_outcome_available,
+        "currentRuntimeDeactivationOutcomeAvailable=no");
+    check(
+        player_placement_gate.current_runtime_deactivation_outcome_reason
+            == "deactivation-not-attempted",
+        "currentRuntimeDeactivationOutcomeReason=deactivation-not-attempted");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_candidate,
+        "targetRuntimeCheckpointApplicationCandidate=yes");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_application_allowed,
+        "targetRuntimeCheckpointApplicationAllowed=no");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_deferred,
+        "targetRuntimeCheckpointApplicationDeferred=yes");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_application_attempted,
+        "targetRuntimeCheckpointApplicationAttempted=no");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_application_completed,
+        "targetRuntimeCheckpointApplicationCompleted=no");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_application_succeeded,
+        "targetRuntimeCheckpointApplicationSucceeded=no");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_blocked,
+        "targetRuntimeCheckpointApplicationBlocked=yes");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_block_reason
+            == "current-runtime-deactivation-outcome-not-produced",
+        "targetRuntimeCheckpointApplicationBlockReason=current-runtime-deactivation-outcome-not-produced");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_application_started,
+        "targetRuntimeCheckpointApplicationStarted=no");
+    check(
+        !player_placement_gate.target_runtime_checkpoint_applied,
+        "targetRuntimeCheckpointApplied=no");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_state
+            == "not-applied",
+        "targetRuntimeCheckpointApplicationState=not-applied");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_state_reason
+            == "checkpoint-application-not-started",
+        "targetRuntimeCheckpointApplicationStateReason=checkpoint-application-not-started");
+    check(
+        player_placement_gate.target_runtime_checkpoint_application_outcome
+            == "not-produced",
+        "targetRuntimeCheckpointApplicationOutcome=not-produced");
+    check(
+        !player_placement_gate
+             .target_runtime_checkpoint_application_outcome_available,
+        "targetRuntimeCheckpointApplicationOutcomeAvailable=no");
+    check(
+        player_placement_gate
+                .target_runtime_checkpoint_application_outcome_reason
+            == "checkpoint-application-not-attempted",
+        "targetRuntimeCheckpointApplicationOutcomeReason=checkpoint-application-not-attempted");
+    check(
+        player_placement_gate.target_runtime_player_placement_candidate,
+        "targetRuntimePlayerPlacementCandidate=yes");
+    check(
+        !player_placement_gate.target_runtime_player_placement_allowed,
+        "targetRuntimePlayerPlacementAllowed=no");
+    check(
+        player_placement_gate.target_runtime_player_placement_deferred,
+        "targetRuntimePlayerPlacementDeferred=yes");
+    check(
+        !player_placement_gate.target_runtime_player_placement_attempted,
+        "targetRuntimePlayerPlacementAttempted=no");
+    check(
+        !player_placement_gate.target_runtime_player_placement_completed,
+        "targetRuntimePlayerPlacementCompleted=no");
+    check(
+        !player_placement_gate.target_runtime_player_placement_succeeded,
+        "targetRuntimePlayerPlacementSucceeded=no");
+    check(
+        player_placement_gate.target_runtime_player_placement_blocked,
+        "targetRuntimePlayerPlacementBlocked=yes");
+    check(
+        player_placement_gate.target_runtime_player_placement_block_reason
+            == "target-runtime-checkpoint-application-outcome-not-produced",
+        "targetRuntimePlayerPlacementBlockReason=target-runtime-checkpoint-application-outcome-not-produced");
+    check(
+        !player_placement_gate.target_runtime_player_placement_ready,
+        "targetRuntimePlayerPlacementReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -16856,6 +17053,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime checkpoint application outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerPlacementGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime player placement gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -17471,6 +17676,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime checkpoint application outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerPlacementGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime player placement gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
