@@ -17918,6 +17918,205 @@ void ValidateChangelevelPlayerTransferTargetRuntimePlayerAttachmentOutcome(
         "targetRuntimePlayerAttachmentReady inherited-from-state");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_player_control_handoff_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& player_control_handoff_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_control_handoff_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_player_control_handoff_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(player_control_handoff_gate.attempted, "attempted=yes");
+    check(
+        player_control_handoff_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        player_control_handoff_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        player_control_handoff_gate
+                .target_runtime_player_control_handoff_gate_ready
+            == expected_target_runtime_player_control_handoff_gate_ready,
+        std::string("targetRuntimePlayerControlHandoffGateReady=")
+            + (expected_target_runtime_player_control_handoff_gate_ready ? "yes"
+                                                                         : "no"));
+    check(
+        player_control_handoff_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        player_control_handoff_gate.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_player_control_handoff_gate_ready)
+    {
+        return;
+    }
+
+    const auto& player_attachment_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_attachment_outcome;
+
+    check(
+        player_control_handoff_gate.decision_source
+            == "target-runtime-player-attachment-outcome",
+        "decisionSource=target-runtime-player-attachment-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_cutover_outcome
+            == player_attachment_outcome.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_cutover_outcome_available
+            == player_attachment_outcome.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_cutover_outcome_reason
+            == player_attachment_outcome.target_runtime_cutover_outcome_reason,
+        "targetRuntimeCutoverOutcomeReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.current_runtime_deactivation_block_reason
+            == player_attachment_outcome
+                   .current_runtime_deactivation_block_reason,
+        "currentRuntimeDeactivationBlockReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate
+                .target_runtime_checkpoint_application_block_reason
+            == player_attachment_outcome
+                   .target_runtime_checkpoint_application_block_reason,
+        "targetRuntimeCheckpointApplicationBlockReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_placement_block_reason
+            == player_attachment_outcome
+                   .target_runtime_player_placement_block_reason,
+        "targetRuntimePlayerPlacementBlockReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_candidate
+            == player_attachment_outcome.target_runtime_player_attachment_candidate,
+        "targetRuntimePlayerAttachmentCandidate inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_allowed
+            == player_attachment_outcome.target_runtime_player_attachment_allowed,
+        "targetRuntimePlayerAttachmentAllowed inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_deferred
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_deferred,
+        "targetRuntimePlayerAttachmentDeferred inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_attempted
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_attempted,
+        "targetRuntimePlayerAttachmentAttempted inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_completed
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_completed,
+        "targetRuntimePlayerAttachmentCompleted inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_succeeded
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_succeeded,
+        "targetRuntimePlayerAttachmentSucceeded inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_blocked
+            == player_attachment_outcome.target_runtime_player_attachment_blocked,
+        "targetRuntimePlayerAttachmentBlocked inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_block_reason
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_block_reason,
+        "targetRuntimePlayerAttachmentBlockReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_started
+            == player_attachment_outcome.target_runtime_player_attachment_started,
+        "targetRuntimePlayerAttachmentStarted inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attached
+            == player_attachment_outcome.target_runtime_player_attached,
+        "targetRuntimePlayerAttached inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_state
+            == player_attachment_outcome.target_runtime_player_attachment_state,
+        "targetRuntimePlayerAttachmentState inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_state_reason
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_state_reason,
+        "targetRuntimePlayerAttachmentStateReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_outcome
+            == player_attachment_outcome.target_runtime_player_attachment_outcome,
+        "targetRuntimePlayerAttachmentOutcome inherited-from-outcome");
+    check(
+        player_control_handoff_gate
+                .target_runtime_player_attachment_outcome_available
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_outcome_available,
+        "targetRuntimePlayerAttachmentOutcomeAvailable inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_outcome_reason
+            == player_attachment_outcome
+                   .target_runtime_player_attachment_outcome_reason,
+        "targetRuntimePlayerAttachmentOutcomeReason inherited-from-outcome");
+    check(
+        player_control_handoff_gate.target_runtime_player_attachment_ready
+            == player_attachment_outcome.target_runtime_player_attachment_ready,
+        "targetRuntimePlayerAttachmentReady inherited-from-outcome");
+    check(
+        player_control_handoff_gate
+            .target_runtime_player_control_handoff_candidate,
+        "targetRuntimePlayerControlHandoffCandidate=yes");
+    check(
+        !player_control_handoff_gate
+             .target_runtime_player_control_handoff_allowed,
+        "targetRuntimePlayerControlHandoffAllowed=no");
+    check(
+        player_control_handoff_gate
+            .target_runtime_player_control_handoff_deferred,
+        "targetRuntimePlayerControlHandoffDeferred=yes");
+    check(
+        !player_control_handoff_gate
+             .target_runtime_player_control_handoff_attempted,
+        "targetRuntimePlayerControlHandoffAttempted=no");
+    check(
+        !player_control_handoff_gate
+             .target_runtime_player_control_handoff_completed,
+        "targetRuntimePlayerControlHandoffCompleted=no");
+    check(
+        !player_control_handoff_gate
+             .target_runtime_player_control_handoff_succeeded,
+        "targetRuntimePlayerControlHandoffSucceeded=no");
+    check(
+        player_control_handoff_gate
+            .target_runtime_player_control_handoff_blocked,
+        "targetRuntimePlayerControlHandoffBlocked=yes");
+    check(
+        player_control_handoff_gate
+                .target_runtime_player_control_handoff_block_reason
+            == "target-runtime-player-attachment-outcome-not-produced",
+        "targetRuntimePlayerControlHandoffBlockReason=target-runtime-player-attachment-outcome-not-produced");
+    check(
+        !player_control_handoff_gate.target_runtime_player_control_handoff_ready,
+        "targetRuntimePlayerControlHandoffReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -18624,6 +18823,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime player attachment outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime player control handoff gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -19287,6 +19494,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime player attachment outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime player control handoff gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(

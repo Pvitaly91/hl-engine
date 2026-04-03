@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260403_153325",
+  "runInstanceId": "20260403_153325_407_pid25672",
+  "runLabel": "codex-changelevel-target-runtime-player-control-handoff-gate-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "HL-CL-20260401-077-target-runtime-player-control-handoff-gate",
+  "gitCommit": "1f2b1a52e42ea661534abe3184e02cf4e8ffdf4a",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_153325_407_pid25672__codex-changelevel-target-runtime-player-control-handoff-gate-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_153325_407_pid25672__codex-changelevel-target-runtime-player-control-handoff-gate-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_153325_407_pid25672__codex-changelevel-target-runtime-player-control-handoff-gate-stop_part01.log"]
+}
