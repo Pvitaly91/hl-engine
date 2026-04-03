@@ -17247,6 +17247,330 @@ void ValidateChangelevelPlayerTransferTargetRuntimePlayerAttachmentGate(
         "targetRuntimePlayerAttachmentReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimePlayerAttachmentState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_player_attachment_state_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& player_attachment_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_attachment_state;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_player_attachment_state";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(player_attachment_state.attempted, "attempted=yes");
+    check(
+        player_attachment_state.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        player_attachment_state.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        player_attachment_state.target_runtime_player_attachment_state_ready
+            == expected_target_runtime_player_attachment_state_ready,
+        std::string("targetRuntimePlayerAttachmentStateReady=")
+            + (expected_target_runtime_player_attachment_state_ready ? "yes"
+                                                                     : "no"));
+    check(
+        player_attachment_state.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        player_attachment_state.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_player_attachment_state_ready)
+    {
+        return;
+    }
+
+    const auto& player_attachment_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_attachment_gate;
+
+    check(
+        player_attachment_state.decision_source
+            == "target-runtime-player-attachment-gate",
+        "decisionSource=target-runtime-player-attachment-gate");
+    check(
+        player_attachment_state.target_runtime_cutover_outcome
+            == player_attachment_gate.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_cutover_outcome_available
+            == player_attachment_gate.target_runtime_cutover_outcome_available,
+        "targetRuntimeCutoverOutcomeAvailable inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_cutover_outcome_reason
+            == player_attachment_gate.target_runtime_cutover_outcome_reason,
+        "targetRuntimeCutoverOutcomeReason inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_candidate
+            == player_attachment_gate.current_runtime_deactivation_candidate,
+        "currentRuntimeDeactivationCandidate inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_allowed
+            == player_attachment_gate.current_runtime_deactivation_allowed,
+        "currentRuntimeDeactivationAllowed inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_deferred
+            == player_attachment_gate.current_runtime_deactivation_deferred,
+        "currentRuntimeDeactivationDeferred inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_attempted
+            == player_attachment_gate.current_runtime_deactivation_attempted,
+        "currentRuntimeDeactivationAttempted inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_completed
+            == player_attachment_gate.current_runtime_deactivation_completed,
+        "currentRuntimeDeactivationCompleted inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_succeeded
+            == player_attachment_gate.current_runtime_deactivation_succeeded,
+        "currentRuntimeDeactivationSucceeded inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_blocked
+            == player_attachment_gate.current_runtime_deactivation_blocked,
+        "currentRuntimeDeactivationBlocked inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_block_reason
+            == player_attachment_gate.current_runtime_deactivation_block_reason,
+        "currentRuntimeDeactivationBlockReason inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_started
+            == player_attachment_gate.current_runtime_deactivation_started,
+        "currentRuntimeDeactivationStarted inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivated
+            == player_attachment_gate.current_runtime_deactivated,
+        "currentRuntimeDeactivated inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_state
+            == player_attachment_gate.current_runtime_deactivation_state,
+        "currentRuntimeDeactivationState inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_state_reason
+            == player_attachment_gate.current_runtime_deactivation_state_reason,
+        "currentRuntimeDeactivationStateReason inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_outcome
+            == player_attachment_gate.current_runtime_deactivation_outcome,
+        "currentRuntimeDeactivationOutcome inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_outcome_available
+            == player_attachment_gate
+                   .current_runtime_deactivation_outcome_available,
+        "currentRuntimeDeactivationOutcomeAvailable inherited-from-gate");
+    check(
+        player_attachment_state.current_runtime_deactivation_outcome_reason
+            == player_attachment_gate.current_runtime_deactivation_outcome_reason,
+        "currentRuntimeDeactivationOutcomeReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_candidate
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_candidate,
+        "targetRuntimeCheckpointApplicationCandidate inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_allowed
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_allowed,
+        "targetRuntimeCheckpointApplicationAllowed inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_deferred
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_deferred,
+        "targetRuntimeCheckpointApplicationDeferred inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_attempted
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_attempted,
+        "targetRuntimeCheckpointApplicationAttempted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_completed
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_completed,
+        "targetRuntimeCheckpointApplicationCompleted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_succeeded
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_succeeded,
+        "targetRuntimeCheckpointApplicationSucceeded inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_blocked
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_blocked,
+        "targetRuntimeCheckpointApplicationBlocked inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_block_reason
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_block_reason,
+        "targetRuntimeCheckpointApplicationBlockReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_started
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_started,
+        "targetRuntimeCheckpointApplicationStarted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_applied
+            == player_attachment_gate.target_runtime_checkpoint_applied,
+        "targetRuntimeCheckpointApplied inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_state
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_state,
+        "targetRuntimeCheckpointApplicationState inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_state_reason
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_state_reason,
+        "targetRuntimeCheckpointApplicationStateReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_checkpoint_application_outcome
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_outcome,
+        "targetRuntimeCheckpointApplicationOutcome inherited-from-gate");
+    check(
+        player_attachment_state
+                .target_runtime_checkpoint_application_outcome_available
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_outcome_available,
+        "targetRuntimeCheckpointApplicationOutcomeAvailable inherited-from-gate");
+    check(
+        player_attachment_state
+                .target_runtime_checkpoint_application_outcome_reason
+            == player_attachment_gate
+                   .target_runtime_checkpoint_application_outcome_reason,
+        "targetRuntimeCheckpointApplicationOutcomeReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_candidate
+            == player_attachment_gate.target_runtime_player_placement_candidate,
+        "targetRuntimePlayerPlacementCandidate inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_allowed
+            == player_attachment_gate.target_runtime_player_placement_allowed,
+        "targetRuntimePlayerPlacementAllowed inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_deferred
+            == player_attachment_gate.target_runtime_player_placement_deferred,
+        "targetRuntimePlayerPlacementDeferred inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_attempted
+            == player_attachment_gate.target_runtime_player_placement_attempted,
+        "targetRuntimePlayerPlacementAttempted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_completed
+            == player_attachment_gate.target_runtime_player_placement_completed,
+        "targetRuntimePlayerPlacementCompleted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_succeeded
+            == player_attachment_gate.target_runtime_player_placement_succeeded,
+        "targetRuntimePlayerPlacementSucceeded inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_blocked
+            == player_attachment_gate.target_runtime_player_placement_blocked,
+        "targetRuntimePlayerPlacementBlocked inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_block_reason
+            == player_attachment_gate.target_runtime_player_placement_block_reason,
+        "targetRuntimePlayerPlacementBlockReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_started
+            == player_attachment_gate.target_runtime_player_placement_started,
+        "targetRuntimePlayerPlacementStarted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placed
+            == player_attachment_gate.target_runtime_player_placed,
+        "targetRuntimePlayerPlaced inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_state
+            == player_attachment_gate.target_runtime_player_placement_state,
+        "targetRuntimePlayerPlacementState inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_state_reason
+            == player_attachment_gate
+                   .target_runtime_player_placement_state_reason,
+        "targetRuntimePlayerPlacementStateReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_outcome
+            == player_attachment_gate.target_runtime_player_placement_outcome,
+        "targetRuntimePlayerPlacementOutcome inherited-from-gate");
+    check(
+        player_attachment_state
+                .target_runtime_player_placement_outcome_available
+            == player_attachment_gate
+                   .target_runtime_player_placement_outcome_available,
+        "targetRuntimePlayerPlacementOutcomeAvailable inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_placement_outcome_reason
+            == player_attachment_gate
+                   .target_runtime_player_placement_outcome_reason,
+        "targetRuntimePlayerPlacementOutcomeReason inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_candidate
+            == player_attachment_gate.target_runtime_player_attachment_candidate,
+        "targetRuntimePlayerAttachmentCandidate inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_allowed
+            == player_attachment_gate.target_runtime_player_attachment_allowed,
+        "targetRuntimePlayerAttachmentAllowed inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_deferred
+            == player_attachment_gate.target_runtime_player_attachment_deferred,
+        "targetRuntimePlayerAttachmentDeferred inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_attempted
+            == player_attachment_gate.target_runtime_player_attachment_attempted,
+        "targetRuntimePlayerAttachmentAttempted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_completed
+            == player_attachment_gate.target_runtime_player_attachment_completed,
+        "targetRuntimePlayerAttachmentCompleted inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_succeeded
+            == player_attachment_gate.target_runtime_player_attachment_succeeded,
+        "targetRuntimePlayerAttachmentSucceeded inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_blocked
+            == player_attachment_gate.target_runtime_player_attachment_blocked,
+        "targetRuntimePlayerAttachmentBlocked inherited-from-gate");
+    check(
+        player_attachment_state.target_runtime_player_attachment_block_reason
+            == player_attachment_gate.target_runtime_player_attachment_block_reason,
+        "targetRuntimePlayerAttachmentBlockReason inherited-from-gate");
+    check(
+        !player_attachment_state.target_runtime_player_attachment_started,
+        "targetRuntimePlayerAttachmentStarted=no");
+    check(
+        !player_attachment_state.target_runtime_player_attached,
+        "targetRuntimePlayerAttached=no");
+    check(
+        player_attachment_state.target_runtime_player_attachment_state
+            == "not-attached",
+        "targetRuntimePlayerAttachmentState=not-attached");
+    check(
+        player_attachment_state.target_runtime_player_attachment_state_reason
+            == "player-attachment-not-started",
+        "targetRuntimePlayerAttachmentStateReason=player-attachment-not-started");
+    check(
+        player_attachment_state.target_runtime_player_attachment_ready
+            == player_attachment_gate.target_runtime_player_attachment_ready,
+        "targetRuntimePlayerAttachmentReady inherited-from-gate");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -17937,6 +18261,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime player attachment gate prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerAttachmentState(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime player attachment state prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -18584,6 +18916,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime player attachment gate skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerAttachmentState(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime player attachment state skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
