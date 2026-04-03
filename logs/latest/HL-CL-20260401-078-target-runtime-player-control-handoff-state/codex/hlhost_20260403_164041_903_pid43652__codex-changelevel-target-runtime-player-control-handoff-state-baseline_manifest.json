@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260403_164041",
+  "runInstanceId": "20260403_164041_903_pid43652",
+  "runLabel": "codex-changelevel-target-runtime-player-control-handoff-state-baseline",
+  "regressionGuard": "changelevel-latch-only-continuation",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "HL-CL-20260401-078-target-runtime-player-control-handoff-state",
+  "gitCommit": "d57e0c0f0ca9d90bed488faca808d6efa2613ee5",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_164041_903_pid43652__codex-changelevel-target-runtime-player-control-handoff-state-baseline_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_164041_903_pid43652__codex-changelevel-target-runtime-player-control-handoff-state-baseline_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_164041_903_pid43652__codex-changelevel-target-runtime-player-control-handoff-state-baseline_part01.log"]
+}
