@@ -18452,6 +18452,113 @@ void ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffOutcome(
         "targetRuntimePlayerControlHandoffReady inherited-from-state");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCompletionGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_completion_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& completion_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_completion_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_completion_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(completion_gate.attempted, "attempted=yes");
+    check(
+        completion_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        completion_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        completion_gate.target_runtime_completion_gate_ready
+            == expected_target_runtime_completion_gate_ready,
+        std::string("targetRuntimeCompletionGateReady=")
+            + (expected_target_runtime_completion_gate_ready ? "yes" : "no"));
+    check(
+        completion_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        completion_gate.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_completion_gate_ready)
+    {
+        return;
+    }
+
+    const auto& player_control_handoff_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_control_handoff_outcome;
+
+    check(
+        completion_gate.decision_source
+            == "target-runtime-player-control-handoff-outcome",
+        "decisionSource=target-runtime-player-control-handoff-outcome");
+    check(
+        completion_gate.target_runtime_cutover_outcome
+            == player_control_handoff_outcome.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-outcome");
+    check(
+        completion_gate.target_runtime_player_control_handoff_outcome
+            == "not-produced",
+        "targetRuntimePlayerControlHandoffOutcome=not-produced");
+    check(
+        !completion_gate.target_runtime_player_control_handoff_outcome_available,
+        "targetRuntimePlayerControlHandoffOutcomeAvailable=no");
+    check(
+        completion_gate.target_runtime_player_control_handoff_outcome_reason
+            == "player-control-handoff-not-attempted",
+        "targetRuntimePlayerControlHandoffOutcomeReason=player-control-handoff-not-attempted");
+    check(
+        completion_gate.target_runtime_player_control_handoff_ready
+            == player_control_handoff_outcome
+                   .target_runtime_player_control_handoff_ready,
+        "targetRuntimePlayerControlHandoffReady inherited-from-outcome");
+    check(
+        completion_gate.target_runtime_completion_candidate,
+        "targetRuntimeCompletionCandidate=yes");
+    check(
+        !completion_gate.target_runtime_completion_allowed,
+        "targetRuntimeCompletionAllowed=no");
+    check(
+        completion_gate.target_runtime_completion_deferred,
+        "targetRuntimeCompletionDeferred=yes");
+    check(
+        !completion_gate.target_runtime_completion_attempted,
+        "targetRuntimeCompletionAttempted=no");
+    check(
+        !completion_gate.target_runtime_completion_completed,
+        "targetRuntimeCompletionCompleted=no");
+    check(
+        !completion_gate.target_runtime_completion_succeeded,
+        "targetRuntimeCompletionSucceeded=no");
+    check(
+        completion_gate.target_runtime_completion_blocked,
+        "targetRuntimeCompletionBlocked=yes");
+    check(
+        completion_gate.target_runtime_completion_block_reason
+            == "target-runtime-player-control-handoff-outcome-not-produced",
+        "targetRuntimeCompletionBlockReason=target-runtime-player-control-handoff-outcome-not-produced");
+    check(
+        !completion_gate.target_runtime_completion_ready,
+        "targetRuntimeCompletionReady=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -19182,6 +19289,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime player control handoff outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCompletionGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime completion gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -19869,6 +19984,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime player control handoff outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCompletionGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime completion gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(

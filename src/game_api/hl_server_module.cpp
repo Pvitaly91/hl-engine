@@ -594,6 +594,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimeCompletionGate(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -1012,6 +1014,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary&
                 player_control_handoff_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCompletionGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcomeSummary&
+                player_control_handoff_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -14204,6 +14212,371 @@ FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcomeSummary(
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary&
+            completion_gate =
+                summary
+                    .changelevel_player_transfer_target_runtime_completion_gate;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(completion_gate.prepared)
+        + ", skipped=" + BoolToYesNo(completion_gate.skipped);
+    if (!completion_gate.decision_source.empty())
+    {
+        line += ", decisionSource=" + completion_gate.decision_source;
+    }
+    if (completion_gate.prepared)
+    {
+        line += ", targetRuntimeCutoverOutcome="
+            + (completion_gate.target_runtime_cutover_outcome.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_cutover_outcome)
+            + ", targetRuntimeCutoverOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate.target_runtime_cutover_outcome_available)
+            + ", targetRuntimeCutoverOutcomeReason="
+            + (completion_gate.target_runtime_cutover_outcome_reason.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_cutover_outcome_reason)
+            + ", currentRuntimeDeactivationCandidate="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_candidate)
+            + ", currentRuntimeDeactivationAllowed="
+            + BoolToYesNo(completion_gate.current_runtime_deactivation_allowed)
+            + ", currentRuntimeDeactivationDeferred="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_deferred)
+            + ", currentRuntimeDeactivationAttempted="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_attempted)
+            + ", currentRuntimeDeactivationCompleted="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_completed)
+            + ", currentRuntimeDeactivationSucceeded="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_succeeded)
+            + ", currentRuntimeDeactivationBlocked="
+            + BoolToYesNo(completion_gate.current_runtime_deactivation_blocked)
+            + ", currentRuntimeDeactivationBlockReason="
+            + (completion_gate.current_runtime_deactivation_block_reason.empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .current_runtime_deactivation_block_reason)
+            + ", currentRuntimeDeactivationStarted="
+            + BoolToYesNo(completion_gate.current_runtime_deactivation_started)
+            + ", currentRuntimeDeactivated="
+            + BoolToYesNo(completion_gate.current_runtime_deactivated)
+            + ", currentRuntimeDeactivationState="
+            + (completion_gate.current_runtime_deactivation_state.empty()
+                   ? std::string("<none>")
+                   : completion_gate.current_runtime_deactivation_state)
+            + ", currentRuntimeDeactivationStateReason="
+            + (completion_gate.current_runtime_deactivation_state_reason.empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .current_runtime_deactivation_state_reason)
+            + ", currentRuntimeDeactivationOutcome="
+            + (completion_gate.current_runtime_deactivation_outcome.empty()
+                   ? std::string("<none>")
+                   : completion_gate.current_runtime_deactivation_outcome)
+            + ", currentRuntimeDeactivationOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate.current_runtime_deactivation_outcome_available)
+            + ", currentRuntimeDeactivationOutcomeReason="
+            + (completion_gate.current_runtime_deactivation_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .current_runtime_deactivation_outcome_reason)
+            + ", targetRuntimeCheckpointApplicationCandidate="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_candidate)
+            + ", targetRuntimeCheckpointApplicationAllowed="
+            + BoolToYesNo(
+                completion_gate.target_runtime_checkpoint_application_allowed)
+            + ", targetRuntimeCheckpointApplicationDeferred="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_deferred)
+            + ", targetRuntimeCheckpointApplicationAttempted="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_attempted)
+            + ", targetRuntimeCheckpointApplicationCompleted="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_completed)
+            + ", targetRuntimeCheckpointApplicationSucceeded="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_succeeded)
+            + ", targetRuntimeCheckpointApplicationBlocked="
+            + BoolToYesNo(
+                completion_gate.target_runtime_checkpoint_application_blocked)
+            + ", targetRuntimeCheckpointApplicationBlockReason="
+            + (completion_gate.target_runtime_checkpoint_application_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_checkpoint_application_block_reason)
+            + ", targetRuntimeCheckpointApplicationStarted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_checkpoint_application_started)
+            + ", targetRuntimeCheckpointApplied="
+            + BoolToYesNo(completion_gate.target_runtime_checkpoint_applied)
+            + ", targetRuntimeCheckpointApplicationState="
+            + (completion_gate.target_runtime_checkpoint_application_state
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_checkpoint_application_state)
+            + ", targetRuntimeCheckpointApplicationStateReason="
+            + (completion_gate
+                       .target_runtime_checkpoint_application_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_checkpoint_application_state_reason)
+            + ", targetRuntimeCheckpointApplicationOutcome="
+            + (completion_gate.target_runtime_checkpoint_application_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_checkpoint_application_outcome)
+            + ", targetRuntimeCheckpointApplicationOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_checkpoint_application_outcome_available)
+            + ", targetRuntimeCheckpointApplicationOutcomeReason="
+            + (completion_gate
+                       .target_runtime_checkpoint_application_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_checkpoint_application_outcome_reason)
+            + ", targetRuntimePlayerPlacementCandidate="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_candidate)
+            + ", targetRuntimePlayerPlacementAllowed="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_allowed)
+            + ", targetRuntimePlayerPlacementDeferred="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_deferred)
+            + ", targetRuntimePlayerPlacementAttempted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_attempted)
+            + ", targetRuntimePlayerPlacementCompleted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_completed)
+            + ", targetRuntimePlayerPlacementSucceeded="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_succeeded)
+            + ", targetRuntimePlayerPlacementBlocked="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_blocked)
+            + ", targetRuntimePlayerPlacementBlockReason="
+            + (completion_gate.target_runtime_player_placement_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_placement_block_reason)
+            + ", targetRuntimePlayerPlacementStarted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_placement_started)
+            + ", targetRuntimePlayerPlaced="
+            + BoolToYesNo(completion_gate.target_runtime_player_placed)
+            + ", targetRuntimePlayerPlacementState="
+            + (completion_gate.target_runtime_player_placement_state.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_player_placement_state)
+            + ", targetRuntimePlayerPlacementStateReason="
+            + (completion_gate
+                       .target_runtime_player_placement_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_placement_state_reason)
+            + ", targetRuntimePlayerPlacementOutcome="
+            + (completion_gate.target_runtime_player_placement_outcome.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_player_placement_outcome)
+            + ", targetRuntimePlayerPlacementOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_player_placement_outcome_available)
+            + ", targetRuntimePlayerPlacementOutcomeReason="
+            + (completion_gate
+                       .target_runtime_player_placement_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_placement_outcome_reason)
+            + ", targetRuntimePlayerAttachmentCandidate="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_candidate)
+            + ", targetRuntimePlayerAttachmentAllowed="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_allowed)
+            + ", targetRuntimePlayerAttachmentDeferred="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_deferred)
+            + ", targetRuntimePlayerAttachmentAttempted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_attempted)
+            + ", targetRuntimePlayerAttachmentCompleted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_completed)
+            + ", targetRuntimePlayerAttachmentSucceeded="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_succeeded)
+            + ", targetRuntimePlayerAttachmentBlocked="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_blocked)
+            + ", targetRuntimePlayerAttachmentBlockReason="
+            + (completion_gate.target_runtime_player_attachment_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_attachment_block_reason)
+            + ", targetRuntimePlayerAttachmentStarted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_attachment_started)
+            + ", targetRuntimePlayerAttached="
+            + BoolToYesNo(completion_gate.target_runtime_player_attached)
+            + ", targetRuntimePlayerAttachmentState="
+            + (completion_gate.target_runtime_player_attachment_state.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_player_attachment_state)
+            + ", targetRuntimePlayerAttachmentStateReason="
+            + (completion_gate
+                       .target_runtime_player_attachment_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_attachment_state_reason)
+            + ", targetRuntimePlayerAttachmentOutcome="
+            + (completion_gate.target_runtime_player_attachment_outcome.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_player_attachment_outcome)
+            + ", targetRuntimePlayerAttachmentOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_player_attachment_outcome_available)
+            + ", targetRuntimePlayerAttachmentOutcomeReason="
+            + (completion_gate
+                       .target_runtime_player_attachment_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_attachment_outcome_reason)
+            + ", targetRuntimePlayerAttachmentReady="
+            + BoolToYesNo(completion_gate.target_runtime_player_attachment_ready)
+            + ", targetRuntimePlayerControlHandoffCandidate="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_candidate)
+            + ", targetRuntimePlayerControlHandoffAllowed="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_allowed)
+            + ", targetRuntimePlayerControlHandoffDeferred="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_deferred)
+            + ", targetRuntimePlayerControlHandoffAttempted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_attempted)
+            + ", targetRuntimePlayerControlHandoffCompleted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_completed)
+            + ", targetRuntimePlayerControlHandoffSucceeded="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_succeeded)
+            + ", targetRuntimePlayerControlHandoffBlocked="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_blocked)
+            + ", targetRuntimePlayerControlHandoffBlockReason="
+            + (completion_gate.target_runtime_player_control_handoff_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_control_handoff_block_reason)
+            + ", targetRuntimePlayerControlHandoffStarted="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_started)
+            + ", targetRuntimePlayerControlHandedOff="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handed_off)
+            + ", targetRuntimePlayerControlHandoffState="
+            + (completion_gate.target_runtime_player_control_handoff_state
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_player_control_handoff_state)
+            + ", targetRuntimePlayerControlHandoffStateReason="
+            + (completion_gate
+                       .target_runtime_player_control_handoff_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_control_handoff_state_reason)
+            + ", targetRuntimePlayerControlHandoffOutcome="
+            + (completion_gate.target_runtime_player_control_handoff_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_control_handoff_outcome)
+            + ", targetRuntimePlayerControlHandoffOutcomeAvailable="
+            + BoolToYesNo(
+                completion_gate
+                    .target_runtime_player_control_handoff_outcome_available)
+            + ", targetRuntimePlayerControlHandoffOutcomeReason="
+            + (completion_gate
+                       .target_runtime_player_control_handoff_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : completion_gate
+                         .target_runtime_player_control_handoff_outcome_reason)
+            + ", targetRuntimePlayerControlHandoffReady="
+            + BoolToYesNo(
+                completion_gate.target_runtime_player_control_handoff_ready)
+            + ", targetRuntimeCompletionCandidate="
+            + BoolToYesNo(completion_gate.target_runtime_completion_candidate)
+            + ", targetRuntimeCompletionAllowed="
+            + BoolToYesNo(completion_gate.target_runtime_completion_allowed)
+            + ", targetRuntimeCompletionDeferred="
+            + BoolToYesNo(completion_gate.target_runtime_completion_deferred)
+            + ", targetRuntimeCompletionAttempted="
+            + BoolToYesNo(completion_gate.target_runtime_completion_attempted)
+            + ", targetRuntimeCompletionCompleted="
+            + BoolToYesNo(completion_gate.target_runtime_completion_completed)
+            + ", targetRuntimeCompletionSucceeded="
+            + BoolToYesNo(completion_gate.target_runtime_completion_succeeded)
+            + ", targetRuntimeCompletionBlocked="
+            + BoolToYesNo(completion_gate.target_runtime_completion_blocked)
+            + ", targetRuntimeCompletionBlockReason="
+            + (completion_gate.target_runtime_completion_block_reason.empty()
+                   ? std::string("<none>")
+                   : completion_gate.target_runtime_completion_block_reason)
+            + ", targetRuntimeCompletionReady="
+            + BoolToYesNo(completion_gate.target_runtime_completion_ready);
+    }
+    if (!completion_gate.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason=" + completion_gate.short_circuit_reason;
+    }
+
+    line += ", targetRuntimeCompletionGateReady="
+        + std::string(
+            BoolToYesNo(completion_gate.target_runtime_completion_gate_ready))
+        + ", action="
+        + (completion_gate.action.empty()
+               ? std::string("<none>")
+               : completion_gate.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -16988,6 +17361,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_player_control_handoff_outcome: "
                     + FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_completion_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_completion_gate: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -34518,6 +34901,459 @@ hl::game_api::ChangeLevelTransitionSummary::
     return player_control_handoff_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimeCompletionGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcomeSummary&
+                player_control_handoff_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCompletionGateSummary
+            completion_gate;
+    completion_gate.attempted = true;
+
+    const auto copy_inherited = [&]()
+    {
+        completion_gate.target_runtime_cutover_outcome =
+            player_control_handoff_outcome.target_runtime_cutover_outcome;
+        completion_gate.target_runtime_cutover_outcome_available =
+            player_control_handoff_outcome.target_runtime_cutover_outcome_available;
+        completion_gate.target_runtime_cutover_outcome_reason =
+            player_control_handoff_outcome.target_runtime_cutover_outcome_reason;
+        completion_gate.current_runtime_deactivation_candidate =
+            player_control_handoff_outcome.current_runtime_deactivation_candidate;
+        completion_gate.current_runtime_deactivation_allowed =
+            player_control_handoff_outcome.current_runtime_deactivation_allowed;
+        completion_gate.current_runtime_deactivation_deferred =
+            player_control_handoff_outcome.current_runtime_deactivation_deferred;
+        completion_gate.current_runtime_deactivation_attempted =
+            player_control_handoff_outcome.current_runtime_deactivation_attempted;
+        completion_gate.current_runtime_deactivation_completed =
+            player_control_handoff_outcome.current_runtime_deactivation_completed;
+        completion_gate.current_runtime_deactivation_succeeded =
+            player_control_handoff_outcome.current_runtime_deactivation_succeeded;
+        completion_gate.current_runtime_deactivation_blocked =
+            player_control_handoff_outcome.current_runtime_deactivation_blocked;
+        completion_gate.current_runtime_deactivation_block_reason =
+            player_control_handoff_outcome.current_runtime_deactivation_block_reason;
+        completion_gate.current_runtime_deactivation_started =
+            player_control_handoff_outcome.current_runtime_deactivation_started;
+        completion_gate.current_runtime_deactivated =
+            player_control_handoff_outcome.current_runtime_deactivated;
+        completion_gate.current_runtime_deactivation_state =
+            player_control_handoff_outcome.current_runtime_deactivation_state;
+        completion_gate.current_runtime_deactivation_state_reason =
+            player_control_handoff_outcome
+                .current_runtime_deactivation_state_reason;
+        completion_gate.current_runtime_deactivation_outcome =
+            player_control_handoff_outcome.current_runtime_deactivation_outcome;
+        completion_gate.current_runtime_deactivation_outcome_available =
+            player_control_handoff_outcome
+                .current_runtime_deactivation_outcome_available;
+        completion_gate.current_runtime_deactivation_outcome_reason =
+            player_control_handoff_outcome
+                .current_runtime_deactivation_outcome_reason;
+        completion_gate.target_runtime_checkpoint_application_candidate =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_candidate;
+        completion_gate.target_runtime_checkpoint_application_allowed =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_allowed;
+        completion_gate.target_runtime_checkpoint_application_deferred =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_deferred;
+        completion_gate.target_runtime_checkpoint_application_attempted =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_attempted;
+        completion_gate.target_runtime_checkpoint_application_completed =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_completed;
+        completion_gate.target_runtime_checkpoint_application_succeeded =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_succeeded;
+        completion_gate.target_runtime_checkpoint_application_blocked =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_blocked;
+        completion_gate.target_runtime_checkpoint_application_block_reason =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_block_reason;
+        completion_gate.target_runtime_checkpoint_application_started =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_started;
+        completion_gate.target_runtime_checkpoint_applied =
+            player_control_handoff_outcome.target_runtime_checkpoint_applied;
+        completion_gate.target_runtime_checkpoint_application_state =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_state;
+        completion_gate.target_runtime_checkpoint_application_state_reason =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_state_reason;
+        completion_gate.target_runtime_checkpoint_application_outcome =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_outcome;
+        completion_gate.target_runtime_checkpoint_application_outcome_available =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_outcome_available;
+        completion_gate.target_runtime_checkpoint_application_outcome_reason =
+            player_control_handoff_outcome
+                .target_runtime_checkpoint_application_outcome_reason;
+        completion_gate.target_runtime_player_placement_candidate =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_candidate;
+        completion_gate.target_runtime_player_placement_allowed =
+            player_control_handoff_outcome.target_runtime_player_placement_allowed;
+        completion_gate.target_runtime_player_placement_deferred =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_deferred;
+        completion_gate.target_runtime_player_placement_attempted =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_attempted;
+        completion_gate.target_runtime_player_placement_completed =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_completed;
+        completion_gate.target_runtime_player_placement_succeeded =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_succeeded;
+        completion_gate.target_runtime_player_placement_blocked =
+            player_control_handoff_outcome.target_runtime_player_placement_blocked;
+        completion_gate.target_runtime_player_placement_block_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_block_reason;
+        completion_gate.target_runtime_player_placement_started =
+            player_control_handoff_outcome.target_runtime_player_placement_started;
+        completion_gate.target_runtime_player_placed =
+            player_control_handoff_outcome.target_runtime_player_placed;
+        completion_gate.target_runtime_player_placement_state =
+            player_control_handoff_outcome.target_runtime_player_placement_state;
+        completion_gate.target_runtime_player_placement_state_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_state_reason;
+        completion_gate.target_runtime_player_placement_outcome =
+            player_control_handoff_outcome.target_runtime_player_placement_outcome;
+        completion_gate.target_runtime_player_placement_outcome_available =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_outcome_available;
+        completion_gate.target_runtime_player_placement_outcome_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_placement_outcome_reason;
+        completion_gate.target_runtime_player_attachment_candidate =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_candidate;
+        completion_gate.target_runtime_player_attachment_allowed =
+            player_control_handoff_outcome.target_runtime_player_attachment_allowed;
+        completion_gate.target_runtime_player_attachment_deferred =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_deferred;
+        completion_gate.target_runtime_player_attachment_attempted =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_attempted;
+        completion_gate.target_runtime_player_attachment_completed =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_completed;
+        completion_gate.target_runtime_player_attachment_succeeded =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_succeeded;
+        completion_gate.target_runtime_player_attachment_blocked =
+            player_control_handoff_outcome.target_runtime_player_attachment_blocked;
+        completion_gate.target_runtime_player_attachment_block_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_block_reason;
+        completion_gate.target_runtime_player_attachment_started =
+            player_control_handoff_outcome.target_runtime_player_attachment_started;
+        completion_gate.target_runtime_player_attached =
+            player_control_handoff_outcome.target_runtime_player_attached;
+        completion_gate.target_runtime_player_attachment_state =
+            player_control_handoff_outcome.target_runtime_player_attachment_state;
+        completion_gate.target_runtime_player_attachment_state_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_state_reason;
+        completion_gate.target_runtime_player_attachment_outcome =
+            player_control_handoff_outcome.target_runtime_player_attachment_outcome;
+        completion_gate.target_runtime_player_attachment_outcome_available =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_outcome_available;
+        completion_gate.target_runtime_player_attachment_outcome_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_attachment_outcome_reason;
+        completion_gate.target_runtime_player_attachment_ready =
+            player_control_handoff_outcome.target_runtime_player_attachment_ready;
+        completion_gate.target_runtime_player_control_handoff_candidate =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_candidate;
+        completion_gate.target_runtime_player_control_handoff_allowed =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_allowed;
+        completion_gate.target_runtime_player_control_handoff_deferred =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_deferred;
+        completion_gate.target_runtime_player_control_handoff_attempted =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_attempted;
+        completion_gate.target_runtime_player_control_handoff_completed =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_completed;
+        completion_gate.target_runtime_player_control_handoff_succeeded =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_succeeded;
+        completion_gate.target_runtime_player_control_handoff_blocked =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_blocked;
+        completion_gate.target_runtime_player_control_handoff_block_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_block_reason;
+        completion_gate.target_runtime_player_control_handoff_started =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_started;
+        completion_gate.target_runtime_player_control_handed_off =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handed_off;
+        completion_gate.target_runtime_player_control_handoff_state =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_state;
+        completion_gate.target_runtime_player_control_handoff_state_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_state_reason;
+        completion_gate.target_runtime_player_control_handoff_ready =
+            player_control_handoff_outcome.target_runtime_player_control_handoff_ready;
+        completion_gate.target_runtime_player_control_handoff_outcome =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_outcome;
+        completion_gate.target_runtime_player_control_handoff_outcome_available =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_outcome_available;
+        completion_gate.target_runtime_player_control_handoff_outcome_reason =
+            player_control_handoff_outcome
+                .target_runtime_player_control_handoff_outcome_reason;
+    };
+
+    const auto set_completion_blocked = [&]()
+    {
+        completion_gate.target_runtime_completion_candidate = true;
+        completion_gate.target_runtime_completion_allowed = false;
+        completion_gate.target_runtime_completion_deferred = true;
+        completion_gate.target_runtime_completion_attempted = false;
+        completion_gate.target_runtime_completion_completed = false;
+        completion_gate.target_runtime_completion_succeeded = false;
+        completion_gate.target_runtime_completion_blocked = true;
+        completion_gate.target_runtime_completion_block_reason =
+            "target-runtime-player-control-handoff-outcome-not-produced";
+        completion_gate.target_runtime_completion_ready = false;
+    };
+
+    if (player_control_handoff_outcome.prepared
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_outcome_ready
+        && player_control_handoff_outcome.target_runtime_cutover_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_cutover_outcome_available
+        && player_control_handoff_outcome.target_runtime_cutover_outcome_reason
+            == "cutover-not-attempted"
+        && player_control_handoff_outcome
+               .current_runtime_deactivation_candidate
+        && !player_control_handoff_outcome.current_runtime_deactivation_allowed
+        && player_control_handoff_outcome.current_runtime_deactivation_deferred
+        && !player_control_handoff_outcome
+                .current_runtime_deactivation_attempted
+        && !player_control_handoff_outcome
+                .current_runtime_deactivation_completed
+        && !player_control_handoff_outcome
+                .current_runtime_deactivation_succeeded
+        && player_control_handoff_outcome.current_runtime_deactivation_blocked
+        && player_control_handoff_outcome
+               .current_runtime_deactivation_block_reason
+            == "target-runtime-cutover-outcome-not-produced"
+        && !player_control_handoff_outcome.current_runtime_deactivation_started
+        && !player_control_handoff_outcome.current_runtime_deactivated
+        && player_control_handoff_outcome.current_runtime_deactivation_state
+            == "not-deactivated"
+        && player_control_handoff_outcome
+               .current_runtime_deactivation_state_reason
+            == "deactivation-not-started"
+        && player_control_handoff_outcome.current_runtime_deactivation_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .current_runtime_deactivation_outcome_available
+        && player_control_handoff_outcome
+               .current_runtime_deactivation_outcome_reason
+            == "deactivation-not-attempted"
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_candidate
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_allowed
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_deferred
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_attempted
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_completed
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_succeeded
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_blocked
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_block_reason
+            == "current-runtime-deactivation-outcome-not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_started
+        && !player_control_handoff_outcome.target_runtime_checkpoint_applied
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_state
+            == "not-applied"
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_state_reason
+            == "checkpoint-application-not-started"
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_checkpoint_application_outcome_available
+        && player_control_handoff_outcome
+               .target_runtime_checkpoint_application_outcome_reason
+            == "checkpoint-application-not-attempted"
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_candidate
+        && !player_control_handoff_outcome.target_runtime_player_placement_allowed
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_deferred
+        && !player_control_handoff_outcome
+                .target_runtime_player_placement_attempted
+        && !player_control_handoff_outcome
+                .target_runtime_player_placement_completed
+        && !player_control_handoff_outcome
+                .target_runtime_player_placement_succeeded
+        && player_control_handoff_outcome.target_runtime_player_placement_blocked
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_block_reason
+            == "target-runtime-checkpoint-application-outcome-not-produced"
+        && !player_control_handoff_outcome.target_runtime_player_placement_started
+        && !player_control_handoff_outcome.target_runtime_player_placed
+        && player_control_handoff_outcome.target_runtime_player_placement_state
+            == "not-placed"
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_state_reason
+            == "player-placement-not-started"
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_player_placement_outcome_available
+        && player_control_handoff_outcome
+               .target_runtime_player_placement_outcome_reason
+            == "player-placement-not-attempted"
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_candidate
+        && !player_control_handoff_outcome
+                .target_runtime_player_attachment_allowed
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_deferred
+        && !player_control_handoff_outcome
+                .target_runtime_player_attachment_attempted
+        && !player_control_handoff_outcome
+                .target_runtime_player_attachment_completed
+        && !player_control_handoff_outcome
+                .target_runtime_player_attachment_succeeded
+        && player_control_handoff_outcome.target_runtime_player_attachment_blocked
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_block_reason
+            == "target-runtime-player-placement-outcome-not-produced"
+        && !player_control_handoff_outcome.target_runtime_player_attachment_started
+        && !player_control_handoff_outcome.target_runtime_player_attached
+        && player_control_handoff_outcome.target_runtime_player_attachment_state
+            == "not-attached"
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_state_reason
+            == "player-attachment-not-started"
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_player_attachment_outcome_available
+        && player_control_handoff_outcome
+               .target_runtime_player_attachment_outcome_reason
+            == "player-attachment-not-attempted"
+        && !player_control_handoff_outcome.target_runtime_player_attachment_ready
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_candidate
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_allowed
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_deferred
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_attempted
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_completed
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_succeeded
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_blocked
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_block_reason
+            == "target-runtime-player-attachment-outcome-not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_started
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handed_off
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_state
+            == "not-handed-off"
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_state_reason
+            == "player-control-handoff-not-started"
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_outcome
+            == "not-produced"
+        && !player_control_handoff_outcome
+                .target_runtime_player_control_handoff_outcome_available
+        && player_control_handoff_outcome
+               .target_runtime_player_control_handoff_outcome_reason
+            == "player-control-handoff-not-attempted"
+        && !player_control_handoff_outcome.target_runtime_player_control_handoff_ready)
+    {
+        completion_gate.prepared = true;
+        completion_gate.skipped = false;
+        completion_gate.decision_source =
+            "target-runtime-player-control-handoff-outcome";
+        copy_inherited();
+        set_completion_blocked();
+        completion_gate.target_runtime_completion_gate_ready = true;
+        completion_gate.action = "no-op target runtime completion gate prepared";
+        return completion_gate;
+    }
+
+    completion_gate.prepared = false;
+    completion_gate.target_runtime_completion_gate_ready = false;
+    completion_gate.short_circuit_reason =
+        player_control_handoff_outcome.short_circuit_reason;
+
+    if (player_control_handoff_outcome.skipped)
+    {
+        completion_gate.skipped = true;
+        completion_gate.action = "target runtime completion gate skipped";
+        return completion_gate;
+    }
+
+    completion_gate.skipped = false;
+    completion_gate.decision_source = player_control_handoff_outcome.attempted
+        ? std::string("target-runtime-player-control-handoff-outcome")
+        : std::string();
+    copy_inherited();
+
+    if (!player_control_handoff_outcome
+             .target_runtime_player_control_handoff_outcome_ready)
+    {
+        completion_gate.action =
+            "target runtime completion gate waiting on target runtime player control handoff outcome";
+        return completion_gate;
+    }
+
+    set_completion_blocked();
+    completion_gate.target_runtime_completion_gate_ready = true;
+    completion_gate.action = "target runtime completion gate not required";
+    return completion_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -35731,6 +36567,24 @@ void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcome(
         BuildChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffOutcome(
             summary
                 .changelevel_player_transfer_target_runtime_player_control_handoff_state);
+    RefreshChangeLevelPlayerTransferTargetRuntimeCompletionGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimeCompletionGate(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_player_control_handoff_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_target_runtime_completion_gate =
+        BuildChangeLevelPlayerTransferTargetRuntimeCompletionGate(
+            summary
+                .changelevel_player_transfer_target_runtime_player_control_handoff_outcome);
 }
 
 void CapturePendingChangeLevelRequest(
