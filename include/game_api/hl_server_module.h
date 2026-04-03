@@ -4050,6 +4050,78 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimePlayerAttachmentStateSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        std::string target_runtime_cutover_outcome;
+        bool target_runtime_cutover_outcome_available = false;
+        std::string target_runtime_cutover_outcome_reason;
+        bool current_runtime_deactivation_candidate = false;
+        bool current_runtime_deactivation_allowed = false;
+        bool current_runtime_deactivation_deferred = false;
+        bool current_runtime_deactivation_attempted = false;
+        bool current_runtime_deactivation_completed = false;
+        bool current_runtime_deactivation_succeeded = false;
+        bool current_runtime_deactivation_blocked = false;
+        std::string current_runtime_deactivation_block_reason;
+        bool current_runtime_deactivation_started = false;
+        bool current_runtime_deactivated = false;
+        std::string current_runtime_deactivation_state;
+        std::string current_runtime_deactivation_state_reason;
+        std::string current_runtime_deactivation_outcome;
+        bool current_runtime_deactivation_outcome_available = false;
+        std::string current_runtime_deactivation_outcome_reason;
+        bool target_runtime_checkpoint_application_candidate = false;
+        bool target_runtime_checkpoint_application_allowed = false;
+        bool target_runtime_checkpoint_application_deferred = false;
+        bool target_runtime_checkpoint_application_attempted = false;
+        bool target_runtime_checkpoint_application_completed = false;
+        bool target_runtime_checkpoint_application_succeeded = false;
+        bool target_runtime_checkpoint_application_blocked = false;
+        std::string target_runtime_checkpoint_application_block_reason;
+        bool target_runtime_checkpoint_application_started = false;
+        bool target_runtime_checkpoint_applied = false;
+        std::string target_runtime_checkpoint_application_state;
+        std::string target_runtime_checkpoint_application_state_reason;
+        std::string target_runtime_checkpoint_application_outcome;
+        bool target_runtime_checkpoint_application_outcome_available = false;
+        std::string target_runtime_checkpoint_application_outcome_reason;
+        bool target_runtime_player_placement_candidate = false;
+        bool target_runtime_player_placement_allowed = false;
+        bool target_runtime_player_placement_deferred = false;
+        bool target_runtime_player_placement_attempted = false;
+        bool target_runtime_player_placement_completed = false;
+        bool target_runtime_player_placement_succeeded = false;
+        bool target_runtime_player_placement_blocked = false;
+        std::string target_runtime_player_placement_block_reason;
+        bool target_runtime_player_placement_started = false;
+        bool target_runtime_player_placed = false;
+        std::string target_runtime_player_placement_state;
+        std::string target_runtime_player_placement_state_reason;
+        std::string target_runtime_player_placement_outcome;
+        bool target_runtime_player_placement_outcome_available = false;
+        std::string target_runtime_player_placement_outcome_reason;
+        bool target_runtime_player_attachment_candidate = false;
+        bool target_runtime_player_attachment_allowed = false;
+        bool target_runtime_player_attachment_deferred = false;
+        bool target_runtime_player_attachment_attempted = false;
+        bool target_runtime_player_attachment_completed = false;
+        bool target_runtime_player_attachment_succeeded = false;
+        bool target_runtime_player_attachment_blocked = false;
+        std::string target_runtime_player_attachment_block_reason;
+        bool target_runtime_player_attachment_started = false;
+        bool target_runtime_player_attached = false;
+        std::string target_runtime_player_attachment_state;
+        std::string target_runtime_player_attachment_state_reason;
+        bool target_runtime_player_attachment_ready = false;
+        bool target_runtime_player_attachment_state_ready = false;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -4236,6 +4308,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_player_placement_outcome;
     ChangeLevelPlayerTransferTargetRuntimePlayerAttachmentGateSummary
         changelevel_player_transfer_target_runtime_player_attachment_gate;
+    ChangeLevelPlayerTransferTargetRuntimePlayerAttachmentStateSummary
+        changelevel_player_transfer_target_runtime_player_attachment_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260403_123722",
+  "runInstanceId": "20260403_123722_706_pid37348",
+  "runLabel": "codex-changelevel-target-runtime-player-attachment-state-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "main",
+  "gitCommit": "10225bd78640c9971d1f6a107107eeaca3e81a46",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_123722_706_pid37348__codex-changelevel-target-runtime-player-attachment-state-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_123722_706_pid37348__codex-changelevel-target-runtime-player-attachment-state-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260403_123722_706_pid37348__codex-changelevel-target-runtime-player-attachment-state-stop_part01.log"]
+}
