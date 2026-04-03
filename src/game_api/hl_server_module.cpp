@@ -590,6 +590,8 @@ void RefreshChangeLevelPlayerTransferTargetRuntimePlayerAttachmentOutcome(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+    EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -996,6 +998,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimePlayerAttachmentOutcomeSummary&
                 player_attachment_outcome);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGateSummary&
+                player_control_handoff_gate);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -13338,6 +13346,422 @@ FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGateSummary(
     return line;
 }
 
+std::string
+FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary&
+            player_control_handoff_state =
+                summary
+                    .changelevel_player_transfer_target_runtime_player_control_handoff_state;
+    std::string line =
+        std::string("prepared=")
+        + BoolToYesNo(player_control_handoff_state.prepared)
+        + ", skipped=" + BoolToYesNo(player_control_handoff_state.skipped);
+    if (!player_control_handoff_state.decision_source.empty())
+    {
+        line += ", decisionSource="
+            + player_control_handoff_state.decision_source;
+    }
+    if (player_control_handoff_state.prepared)
+    {
+        line += ", targetRuntimeCutoverOutcome="
+            + (player_control_handoff_state.target_runtime_cutover_outcome.empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_cutover_outcome)
+            + ", targetRuntimeCutoverOutcomeAvailable="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_cutover_outcome_available)
+            + ", targetRuntimeCutoverOutcomeReason="
+            + (player_control_handoff_state
+                       .target_runtime_cutover_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_cutover_outcome_reason)
+            + ", currentRuntimeDeactivationCandidate="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_candidate)
+            + ", currentRuntimeDeactivationAllowed="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_allowed)
+            + ", currentRuntimeDeactivationDeferred="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_deferred)
+            + ", currentRuntimeDeactivationAttempted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_attempted)
+            + ", currentRuntimeDeactivationCompleted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_completed)
+            + ", currentRuntimeDeactivationSucceeded="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_succeeded)
+            + ", currentRuntimeDeactivationBlocked="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_blocked)
+            + ", currentRuntimeDeactivationBlockReason="
+            + (player_control_handoff_state
+                       .current_runtime_deactivation_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .current_runtime_deactivation_block_reason)
+            + ", currentRuntimeDeactivationStarted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_started)
+            + ", currentRuntimeDeactivated="
+            + BoolToYesNo(
+                player_control_handoff_state.current_runtime_deactivated)
+            + ", currentRuntimeDeactivationState="
+            + (player_control_handoff_state
+                       .current_runtime_deactivation_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .current_runtime_deactivation_state)
+            + ", currentRuntimeDeactivationStateReason="
+            + (player_control_handoff_state
+                       .current_runtime_deactivation_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .current_runtime_deactivation_state_reason)
+            + ", currentRuntimeDeactivationOutcome="
+            + (player_control_handoff_state
+                       .current_runtime_deactivation_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .current_runtime_deactivation_outcome)
+            + ", currentRuntimeDeactivationOutcomeAvailable="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .current_runtime_deactivation_outcome_available)
+            + ", currentRuntimeDeactivationOutcomeReason="
+            + (player_control_handoff_state
+                       .current_runtime_deactivation_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .current_runtime_deactivation_outcome_reason)
+            + ", targetRuntimeCheckpointApplicationCandidate="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_candidate)
+            + ", targetRuntimeCheckpointApplicationAllowed="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_allowed)
+            + ", targetRuntimeCheckpointApplicationDeferred="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_deferred)
+            + ", targetRuntimeCheckpointApplicationAttempted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_attempted)
+            + ", targetRuntimeCheckpointApplicationCompleted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_completed)
+            + ", targetRuntimeCheckpointApplicationSucceeded="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_succeeded)
+            + ", targetRuntimeCheckpointApplicationBlocked="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_blocked)
+            + ", targetRuntimeCheckpointApplicationBlockReason="
+            + (player_control_handoff_state
+                       .target_runtime_checkpoint_application_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_checkpoint_application_block_reason)
+            + ", targetRuntimeCheckpointApplicationStarted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_started)
+            + ", targetRuntimeCheckpointApplied="
+            + BoolToYesNo(
+                player_control_handoff_state.target_runtime_checkpoint_applied)
+            + ", targetRuntimeCheckpointApplicationState="
+            + (player_control_handoff_state
+                       .target_runtime_checkpoint_application_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_checkpoint_application_state)
+            + ", targetRuntimeCheckpointApplicationStateReason="
+            + (player_control_handoff_state
+                       .target_runtime_checkpoint_application_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_checkpoint_application_state_reason)
+            + ", targetRuntimeCheckpointApplicationOutcome="
+            + (player_control_handoff_state
+                       .target_runtime_checkpoint_application_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_checkpoint_application_outcome)
+            + ", targetRuntimeCheckpointApplicationOutcomeAvailable="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_checkpoint_application_outcome_available)
+            + ", targetRuntimeCheckpointApplicationOutcomeReason="
+            + (player_control_handoff_state
+                       .target_runtime_checkpoint_application_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_checkpoint_application_outcome_reason)
+            + ", targetRuntimePlayerPlacementCandidate="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_candidate)
+            + ", targetRuntimePlayerPlacementAllowed="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_allowed)
+            + ", targetRuntimePlayerPlacementDeferred="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_deferred)
+            + ", targetRuntimePlayerPlacementAttempted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_attempted)
+            + ", targetRuntimePlayerPlacementCompleted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_completed)
+            + ", targetRuntimePlayerPlacementSucceeded="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_succeeded)
+            + ", targetRuntimePlayerPlacementBlocked="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_blocked)
+            + ", targetRuntimePlayerPlacementBlockReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_placement_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_placement_block_reason)
+            + ", targetRuntimePlayerPlacementStarted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_started)
+            + ", targetRuntimePlayerPlaced="
+            + BoolToYesNo(
+                player_control_handoff_state.target_runtime_player_placed)
+            + ", targetRuntimePlayerPlacementState="
+            + (player_control_handoff_state
+                       .target_runtime_player_placement_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_placement_state)
+            + ", targetRuntimePlayerPlacementStateReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_placement_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_placement_state_reason)
+            + ", targetRuntimePlayerPlacementOutcome="
+            + (player_control_handoff_state
+                       .target_runtime_player_placement_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_placement_outcome)
+            + ", targetRuntimePlayerPlacementOutcomeAvailable="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_placement_outcome_available)
+            + ", targetRuntimePlayerPlacementOutcomeReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_placement_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_placement_outcome_reason)
+            + ", targetRuntimePlayerAttachmentCandidate="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_candidate)
+            + ", targetRuntimePlayerAttachmentAllowed="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_allowed)
+            + ", targetRuntimePlayerAttachmentDeferred="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_deferred)
+            + ", targetRuntimePlayerAttachmentAttempted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_attempted)
+            + ", targetRuntimePlayerAttachmentCompleted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_completed)
+            + ", targetRuntimePlayerAttachmentSucceeded="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_succeeded)
+            + ", targetRuntimePlayerAttachmentBlocked="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_blocked)
+            + ", targetRuntimePlayerAttachmentBlockReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_attachment_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_attachment_block_reason)
+            + ", targetRuntimePlayerAttachmentStarted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_started)
+            + ", targetRuntimePlayerAttached="
+            + BoolToYesNo(
+                player_control_handoff_state.target_runtime_player_attached)
+            + ", targetRuntimePlayerAttachmentState="
+            + (player_control_handoff_state
+                       .target_runtime_player_attachment_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_attachment_state)
+            + ", targetRuntimePlayerAttachmentStateReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_attachment_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_attachment_state_reason)
+            + ", targetRuntimePlayerAttachmentOutcome="
+            + (player_control_handoff_state
+                       .target_runtime_player_attachment_outcome
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_attachment_outcome)
+            + ", targetRuntimePlayerAttachmentOutcomeAvailable="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_outcome_available)
+            + ", targetRuntimePlayerAttachmentOutcomeReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_attachment_outcome_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_attachment_outcome_reason)
+            + ", targetRuntimePlayerAttachmentReady="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_attachment_ready)
+            + ", targetRuntimePlayerControlHandoffCandidate="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_candidate)
+            + ", targetRuntimePlayerControlHandoffAllowed="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_allowed)
+            + ", targetRuntimePlayerControlHandoffDeferred="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_deferred)
+            + ", targetRuntimePlayerControlHandoffAttempted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_attempted)
+            + ", targetRuntimePlayerControlHandoffCompleted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_completed)
+            + ", targetRuntimePlayerControlHandoffSucceeded="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_succeeded)
+            + ", targetRuntimePlayerControlHandoffBlocked="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_blocked)
+            + ", targetRuntimePlayerControlHandoffBlockReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_control_handoff_block_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_control_handoff_block_reason)
+            + ", targetRuntimePlayerControlHandoffStarted="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_started)
+            + ", targetRuntimePlayerControlHandedOff="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handed_off)
+            + ", targetRuntimePlayerControlHandoffState="
+            + (player_control_handoff_state
+                       .target_runtime_player_control_handoff_state
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_control_handoff_state)
+            + ", targetRuntimePlayerControlHandoffStateReason="
+            + (player_control_handoff_state
+                       .target_runtime_player_control_handoff_state_reason
+                       .empty()
+                   ? std::string("<none>")
+                   : player_control_handoff_state
+                         .target_runtime_player_control_handoff_state_reason)
+            + ", targetRuntimePlayerControlHandoffReady="
+            + BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_ready);
+    }
+    if (!player_control_handoff_state.short_circuit_reason.empty())
+    {
+        line += ", shortCircuitReason="
+            + player_control_handoff_state.short_circuit_reason;
+    }
+
+    line += ", targetRuntimePlayerControlHandoffStateReady="
+        + std::string(
+            BoolToYesNo(
+                player_control_handoff_state
+                    .target_runtime_player_control_handoff_state_ready))
+        + ", action="
+        + (player_control_handoff_state.action.empty()
+               ? std::string("<none>")
+               : player_control_handoff_state.action);
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -16102,6 +16526,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_player_control_handoff_gate: "
                     + FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_player_control_handoff_state
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_player_control_handoff_state: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -32729,6 +33163,444 @@ hl::game_api::ChangeLevelTransitionSummary::
     return player_control_handoff_gate;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary
+    BuildChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGateSummary&
+                player_control_handoff_gate)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffStateSummary
+            player_control_handoff_state;
+    player_control_handoff_state.attempted = true;
+
+    const auto copy_inherited = [&]()
+    {
+        player_control_handoff_state.target_runtime_cutover_outcome =
+            player_control_handoff_gate.target_runtime_cutover_outcome;
+        player_control_handoff_state.target_runtime_cutover_outcome_available =
+            player_control_handoff_gate
+                .target_runtime_cutover_outcome_available;
+        player_control_handoff_state.target_runtime_cutover_outcome_reason =
+            player_control_handoff_gate.target_runtime_cutover_outcome_reason;
+        player_control_handoff_state.current_runtime_deactivation_candidate =
+            player_control_handoff_gate
+                .current_runtime_deactivation_candidate;
+        player_control_handoff_state.current_runtime_deactivation_allowed =
+            player_control_handoff_gate.current_runtime_deactivation_allowed;
+        player_control_handoff_state.current_runtime_deactivation_deferred =
+            player_control_handoff_gate.current_runtime_deactivation_deferred;
+        player_control_handoff_state.current_runtime_deactivation_attempted =
+            player_control_handoff_gate.current_runtime_deactivation_attempted;
+        player_control_handoff_state.current_runtime_deactivation_completed =
+            player_control_handoff_gate.current_runtime_deactivation_completed;
+        player_control_handoff_state.current_runtime_deactivation_succeeded =
+            player_control_handoff_gate.current_runtime_deactivation_succeeded;
+        player_control_handoff_state.current_runtime_deactivation_blocked =
+            player_control_handoff_gate.current_runtime_deactivation_blocked;
+        player_control_handoff_state.current_runtime_deactivation_block_reason =
+            player_control_handoff_gate
+                .current_runtime_deactivation_block_reason;
+        player_control_handoff_state.current_runtime_deactivation_started =
+            player_control_handoff_gate.current_runtime_deactivation_started;
+        player_control_handoff_state.current_runtime_deactivated =
+            player_control_handoff_gate.current_runtime_deactivated;
+        player_control_handoff_state.current_runtime_deactivation_state =
+            player_control_handoff_gate.current_runtime_deactivation_state;
+        player_control_handoff_state.current_runtime_deactivation_state_reason =
+            player_control_handoff_gate
+                .current_runtime_deactivation_state_reason;
+        player_control_handoff_state.current_runtime_deactivation_outcome =
+            player_control_handoff_gate.current_runtime_deactivation_outcome;
+        player_control_handoff_state
+            .current_runtime_deactivation_outcome_available =
+            player_control_handoff_gate
+                .current_runtime_deactivation_outcome_available;
+        player_control_handoff_state.current_runtime_deactivation_outcome_reason =
+            player_control_handoff_gate
+                .current_runtime_deactivation_outcome_reason;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_candidate =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_candidate;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_allowed =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_allowed;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_deferred =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_deferred;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_attempted =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_attempted;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_completed =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_completed;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_succeeded =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_succeeded;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_blocked =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_blocked;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_block_reason =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_block_reason;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_started =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_started;
+        player_control_handoff_state.target_runtime_checkpoint_applied =
+            player_control_handoff_gate.target_runtime_checkpoint_applied;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_state =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_state;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_state_reason =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_state_reason;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_outcome =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_outcome;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_outcome_available =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_outcome_available;
+        player_control_handoff_state
+            .target_runtime_checkpoint_application_outcome_reason =
+            player_control_handoff_gate
+                .target_runtime_checkpoint_application_outcome_reason;
+        player_control_handoff_state.target_runtime_player_placement_candidate =
+            player_control_handoff_gate.target_runtime_player_placement_candidate;
+        player_control_handoff_state.target_runtime_player_placement_allowed =
+            player_control_handoff_gate.target_runtime_player_placement_allowed;
+        player_control_handoff_state.target_runtime_player_placement_deferred =
+            player_control_handoff_gate.target_runtime_player_placement_deferred;
+        player_control_handoff_state.target_runtime_player_placement_attempted =
+            player_control_handoff_gate.target_runtime_player_placement_attempted;
+        player_control_handoff_state.target_runtime_player_placement_completed =
+            player_control_handoff_gate.target_runtime_player_placement_completed;
+        player_control_handoff_state.target_runtime_player_placement_succeeded =
+            player_control_handoff_gate.target_runtime_player_placement_succeeded;
+        player_control_handoff_state.target_runtime_player_placement_blocked =
+            player_control_handoff_gate.target_runtime_player_placement_blocked;
+        player_control_handoff_state.target_runtime_player_placement_block_reason =
+            player_control_handoff_gate
+                .target_runtime_player_placement_block_reason;
+        player_control_handoff_state.target_runtime_player_placement_started =
+            player_control_handoff_gate.target_runtime_player_placement_started;
+        player_control_handoff_state.target_runtime_player_placed =
+            player_control_handoff_gate.target_runtime_player_placed;
+        player_control_handoff_state.target_runtime_player_placement_state =
+            player_control_handoff_gate.target_runtime_player_placement_state;
+        player_control_handoff_state.target_runtime_player_placement_state_reason =
+            player_control_handoff_gate
+                .target_runtime_player_placement_state_reason;
+        player_control_handoff_state.target_runtime_player_placement_outcome =
+            player_control_handoff_gate.target_runtime_player_placement_outcome;
+        player_control_handoff_state
+            .target_runtime_player_placement_outcome_available =
+            player_control_handoff_gate
+                .target_runtime_player_placement_outcome_available;
+        player_control_handoff_state
+            .target_runtime_player_placement_outcome_reason =
+            player_control_handoff_gate
+                .target_runtime_player_placement_outcome_reason;
+        player_control_handoff_state.target_runtime_player_attachment_candidate =
+            player_control_handoff_gate.target_runtime_player_attachment_candidate;
+        player_control_handoff_state.target_runtime_player_attachment_allowed =
+            player_control_handoff_gate.target_runtime_player_attachment_allowed;
+        player_control_handoff_state.target_runtime_player_attachment_deferred =
+            player_control_handoff_gate.target_runtime_player_attachment_deferred;
+        player_control_handoff_state.target_runtime_player_attachment_attempted =
+            player_control_handoff_gate.target_runtime_player_attachment_attempted;
+        player_control_handoff_state.target_runtime_player_attachment_completed =
+            player_control_handoff_gate.target_runtime_player_attachment_completed;
+        player_control_handoff_state.target_runtime_player_attachment_succeeded =
+            player_control_handoff_gate.target_runtime_player_attachment_succeeded;
+        player_control_handoff_state.target_runtime_player_attachment_blocked =
+            player_control_handoff_gate.target_runtime_player_attachment_blocked;
+        player_control_handoff_state.target_runtime_player_attachment_block_reason =
+            player_control_handoff_gate
+                .target_runtime_player_attachment_block_reason;
+        player_control_handoff_state.target_runtime_player_attachment_started =
+            player_control_handoff_gate.target_runtime_player_attachment_started;
+        player_control_handoff_state.target_runtime_player_attached =
+            player_control_handoff_gate.target_runtime_player_attached;
+        player_control_handoff_state.target_runtime_player_attachment_state =
+            player_control_handoff_gate.target_runtime_player_attachment_state;
+        player_control_handoff_state
+            .target_runtime_player_attachment_state_reason =
+            player_control_handoff_gate
+                .target_runtime_player_attachment_state_reason;
+        player_control_handoff_state.target_runtime_player_attachment_outcome =
+            player_control_handoff_gate.target_runtime_player_attachment_outcome;
+        player_control_handoff_state
+            .target_runtime_player_attachment_outcome_available =
+            player_control_handoff_gate
+                .target_runtime_player_attachment_outcome_available;
+        player_control_handoff_state
+            .target_runtime_player_attachment_outcome_reason =
+            player_control_handoff_gate
+                .target_runtime_player_attachment_outcome_reason;
+        player_control_handoff_state.target_runtime_player_attachment_ready =
+            player_control_handoff_gate.target_runtime_player_attachment_ready;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_candidate =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_candidate;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_allowed =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_allowed;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_deferred =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_deferred;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_attempted =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_attempted;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_completed =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_completed;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_succeeded =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_succeeded;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_blocked =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_blocked;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_block_reason =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_block_reason;
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_ready =
+            player_control_handoff_gate
+                .target_runtime_player_control_handoff_ready;
+    };
+
+    if (player_control_handoff_gate.prepared
+        && player_control_handoff_gate
+               .target_runtime_player_control_handoff_gate_ready
+        && player_control_handoff_gate.target_runtime_cutover_outcome
+            == "not-produced"
+        && !player_control_handoff_gate
+                .target_runtime_cutover_outcome_available
+        && player_control_handoff_gate.target_runtime_cutover_outcome_reason
+            == "cutover-not-attempted"
+        && player_control_handoff_gate.current_runtime_deactivation_candidate
+        && !player_control_handoff_gate.current_runtime_deactivation_allowed
+        && player_control_handoff_gate.current_runtime_deactivation_deferred
+        && !player_control_handoff_gate.current_runtime_deactivation_attempted
+        && !player_control_handoff_gate.current_runtime_deactivation_completed
+        && !player_control_handoff_gate.current_runtime_deactivation_succeeded
+        && player_control_handoff_gate.current_runtime_deactivation_blocked
+        && player_control_handoff_gate.current_runtime_deactivation_block_reason
+            == "target-runtime-cutover-outcome-not-produced"
+        && !player_control_handoff_gate.current_runtime_deactivation_started
+        && !player_control_handoff_gate.current_runtime_deactivated
+        && player_control_handoff_gate.current_runtime_deactivation_state
+            == "not-deactivated"
+        && player_control_handoff_gate
+               .current_runtime_deactivation_state_reason
+            == "deactivation-not-started"
+        && player_control_handoff_gate.current_runtime_deactivation_outcome
+            == "not-produced"
+        && !player_control_handoff_gate
+                .current_runtime_deactivation_outcome_available
+        && player_control_handoff_gate.current_runtime_deactivation_outcome_reason
+            == "deactivation-not-attempted"
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_candidate
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_allowed
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_deferred
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_attempted
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_completed
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_succeeded
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_blocked
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_block_reason
+            == "current-runtime-deactivation-outcome-not-produced"
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_started
+        && !player_control_handoff_gate.target_runtime_checkpoint_applied
+        && player_control_handoff_gate.target_runtime_checkpoint_application_state
+            == "not-applied"
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_state_reason
+            == "checkpoint-application-not-started"
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_outcome
+            == "not-produced"
+        && !player_control_handoff_gate
+                .target_runtime_checkpoint_application_outcome_available
+        && player_control_handoff_gate
+               .target_runtime_checkpoint_application_outcome_reason
+            == "checkpoint-application-not-attempted"
+        && player_control_handoff_gate.target_runtime_player_placement_candidate
+        && !player_control_handoff_gate.target_runtime_player_placement_allowed
+        && player_control_handoff_gate.target_runtime_player_placement_deferred
+        && !player_control_handoff_gate
+                .target_runtime_player_placement_attempted
+        && !player_control_handoff_gate
+                .target_runtime_player_placement_completed
+        && !player_control_handoff_gate
+                .target_runtime_player_placement_succeeded
+        && player_control_handoff_gate.target_runtime_player_placement_blocked
+        && player_control_handoff_gate
+               .target_runtime_player_placement_block_reason
+            == "target-runtime-checkpoint-application-outcome-not-produced"
+        && !player_control_handoff_gate.target_runtime_player_placement_started
+        && !player_control_handoff_gate.target_runtime_player_placed
+        && player_control_handoff_gate.target_runtime_player_placement_state
+            == "not-placed"
+        && player_control_handoff_gate
+               .target_runtime_player_placement_state_reason
+            == "player-placement-not-started"
+        && player_control_handoff_gate.target_runtime_player_placement_outcome
+            == "not-produced"
+        && !player_control_handoff_gate
+                .target_runtime_player_placement_outcome_available
+        && player_control_handoff_gate
+               .target_runtime_player_placement_outcome_reason
+            == "player-placement-not-attempted"
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_candidate
+        && !player_control_handoff_gate
+                .target_runtime_player_attachment_allowed
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_deferred
+        && !player_control_handoff_gate
+                .target_runtime_player_attachment_attempted
+        && !player_control_handoff_gate
+                .target_runtime_player_attachment_completed
+        && !player_control_handoff_gate
+                .target_runtime_player_attachment_succeeded
+        && player_control_handoff_gate.target_runtime_player_attachment_blocked
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_block_reason
+            == "target-runtime-player-placement-outcome-not-produced"
+        && !player_control_handoff_gate.target_runtime_player_attachment_started
+        && !player_control_handoff_gate.target_runtime_player_attached
+        && player_control_handoff_gate.target_runtime_player_attachment_state
+            == "not-attached"
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_state_reason
+            == "player-attachment-not-started"
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_outcome
+            == "not-produced"
+        && !player_control_handoff_gate
+                .target_runtime_player_attachment_outcome_available
+        && player_control_handoff_gate
+               .target_runtime_player_attachment_outcome_reason
+            == "player-attachment-not-attempted"
+        && !player_control_handoff_gate.target_runtime_player_attachment_ready
+        && player_control_handoff_gate
+               .target_runtime_player_control_handoff_candidate
+        && !player_control_handoff_gate
+                .target_runtime_player_control_handoff_allowed
+        && player_control_handoff_gate
+               .target_runtime_player_control_handoff_deferred
+        && !player_control_handoff_gate
+                .target_runtime_player_control_handoff_attempted
+        && !player_control_handoff_gate
+                .target_runtime_player_control_handoff_completed
+        && !player_control_handoff_gate
+                .target_runtime_player_control_handoff_succeeded
+        && player_control_handoff_gate
+               .target_runtime_player_control_handoff_blocked
+        && player_control_handoff_gate
+               .target_runtime_player_control_handoff_block_reason
+            == "target-runtime-player-attachment-outcome-not-produced"
+        && !player_control_handoff_gate.target_runtime_player_control_handoff_ready)
+    {
+        player_control_handoff_state.prepared = true;
+        player_control_handoff_state.skipped = false;
+        player_control_handoff_state.decision_source =
+            "target-runtime-player-control-handoff-gate";
+        copy_inherited();
+        player_control_handoff_state.target_runtime_player_control_handoff_started =
+            false;
+        player_control_handoff_state.target_runtime_player_control_handed_off =
+            false;
+        player_control_handoff_state.target_runtime_player_control_handoff_state =
+            "not-handed-off";
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_state_reason =
+            "player-control-handoff-not-started";
+        player_control_handoff_state
+            .target_runtime_player_control_handoff_state_ready = true;
+        player_control_handoff_state.action =
+            "no-op target runtime player control handoff state prepared";
+        return player_control_handoff_state;
+    }
+
+    player_control_handoff_state.prepared = false;
+    player_control_handoff_state
+        .target_runtime_player_control_handoff_state_ready = false;
+    player_control_handoff_state.short_circuit_reason =
+        player_control_handoff_gate.short_circuit_reason;
+
+    if (player_control_handoff_gate.skipped)
+    {
+        player_control_handoff_state.skipped = true;
+        player_control_handoff_state.action =
+            "target runtime player control handoff state skipped";
+        return player_control_handoff_state;
+    }
+
+    player_control_handoff_state.skipped = false;
+    player_control_handoff_state.decision_source =
+        player_control_handoff_gate.attempted
+        ? std::string("target-runtime-player-control-handoff-gate")
+        : std::string();
+    copy_inherited();
+
+    if (!player_control_handoff_gate
+             .target_runtime_player_control_handoff_gate_ready)
+    {
+        player_control_handoff_state.action =
+            "target runtime player control handoff state waiting on target runtime player control handoff gate";
+        return player_control_handoff_state;
+    }
+
+    player_control_handoff_state.target_runtime_player_control_handoff_started =
+        player_control_handoff_gate.target_runtime_player_control_handoff_attempted;
+    player_control_handoff_state.target_runtime_player_control_handed_off =
+        false;
+    player_control_handoff_state.target_runtime_player_control_handoff_state =
+        "not-handed-off";
+    player_control_handoff_state
+        .target_runtime_player_control_handoff_state_reason =
+        player_control_handoff_gate.target_runtime_player_control_handoff_attempted
+        ? std::string("player-control-handoff-incomplete")
+        : std::string("player-control-handoff-not-started");
+    player_control_handoff_state
+        .target_runtime_player_control_handoff_state_ready = true;
+    player_control_handoff_state.action =
+        "target runtime player control handoff state not required";
+    return player_control_handoff_state;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -33902,6 +34774,26 @@ void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
         BuildChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
             summary
                 .changelevel_player_transfer_target_runtime_player_attachment_outcome);
+    RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+        state);
+}
+
+void RefreshChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+    EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_player_control_handoff_gate
+             .attempted)
+    {
+        return;
+    }
+
+    summary
+        .changelevel_player_transfer_target_runtime_player_control_handoff_state =
+        BuildChangeLevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+            summary
+                .changelevel_player_transfer_target_runtime_player_control_handoff_gate);
 }
 
 void CapturePendingChangeLevelRequest(

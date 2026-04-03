@@ -18117,6 +18117,163 @@ void ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffGate(
         "targetRuntimePlayerControlHandoffReady=no");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_player_control_handoff_state_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& player_control_handoff_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_control_handoff_state;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_player_control_handoff_state";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(player_control_handoff_state.attempted, "attempted=yes");
+    check(
+        player_control_handoff_state.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        player_control_handoff_state.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_state_ready
+            == expected_target_runtime_player_control_handoff_state_ready,
+        std::string("targetRuntimePlayerControlHandoffStateReady=")
+            + (expected_target_runtime_player_control_handoff_state_ready ? "yes"
+                                                                          : "no"));
+    check(
+        player_control_handoff_state.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        player_control_handoff_state.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+
+    if (!expected_target_runtime_player_control_handoff_state_ready)
+    {
+        return;
+    }
+
+    const auto& player_control_handoff_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_player_control_handoff_gate;
+
+    check(
+        player_control_handoff_state.decision_source
+            == "target-runtime-player-control-handoff-gate",
+        "decisionSource=target-runtime-player-control-handoff-gate");
+    check(
+        player_control_handoff_state.target_runtime_cutover_outcome
+            == player_control_handoff_gate.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-gate");
+    check(
+        player_control_handoff_state.current_runtime_deactivation_outcome_reason
+            == player_control_handoff_gate
+                   .current_runtime_deactivation_outcome_reason,
+        "currentRuntimeDeactivationOutcomeReason inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_checkpoint_application_outcome_reason
+            == player_control_handoff_gate
+                   .target_runtime_checkpoint_application_outcome_reason,
+        "targetRuntimeCheckpointApplicationOutcomeReason inherited-from-gate");
+    check(
+        player_control_handoff_state.target_runtime_player_placement_outcome_reason
+            == player_control_handoff_gate
+                   .target_runtime_player_placement_outcome_reason,
+        "targetRuntimePlayerPlacementOutcomeReason inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_attachment_outcome_reason
+            == player_control_handoff_gate
+                   .target_runtime_player_attachment_outcome_reason,
+        "targetRuntimePlayerAttachmentOutcomeReason inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_candidate
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_candidate,
+        "targetRuntimePlayerControlHandoffCandidate inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_allowed
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_allowed,
+        "targetRuntimePlayerControlHandoffAllowed inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_deferred
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_deferred,
+        "targetRuntimePlayerControlHandoffDeferred inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_attempted
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_attempted,
+        "targetRuntimePlayerControlHandoffAttempted inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_completed
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_completed,
+        "targetRuntimePlayerControlHandoffCompleted inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_succeeded
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_succeeded,
+        "targetRuntimePlayerControlHandoffSucceeded inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_blocked
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_blocked,
+        "targetRuntimePlayerControlHandoffBlocked inherited-from-gate");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_block_reason
+            == "target-runtime-player-attachment-outcome-not-produced",
+        "targetRuntimePlayerControlHandoffBlockReason=target-runtime-player-attachment-outcome-not-produced");
+    check(
+        !player_control_handoff_state
+             .target_runtime_player_control_handoff_started,
+        "targetRuntimePlayerControlHandoffStarted=no");
+    check(
+        !player_control_handoff_state.target_runtime_player_control_handed_off,
+        "targetRuntimePlayerControlHandedOff=no");
+    check(
+        player_control_handoff_state.target_runtime_player_control_handoff_state
+            == "not-handed-off",
+        "targetRuntimePlayerControlHandoffState=not-handed-off");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_state_reason
+            == "player-control-handoff-not-started",
+        "targetRuntimePlayerControlHandoffStateReason=player-control-handoff-not-started");
+    check(
+        player_control_handoff_state
+                .target_runtime_player_control_handoff_ready
+            == player_control_handoff_gate
+                   .target_runtime_player_control_handoff_ready,
+        "targetRuntimePlayerControlHandoffReady inherited-from-gate");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -18831,6 +18988,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime player control handoff gate prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime player control handoff state prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -19502,6 +19667,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime player control handoff gate skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimePlayerControlHandoffState(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime player control handoff state skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
