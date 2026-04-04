@@ -5021,6 +5021,23 @@ struct ChangeLevelTransitionSummary
         bool target_runtime_completion_mark_outcome_ready = false;
     };
 
+    struct ChangeLevelPlayerTransferLatchReleaseGateSummary
+        : ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary
+    {
+        bool changelevel_latch_release_candidate = false;
+        bool changelevel_latch_release_allowed = false;
+        bool changelevel_latch_release_deferred = false;
+        bool changelevel_latch_release_attempted = false;
+        bool changelevel_latch_release_completed = false;
+        bool changelevel_latch_release_succeeded = false;
+        bool changelevel_latch_release_blocked = false;
+        std::string changelevel_latch_release_block_reason;
+        bool changelevel_latch_release_started = false;
+        bool changelevel_latch_released = false;
+        bool changelevel_latch_release_ready = false;
+        bool changelevel_latch_release_gate_ready = false;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -5229,6 +5246,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_completion_mark_state;
     ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary
         changelevel_player_transfer_target_runtime_completion_mark_outcome;
+    ChangeLevelPlayerTransferLatchReleaseGateSummary
+        changelevel_player_transfer_latch_release_gate;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

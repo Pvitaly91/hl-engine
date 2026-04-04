@@ -606,6 +606,7 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCompletionMarkState(
     EngineShimState& state);
 void RefreshChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcome(
     EngineShimState& state);
+void RefreshChangeLevelPlayerTransferLatchReleaseGate(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -1060,6 +1061,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferTargetRuntimeCompletionMarkStateSummary&
                 completion_mark_state);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferLatchReleaseGateSummary
+    BuildChangeLevelPlayerTransferLatchReleaseGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary&
+                completion_mark_outcome);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -16435,6 +16442,95 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSum
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferLatchReleaseGateSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferLatchReleaseGateSummary& latch_release_gate =
+            summary.changelevel_player_transfer_latch_release_gate;
+
+    hl::game_api::ChangeLevelTransitionSummary state_summary;
+    state_summary.changelevel_player_transfer_target_runtime_completion_mark_outcome =
+        static_cast<const hl::game_api::ChangeLevelTransitionSummary::
+                        ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary&>(
+            latch_release_gate);
+
+    std::string line =
+        FormatChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary(
+            state_summary);
+
+    const std::size_t action_position = line.rfind(", action=");
+    if (action_position != std::string::npos)
+    {
+        std::string insertion;
+        if (latch_release_gate.prepared)
+        {
+            insertion =
+                ", changelevelLatchReleaseCandidate="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_candidate))
+                + ", changelevelLatchReleaseAllowed="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_allowed))
+                + ", changelevelLatchReleaseDeferred="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_deferred))
+                + ", changelevelLatchReleaseAttempted="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_attempted))
+                + ", changelevelLatchReleaseCompleted="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_completed))
+                + ", changelevelLatchReleaseSucceeded="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_succeeded))
+                + ", changelevelLatchReleaseBlocked="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_blocked))
+                + ", changelevelLatchReleaseBlockReason="
+                + (latch_release_gate.changelevel_latch_release_block_reason
+                           .empty()
+                       ? std::string("<none>")
+                       : latch_release_gate
+                             .changelevel_latch_release_block_reason)
+                + ", changelevelLatchReleaseStarted="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_started))
+                + ", changelevelLatchReleased="
+                + std::string(
+                    BoolToYesNo(latch_release_gate.changelevel_latch_released))
+                + ", changelevelLatchReleaseReady="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_ready));
+        }
+        else
+        {
+            insertion =
+                ", changelevelLatchReleaseReady="
+                + std::string(
+                    BoolToYesNo(
+                        latch_release_gate.changelevel_latch_release_ready));
+        }
+
+        insertion += ", changelevelLatchReleaseGateReady="
+            + std::string(
+                BoolToYesNo(
+                    latch_release_gate.changelevel_latch_release_gate_ready));
+        line.insert(action_position, insertion);
+    }
+
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -19279,6 +19375,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_completion_mark_outcome: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_latch_release_gate
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_latch_release_gate: "
+                    + FormatChangeLevelPlayerTransferLatchReleaseGateSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -38785,6 +38891,125 @@ hl::game_api::ChangeLevelTransitionSummary::
     return completion_mark_outcome;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferLatchReleaseGateSummary
+    BuildChangeLevelPlayerTransferLatchReleaseGate(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary&
+                completion_mark_outcome)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferLatchReleaseGateSummary latch_release_gate;
+    latch_release_gate.attempted = true;
+
+    const auto copy_inherited = [&]()
+    {
+        static_cast<hl::game_api::ChangeLevelTransitionSummary::
+                        ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary&>(
+            latch_release_gate) = completion_mark_outcome;
+    };
+
+    if (completion_mark_outcome.prepared
+        && completion_mark_outcome.target_runtime_completion_outcome_ready
+        && completion_mark_outcome.target_runtime_completion_mark_gate_ready
+        && completion_mark_outcome.target_runtime_completion_mark_state_ready
+        && completion_mark_outcome.target_runtime_completion_mark_outcome_ready
+        && completion_mark_outcome.decision_source
+            == "target-runtime-completion-mark-state"
+        && completion_mark_outcome.target_runtime_completion_candidate
+        && !completion_mark_outcome.target_runtime_completion_allowed
+        && completion_mark_outcome.target_runtime_completion_deferred
+        && !completion_mark_outcome.target_runtime_completion_attempted
+        && !completion_mark_outcome.target_runtime_completion_completed
+        && !completion_mark_outcome.target_runtime_completion_succeeded
+        && completion_mark_outcome.target_runtime_completion_blocked
+        && completion_mark_outcome.target_runtime_completion_block_reason
+            == "target-runtime-player-control-handoff-outcome-not-produced"
+        && !completion_mark_outcome.target_runtime_completion_started
+        && !completion_mark_outcome.target_runtime_completed
+        && completion_mark_outcome.target_runtime_completion_state
+            == "not-completed"
+        && completion_mark_outcome.target_runtime_completion_state_reason
+            == "completion-not-started"
+        && completion_mark_outcome.target_runtime_completion_outcome
+            == "not-produced"
+        && !completion_mark_outcome.target_runtime_completion_outcome_available
+        && completion_mark_outcome.target_runtime_completion_outcome_reason
+            == "completion-not-attempted"
+        && !completion_mark_outcome.target_runtime_completion_ready
+        && completion_mark_outcome.target_runtime_completion_mark_candidate
+        && !completion_mark_outcome.target_runtime_completion_mark_allowed
+        && completion_mark_outcome.target_runtime_completion_mark_deferred
+        && !completion_mark_outcome.target_runtime_completion_mark_attempted
+        && !completion_mark_outcome.target_runtime_completion_mark_completed
+        && !completion_mark_outcome.target_runtime_completion_mark_succeeded
+        && completion_mark_outcome.target_runtime_completion_mark_blocked
+        && completion_mark_outcome.target_runtime_completion_mark_block_reason
+            == "target-runtime-completion-outcome-not-produced"
+        && !completion_mark_outcome.target_runtime_completion_mark_started
+        && !completion_mark_outcome.target_runtime_completion_marked
+        && completion_mark_outcome.target_runtime_completion_mark_state
+            == "not-marked"
+        && completion_mark_outcome.target_runtime_completion_mark_state_reason
+            == "completion-mark-not-started"
+        && completion_mark_outcome.target_runtime_completion_mark_outcome
+            == "not-produced"
+        && !completion_mark_outcome
+                .target_runtime_completion_mark_outcome_available
+        && completion_mark_outcome.target_runtime_completion_mark_outcome_reason
+            == "completion-mark-not-attempted"
+        && !completion_mark_outcome.target_runtime_completion_mark_ready)
+    {
+        copy_inherited();
+        latch_release_gate.prepared = true;
+        latch_release_gate.skipped = false;
+        latch_release_gate.decision_source =
+            "target-runtime-completion-mark-outcome";
+        latch_release_gate.changelevel_latch_release_candidate = true;
+        latch_release_gate.changelevel_latch_release_allowed = false;
+        latch_release_gate.changelevel_latch_release_deferred = true;
+        latch_release_gate.changelevel_latch_release_attempted = false;
+        latch_release_gate.changelevel_latch_release_completed = false;
+        latch_release_gate.changelevel_latch_release_succeeded = false;
+        latch_release_gate.changelevel_latch_release_blocked = true;
+        latch_release_gate.changelevel_latch_release_block_reason =
+            "target-runtime-completion-mark-outcome-not-produced";
+        latch_release_gate.changelevel_latch_release_started = false;
+        latch_release_gate.changelevel_latch_released = false;
+        latch_release_gate.changelevel_latch_release_ready = false;
+        latch_release_gate.changelevel_latch_release_gate_ready = true;
+        latch_release_gate.action = "no-op changelevel latch release gate prepared";
+        return latch_release_gate;
+    }
+
+    latch_release_gate.prepared = false;
+    latch_release_gate.changelevel_latch_release_gate_ready = false;
+    latch_release_gate.short_circuit_reason =
+        completion_mark_outcome.short_circuit_reason;
+
+    if (completion_mark_outcome.skipped)
+    {
+        latch_release_gate.skipped = true;
+        latch_release_gate.action = "changelevel latch release gate skipped";
+        return latch_release_gate;
+    }
+
+    latch_release_gate.skipped = false;
+    latch_release_gate.decision_source = completion_mark_outcome.attempted
+        ? std::string("target-runtime-completion-mark-outcome")
+        : std::string();
+
+    if (!completion_mark_outcome.target_runtime_completion_mark_outcome_ready)
+    {
+        latch_release_gate.action =
+            "changelevel latch release gate waiting on target runtime completion mark outcome";
+        return latch_release_gate;
+    }
+
+    latch_release_gate.action = "changelevel latch release gate not required";
+    return latch_release_gate;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -40106,6 +40331,23 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcome(
         BuildChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcome(
             summary
                 .changelevel_player_transfer_target_runtime_completion_mark_state);
+    RefreshChangeLevelPlayerTransferLatchReleaseGate(state);
+}
+
+void RefreshChangeLevelPlayerTransferLatchReleaseGate(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary
+             .changelevel_player_transfer_target_runtime_completion_mark_outcome
+             .attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_latch_release_gate =
+        BuildChangeLevelPlayerTransferLatchReleaseGate(
+            summary
+                .changelevel_player_transfer_target_runtime_completion_mark_outcome);
 }
 
 void CapturePendingChangeLevelRequest(
