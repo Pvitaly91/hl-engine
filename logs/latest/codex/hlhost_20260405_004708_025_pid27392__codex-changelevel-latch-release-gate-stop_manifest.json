@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260405_004708",
+  "runInstanceId": "20260405_004708_025_pid27392",
+  "runLabel": "codex-changelevel-latch-release-gate-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "4608ca61797da5db29d056523b7c5ea70e6f4869",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260405_004708_025_pid27392__codex-changelevel-latch-release-gate-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260405_004708_025_pid27392__codex-changelevel-latch-release-gate-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260405_004708_025_pid27392__codex-changelevel-latch-release-gate-stop_part01.log"]
+}
