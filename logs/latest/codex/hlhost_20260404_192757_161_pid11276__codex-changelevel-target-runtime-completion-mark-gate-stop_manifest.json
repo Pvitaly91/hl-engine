@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260404_192757",
+  "runInstanceId": "20260404_192757_161_pid11276",
+  "runLabel": "codex-changelevel-target-runtime-completion-mark-gate-stop",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "f9514d0db2d02cd03bfa5ebf407780aedef0b8ff",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260404_192757_161_pid11276__codex-changelevel-target-runtime-completion-mark-gate-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260404_192757_161_pid11276__codex-changelevel-target-runtime-completion-mark-gate-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260404_192757_161_pid11276__codex-changelevel-target-runtime-completion-mark-gate-stop_part01.log"]
+}
