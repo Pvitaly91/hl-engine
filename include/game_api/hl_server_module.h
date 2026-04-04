@@ -5012,6 +5012,15 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary
+        : ChangeLevelPlayerTransferTargetRuntimeCompletionMarkStateSummary
+    {
+        std::string target_runtime_completion_mark_outcome;
+        bool target_runtime_completion_mark_outcome_available = false;
+        std::string target_runtime_completion_mark_outcome_reason;
+        bool target_runtime_completion_mark_outcome_ready = false;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -5218,6 +5227,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_completion_mark_gate;
     ChangeLevelPlayerTransferTargetRuntimeCompletionMarkStateSummary
         changelevel_player_transfer_target_runtime_completion_mark_state;
+    ChangeLevelPlayerTransferTargetRuntimeCompletionMarkOutcomeSummary
+        changelevel_player_transfer_target_runtime_completion_mark_outcome;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;
