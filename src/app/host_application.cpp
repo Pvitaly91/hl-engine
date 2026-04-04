@@ -18812,6 +18812,181 @@ void ValidateChangelevelPlayerTransferTargetRuntimeCompletionOutcome(
         "targetRuntimeCompletionReady inherited-from-state");
 }
 
+void ValidateChangelevelPlayerTransferTargetRuntimeCompletionMarkGate(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_target_runtime_completion_mark_gate_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& completion_mark_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_completion_mark_gate;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_target_runtime_completion_mark_gate";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(completion_mark_gate.attempted, "attempted=yes");
+    check(
+        completion_mark_gate.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        completion_mark_gate.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        completion_mark_gate.target_runtime_completion_mark_gate_ready
+            == expected_target_runtime_completion_mark_gate_ready,
+        std::string("targetRuntimeCompletionMarkGateReady=")
+            + (expected_target_runtime_completion_mark_gate_ready ? "yes"
+                                                                  : "no"));
+    check(
+        completion_mark_gate.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        completion_mark_gate.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_ready,
+        "targetRuntimeCompletionMarkReady=no");
+
+    if (!expected_target_runtime_completion_mark_gate_ready)
+    {
+        return;
+    }
+
+    const auto& completion_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_target_runtime_completion_outcome;
+
+    check(
+        completion_mark_gate.decision_source
+            == "target-runtime-completion-outcome",
+        "decisionSource=target-runtime-completion-outcome");
+    check(
+        completion_mark_gate.target_runtime_cutover_outcome
+            == completion_outcome.target_runtime_cutover_outcome,
+        "targetRuntimeCutoverOutcome inherited-from-outcome");
+    check(
+        completion_mark_gate
+                .target_runtime_player_control_handoff_outcome_reason
+            == completion_outcome
+                   .target_runtime_player_control_handoff_outcome_reason,
+        "targetRuntimePlayerControlHandoffOutcomeReason inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_player_control_handoff_ready
+            == completion_outcome.target_runtime_player_control_handoff_ready,
+        "targetRuntimePlayerControlHandoffReady inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_candidate
+            == completion_outcome.target_runtime_completion_candidate,
+        "targetRuntimeCompletionCandidate inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_allowed
+            == completion_outcome.target_runtime_completion_allowed,
+        "targetRuntimeCompletionAllowed inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_deferred
+            == completion_outcome.target_runtime_completion_deferred,
+        "targetRuntimeCompletionDeferred inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_attempted
+            == completion_outcome.target_runtime_completion_attempted,
+        "targetRuntimeCompletionAttempted inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_completed
+            == completion_outcome.target_runtime_completion_completed,
+        "targetRuntimeCompletionCompleted inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_succeeded
+            == completion_outcome.target_runtime_completion_succeeded,
+        "targetRuntimeCompletionSucceeded inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_blocked
+            == completion_outcome.target_runtime_completion_blocked,
+        "targetRuntimeCompletionBlocked inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_block_reason
+            == "target-runtime-player-control-handoff-outcome-not-produced",
+        "targetRuntimeCompletionBlockReason=target-runtime-player-control-handoff-outcome-not-produced");
+    check(
+        completion_mark_gate.target_runtime_completion_started
+            == completion_outcome.target_runtime_completion_started,
+        "targetRuntimeCompletionStarted inherited-from-outcome");
+    check(
+        !completion_mark_gate.target_runtime_completed,
+        "targetRuntimeCompleted=no");
+    check(
+        completion_mark_gate.target_runtime_completion_state
+            == "not-completed",
+        "targetRuntimeCompletionState=not-completed");
+    check(
+        completion_mark_gate.target_runtime_completion_state_reason
+            == "completion-not-started",
+        "targetRuntimeCompletionStateReason=completion-not-started");
+    check(
+        completion_mark_gate.target_runtime_completion_outcome
+            == "not-produced",
+        "targetRuntimeCompletionOutcome=not-produced");
+    check(
+        !completion_mark_gate.target_runtime_completion_outcome_available,
+        "targetRuntimeCompletionOutcomeAvailable=no");
+    check(
+        completion_mark_gate.target_runtime_completion_outcome_reason
+            == "completion-not-attempted",
+        "targetRuntimeCompletionOutcomeReason=completion-not-attempted");
+    check(
+        completion_mark_gate.target_runtime_completion_ready
+            == completion_outcome.target_runtime_completion_ready,
+        "targetRuntimeCompletionReady inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_outcome_ready
+            == completion_outcome.target_runtime_completion_outcome_ready,
+        "targetRuntimeCompletionOutcomeReady inherited-from-outcome");
+    check(
+        completion_mark_gate.target_runtime_completion_mark_candidate,
+        "targetRuntimeCompletionMarkCandidate=yes");
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_allowed,
+        "targetRuntimeCompletionMarkAllowed=no");
+    check(
+        completion_mark_gate.target_runtime_completion_mark_deferred,
+        "targetRuntimeCompletionMarkDeferred=yes");
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_attempted,
+        "targetRuntimeCompletionMarkAttempted=no");
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_completed,
+        "targetRuntimeCompletionMarkCompleted=no");
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_succeeded,
+        "targetRuntimeCompletionMarkSucceeded=no");
+    check(
+        completion_mark_gate.target_runtime_completion_mark_blocked,
+        "targetRuntimeCompletionMarkBlocked=yes");
+    check(
+        completion_mark_gate.target_runtime_completion_mark_block_reason
+            == "target-runtime-completion-outcome-not-produced",
+        "targetRuntimeCompletionMarkBlockReason=target-runtime-completion-outcome-not-produced");
+    check(
+        !completion_mark_gate.target_runtime_completion_mark_started,
+        "targetRuntimeCompletionMarkStarted=no");
+    check(
+        !completion_mark_gate.target_runtime_completion_marked,
+        "targetRuntimeCompletionMarked=no");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -19566,6 +19741,14 @@ bool ValidateRegressionGuard(
             "no-op target runtime completion outcome prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCompletionMarkGate(
+            summary,
+            true,
+            false,
+            true,
+            "no-op target runtime completion mark gate prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -20277,6 +20460,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "target runtime completion outcome skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferTargetRuntimeCompletionMarkGate(
+            summary,
+            false,
+            true,
+            false,
+            "target runtime completion mark gate skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
