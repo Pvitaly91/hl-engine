@@ -5038,6 +5038,14 @@ struct ChangeLevelTransitionSummary
         bool changelevel_latch_release_gate_ready = false;
     };
 
+    struct ChangeLevelPlayerTransferLatchReleaseStateSummary
+        : ChangeLevelPlayerTransferLatchReleaseGateSummary
+    {
+        std::string changelevel_latch_release_state;
+        std::string changelevel_latch_release_state_reason;
+        bool changelevel_latch_release_state_ready = false;
+    };
+
     struct PreChangeLevelHandoffSummary
     {
         bool active = false;
@@ -5248,6 +5256,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_completion_mark_outcome;
     ChangeLevelPlayerTransferLatchReleaseGateSummary
         changelevel_player_transfer_latch_release_gate;
+    ChangeLevelPlayerTransferLatchReleaseStateSummary
+        changelevel_player_transfer_latch_release_state;
     PreChangeLevelHandoffSummary pre_changelevel_handoff;
     PostHandoffActivitySummary post_handoff_activity;
     bool touch_bounds_resolved = false;

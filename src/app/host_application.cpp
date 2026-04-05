@@ -19603,6 +19603,143 @@ void ValidateChangelevelPlayerTransferLatchReleaseGate(
         "changelevelLatchReleased=no");
 }
 
+void ValidateChangelevelPlayerTransferLatchReleaseState(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_changelevel_latch_release_state_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& latch_release_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_latch_release_state;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_latch_release_state";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(latch_release_state.attempted, "attempted=yes");
+    check(
+        latch_release_state.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        latch_release_state.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        latch_release_state.changelevel_latch_release_state_ready
+            == expected_changelevel_latch_release_state_ready,
+        std::string("changelevelLatchReleaseStateReady=")
+            + (expected_changelevel_latch_release_state_ready ? "yes" : "no"));
+    check(
+        latch_release_state.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        latch_release_state.short_circuit_reason == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+    check(
+        !latch_release_state.changelevel_latch_release_ready,
+        "changelevelLatchReleaseReady=no");
+
+    if (!expected_changelevel_latch_release_state_ready)
+    {
+        return;
+    }
+
+    const auto& latch_release_gate =
+        summary.changelevel_transition
+            .changelevel_player_transfer_latch_release_gate;
+
+    check(
+        latch_release_state.decision_source == "changelevel-latch-release-gate",
+        "decisionSource=changelevel-latch-release-gate");
+    check(
+        latch_release_state.target_runtime_completion_candidate
+            == latch_release_gate.target_runtime_completion_candidate,
+        "targetRuntimeCompletionCandidate inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_state
+            == latch_release_gate.target_runtime_completion_state,
+        "targetRuntimeCompletionState inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_ready
+            == latch_release_gate.target_runtime_completion_ready,
+        "targetRuntimeCompletionReady inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_mark_candidate
+            == latch_release_gate.target_runtime_completion_mark_candidate,
+        "targetRuntimeCompletionMarkCandidate inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_mark_state
+            == latch_release_gate.target_runtime_completion_mark_state,
+        "targetRuntimeCompletionMarkState inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_mark_gate_ready
+            == latch_release_gate.target_runtime_completion_mark_gate_ready,
+        "targetRuntimeCompletionMarkGateReady inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_mark_state_ready
+            == latch_release_gate.target_runtime_completion_mark_state_ready,
+        "targetRuntimeCompletionMarkStateReady inherited-from-gate");
+    check(
+        latch_release_state.target_runtime_completion_mark_outcome_ready
+            == latch_release_gate.target_runtime_completion_mark_outcome_ready,
+        "targetRuntimeCompletionMarkOutcomeReady inherited-from-gate");
+    check(
+        latch_release_state.changelevel_latch_release_candidate
+            == latch_release_gate.changelevel_latch_release_candidate,
+        "changelevelLatchReleaseCandidate inherited-from-gate");
+    check(
+        !latch_release_state.changelevel_latch_release_allowed,
+        "changelevelLatchReleaseAllowed=no");
+    check(
+        latch_release_state.changelevel_latch_release_deferred,
+        "changelevelLatchReleaseDeferred=yes");
+    check(
+        !latch_release_state.changelevel_latch_release_attempted,
+        "changelevelLatchReleaseAttempted=no");
+    check(
+        !latch_release_state.changelevel_latch_release_completed,
+        "changelevelLatchReleaseCompleted=no");
+    check(
+        !latch_release_state.changelevel_latch_release_succeeded,
+        "changelevelLatchReleaseSucceeded=no");
+    check(
+        latch_release_state.changelevel_latch_release_blocked,
+        "changelevelLatchReleaseBlocked=yes");
+    check(
+        latch_release_state.changelevel_latch_release_block_reason
+            == "target-runtime-completion-mark-outcome-not-produced",
+        "changelevelLatchReleaseBlockReason=target-runtime-completion-mark-outcome-not-produced");
+    check(
+        !latch_release_state.changelevel_latch_release_started,
+        "changelevelLatchReleaseStarted=no");
+    check(
+        !latch_release_state.changelevel_latch_released,
+        "changelevelLatchReleased=no");
+    check(
+        latch_release_state.changelevel_latch_release_state
+            == "not-released",
+        "changelevelLatchReleaseState=not-released");
+    check(
+        latch_release_state.changelevel_latch_release_state_reason
+            == "latch-release-not-started",
+        "changelevelLatchReleaseStateReason=latch-release-not-started");
+    check(
+        latch_release_state.changelevel_latch_release_gate_ready
+            == latch_release_gate.changelevel_latch_release_gate_ready,
+        "changelevelLatchReleaseGateReady inherited-from-gate");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -20389,6 +20526,14 @@ bool ValidateRegressionGuard(
             "no-op changelevel latch release gate prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferLatchReleaseState(
+            summary,
+            true,
+            false,
+            true,
+            "no-op changelevel latch release state prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -21132,6 +21277,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "changelevel latch release gate skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferLatchReleaseState(
+            summary,
+            false,
+            true,
+            false,
+            "changelevel latch release state skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
