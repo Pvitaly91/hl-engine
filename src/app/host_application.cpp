@@ -19740,6 +19740,160 @@ void ValidateChangelevelPlayerTransferLatchReleaseState(
         "changelevelLatchReleaseGateReady inherited-from-gate");
 }
 
+void ValidateChangelevelPlayerTransferLatchReleaseOutcome(
+    const hl::game_api::HlServerModuleSummary& summary,
+    bool expected_prepared,
+    bool expected_skipped,
+    bool expected_changelevel_latch_release_outcome_ready,
+    std::string_view expected_action,
+    std::string_view expected_short_circuit_reason,
+    std::vector<std::string>& failures)
+{
+    const auto& latch_release_outcome =
+        summary.changelevel_transition
+            .changelevel_player_transfer_latch_release_outcome;
+    constexpr std::string_view kArtifact =
+        "changelevel_player_transfer_latch_release_outcome";
+    const auto check = [&](bool condition, std::string message)
+    {
+        AddGuardFailure(
+            failures,
+            condition,
+            std::string("expected ") + std::string(kArtifact) + " " + message);
+    };
+
+    check(latch_release_outcome.attempted, "attempted=yes");
+    check(
+        latch_release_outcome.prepared == expected_prepared,
+        std::string("prepared=") + (expected_prepared ? "yes" : "no"));
+    check(
+        latch_release_outcome.skipped == expected_skipped,
+        std::string("skipped=") + (expected_skipped ? "yes" : "no"));
+    check(
+        latch_release_outcome.changelevel_latch_release_outcome_ready
+            == expected_changelevel_latch_release_outcome_ready,
+        std::string("changelevelLatchReleaseOutcomeReady=")
+            + (expected_changelevel_latch_release_outcome_ready ? "yes"
+                                                                : "no"));
+    check(
+        latch_release_outcome.action == expected_action,
+        "action=" + std::string(expected_action));
+    check(
+        latch_release_outcome.short_circuit_reason
+            == expected_short_circuit_reason,
+        std::string("shortCircuitReason=")
+            + (expected_short_circuit_reason.empty()
+                   ? std::string("<empty>")
+                   : std::string(expected_short_circuit_reason)));
+    check(
+        !latch_release_outcome.changelevel_latch_release_ready,
+        "changelevelLatchReleaseReady=no");
+
+    if (!expected_changelevel_latch_release_outcome_ready)
+    {
+        return;
+    }
+
+    const auto& latch_release_state =
+        summary.changelevel_transition
+            .changelevel_player_transfer_latch_release_state;
+
+    check(
+        latch_release_outcome.decision_source == "changelevel-latch-release-state",
+        "decisionSource=changelevel-latch-release-state");
+    check(
+        latch_release_outcome.target_runtime_completion_candidate
+            == latch_release_state.target_runtime_completion_candidate,
+        "targetRuntimeCompletionCandidate inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_state
+            == latch_release_state.target_runtime_completion_state,
+        "targetRuntimeCompletionState inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_ready
+            == latch_release_state.target_runtime_completion_ready,
+        "targetRuntimeCompletionReady inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_mark_candidate
+            == latch_release_state.target_runtime_completion_mark_candidate,
+        "targetRuntimeCompletionMarkCandidate inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_mark_state
+            == latch_release_state.target_runtime_completion_mark_state,
+        "targetRuntimeCompletionMarkState inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_mark_gate_ready
+            == latch_release_state.target_runtime_completion_mark_gate_ready,
+        "targetRuntimeCompletionMarkGateReady inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_mark_state_ready
+            == latch_release_state.target_runtime_completion_mark_state_ready,
+        "targetRuntimeCompletionMarkStateReady inherited-from-state");
+    check(
+        latch_release_outcome.target_runtime_completion_mark_outcome_ready
+            == latch_release_state.target_runtime_completion_mark_outcome_ready,
+        "targetRuntimeCompletionMarkOutcomeReady inherited-from-state");
+    check(
+        latch_release_outcome.changelevel_latch_release_candidate
+            == latch_release_state.changelevel_latch_release_candidate,
+        "changelevelLatchReleaseCandidate inherited-from-state");
+    check(
+        !latch_release_outcome.changelevel_latch_release_allowed,
+        "changelevelLatchReleaseAllowed=no");
+    check(
+        latch_release_outcome.changelevel_latch_release_deferred,
+        "changelevelLatchReleaseDeferred=yes");
+    check(
+        !latch_release_outcome.changelevel_latch_release_attempted,
+        "changelevelLatchReleaseAttempted=no");
+    check(
+        !latch_release_outcome.changelevel_latch_release_completed,
+        "changelevelLatchReleaseCompleted=no");
+    check(
+        !latch_release_outcome.changelevel_latch_release_succeeded,
+        "changelevelLatchReleaseSucceeded=no");
+    check(
+        latch_release_outcome.changelevel_latch_release_blocked,
+        "changelevelLatchReleaseBlocked=yes");
+    check(
+        latch_release_outcome.changelevel_latch_release_block_reason
+            == "target-runtime-completion-mark-outcome-not-produced",
+        "changelevelLatchReleaseBlockReason=target-runtime-completion-mark-outcome-not-produced");
+    check(
+        !latch_release_outcome.changelevel_latch_release_started,
+        "changelevelLatchReleaseStarted=no");
+    check(
+        !latch_release_outcome.changelevel_latch_released,
+        "changelevelLatchReleased=no");
+    check(
+        latch_release_outcome.changelevel_latch_release_state
+            == "not-released",
+        "changelevelLatchReleaseState=not-released");
+    check(
+        latch_release_outcome.changelevel_latch_release_state_reason
+            == "latch-release-not-started",
+        "changelevelLatchReleaseStateReason=latch-release-not-started");
+    check(
+        latch_release_outcome.changelevel_latch_release_outcome
+            == "not-produced",
+        "changelevelLatchReleaseOutcome=not-produced");
+    check(
+        !latch_release_outcome.changelevel_latch_release_outcome_available,
+        "changelevelLatchReleaseOutcomeAvailable=no");
+    check(
+        latch_release_outcome.changelevel_latch_release_outcome_reason
+            == "latch-release-not-attempted",
+        "changelevelLatchReleaseOutcomeReason=latch-release-not-attempted");
+    check(
+        latch_release_outcome.changelevel_latch_release_gate_ready
+            == latch_release_state.changelevel_latch_release_gate_ready,
+        "changelevelLatchReleaseGateReady inherited-from-state");
+    check(
+        latch_release_outcome.changelevel_latch_release_state_ready
+            == latch_release_state.changelevel_latch_release_state_ready,
+        "changelevelLatchReleaseStateReady inherited-from-state");
+}
+
 bool ValidateRegressionGuard(
     hl::app::RegressionGuardProfile profile,
     const hl::game_api::HlServerModuleSummary& summary)
@@ -20534,6 +20688,14 @@ bool ValidateRegressionGuard(
             "no-op changelevel latch release state prepared",
             "",
             failures);
+        ValidateChangelevelPlayerTransferLatchReleaseOutcome(
+            summary,
+            true,
+            false,
+            true,
+            "no-op changelevel latch release outcome prepared",
+            "",
+            failures);
         AddGuardFailure(
             failures,
             !summary.server_frame_loop.any_seh,
@@ -21285,6 +21447,14 @@ bool ValidateRegressionGuard(
             true,
             false,
             "changelevel latch release state skipped",
+            "stop-on-changelevel-request",
+            failures);
+        ValidateChangelevelPlayerTransferLatchReleaseOutcome(
+            summary,
+            false,
+            true,
+            false,
+            "changelevel latch release outcome skipped",
             "stop-on-changelevel-request",
             failures);
         AddGuardFailure(
