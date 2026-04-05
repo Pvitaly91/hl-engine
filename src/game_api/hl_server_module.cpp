@@ -611,6 +611,7 @@ void RefreshChangeLevelPlayerTransferLatchReleaseState(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferLatchReleaseOutcome(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferRequestClearGate(EngineShimState& state);
 void RefreshChangeLevelPlayerTransferRequestClearState(EngineShimState& state);
+void RefreshChangeLevelPlayerTransferRequestClearOutcome(EngineShimState& state);
 hl::game_api::ChangeLevelTransitionSummary::ChangeLevelProjectedTransferSnapshotSummary
 BuildChangeLevelProjectedTransferSnapshot(
     const hl::game_api::ChangeLevelTransitionSummary::ChangeLevelBootstrapPlanSummary& plan,
@@ -1095,6 +1096,12 @@ hl::game_api::ChangeLevelTransitionSummary::
         const hl::game_api::ChangeLevelTransitionSummary::
             ChangeLevelPlayerTransferRequestClearGateSummary&
                 request_clear_gate);
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferRequestClearOutcomeSummary
+    BuildChangeLevelPlayerTransferRequestClearOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferRequestClearStateSummary&
+                request_clear_state);
 bool ParseStrictVector3(std::string_view text, Vector* value);
 float NormalizeAngleDegrees(float value);
 std::string FormatScalar(float value);
@@ -16814,6 +16821,66 @@ std::string FormatChangeLevelPlayerTransferRequestClearStateSummary(
     return line;
 }
 
+std::string FormatChangeLevelPlayerTransferRequestClearOutcomeSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferRequestClearOutcomeSummary&
+            request_clear_outcome =
+                summary.changelevel_player_transfer_request_clear_outcome;
+
+    hl::game_api::ChangeLevelTransitionSummary state_summary;
+    state_summary.changelevel_player_transfer_request_clear_state =
+        static_cast<const hl::game_api::ChangeLevelTransitionSummary::
+                        ChangeLevelPlayerTransferRequestClearStateSummary&>(
+            request_clear_outcome);
+
+    std::string line =
+        FormatChangeLevelPlayerTransferRequestClearStateSummary(state_summary);
+
+    if (request_clear_outcome.prepared)
+    {
+        const std::size_t insert_position =
+            line.find(", changelevelRequestClearReady=");
+        if (insert_position != std::string::npos)
+        {
+            line.insert(
+                insert_position,
+                ", changelevelRequestClearOutcome="
+                    + (request_clear_outcome
+                               .changelevel_request_clear_outcome.empty()
+                           ? std::string("<none>")
+                           : request_clear_outcome
+                                 .changelevel_request_clear_outcome)
+                    + ", changelevelRequestClearOutcomeAvailable="
+                    + BoolToYesNo(
+                        request_clear_outcome
+                            .changelevel_request_clear_outcome_available)
+                    + ", changelevelRequestClearOutcomeReason="
+                    + (request_clear_outcome
+                               .changelevel_request_clear_outcome_reason
+                               .empty()
+                           ? std::string("<none>")
+                           : request_clear_outcome
+                                 .changelevel_request_clear_outcome_reason));
+        }
+    }
+
+    const std::size_t action_position = line.rfind(", action=");
+    if (action_position != std::string::npos)
+    {
+        line.insert(
+            action_position,
+            ", changelevelRequestClearOutcomeReady="
+                + std::string(
+                    BoolToYesNo(
+                        request_clear_outcome
+                            .changelevel_request_clear_outcome_ready)));
+    }
+
+    return line;
+}
+
 bool StartsWithText(std::string_view text, std::string_view prefix)
 {
     return text.size() >= prefix.size() && text.substr(0, prefix.size()) == prefix;
@@ -19708,6 +19775,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_request_clear_state: "
                     + FormatChangeLevelPlayerTransferRequestClearStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_request_clear_outcome
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_request_clear_outcome: "
+                    + FormatChangeLevelPlayerTransferRequestClearOutcomeSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition.post_handoff_activity.measured)
@@ -39734,6 +39811,146 @@ hl::game_api::ChangeLevelTransitionSummary::
     return request_clear_state;
 }
 
+hl::game_api::ChangeLevelTransitionSummary::
+    ChangeLevelPlayerTransferRequestClearOutcomeSummary
+    BuildChangeLevelPlayerTransferRequestClearOutcome(
+        const hl::game_api::ChangeLevelTransitionSummary::
+            ChangeLevelPlayerTransferRequestClearStateSummary&
+                request_clear_state)
+{
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferRequestClearOutcomeSummary request_clear_outcome;
+    request_clear_outcome.attempted = true;
+
+    const auto copy_inherited = [&]()
+    {
+        static_cast<hl::game_api::ChangeLevelTransitionSummary::
+                        ChangeLevelPlayerTransferRequestClearStateSummary&>(
+            request_clear_outcome) = request_clear_state;
+    };
+
+    const auto set_observational_outcome = [&]()
+    {
+        if (request_clear_state.changelevel_request_clear_completed)
+        {
+            request_clear_outcome.changelevel_request_clear_outcome =
+                request_clear_state.changelevel_request_clear_succeeded
+                ? std::string("succeeded")
+                : std::string("failed");
+            request_clear_outcome.changelevel_request_clear_outcome_available =
+                true;
+            request_clear_outcome.changelevel_request_clear_outcome_reason =
+                request_clear_state.changelevel_request_clear_succeeded
+                ? std::string("request-clear-succeeded")
+                : std::string("request-clear-failed");
+            return;
+        }
+
+        request_clear_outcome.changelevel_request_clear_outcome =
+            "not-produced";
+        request_clear_outcome.changelevel_request_clear_outcome_available =
+            false;
+        request_clear_outcome.changelevel_request_clear_outcome_reason =
+            request_clear_state.changelevel_request_clear_attempted
+            ? std::string("request-clear-incomplete")
+            : std::string("request-clear-not-attempted");
+    };
+
+    if (request_clear_state.prepared
+        && request_clear_state.changelevel_request_clear_state_ready
+        && request_clear_state.decision_source == "changelevel-request-clear-gate"
+        && request_clear_state.target_runtime_completion_outcome_ready
+        && request_clear_state.target_runtime_completion_mark_gate_ready
+        && request_clear_state.target_runtime_completion_mark_state_ready
+        && request_clear_state.target_runtime_completion_mark_outcome_ready
+        && request_clear_state.changelevel_latch_release_candidate
+        && !request_clear_state.changelevel_latch_release_allowed
+        && request_clear_state.changelevel_latch_release_deferred
+        && !request_clear_state.changelevel_latch_release_attempted
+        && !request_clear_state.changelevel_latch_release_completed
+        && !request_clear_state.changelevel_latch_release_succeeded
+        && request_clear_state.changelevel_latch_release_blocked
+        && request_clear_state.changelevel_latch_release_block_reason
+            == "target-runtime-completion-mark-outcome-not-produced"
+        && !request_clear_state.changelevel_latch_release_started
+        && !request_clear_state.changelevel_latch_released
+        && request_clear_state.changelevel_latch_release_state == "not-released"
+        && request_clear_state.changelevel_latch_release_state_reason
+            == "latch-release-not-started"
+        && request_clear_state.changelevel_latch_release_outcome
+            == "not-produced"
+        && !request_clear_state.changelevel_latch_release_outcome_available
+        && request_clear_state.changelevel_latch_release_outcome_reason
+            == "latch-release-not-attempted"
+        && !request_clear_state.changelevel_latch_release_ready
+        && request_clear_state.changelevel_latch_release_gate_ready
+        && request_clear_state.changelevel_latch_release_state_ready
+        && request_clear_state.changelevel_latch_release_outcome_ready
+        && request_clear_state.changelevel_request_clear_candidate
+        && !request_clear_state.changelevel_request_clear_allowed
+        && request_clear_state.changelevel_request_clear_deferred
+        && !request_clear_state.changelevel_request_clear_attempted
+        && !request_clear_state.changelevel_request_clear_completed
+        && !request_clear_state.changelevel_request_clear_succeeded
+        && request_clear_state.changelevel_request_clear_blocked
+        && request_clear_state.changelevel_request_clear_block_reason
+            == "changelevel-latch-release-outcome-not-produced"
+        && !request_clear_state.changelevel_request_clear_started
+        && !request_clear_state.changelevel_request_cleared
+        && request_clear_state.changelevel_request_clear_state == "not-cleared"
+        && request_clear_state.changelevel_request_clear_state_reason
+            == "request-clear-not-started"
+        && !request_clear_state.changelevel_request_clear_ready
+        && request_clear_state.changelevel_request_clear_gate_ready)
+    {
+        copy_inherited();
+        request_clear_outcome.prepared = true;
+        request_clear_outcome.skipped = false;
+        request_clear_outcome.decision_source = "changelevel-request-clear-state";
+        request_clear_outcome.changelevel_request_clear_outcome =
+            "not-produced";
+        request_clear_outcome.changelevel_request_clear_outcome_available =
+            false;
+        request_clear_outcome.changelevel_request_clear_outcome_reason =
+            "request-clear-not-attempted";
+        request_clear_outcome.changelevel_request_clear_outcome_ready = true;
+        request_clear_outcome.action =
+            "no-op changelevel request clear outcome prepared";
+        return request_clear_outcome;
+    }
+
+    request_clear_outcome.prepared = false;
+    request_clear_outcome.changelevel_request_clear_outcome_ready = false;
+    request_clear_outcome.short_circuit_reason =
+        request_clear_state.short_circuit_reason;
+
+    if (request_clear_state.skipped)
+    {
+        request_clear_outcome.skipped = true;
+        request_clear_outcome.action = "changelevel request clear outcome skipped";
+        return request_clear_outcome;
+    }
+
+    copy_inherited();
+    request_clear_outcome.prepared = false;
+    request_clear_outcome.skipped = false;
+    request_clear_outcome.decision_source = request_clear_state.attempted
+        ? std::string("changelevel-request-clear-state")
+        : std::string();
+
+    if (!request_clear_state.changelevel_request_clear_state_ready)
+    {
+        request_clear_outcome.action =
+            "changelevel request clear outcome waiting on changelevel request clear state";
+        return request_clear_outcome;
+    }
+
+    set_observational_outcome();
+    request_clear_outcome.changelevel_request_clear_outcome_ready = true;
+    request_clear_outcome.action = "changelevel request clear outcome not required";
+    return request_clear_outcome;
+}
+
 void RefreshChangeLevelProjectedTransferSnapshot(EngineShimState& state)
 {
     hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
@@ -41128,6 +41345,20 @@ void RefreshChangeLevelPlayerTransferRequestClearState(EngineShimState& state)
     summary.changelevel_player_transfer_request_clear_state =
         BuildChangeLevelPlayerTransferRequestClearState(
             summary.changelevel_player_transfer_request_clear_gate);
+    RefreshChangeLevelPlayerTransferRequestClearOutcome(state);
+}
+
+void RefreshChangeLevelPlayerTransferRequestClearOutcome(EngineShimState& state)
+{
+    hl::game_api::ChangeLevelTransitionSummary& summary = state.changelevel_transition_state;
+    if (!summary.changelevel_player_transfer_request_clear_state.attempted)
+    {
+        return;
+    }
+
+    summary.changelevel_player_transfer_request_clear_outcome =
+        BuildChangeLevelPlayerTransferRequestClearOutcome(
+            summary.changelevel_player_transfer_request_clear_state);
 }
 
 void CapturePendingChangeLevelRequest(
