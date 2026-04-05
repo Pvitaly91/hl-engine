@@ -148,12 +148,15 @@ std::filesystem::path ResolveGitDirectory(const std::filesystem::path& repositor
     return resolved.is_absolute() ? resolved : repository_root / resolved;
 }
 
-std::string ShortBranchName(std::string_view ref_name)
+std::string DisplayBranchName(std::string_view ref_name)
 {
-    const std::size_t slash = ref_name.find_last_of('/');
-    return slash == std::string_view::npos
-        ? std::string(ref_name)
-        : std::string(ref_name.substr(slash + 1));
+    constexpr std::string_view kHeadsPrefix = "refs/heads/";
+    if (ref_name.compare(0, kHeadsPrefix.size(), kHeadsPrefix) == 0)
+    {
+        return std::string(ref_name.substr(kHeadsPrefix.size()));
+    }
+
+    return std::string(ref_name);
 }
 
 std::string FindPackedRefCommit(
@@ -216,7 +219,7 @@ GitRevisionIdentity ReadGitRevisionIdentity(const std::filesystem::path& reposit
         const std::string ref_name = TrimAscii(head.substr(kRefPrefix.size()));
         if (!ref_name.empty())
         {
-            identity.branch = ShortBranchName(ref_name);
+            identity.branch = DisplayBranchName(ref_name);
             const std::filesystem::path ref_path = git_directory / std::filesystem::path(ref_name);
             std::string commit = TrimAscii(ReadTextFile(ref_path));
             if (commit.empty())
