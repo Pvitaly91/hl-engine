@@ -2,7 +2,8 @@ param(
     [string]$ExecutablePath,
     [string]$GameDir,
     [string]$LogRoot,
-    [string]$RunLabelPrefix
+    [string]$RunLabelPrefix,
+    [string]$PromptId
 )
 
 Set-StrictMode -Version Latest
@@ -271,6 +272,7 @@ function Copy-RegressionArtifactsToCanonicalLatest {
 function Write-CanonicalHarvestIndex {
     param(
         [string]$RunLabelPrefix,
+        [string]$PromptId,
         $BaselineRunArtifacts,
         $StopRunArtifacts
     )
@@ -292,11 +294,14 @@ function Write-CanonicalHarvestIndex {
     $payload = [ordered]@{
         runLabelPrefix = $RunLabelPrefix
         generatedByPromptId = $script:CanonicalHarvestPromptId
-        workingBranch = $gitState.workingBranch
-        gitCommit = $gitState.gitCommit
-        baseline = New-CanonicalHarvestIndexRunRecord -RunArtifacts $BaselineRunArtifacts
-        stop = New-CanonicalHarvestIndexRunRecord -RunArtifacts $StopRunArtifacts
     }
+    if (-not [string]::IsNullOrWhiteSpace($PromptId)) {
+        $payload.generatedForPromptId = $PromptId
+    }
+    $payload.workingBranch = $gitState.workingBranch
+    $payload.gitCommit = $gitState.gitCommit
+    $payload.baseline = New-CanonicalHarvestIndexRunRecord -RunArtifacts $BaselineRunArtifacts
+    $payload.stop = New-CanonicalHarvestIndexRunRecord -RunArtifacts $StopRunArtifacts
 
     $payload | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $indexPath -Encoding utf8
     if (-not (Test-Path -LiteralPath $indexPath -PathType Leaf)) {
@@ -371,6 +376,7 @@ $stopRunArtifacts = Invoke-RegressionCase `
 
 $canonicalHarvestIndexPath = Write-CanonicalHarvestIndex `
     -RunLabelPrefix $RunLabelPrefix `
+    -PromptId $PromptId `
     -BaselineRunArtifacts $baselineRunArtifacts `
     -StopRunArtifacts $stopRunArtifacts
 
