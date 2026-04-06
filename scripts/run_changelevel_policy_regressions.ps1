@@ -353,6 +353,10 @@ if (-not [string]::IsNullOrWhiteSpace($RunLabelPrefix)) {
 }
 $baselineRunLabelArguments = Get-RunLabelArguments -RunLabel $baselineRunLabel
 $stopRunLabelArguments = Get-RunLabelArguments -RunLabel $stopRunLabel
+$promptIdArguments = @()
+if (-not [string]::IsNullOrWhiteSpace($PromptId)) {
+    $promptIdArguments = @("--prompt-id", $PromptId)
+}
 
 $baselineRunArtifacts = Invoke-RegressionCase `
     -CaseName "latch-only continuation" `
@@ -362,7 +366,7 @@ $baselineRunArtifacts = Invoke-RegressionCase `
         "--log-dir", (Join-Path $ResolvedLogRoot "latch_only_continuation"),
         "--stop-on-changelevel-request", "0",
         "--regression-guard", "changelevel-latch-only-continuation"
-    ) + $baselineRunLabelArguments)
+    ) + $baselineRunLabelArguments + $promptIdArguments)
 
 $stopRunArtifacts = Invoke-RegressionCase `
     -CaseName "focused stop verification" `
@@ -372,7 +376,7 @@ $stopRunArtifacts = Invoke-RegressionCase `
         "--log-dir", (Join-Path $ResolvedLogRoot "focused_stop_verification"),
         "--stop-on-changelevel-request", "1",
         "--regression-guard", "changelevel-request-consumed"
-    ) + $stopRunLabelArguments)
+    ) + $stopRunLabelArguments + $promptIdArguments)
 
 $canonicalHarvestIndexPath = Write-CanonicalHarvestIndex `
     -RunLabelPrefix $RunLabelPrefix `

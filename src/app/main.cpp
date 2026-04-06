@@ -27,6 +27,7 @@ struct CodexRunIdentity
     std::string session_id;
     std::string run_instance_id;
     std::string run_label;
+    std::string prompt_id;
     std::string regression_guard = "<none>";
     bool stop_on_changelevel_request = false;
     int frames = 0;
@@ -304,6 +305,7 @@ CodexRunIdentity BuildCodexRunIdentity(
     identity.session_id = session_info.session_id;
     identity.run_instance_id = session_info.run_instance_id;
     identity.run_label = options.run_label.value_or(std::string());
+    identity.prompt_id = options.prompt_id.value_or(std::string());
     if (options.regression_guard.has_value())
     {
         identity.regression_guard = RegressionGuardProfileName(*options.regression_guard);
@@ -323,6 +325,7 @@ std::string BuildCodexRunIdentityLine(const CodexRunIdentity& identity)
     return "codex_run_identity: sessionId=" + identity.session_id
         + ", runInstanceId=" + identity.run_instance_id
         + ", runLabel=" + identity.run_label
+        + (identity.prompt_id.empty() ? std::string() : ", promptId=" + identity.prompt_id)
         + ", regressionGuard=" + identity.regression_guard
         + ", stopOnChangelevelRequest="
         + std::string(identity.stop_on_changelevel_request ? "1" : "0")
@@ -399,6 +402,10 @@ std::optional<std::filesystem::path> WriteCodexRunManifest(
     stream << "  \"sessionId\": \"" << EscapeJson(identity.session_id) << "\",\n";
     stream << "  \"runInstanceId\": \"" << EscapeJson(identity.run_instance_id) << "\",\n";
     stream << "  \"runLabel\": \"" << EscapeJson(identity.run_label) << "\",\n";
+    if (!identity.prompt_id.empty())
+    {
+        stream << "  \"promptId\": \"" << EscapeJson(identity.prompt_id) << "\",\n";
+    }
     stream << "  \"regressionGuard\": \"" << EscapeJson(identity.regression_guard) << "\",\n";
     stream << "  \"stopOnChangelevelRequest\": "
            << (identity.stop_on_changelevel_request ? "1" : "0") << ",\n";

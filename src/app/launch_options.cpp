@@ -1,5 +1,7 @@
 #include "app/launch_options.h"
 
+#include "common/text_encoding.h"
+
 #include <array>
 #include <algorithm>
 #include <cmath>
@@ -131,6 +133,17 @@ std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
     }
 
     return sanitized;
+}
+
+std::optional<std::string> ParsePromptId(std::wstring_view value)
+{
+    const std::wstring trimmed = TrimCopy(value);
+    if (trimmed.empty())
+    {
+        return std::nullopt;
+    }
+
+    return hl::common::ToUtf8(trimmed);
 }
 
 bool TryParseInteger(std::wstring_view text, int* value)
@@ -669,6 +682,40 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.run_label = *sanitized;
+            continue;
+        }
+
+        if (argument == L"--prompt-id")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --prompt-id.";
+                return result;
+            }
+
+            const std::optional<std::string> prompt_id = ParsePromptId(argv[++index]);
+            if (!prompt_id.has_value())
+            {
+                result.error_message = L"Empty value for --prompt-id.";
+                return result;
+            }
+
+            result.options.prompt_id = *prompt_id;
+            continue;
+        }
+
+        constexpr std::wstring_view prompt_id_prefix = L"--prompt-id=";
+        if (StartsWith(argument, prompt_id_prefix))
+        {
+            const std::optional<std::string> prompt_id =
+                ParsePromptId(argument.substr(prompt_id_prefix.size()));
+            if (!prompt_id.has_value())
+            {
+                result.error_message = L"Empty value for --prompt-id.";
+                return result;
+            }
+
+            result.options.prompt_id = *prompt_id;
             continue;
         }
 
@@ -1560,7 +1607,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--run-label <label>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1573,6 +1620,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"
+             L"  --prompt-id <id>               Optional current prompt id for runtime identity and manifest traceability\n"
              L"  --frames <count>               Run a finite deterministic post-activation frame loop (default: 1000)\n"
              L"  --frametime <s>                Fixed frame time for the bootstrap loop (default: 0.05)\n"
              L"  --think-limit <n>              Maximum due thinks executed per frame (default: 32)\n"
