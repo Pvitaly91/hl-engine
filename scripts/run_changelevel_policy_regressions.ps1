@@ -3,7 +3,12 @@ param(
     [string]$GameDir,
     [string]$LogRoot,
     [string]$RunLabelPrefix,
-    [string]$PromptId
+    [string]$PromptId,
+    [switch]$FinalizeHarvestIndexOnly,
+    [string]$ContinuationBaselineWorkingBranch,
+    [string]$ContinuationBaselineHeadBeforeChanges,
+    [string]$ContinuationBaselineFinalSourceCommit,
+    [string[]]$AdditionalHarvestIndexPaths
 )
 
 Set-StrictMode -Version Latest
@@ -182,6 +187,65 @@ function New-CanonicalHarvestIndexRunRecord {
     }
 }
 
+function Get-CanonicalHarvestIndexPath {
+    param([string]$RunLabelPrefix)
+
+    if ([string]::IsNullOrWhiteSpace($RunLabelPrefix)) {
+        return $null
+    }
+
+    return Join-Path $script:CanonicalCodexLogDir ("changelevel_policy_regressions__{0}_canonical_harvest_index.json" -f $RunLabelPrefix)
+}
+
+function Set-HarvestIndexContinuationBaseline {
+    param(
+        [string[]]$IndexPaths,
+        [string]$WorkingBranch,
+        [string]$HeadBeforeChanges,
+        [string]$FinalSourceCommit
+    )
+
+    if ([string]::IsNullOrWhiteSpace($WorkingBranch)) {
+        throw "Continuation baseline working branch is required."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($HeadBeforeChanges)) {
+        throw "Continuation baseline headBeforeChanges is required."
+    }
+
+    if ([string]::IsNullOrWhiteSpace($FinalSourceCommit)) {
+        throw "Continuation baseline finalSourceCommit is required."
+    }
+
+    $continuationBaseline = [pscustomobject][ordered]@{
+        workingBranch = $WorkingBranch
+        headBeforeChanges = $HeadBeforeChanges
+        finalSourceCommit = $FinalSourceCommit
+    }
+
+    foreach ($indexPath in $IndexPaths) {
+        if ([string]::IsNullOrWhiteSpace($indexPath)) {
+            continue
+        }
+
+        $resolvedIndexPath = [System.IO.Path]::GetFullPath($indexPath)
+        if (-not (Test-Path -LiteralPath $resolvedIndexPath -PathType Leaf)) {
+            throw ("Harvest index not found for continuation baseline update: {0}" -f $resolvedIndexPath)
+        }
+
+        $payload = Get-Content -LiteralPath $resolvedIndexPath -Raw | ConvertFrom-Json
+        $existingContinuationBaseline = $payload.PSObject.Properties["continuationBaseline"]
+        if ($null -ne $existingContinuationBaseline) {
+            $existingContinuationBaseline.Value = $continuationBaseline
+        }
+        else {
+            $payload | Add-Member -NotePropertyName "continuationBaseline" -NotePropertyValue $continuationBaseline
+        }
+
+        $payload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $resolvedIndexPath -Encoding utf8
+    }
+}
+
 function Copy-RegressionArtifactsToCanonicalLatest {
     param(
         [string]$CaseLogDir,
@@ -290,7 +354,7 @@ function Write-CanonicalHarvestIndex {
     }
 
     $gitState = Get-RepositoryGitState -RepositoryRoot $script:RepositoryRoot
-    $indexPath = Join-Path $script:CanonicalCodexLogDir ("changelevel_policy_regressions__{0}_canonical_harvest_index.json" -f $RunLabelPrefix)
+    $indexPath = Get-CanonicalHarvestIndexPath -RunLabelPrefix $RunLabelPrefix
     $payload = [ordered]@{
         runLabelPrefix = $RunLabelPrefix
         generatedByPromptId = $script:CanonicalHarvestPromptId
@@ -317,6 +381,38 @@ $workspaceRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot ".."))
 $CanonicalRuntimeLogDir = Join-Path $repositoryRoot "logs\latest\runtime"
 $CanonicalCodexLogDir = Join-Path $repositoryRoot "logs\latest\codex"
 $script:CanonicalHarvestPromptId = "HL-CL-20260405-094-canonical-harvest-index"
+$canonicalHarvestIndexPath = Get-CanonicalHarvestIndexPath -RunLabelPrefix $RunLabelPrefix
+
+if ($FinalizeHarvestIndexOnly) {
+    if ([string]::IsNullOrWhiteSpace($RunLabelPrefix)) {
+        throw "RunLabelPrefix is required when -FinalizeHarvestIndexOnly is used."
+    }
+
+    $indexPaths = @()
+    if (-not [string]::IsNullOrWhiteSpace($canonicalHarvestIndexPath)) {
+        $indexPaths += $canonicalHarvestIndexPath
+    }
+
+    foreach ($additionalHarvestIndexPath in $AdditionalHarvestIndexPaths) {
+        if (-not [string]::IsNullOrWhiteSpace($additionalHarvestIndexPath)) {
+            $indexPaths += $additionalHarvestIndexPath
+        }
+    }
+
+    if ($indexPaths.Count -eq 0) {
+        throw ("No harvest index paths resolved for run label prefix '{0}'." -f $RunLabelPrefix)
+    }
+
+    Set-HarvestIndexContinuationBaseline `
+        -IndexPaths $indexPaths `
+        -WorkingBranch $ContinuationBaselineWorkingBranch `
+        -HeadBeforeChanges $ContinuationBaselineHeadBeforeChanges `
+        -FinalSourceCommit $ContinuationBaselineFinalSourceCommit
+
+    Write-Host ("Canonical harvest continuation baseline updated for run label prefix '{0}'." -f $RunLabelPrefix)
+    exit 0
+}
+
 $ResolvedExecutablePath = Get-FullPathOrDefault `
     -Candidate $ExecutablePath `
     -Fallback (Join-Path $workspaceRoot "out\build\vs2022-win32\host\Debug\hlhost.exe")
