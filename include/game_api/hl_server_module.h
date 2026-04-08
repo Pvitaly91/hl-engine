@@ -3211,6 +3211,26 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool target_runtime_cutover_gate_ready = false;
+        bool target_runtime_cutover_ready = false;
+        bool target_runtime_present = false;
+        bool target_runtime_activated = false;
+        bool current_runtime_present = false;
+        bool cutover_outer_guard_satisfied = false;
+        bool cutover_inner_guard_satisfied = false;
+        bool cutover_path_eligible = false;
+        bool cutover_executed = false;
+        std::string cutover_path_blocked_by;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct ChangeLevelPlayerTransferTargetRuntimeCutoverOutcomeSummary
     {
         bool attempted = false;
@@ -5296,6 +5316,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_cutover_gate;
     ChangeLevelPlayerTransferTargetRuntimeCutoverStateSummary
         changelevel_player_transfer_target_runtime_cutover_state;
+    ChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary
+        changelevel_player_transfer_target_runtime_cutover_execution_guard_audit;
     ChangeLevelPlayerTransferTargetRuntimeCutoverOutcomeSummary
         changelevel_player_transfer_target_runtime_cutover_outcome;
     ChangeLevelPlayerTransferCurrentRuntimeDeactivationGateSummary
