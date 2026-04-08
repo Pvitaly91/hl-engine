@@ -8237,6 +8237,59 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeMaterializationStateSumm
     return line;
 }
 
+std::string
+FormatChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary&
+            execution_guard_audit =
+                summary
+                    .changelevel_player_transfer_target_runtime_materialization_execution_guard_audit;
+    return std::string("prepared=")
+        + BoolToYesNo(execution_guard_audit.prepared)
+        + ", skipped=" + BoolToYesNo(execution_guard_audit.skipped)
+        + ", decisionSource="
+        + (execution_guard_audit.decision_source.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.decision_source)
+        + ", targetRuntimeMaterializationGateReady="
+        + BoolToYesNo(
+            execution_guard_audit.target_runtime_materialization_gate_ready)
+        + ", targetRuntimeMaterializationReady="
+        + BoolToYesNo(
+            execution_guard_audit.target_runtime_materialization_ready)
+        + ", targetRuntimePresent="
+        + BoolToYesNo(execution_guard_audit.target_runtime_present)
+        + ", currentRuntimePresent="
+        + BoolToYesNo(execution_guard_audit.current_runtime_present)
+        + ", bootstrapResultProduced="
+        + BoolToYesNo(execution_guard_audit.bootstrap_result_produced)
+        + ", bootstrapResultConsumable="
+        + BoolToYesNo(execution_guard_audit.bootstrap_result_consumable)
+        + ", materializationOuterGuardSatisfied="
+        + BoolToYesNo(
+            execution_guard_audit.materialization_outer_guard_satisfied)
+        + ", materializationInnerGuardSatisfied="
+        + BoolToYesNo(
+            execution_guard_audit.materialization_inner_guard_satisfied)
+        + ", materializationPathEligible="
+        + BoolToYesNo(execution_guard_audit.materialization_path_eligible)
+        + ", materializationExecuted="
+        + BoolToYesNo(execution_guard_audit.materialization_executed)
+        + ", materializationPathBlockedBy="
+        + (execution_guard_audit.materialization_path_blocked_by.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.materialization_path_blocked_by)
+        + ", shortCircuitReason="
+        + (execution_guard_audit.short_circuit_reason.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.short_circuit_reason)
+        + ", action="
+        + (execution_guard_audit.action.empty() ? std::string("<none>")
+                                               : execution_guard_audit.action);
+}
+
 std::string FormatChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary(
     const hl::game_api::ChangeLevelTransitionSummary& summary)
 {
@@ -19639,6 +19692,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_materialization_state: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeMaterializationStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_materialization_execution_guard_audit
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_materialization_execution_guard_audit: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition
@@ -40989,10 +41052,110 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationState(
         return;
     }
 
+    const auto& materialization_gate =
+        summary.changelevel_player_transfer_target_runtime_materialization_gate;
+    auto materialization_state = BuildChangeLevelPlayerTransferTargetRuntimeMaterializationState(
+        materialization_gate);
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary
+            execution_guard_audit;
+    execution_guard_audit.attempted = true;
+    execution_guard_audit.prepared = materialization_state.prepared;
+    execution_guard_audit.skipped = materialization_state.skipped;
+    execution_guard_audit.decision_source =
+        "target-runtime-materialization-state";
+    execution_guard_audit.target_runtime_materialization_gate_ready =
+        materialization_gate.target_runtime_materialization_gate_ready;
+    execution_guard_audit.target_runtime_materialization_ready =
+        materialization_state.target_runtime_materialization_ready;
+    const bool target_runtime_present =
+        materialization_state.target_runtime_materialized;
+    const bool current_runtime_present =
+        state.server_activation_state.succeeded
+        && !state.server_activation_state.map_name.empty();
+    const bool bootstrap_result_produced =
+        materialization_state.bootstrap_result_produced;
+    const bool bootstrap_result_consumable =
+        materialization_state.bootstrap_result_consumable;
+    const bool materialization_outer_guard_satisfied =
+        materialization_gate.target_runtime_materialization_gate_ready
+        && materialization_state.target_runtime_materialization_ready;
+    const bool materialization_inner_guard_satisfied =
+        !target_runtime_present && current_runtime_present
+        && bootstrap_result_produced && bootstrap_result_consumable;
+    const bool materialization_path_eligible =
+        materialization_outer_guard_satisfied
+        && materialization_inner_guard_satisfied;
+    const bool materialization_executed =
+        materialization_state.target_runtime_materialization_started
+        || materialization_state.target_runtime_materialized;
+    execution_guard_audit.target_runtime_present = target_runtime_present;
+    execution_guard_audit.current_runtime_present = current_runtime_present;
+    execution_guard_audit.bootstrap_result_produced =
+        bootstrap_result_produced;
+    execution_guard_audit.bootstrap_result_consumable =
+        bootstrap_result_consumable;
+    execution_guard_audit.materialization_outer_guard_satisfied =
+        materialization_outer_guard_satisfied;
+    execution_guard_audit.materialization_inner_guard_satisfied =
+        materialization_inner_guard_satisfied;
+    execution_guard_audit.materialization_path_eligible =
+        materialization_path_eligible;
+    execution_guard_audit.materialization_executed =
+        materialization_executed;
+    execution_guard_audit.short_circuit_reason =
+        materialization_state.short_circuit_reason;
+    execution_guard_audit.action = materialization_state.action;
+    const auto resolve_materialization_path_blocked_by = [&]() -> std::string
+    {
+        if (materialization_state.skipped
+            && !materialization_state.short_circuit_reason.empty())
+        {
+            return materialization_state.short_circuit_reason;
+        }
+        if (!materialization_gate.target_runtime_materialization_gate_ready)
+        {
+            return "target-runtime-materialization-gate-not-ready";
+        }
+        if (!materialization_state.target_runtime_materialization_ready)
+        {
+            return materialization_state
+                           .target_runtime_materialization_block_reason.empty()
+                ? std::string("target-runtime-materialization-not-ready")
+                : materialization_state
+                      .target_runtime_materialization_block_reason;
+        }
+        if (target_runtime_present)
+        {
+            return "target-runtime-already-present";
+        }
+        if (!current_runtime_present)
+        {
+            return "current-runtime-not-present";
+        }
+        if (!bootstrap_result_produced)
+        {
+            return "bootstrap-result-not-produced";
+        }
+        if (!bootstrap_result_consumable)
+        {
+            return "bootstrap-result-not-consumable";
+        }
+        if (!materialization_state
+                 .target_runtime_materialization_state_reason.empty())
+        {
+            return materialization_state
+                .target_runtime_materialization_state_reason;
+        }
+        return std::string();
+    };
+    execution_guard_audit.materialization_path_blocked_by =
+        resolve_materialization_path_blocked_by();
+    summary
+        .changelevel_player_transfer_target_runtime_materialization_execution_guard_audit =
+        std::move(execution_guard_audit);
     summary.changelevel_player_transfer_target_runtime_materialization_state =
-        BuildChangeLevelPlayerTransferTargetRuntimeMaterializationState(
-            summary
-                .changelevel_player_transfer_target_runtime_materialization_gate);
+        std::move(materialization_state);
     RefreshChangeLevelPlayerTransferTargetRuntimeMaterializationOutcome(state);
 }
 

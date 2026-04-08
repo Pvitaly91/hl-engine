@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260409_004709",
+  "runInstanceId": "20260409_004709_320_pid33216",
+  "runLabel": "codex-target-runtime-materialization-execution-guard-audit-baseline",
+  "promptId": "HL-CL-20260409-107-target-runtime-materialization-execution-guard-audit",
+  "regressionGuard": "changelevel-latch-only-continuation",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "24dcbdee2e9d61f62e055868fa5ddf0e15c0cbc4",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_part01.log"]
+}

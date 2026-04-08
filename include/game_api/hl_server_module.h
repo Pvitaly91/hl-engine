@@ -2892,6 +2892,27 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool target_runtime_materialization_gate_ready = false;
+        bool target_runtime_materialization_ready = false;
+        bool target_runtime_present = false;
+        bool current_runtime_present = false;
+        bool bootstrap_result_produced = false;
+        bool bootstrap_result_consumable = false;
+        bool materialization_outer_guard_satisfied = false;
+        bool materialization_inner_guard_satisfied = false;
+        bool materialization_path_eligible = false;
+        bool materialization_executed = false;
+        std::string materialization_path_blocked_by;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct ChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary
     {
         bool attempted = false;
@@ -5324,6 +5345,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_materialization_gate;
     ChangeLevelPlayerTransferTargetRuntimeMaterializationStateSummary
         changelevel_player_transfer_target_runtime_materialization_state;
+    ChangeLevelPlayerTransferTargetRuntimeMaterializationExecutionGuardAuditSummary
+        changelevel_player_transfer_target_runtime_materialization_execution_guard_audit;
     ChangeLevelPlayerTransferTargetRuntimeMaterializationOutcomeSummary
         changelevel_player_transfer_target_runtime_materialization_outcome;
     ChangeLevelPlayerTransferTargetRuntimeActivationGateSummary
