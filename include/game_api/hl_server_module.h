@@ -3029,6 +3029,26 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeActivationExecutionGuardAuditSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool target_runtime_activation_gate_ready = false;
+        bool target_runtime_activation_ready = false;
+        bool target_runtime_present = false;
+        bool target_runtime_materialized = false;
+        bool current_runtime_present = false;
+        bool activation_outer_guard_satisfied = false;
+        bool activation_inner_guard_satisfied = false;
+        bool activation_path_eligible = false;
+        bool activation_executed = false;
+        std::string activation_path_blocked_by;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct ChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary
     {
         bool attempted = false;
@@ -5310,6 +5330,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_activation_gate;
     ChangeLevelPlayerTransferTargetRuntimeActivationStateSummary
         changelevel_player_transfer_target_runtime_activation_state;
+    ChangeLevelPlayerTransferTargetRuntimeActivationExecutionGuardAuditSummary
+        changelevel_player_transfer_target_runtime_activation_execution_guard_audit;
     ChangeLevelPlayerTransferTargetRuntimeActivationOutcomeSummary
         changelevel_player_transfer_target_runtime_activation_outcome;
     ChangeLevelPlayerTransferTargetRuntimeCutoverGateSummary

@@ -1,0 +1,33 @@
+﻿{
+    "runLabelPrefix":  "codex-target-runtime-activation-execution-guard-audit",
+    "generatedByPromptId":  "HL-CL-20260405-094-canonical-harvest-index",
+    "generatedForPromptId":  "HL-CL-20260408-106-target-runtime-activation-execution-guard-audit",
+    "workingBranch":  "codex/HL-CL-20260401-081-target-runtime-completion-state",
+    "gitCommit":  "9e9befd9aeb92ed5604d34f67aa6f9ee1dd852d8",
+    "baseline":  {
+                     "runLabel":  "codex-target-runtime-activation-execution-guard-audit-baseline",
+                     "sessionId":  "20260409_000840",
+                     "runInstanceId":  "20260409_000840_381_pid34276",
+                     "regressionGuard":  "changelevel-latch-only-continuation",
+                     "stopOnChangelevelRequest":  0,
+                     "sourceRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_part01.log",
+                     "sourceSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_summary.log",
+                     "sourceManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_manifest.json",
+                     "canonicalRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_part01.log",
+                     "canonicalSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_summary.log",
+                     "canonicalManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260409_000840_381_pid34276__codex-target-runtime-activation-execution-guard-audit-baseline_manifest.json"
+                 },
+    "stop":  {
+                 "runLabel":  "codex-target-runtime-activation-execution-guard-audit-stop",
+                 "sessionId":  "20260409_001235",
+                 "runInstanceId":  "20260409_001235_010_pid39236",
+                 "regressionGuard":  "changelevel-request-consumed",
+                 "stopOnChangelevelRequest":  1,
+                 "sourceRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_part01.log",
+                 "sourceSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_summary.log",
+                 "sourceManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_manifest.json",
+                 "canonicalRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_part01.log",
+                 "canonicalSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_summary.log",
+                 "canonicalManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260409_001235_010_pid39236__codex-target-runtime-activation-execution-guard-audit-stop_manifest.json"
+             }
+}
