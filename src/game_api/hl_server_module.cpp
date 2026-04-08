@@ -40973,10 +40973,106 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
         return;
     }
 
-    summary.changelevel_player_transfer_target_runtime_checkpoint_application_state =
+    const bool checkpoint_already_applied =
+        summary
+            .changelevel_player_transfer_target_runtime_checkpoint_application_state
+            .attempted
+        && summary
+               .changelevel_player_transfer_target_runtime_checkpoint_application_state
+               .target_runtime_checkpoint_applied;
+    const auto& checkpoint_application_gate =
+        summary.changelevel_player_transfer_target_runtime_checkpoint_application_gate;
+    const auto& write_set = summary.changelevel_player_transfer_write_set;
+    auto checkpoint_application_state =
         BuildChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
-            summary
-                .changelevel_player_transfer_target_runtime_checkpoint_application_gate);
+            checkpoint_application_gate);
+    const auto mark_checkpoint_applied = [&](std::string_view action_text)
+    {
+        checkpoint_application_state.prepared = true;
+        checkpoint_application_state.skipped = false;
+        checkpoint_application_state.decision_source =
+            "target-runtime-checkpoint-application-gate";
+        checkpoint_application_state.short_circuit_reason.clear();
+        checkpoint_application_state.target_runtime_checkpoint_application_candidate =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_application_allowed =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_application_deferred =
+            false;
+        checkpoint_application_state.target_runtime_checkpoint_application_attempted =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_application_completed =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_application_succeeded =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_application_blocked =
+            false;
+        checkpoint_application_state.target_runtime_checkpoint_application_block_reason
+            .clear();
+        checkpoint_application_state.target_runtime_checkpoint_application_started =
+            true;
+        checkpoint_application_state.target_runtime_checkpoint_applied = true;
+        checkpoint_application_state.target_runtime_checkpoint_application_state =
+            "applied";
+        checkpoint_application_state
+            .target_runtime_checkpoint_application_state_reason =
+            "checkpoint-application-origin-yaw-applied";
+        checkpoint_application_state.target_runtime_checkpoint_application_ready =
+            true;
+        checkpoint_application_state
+            .target_runtime_checkpoint_application_state_ready = true;
+        checkpoint_application_state.action = std::string(action_text);
+    };
+
+    if (checkpoint_already_applied)
+    {
+        mark_checkpoint_applied(
+            "target runtime checkpoint origin/yaw apply already satisfied");
+    }
+    else if (checkpoint_application_gate
+                 .target_runtime_checkpoint_application_gate_ready
+             && checkpoint_application_gate
+                    .target_runtime_checkpoint_application_ready
+             && write_set.attempted && write_set.prepared
+             && write_set.write_set_ready && write_set.write_origin
+             && write_set.write_yaw)
+    {
+        edict_t* target_player = nullptr;
+        for (int client_index = 1; client_index <= state.globalvars.maxClients;
+             ++client_index)
+        {
+            edict_t* candidate = state.edict_store.EntityOfIndex(client_index);
+            if (candidate != nullptr && candidate->free == FALSE)
+            {
+                target_player = candidate;
+                break;
+            }
+        }
+
+        Vector target_origin;
+        float target_yaw = 0.0f;
+        if (target_player != nullptr
+            && ParseStrictVector3(write_set.target_player_origin, &target_origin)
+            && ParseStrictFloat(write_set.target_player_yaw, &target_yaw))
+        {
+            state.edict_store.SetOrigin(
+                target_player,
+                target_origin,
+                write_set.target_player_origin);
+
+            Vector target_angles = target_player->v.angles;
+            target_angles.y = NormalizeAngleDegrees(target_yaw);
+            state.edict_store.SetAngles(
+                target_player,
+                target_angles,
+                FormatVector(target_angles));
+
+            mark_checkpoint_applied("target runtime checkpoint origin/yaw applied");
+        }
+    }
+
+    summary.changelevel_player_transfer_target_runtime_checkpoint_application_state =
+        std::move(checkpoint_application_state);
     RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
         state);
 }
