@@ -197,6 +197,78 @@ function Get-CanonicalHarvestIndexPath {
     return Join-Path $script:CanonicalCodexLogDir ("changelevel_policy_regressions__{0}_canonical_harvest_index.json" -f $RunLabelPrefix)
 }
 
+function New-ContinuationBaselineMetadata {
+    param(
+        [string]$WorkingBranch,
+        [string]$HeadBeforeChanges,
+        [string]$FinalSourceCommit
+    )
+
+    return [pscustomobject][ordered]@{
+        workingBranch = $WorkingBranch
+        headBeforeChanges = $HeadBeforeChanges
+        finalSourceCommit = $FinalSourceCommit
+    }
+}
+
+function Get-CopiedManifestPathsFromHarvestIndex {
+    param(
+        $HarvestIndexPayload,
+        [string]$IndexPath
+    )
+
+    $copiedManifestPaths = @()
+    $indexDirectory = Split-Path -Parent $IndexPath
+    foreach ($runRecordName in @("baseline", "stop")) {
+        $runRecordProperty = $HarvestIndexPayload.PSObject.Properties[$runRecordName]
+        if ($null -eq $runRecordProperty -or $null -eq $runRecordProperty.Value) {
+            continue
+        }
+
+        $canonicalManifestProperty = $runRecordProperty.Value.PSObject.Properties["canonicalManifestFile"]
+        if ($null -eq $canonicalManifestProperty -or [string]::IsNullOrWhiteSpace([string]$canonicalManifestProperty.Value)) {
+            continue
+        }
+
+        $resolvedCanonicalManifestPath = [System.IO.Path]::GetFullPath([string]$canonicalManifestProperty.Value)
+        $copiedManifestPaths += $resolvedCanonicalManifestPath
+
+        $siblingCopiedManifestPath = Join-Path $indexDirectory ([System.IO.Path]::GetFileName($resolvedCanonicalManifestPath))
+        $copiedManifestPaths += [System.IO.Path]::GetFullPath($siblingCopiedManifestPath)
+    }
+
+    return @($copiedManifestPaths | Sort-Object -Unique)
+}
+
+function Set-CopiedManifestContinuationBaseline {
+    param(
+        [string[]]$ManifestPaths,
+        $ContinuationBaseline
+    )
+
+    foreach ($manifestPath in $ManifestPaths) {
+        if ([string]::IsNullOrWhiteSpace($manifestPath)) {
+            continue
+        }
+
+        $resolvedManifestPath = [System.IO.Path]::GetFullPath($manifestPath)
+        if (-not (Test-Path -LiteralPath $resolvedManifestPath -PathType Leaf)) {
+            throw ("Copied manifest not found for continuation baseline update: {0}" -f $resolvedManifestPath)
+        }
+
+        $manifestPayload = Get-Content -LiteralPath $resolvedManifestPath -Raw | ConvertFrom-Json
+        $existingContinuationBaseline = $manifestPayload.PSObject.Properties["continuationBaseline"]
+        if ($null -ne $existingContinuationBaseline) {
+            $existingContinuationBaseline.Value = $ContinuationBaseline
+        }
+        else {
+            $manifestPayload | Add-Member -NotePropertyName "continuationBaseline" -NotePropertyValue $ContinuationBaseline
+        }
+
+        $manifestPayload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $resolvedManifestPath -Encoding utf8
+    }
+}
+
 function Set-HarvestIndexContinuationBaseline {
     param(
         [string[]]$IndexPaths,
@@ -217,11 +289,10 @@ function Set-HarvestIndexContinuationBaseline {
         throw "Continuation baseline finalSourceCommit is required."
     }
 
-    $continuationBaseline = [pscustomobject][ordered]@{
-        workingBranch = $WorkingBranch
-        headBeforeChanges = $HeadBeforeChanges
-        finalSourceCommit = $FinalSourceCommit
-    }
+    $continuationBaseline = New-ContinuationBaselineMetadata `
+        -WorkingBranch $WorkingBranch `
+        -HeadBeforeChanges $HeadBeforeChanges `
+        -FinalSourceCommit $FinalSourceCommit
 
     foreach ($indexPath in $IndexPaths) {
         if ([string]::IsNullOrWhiteSpace($indexPath)) {
@@ -242,7 +313,14 @@ function Set-HarvestIndexContinuationBaseline {
             $payload | Add-Member -NotePropertyName "continuationBaseline" -NotePropertyValue $continuationBaseline
         }
 
+        $copiedManifestPaths = Get-CopiedManifestPathsFromHarvestIndex `
+            -HarvestIndexPayload $payload `
+            -IndexPath $resolvedIndexPath
+
         $payload | ConvertTo-Json -Depth 6 | Set-Content -LiteralPath $resolvedIndexPath -Encoding utf8
+        Set-CopiedManifestContinuationBaseline `
+            -ManifestPaths $copiedManifestPaths `
+            -ContinuationBaseline $continuationBaseline
     }
 }
 
