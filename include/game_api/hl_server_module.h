@@ -3712,6 +3712,31 @@ struct ChangeLevelTransitionSummary
         std::string short_circuit_reason;
     };
 
+    struct ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary
+    {
+        bool attempted = false;
+        bool prepared = false;
+        bool skipped = false;
+        std::string decision_source;
+        bool checkpoint_application_gate_ready = false;
+        bool checkpoint_application_ready = false;
+        bool write_set_attempted = false;
+        bool write_set_prepared = false;
+        bool write_set_ready = false;
+        bool write_origin = false;
+        bool write_yaw = false;
+        bool target_player_present = false;
+        bool origin_parse_ready = false;
+        bool yaw_parse_ready = false;
+        bool apply_outer_guard_satisfied = false;
+        bool apply_inner_guard_satisfied = false;
+        bool apply_path_eligible = false;
+        bool apply_executed = false;
+        std::string apply_path_blocked_by;
+        std::string action;
+        std::string short_circuit_reason;
+    };
+
     struct ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary
     {
         bool attempted = false;
@@ -5265,6 +5290,8 @@ struct ChangeLevelTransitionSummary
         changelevel_player_transfer_target_runtime_checkpoint_application_gate;
     ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationStateSummary
         changelevel_player_transfer_target_runtime_checkpoint_application_state;
+    ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary
+        changelevel_player_transfer_target_runtime_checkpoint_application_apply_guard_audit;
     ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary
         changelevel_player_transfer_target_runtime_checkpoint_application_outcome;
     ChangeLevelPlayerTransferTargetRuntimePlayerPlacementGateSummary

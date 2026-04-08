@@ -11003,6 +11003,59 @@ FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationStateSummary(
 }
 
 std::string
+FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary&
+            apply_guard_audit =
+                summary.changelevel_player_transfer_target_runtime_checkpoint_application_apply_guard_audit;
+    return std::string("prepared=")
+        + BoolToYesNo(apply_guard_audit.prepared)
+        + ", skipped=" + BoolToYesNo(apply_guard_audit.skipped)
+        + ", decisionSource="
+        + (apply_guard_audit.decision_source.empty()
+            ? std::string("<none>")
+            : apply_guard_audit.decision_source)
+        + ", checkpointApplicationGateReady="
+        + BoolToYesNo(apply_guard_audit.checkpoint_application_gate_ready)
+        + ", checkpointApplicationReady="
+        + BoolToYesNo(apply_guard_audit.checkpoint_application_ready)
+        + ", writeSetAttempted="
+        + BoolToYesNo(apply_guard_audit.write_set_attempted)
+        + ", writeSetPrepared="
+        + BoolToYesNo(apply_guard_audit.write_set_prepared)
+        + ", writeSetReady="
+        + BoolToYesNo(apply_guard_audit.write_set_ready)
+        + ", writeOrigin=" + BoolToYesNo(apply_guard_audit.write_origin)
+        + ", writeYaw=" + BoolToYesNo(apply_guard_audit.write_yaw)
+        + ", targetPlayerPresent="
+        + BoolToYesNo(apply_guard_audit.target_player_present)
+        + ", originParseReady="
+        + BoolToYesNo(apply_guard_audit.origin_parse_ready)
+        + ", yawParseReady=" + BoolToYesNo(apply_guard_audit.yaw_parse_ready)
+        + ", applyOuterGuardSatisfied="
+        + BoolToYesNo(apply_guard_audit.apply_outer_guard_satisfied)
+        + ", applyInnerGuardSatisfied="
+        + BoolToYesNo(apply_guard_audit.apply_inner_guard_satisfied)
+        + ", applyPathEligible="
+        + BoolToYesNo(apply_guard_audit.apply_path_eligible)
+        + ", applyExecuted="
+        + BoolToYesNo(apply_guard_audit.apply_executed)
+        + ", applyPathBlockedBy="
+        + (apply_guard_audit.apply_path_blocked_by.empty()
+            ? std::string("<none>")
+            : apply_guard_audit.apply_path_blocked_by)
+        + ", shortCircuitReason="
+        + (apply_guard_audit.short_circuit_reason.empty()
+            ? std::string("<none>")
+            : apply_guard_audit.short_circuit_reason)
+        + ", action="
+        + (apply_guard_audit.action.empty() ? std::string("<none>")
+                                            : apply_guard_audit.action);
+}
+
+std::string
 FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcomeSummary(
     const hl::game_api::ChangeLevelTransitionSummary& summary)
 {
@@ -19565,6 +19618,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_checkpoint_application_state: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_checkpoint_application_apply_guard_audit
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_checkpoint_application_apply_guard_audit: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition
@@ -40986,6 +41049,23 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
     auto checkpoint_application_state =
         BuildChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
             checkpoint_application_gate);
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationApplyGuardAuditSummary
+            apply_guard_audit;
+    apply_guard_audit.attempted = true;
+    apply_guard_audit.prepared = checkpoint_application_state.prepared;
+    apply_guard_audit.skipped = checkpoint_application_state.skipped;
+    apply_guard_audit.decision_source =
+        "target-runtime-checkpoint-application-state";
+    apply_guard_audit.checkpoint_application_gate_ready =
+        checkpoint_application_gate.target_runtime_checkpoint_application_gate_ready;
+    apply_guard_audit.checkpoint_application_ready =
+        checkpoint_application_gate.target_runtime_checkpoint_application_ready;
+    apply_guard_audit.write_set_attempted = write_set.attempted;
+    apply_guard_audit.write_set_prepared = write_set.prepared;
+    apply_guard_audit.write_set_ready = write_set.write_set_ready;
+    apply_guard_audit.write_origin = write_set.write_origin;
+    apply_guard_audit.write_yaw = write_set.write_yaw;
     const auto mark_checkpoint_applied = [&](std::string_view action_text)
     {
         checkpoint_application_state.prepared = true;
@@ -41023,6 +41103,36 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
             .target_runtime_checkpoint_application_state_ready = true;
         checkpoint_application_state.action = std::string(action_text);
     };
+    edict_t* target_player = nullptr;
+    for (int client_index = 1; client_index <= state.globalvars.maxClients;
+         ++client_index)
+    {
+        edict_t* candidate = state.edict_store.EntityOfIndex(client_index);
+        if (candidate != nullptr && candidate->free == FALSE)
+        {
+            target_player = candidate;
+            break;
+        }
+    }
+
+    Vector target_origin;
+    float target_yaw = 0.0f;
+    const bool target_player_present = target_player != nullptr;
+    const bool origin_parse_ready =
+        ParseStrictVector3(write_set.target_player_origin, &target_origin);
+    const bool yaw_parse_ready =
+        ParseStrictFloat(write_set.target_player_yaw, &target_yaw);
+    const bool apply_outer_guard_satisfied =
+        checkpoint_application_gate.target_runtime_checkpoint_application_gate_ready
+        && checkpoint_application_gate.target_runtime_checkpoint_application_ready
+        && write_set.attempted && write_set.prepared
+        && write_set.write_set_ready && write_set.write_origin
+        && write_set.write_yaw;
+    const bool apply_inner_guard_satisfied =
+        target_player_present && origin_parse_ready && yaw_parse_ready;
+    const bool apply_path_eligible =
+        apply_outer_guard_satisfied && apply_inner_guard_satisfied;
+    bool apply_executed = false;
 
     if (checkpoint_already_applied)
     {
@@ -41037,23 +41147,7 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
              && write_set.write_set_ready && write_set.write_origin
              && write_set.write_yaw)
     {
-        edict_t* target_player = nullptr;
-        for (int client_index = 1; client_index <= state.globalvars.maxClients;
-             ++client_index)
-        {
-            edict_t* candidate = state.edict_store.EntityOfIndex(client_index);
-            if (candidate != nullptr && candidate->free == FALSE)
-            {
-                target_player = candidate;
-                break;
-            }
-        }
-
-        Vector target_origin;
-        float target_yaw = 0.0f;
-        if (target_player != nullptr
-            && ParseStrictVector3(write_set.target_player_origin, &target_origin)
-            && ParseStrictFloat(write_set.target_player_yaw, &target_yaw))
+        if (target_player_present && origin_parse_ready && yaw_parse_ready)
         {
             state.edict_store.SetOrigin(
                 target_player,
@@ -41067,10 +41161,87 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationState(
                 target_angles,
                 FormatVector(target_angles));
 
+            apply_executed = true;
             mark_checkpoint_applied("target runtime checkpoint origin/yaw applied");
         }
     }
 
+    apply_guard_audit.prepared = checkpoint_application_state.prepared;
+    apply_guard_audit.skipped = checkpoint_application_state.skipped;
+    apply_guard_audit.target_player_present = target_player_present;
+    apply_guard_audit.origin_parse_ready = origin_parse_ready;
+    apply_guard_audit.yaw_parse_ready = yaw_parse_ready;
+    apply_guard_audit.apply_outer_guard_satisfied = apply_outer_guard_satisfied;
+    apply_guard_audit.apply_inner_guard_satisfied = apply_inner_guard_satisfied;
+    apply_guard_audit.apply_path_eligible = apply_path_eligible;
+    apply_guard_audit.apply_executed = apply_executed;
+    apply_guard_audit.short_circuit_reason =
+        checkpoint_application_state.short_circuit_reason;
+    apply_guard_audit.action = checkpoint_application_state.action;
+    const auto resolve_apply_path_blocked_by = [&]() -> std::string
+    {
+        if (checkpoint_application_state.skipped
+            && !checkpoint_application_state.short_circuit_reason.empty())
+        {
+            return checkpoint_application_state.short_circuit_reason;
+        }
+        if (checkpoint_already_applied)
+        {
+            return "checkpoint-already-applied";
+        }
+        if (!checkpoint_application_gate
+                 .target_runtime_checkpoint_application_gate_ready)
+        {
+            return "target-runtime-checkpoint-application-gate-not-ready";
+        }
+        if (!checkpoint_application_gate
+                 .target_runtime_checkpoint_application_ready)
+        {
+            return checkpoint_application_gate
+                       .target_runtime_checkpoint_application_block_reason.empty()
+                ? std::string(
+                      "target-runtime-checkpoint-application-not-ready")
+                : checkpoint_application_gate
+                      .target_runtime_checkpoint_application_block_reason;
+        }
+        if (!write_set.attempted)
+        {
+            return "changelevel-player-transfer-write-set-not-attempted";
+        }
+        if (!write_set.prepared)
+        {
+            return "changelevel-player-transfer-write-set-not-prepared";
+        }
+        if (!write_set.write_set_ready)
+        {
+            return "changelevel-player-transfer-write-set-not-ready";
+        }
+        if (!write_set.write_origin)
+        {
+            return "target-player-origin-write-not-requested";
+        }
+        if (!write_set.write_yaw)
+        {
+            return "target-player-yaw-write-not-requested";
+        }
+        if (!target_player_present)
+        {
+            return "target-player-not-present";
+        }
+        if (!origin_parse_ready)
+        {
+            return "target-player-origin-parse-not-ready";
+        }
+        if (!yaw_parse_ready)
+        {
+            return "target-player-yaw-parse-not-ready";
+        }
+        return std::string();
+    };
+    apply_guard_audit.apply_path_blocked_by = resolve_apply_path_blocked_by();
+    summary
+        .changelevel_player_transfer_target_runtime_checkpoint_application_apply_guard_audit =
+        std::move(apply_guard_audit);
     summary.changelevel_player_transfer_target_runtime_checkpoint_application_state =
         std::move(checkpoint_application_state);
     RefreshChangeLevelPlayerTransferTargetRuntimeCheckpointApplicationOutcome(
