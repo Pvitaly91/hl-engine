@@ -1,0 +1,33 @@
+{
+  "runLabelPrefix": "codex-target-runtime-materialization-execution-guard-audit",
+  "generatedByPromptId": "HL-CL-20260405-094-canonical-harvest-index",
+  "generatedForPromptId": "HL-CL-20260409-107-target-runtime-materialization-execution-guard-audit",
+  "workingBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "24dcbdee2e9d61f62e055868fa5ddf0e15c0cbc4",
+  "baseline": {
+    "runLabel": "codex-target-runtime-materialization-execution-guard-audit-baseline",
+    "sessionId": "20260409_004709",
+    "runInstanceId": "20260409_004709_320_pid33216",
+    "regressionGuard": "changelevel-latch-only-continuation",
+    "stopOnChangelevelRequest": 0,
+    "sourceRuntimeFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_part01.log",
+    "sourceSummaryFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_summary.log",
+    "sourceManifestFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_manifest.json",
+    "canonicalRuntimeFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_part01.log",
+    "canonicalSummaryFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_summary.log",
+    "canonicalManifestFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260409_004709_320_pid33216__codex-target-runtime-materialization-execution-guard-audit-baseline_manifest.json"
+  },
+  "stop": {
+    "runLabel": "codex-target-runtime-materialization-execution-guard-audit-stop",
+    "sessionId": "20260409_005102",
+    "runInstanceId": "20260409_005102_943_pid10868",
+    "regressionGuard": "changelevel-request-consumed",
+    "stopOnChangelevelRequest": 1,
+    "sourceRuntimeFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_part01.log",
+    "sourceSummaryFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_summary.log",
+    "sourceManifestFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_manifest.json",
+    "canonicalRuntimeFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_part01.log",
+    "canonicalSummaryFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_summary.log",
+    "canonicalManifestFile": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260409_005102_943_pid10868__codex-target-runtime-materialization-execution-guard-audit-stop_manifest.json"
+  }
+}
