@@ -10,6 +10,12 @@
 
 namespace hl::game_api
 {
+enum class ServerRuntimeMode
+{
+    kListenHost,
+    kDedicated,
+};
+
 struct DllFunctionPointerStatus
 {
     std::string name;
@@ -6000,13 +6006,84 @@ struct ScriptedMovementStateSummary
     std::string readiness;
 };
 
+struct DedicatedPlayerSlotSummary
+{
+    int slot = 0;
+    std::string session_id;
+    std::string player_name;
+    std::string lifecycle_state;
+    bool connected = false;
+    bool put_in_server = false;
+    bool alive = false;
+    int spawn_count = 0;
+    int death_count = 0;
+    int respawn_count = 0;
+    std::string last_origin;
+    std::string last_detail;
+};
+
+struct DedicatedPlayerLifecycleEventSummary
+{
+    int sequence = 0;
+    int slot = 0;
+    std::string session_id;
+    std::string player_name;
+    std::string lifecycle_state;
+    std::string detail;
+};
+
+struct DedicatedServerFoundationSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string ruleset = "singleplayer";
+    std::string mod_name;
+    float deathmatch = 0.0f;
+    float coop = 0.0f;
+    int requested_maxclients = 0;
+    int effective_maxclients = 0;
+    int reserved_client_slots = 0;
+    int first_non_client_slot = 0;
+    bool map_load = false;
+    bool bsp_switch = false;
+    bool changelevel_execution = false;
+    bool authoritative = false;
+    std::string transport = "n/a";
+    std::string query_surface = "n/a";
+};
+
+struct DedicatedPlayerLifecycleFoundationSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    int synthetic_players = 0;
+    int admitted = 0;
+    int connected = 0;
+    int put_in_server = 0;
+    int spawned = 0;
+    int deaths = 0;
+    int respawns = 0;
+    int disconnected = 0;
+    int reserved_client_slots = 0;
+    bool authoritative = false;
+    std::string scoreboard_ready = "no";
+    std::string replication_ready = "no";
+    std::vector<DedicatedPlayerSlotSummary> slots;
+    std::vector<DedicatedPlayerLifecycleEventSummary> events;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
     std::string mod_name = "valve";
     std::string map_name = "c0a0";
     std::string hostname = "HLengine Test Server";
+    ServerRuntimeMode runtime_mode = ServerRuntimeMode::kListenHost;
+    int requested_maxclients = 1;
     int maxclients = 1;
+    float deathmatch = 0.0f;
+    float coop = 0.0f;
+    int synthetic_players = 0;
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6053,6 +6130,9 @@ struct HlServerModuleSummary
     ChangeLevelTransitionSummary changelevel_transition;
     ScriptedLogicStateSummary scripted_logic;
     ScriptedMovementStateSummary scripted_movement;
+    DedicatedServerFoundationSummary dedicated_server_foundation;
+    DedicatedPlayerLifecycleFoundationSummary dedicated_player_lifecycle_foundation;
+    std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };
 

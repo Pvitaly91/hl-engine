@@ -179,6 +179,51 @@ struct RuntimeEntityRecord
     std::string note;
 };
 
+enum class DedicatedPlayerLifecycleState
+{
+    kIdle,
+    kReservedConnecting,
+    kConnected,
+    kPutInServer,
+    kSpawned,
+    kDead,
+    kRespawned,
+    kDisconnected,
+};
+
+struct DedicatedPlayerRuntimeSlot
+{
+    int slot = 0;
+    std::string session_id;
+    std::string player_name;
+    DedicatedPlayerLifecycleState lifecycle_state = DedicatedPlayerLifecycleState::kIdle;
+    bool occupied = false;
+    bool connected = false;
+    bool put_in_server = false;
+    bool alive = false;
+    int spawn_count = 0;
+    int death_count = 0;
+    int respawn_count = 0;
+    Vector last_origin = Vector(0.0f, 0.0f, 0.0f);
+    bool has_last_origin = false;
+    std::string last_detail;
+};
+
+struct DedicatedMultiplayerFoundationRuntime
+{
+    bool enabled = false;
+    int synthetic_players_requested = 0;
+    int admitted = 0;
+    int connected = 0;
+    int put_in_server = 0;
+    int spawned = 0;
+    int deaths = 0;
+    int respawns = 0;
+    int disconnected = 0;
+    std::vector<DedicatedPlayerRuntimeSlot> slots;
+    std::vector<hl::game_api::DedicatedPlayerLifecycleEventSummary> events;
+};
+
 struct EntityBootstrapContext
 {
     bool attempted = false;
@@ -392,6 +437,8 @@ struct EngineShimState
     hl::game_api::ChangeLevelTransitionSummary changelevel_transition_state;
     hl::game_api::ScriptedLogicStateSummary scripted_logic_state;
     hl::game_api::ScriptedMovementStateSummary scripted_movement_state;
+    DedicatedMultiplayerFoundationRuntime dedicated_multiplayer_foundation;
+    int dedicated_synthetic_players_requested = 0;
     DeterministicRandomDiagnostics random_diagnostics;
     std::unordered_map<void*, LoadedFileBuffer> loaded_files;
     std::unordered_set<std::string> path_track_terminal_dead_end_targets;
@@ -441,6 +488,13 @@ std::string BuildRandomDiagnosticContext(const EngineShimState& state);
 std::string BuildEntitySnapshotSummary(const hl::game_api::detail::EntityStateSnapshot& snapshot);
 void EmitAiConsoleDiagnostic(std::string_view message);
 bool EqualsIgnoreCase(std::string_view left, std::string_view right);
+std::string BuildDedicatedServerFoundationLine(
+    const hl::game_api::DedicatedServerFoundationSummary& summary);
+std::string BuildDedicatedPlayerLifecycleFoundationLine(
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& summary);
+std::string BuildDedicatedMultiplayerReadinessLine(
+    const hl::game_api::DedicatedServerFoundationSummary& foundation,
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -18834,6 +18888,59 @@ void LogScriptedLogicFrameSummary(
     }
 }
 
+std::string BuildDedicatedServerFoundationLine(
+    const hl::game_api::DedicatedServerFoundationSummary& summary)
+{
+    return "dedicated_server_foundation: mode=" + summary.mode
+        + ", ruleset=" + summary.ruleset
+        + ", mod=" + (summary.mod_name.empty() ? std::string("<unset>") : summary.mod_name)
+        + ", deathmatch=" + std::string(summary.deathmatch == 0.0f ? "0" : "1")
+        + ", coop=" + std::string(summary.coop == 0.0f ? "0" : "1")
+        + ", requestedMaxClients=" + std::to_string(summary.requested_maxclients)
+        + ", effectiveMaxClients=" + std::to_string(summary.effective_maxclients)
+        + ", reservedClientSlots=" + std::to_string(summary.reserved_client_slots)
+        + ", firstNonClientSlot=" + std::to_string(summary.first_non_client_slot)
+        + ", mapLoad=" + BoolToYesNo(summary.map_load)
+        + ", bspSwitch=" + BoolToYesNo(summary.bsp_switch)
+        + ", changelevelExecution=" + BoolToYesNo(summary.changelevel_execution)
+        + ", authoritative=" + BoolToYesNo(summary.authoritative)
+        + ", transport=" + summary.transport
+        + ", querySurface=" + summary.query_surface;
+}
+
+std::string BuildDedicatedPlayerLifecycleFoundationLine(
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& summary)
+{
+    return "dedicated_player_lifecycle_foundation: mode=" + summary.mode
+        + ", syntheticPlayers=" + std::to_string(summary.synthetic_players)
+        + ", admitted=" + std::to_string(summary.admitted)
+        + ", connected=" + std::to_string(summary.connected)
+        + ", putInServer=" + std::to_string(summary.put_in_server)
+        + ", spawned=" + std::to_string(summary.spawned)
+        + ", deaths=" + std::to_string(summary.deaths)
+        + ", respawns=" + std::to_string(summary.respawns)
+        + ", disconnected=" + std::to_string(summary.disconnected)
+        + ", reservedClientSlots=" + std::to_string(summary.reserved_client_slots)
+        + ", authoritative=" + BoolToYesNo(summary.authoritative)
+        + ", scoreboardReady=" + summary.scoreboard_ready
+        + ", replicationReady=" + summary.replication_ready;
+}
+
+std::string BuildDedicatedMultiplayerReadinessLine(
+    const hl::game_api::DedicatedServerFoundationSummary& foundation,
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle)
+{
+    (void)foundation;
+    std::string implemented =
+        lifecycle.synthetic_players > 0
+        ? "implemented dedicated HLDM boot plus authoritative synthetic two-player slot/session lifecycle"
+        : "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation";
+
+    return "dedicated_multiplayer_readiness: " + implemented
+        + "; out_of_scope=real client transport/query/auth/replication/full damage-weapon parity"
+        + "; next=wire classic GoldSrc connect/auth/query surfaces onto the same authoritative slot state machine";
+}
+
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
 {
     const hl::common::LoggerStatistics logger_statistics = hl::common::Logger::Statistics();
@@ -19103,6 +19210,22 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             + std::to_string(summary.map_logic_dispatcher.total_use_successes) + "/"
             + std::to_string(summary.map_logic_dispatcher.total_use_deferred) + "/"
             + std::to_string(summary.map_logic_dispatcher.total_use_failures));
+    if (summary.dedicated_server_foundation.enabled)
+    {
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Summary,
+            BuildDedicatedServerFoundationLine(summary.dedicated_server_foundation));
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Summary,
+            BuildDedicatedPlayerLifecycleFoundationLine(
+                summary.dedicated_player_lifecycle_foundation));
+        if (!summary.dedicated_multiplayer_readiness.empty())
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                summary.dedicated_multiplayer_readiness);
+        }
+    }
     if (summary.changelevel_transition.candidate_present)
     {
         std::string line =
@@ -43262,6 +43385,458 @@ bool TryResolveSinglePlayerActivatorSurrogateBounds(
     return true;
 }
 
+std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState state)
+{
+    switch (state)
+    {
+    case DedicatedPlayerLifecycleState::kReservedConnecting:
+        return "reserved/connecting";
+    case DedicatedPlayerLifecycleState::kConnected:
+        return "connected";
+    case DedicatedPlayerLifecycleState::kPutInServer:
+        return "put_in_server";
+    case DedicatedPlayerLifecycleState::kSpawned:
+        return "spawned";
+    case DedicatedPlayerLifecycleState::kDead:
+        return "dead";
+    case DedicatedPlayerLifecycleState::kRespawned:
+        return "respawned";
+    case DedicatedPlayerLifecycleState::kDisconnected:
+        return "disconnected";
+    case DedicatedPlayerLifecycleState::kIdle:
+    default:
+        return "idle";
+    }
+}
+
+DedicatedPlayerRuntimeSlot* FindDedicatedPlayerRuntimeSlot(
+    DedicatedMultiplayerFoundationRuntime& runtime,
+    int slot)
+{
+    for (DedicatedPlayerRuntimeSlot& candidate : runtime.slots)
+    {
+        if (candidate.slot == slot)
+        {
+            return &candidate;
+        }
+    }
+
+    return nullptr;
+}
+
+DedicatedPlayerRuntimeSlot& EnsureDedicatedPlayerRuntimeSlot(
+    DedicatedMultiplayerFoundationRuntime& runtime,
+    int slot,
+    std::string_view session_id,
+    std::string_view player_name)
+{
+    if (DedicatedPlayerRuntimeSlot* existing = FindDedicatedPlayerRuntimeSlot(runtime, slot);
+        existing != nullptr)
+    {
+        if (!session_id.empty())
+        {
+            existing->session_id = session_id;
+        }
+        if (!player_name.empty())
+        {
+            existing->player_name = player_name;
+        }
+        existing->occupied = true;
+        return *existing;
+    }
+
+    runtime.slots.push_back({});
+    DedicatedPlayerRuntimeSlot& slot_state = runtime.slots.back();
+    slot_state.slot = slot;
+    slot_state.session_id = std::string(session_id);
+    slot_state.player_name = std::string(player_name);
+    slot_state.occupied = true;
+    return slot_state;
+}
+
+void PrimeDedicatedClientEdict(
+    EngineShimState& state,
+    DedicatedPlayerRuntimeSlot& slot_state)
+{
+    edict_t* client = state.edict_store.EntityOfIndex(slot_state.slot);
+    if (client == nullptr)
+    {
+        return;
+    }
+
+    state.edict_store.SetInUse(client, true);
+    state.edict_store.SetDeferred(client, false);
+    state.edict_store.SetSpawned(client, false);
+    state.edict_store.SetActivationCandidate(client, false);
+    state.edict_store.SetClassname(client, state.string_pool.Alloc("player"), "player");
+    client->v.health = 100.0f;
+    client->v.frags = static_cast<float>(slot_state.death_count);
+    if (!slot_state.player_name.empty())
+    {
+        client->v.netname = state.string_pool.Alloc(slot_state.player_name);
+    }
+}
+
+void ApplyDedicatedClientSpawn(
+    EngineShimState& state,
+    DedicatedPlayerRuntimeSlot& slot_state,
+    const Vector& origin)
+{
+    PrimeDedicatedClientEdict(state, slot_state);
+
+    edict_t* client = state.edict_store.EntityOfIndex(slot_state.slot);
+    if (client == nullptr)
+    {
+        return;
+    }
+
+    state.edict_store.SetOrigin(client, origin, FormatVector(origin));
+    state.edict_store.SetAngles(client, Vector(0.0f, 0.0f, 0.0f), "0 0 0");
+    state.edict_store.SetSpawned(client, true);
+    client->v.health = 100.0f;
+}
+
+void ApplyDedicatedClientDeath(
+    EngineShimState& state,
+    const DedicatedPlayerRuntimeSlot& slot_state)
+{
+    edict_t* client = state.edict_store.EntityOfIndex(slot_state.slot);
+    if (client == nullptr)
+    {
+        return;
+    }
+
+    state.edict_store.SetSpawned(client, false);
+    client->v.health = 0.0f;
+    client->v.frags = static_cast<float>(slot_state.death_count);
+}
+
+void ApplyDedicatedClientDisconnect(
+    EngineShimState& state,
+    const DedicatedPlayerRuntimeSlot& slot_state)
+{
+    edict_t* client = state.edict_store.EntityOfIndex(slot_state.slot);
+    if (client == nullptr)
+    {
+        return;
+    }
+
+    state.edict_store.SetSpawned(client, false);
+    state.edict_store.SetInUse(client, false);
+    client->v.health = 0.0f;
+}
+
+bool TryResolveRuntimeRecordOrigin(
+    const EngineShimState& state,
+    const RuntimeEntityRecord& record,
+    Vector* origin,
+    std::string* detail)
+{
+    if (origin == nullptr)
+    {
+        return false;
+    }
+
+    Vector resolved_origin = record.origin;
+    bool has_origin = record.has_origin;
+    if (const hl::game_api::detail::EntityDefinition* definition =
+            FindParsedEntityDefinitionByOrdinal(state, record.parse_index);
+        definition != nullptr)
+    {
+        const ParsedVectorField parsed_origin = ParseOriginField(*definition);
+        if (!has_origin && parsed_origin.present && parsed_origin.valid)
+        {
+            resolved_origin = parsed_origin.value;
+            has_origin = true;
+        }
+    }
+
+    if (!has_origin && record.edict_index >= 0)
+    {
+        if (const edict_t* entity = state.edict_store.EntityOfIndex(record.edict_index);
+            entity != nullptr)
+        {
+            hl::game_api::detail::EntityVarSnapshot snapshot;
+            hl::game_api::detail::TryReadEntityVars(
+                state.edict_store,
+                state.string_pool,
+                entity,
+                &snapshot,
+                {});
+            if (snapshot.valid && snapshot.has_origin)
+            {
+                resolved_origin = snapshot.origin;
+                has_origin = true;
+            }
+        }
+    }
+
+    if (!has_origin)
+    {
+        return false;
+    }
+
+    *origin = resolved_origin;
+    if (detail != nullptr)
+    {
+        *detail =
+            (record.classname.empty() ? std::string("entity") : record.classname)
+            + " origin=" + FormatVector(resolved_origin);
+    }
+    return true;
+}
+
+bool TryResolveDedicatedSpawnOrigin(
+    const EngineShimState& state,
+    int spawn_index,
+    Vector* origin,
+    std::string* detail)
+{
+    if (origin == nullptr)
+    {
+        return false;
+    }
+
+    std::vector<std::pair<Vector, std::string>> deathmatch_spawns;
+    deathmatch_spawns.reserve(8);
+
+    for (const RuntimeEntityRecord& record : state.entity_bootstrap.runtime_entities)
+    {
+        if (!EqualsIgnoreCase(record.classname, "info_player_deathmatch"))
+        {
+            continue;
+        }
+
+        Vector candidate_origin;
+        std::string candidate_detail;
+        if (!TryResolveRuntimeRecordOrigin(state, record, &candidate_origin, &candidate_detail))
+        {
+            continue;
+        }
+
+        deathmatch_spawns.emplace_back(candidate_origin, std::move(candidate_detail));
+    }
+
+    if (!deathmatch_spawns.empty())
+    {
+        const std::size_t resolved_index =
+            static_cast<std::size_t>(std::max(spawn_index, 0)) % deathmatch_spawns.size();
+        *origin = deathmatch_spawns[resolved_index].first;
+        if (detail != nullptr)
+        {
+            *detail = deathmatch_spawns[resolved_index].second;
+        }
+        return true;
+    }
+
+    if (TryResolveSinglePlayerActivatorSurrogateOrigin(state, origin, detail))
+    {
+        return true;
+    }
+
+    *origin = Vector(static_cast<float>(std::max(spawn_index, 0) * 64), 0.0f, 0.0f);
+    if (detail != nullptr)
+    {
+        *detail = "synthetic fallback origin=" + FormatVector(*origin);
+    }
+    return true;
+}
+
+void RecordDedicatedLifecycleTransition(
+    DedicatedMultiplayerFoundationRuntime& runtime,
+    DedicatedPlayerRuntimeSlot& slot_state,
+    DedicatedPlayerLifecycleState lifecycle_state,
+    std::string detail)
+{
+    slot_state.lifecycle_state = lifecycle_state;
+    slot_state.last_detail = detail;
+
+    switch (lifecycle_state)
+    {
+    case DedicatedPlayerLifecycleState::kReservedConnecting:
+        ++runtime.admitted;
+        slot_state.connected = false;
+        slot_state.put_in_server = false;
+        slot_state.alive = false;
+        break;
+    case DedicatedPlayerLifecycleState::kConnected:
+        ++runtime.connected;
+        slot_state.connected = true;
+        slot_state.alive = false;
+        break;
+    case DedicatedPlayerLifecycleState::kPutInServer:
+        ++runtime.put_in_server;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.alive = false;
+        break;
+    case DedicatedPlayerLifecycleState::kSpawned:
+        ++runtime.spawned;
+        ++slot_state.spawn_count;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.alive = true;
+        break;
+    case DedicatedPlayerLifecycleState::kDead:
+        ++runtime.deaths;
+        ++slot_state.death_count;
+        slot_state.alive = false;
+        break;
+    case DedicatedPlayerLifecycleState::kRespawned:
+        ++runtime.respawns;
+        ++slot_state.spawn_count;
+        ++slot_state.respawn_count;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.alive = true;
+        break;
+    case DedicatedPlayerLifecycleState::kDisconnected:
+        ++runtime.disconnected;
+        slot_state.connected = false;
+        slot_state.put_in_server = false;
+        slot_state.alive = false;
+        break;
+    case DedicatedPlayerLifecycleState::kIdle:
+    default:
+        break;
+    }
+
+    runtime.events.push_back({
+        static_cast<int>(runtime.events.size()) + 1,
+        slot_state.slot,
+        slot_state.session_id,
+        slot_state.player_name,
+        DedicatedPlayerLifecycleStateName(lifecycle_state),
+        std::move(detail),
+    });
+}
+
+hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
+    const DedicatedPlayerRuntimeSlot& slot_state)
+{
+    hl::game_api::DedicatedPlayerSlotSummary summary;
+    summary.slot = slot_state.slot;
+    summary.session_id = slot_state.session_id;
+    summary.player_name = slot_state.player_name;
+    summary.lifecycle_state = DedicatedPlayerLifecycleStateName(slot_state.lifecycle_state);
+    summary.connected = slot_state.connected;
+    summary.put_in_server = slot_state.put_in_server;
+    summary.alive = slot_state.alive;
+    summary.spawn_count = slot_state.spawn_count;
+    summary.death_count = slot_state.death_count;
+    summary.respawn_count = slot_state.respawn_count;
+    summary.last_origin =
+        slot_state.has_last_origin ? FormatVector(slot_state.last_origin) : std::string("<unset>");
+    summary.last_detail = slot_state.last_detail;
+    return summary;
+}
+
+void PerformDedicatedMultiplayerFoundation()
+{
+    EngineShimState& state = CurrentShimState();
+    state.dedicated_multiplayer_foundation = {};
+    state.dedicated_multiplayer_foundation.enabled = state.server_state.dedicated;
+    state.dedicated_multiplayer_foundation.synthetic_players_requested =
+        state.dedicated_synthetic_players_requested < 0
+        ? 0
+        : state.dedicated_synthetic_players_requested > 2
+        ? 2
+        : state.dedicated_synthetic_players_requested;
+
+    if (!state.server_state.dedicated)
+    {
+        return;
+    }
+
+    state.dedicated_multiplayer_foundation.slots.reserve(
+        static_cast<std::size_t>(std::max(state.server_state.maxclients, 0)));
+
+    const int synthetic_players = state.dedicated_multiplayer_foundation.synthetic_players_requested;
+    if (synthetic_players <= 0)
+    {
+        return;
+    }
+
+    constexpr std::array<const char*, 2> kSyntheticPlayerNames = {
+        "synthetic_player_1",
+        "synthetic_player_2",
+    };
+
+    for (int index = 0; index < synthetic_players; ++index)
+    {
+        const int slot = index + 1;
+        DedicatedPlayerRuntimeSlot& slot_state = EnsureDedicatedPlayerRuntimeSlot(
+            state.dedicated_multiplayer_foundation,
+            slot,
+            "dedicated_session_" + std::to_string(slot),
+            kSyntheticPlayerNames[static_cast<std::size_t>(index)]);
+        PrimeDedicatedClientEdict(state, slot_state);
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            slot_state,
+            DedicatedPlayerLifecycleState::kReservedConnecting,
+            "server reserved client slot " + std::to_string(slot) + " for host-only synthetic admission");
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            slot_state,
+            DedicatedPlayerLifecycleState::kConnected,
+            "synthetic dedicated session connected without real transport");
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            slot_state,
+            DedicatedPlayerLifecycleState::kPutInServer,
+            "server-owned put_in_server completed for reserved slot");
+
+        Vector spawn_origin;
+        std::string spawn_detail;
+        TryResolveDedicatedSpawnOrigin(state, index, &spawn_origin, &spawn_detail);
+        ApplyDedicatedClientSpawn(state, slot_state, spawn_origin);
+        slot_state.last_origin = spawn_origin;
+        slot_state.has_last_origin = true;
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            slot_state,
+            DedicatedPlayerLifecycleState::kSpawned,
+            "spawned at " + spawn_detail);
+    }
+
+    if (DedicatedPlayerRuntimeSlot* player_one =
+            FindDedicatedPlayerRuntimeSlot(state.dedicated_multiplayer_foundation, 1);
+        player_one != nullptr)
+    {
+        ApplyDedicatedClientDeath(state, *player_one);
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            *player_one,
+            DedicatedPlayerLifecycleState::kDead,
+            "deterministic dedicated harness death event");
+
+        Vector respawn_origin;
+        std::string respawn_detail;
+        TryResolveDedicatedSpawnOrigin(state, 0, &respawn_origin, &respawn_detail);
+        ApplyDedicatedClientSpawn(state, *player_one, respawn_origin);
+        player_one->last_origin = respawn_origin;
+        player_one->has_last_origin = true;
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            *player_one,
+            DedicatedPlayerLifecycleState::kRespawned,
+            "respawned at " + respawn_detail);
+    }
+
+    if (DedicatedPlayerRuntimeSlot* player_two =
+            FindDedicatedPlayerRuntimeSlot(state.dedicated_multiplayer_foundation, 2);
+        player_two != nullptr)
+    {
+        ApplyDedicatedClientDisconnect(state, *player_two);
+        RecordDedicatedLifecycleTransition(
+            state.dedicated_multiplayer_foundation,
+            *player_two,
+            DedicatedPlayerLifecycleState::kDisconnected,
+            "bounded synthetic disconnect to close the dedicated lifecycle harness");
+    }
+}
+
 bool TryResolveTrackTrainAnchorState(
     const EngineShimState& state,
     std::string_view targetname,
@@ -47225,6 +47800,74 @@ void PopulateBootstrapSummary(
         BuildMapLogicClassSummary(state.entity_bootstrap.runtime_entities);
     summary.scripted_logic = state.scripted_logic_state;
     summary.scripted_movement = state.scripted_movement_state;
+    summary.dedicated_server_foundation = {};
+    summary.dedicated_player_lifecycle_foundation = {};
+    summary.dedicated_multiplayer_readiness.clear();
+
+    if (state.server_state.dedicated)
+    {
+        summary.dedicated_server_foundation.enabled = true;
+        summary.dedicated_server_foundation.mode = "dedicated";
+        summary.dedicated_server_foundation.ruleset =
+            state.server_state.deathmatch != 0.0f && state.server_state.coop == 0.0f
+            ? "hldm"
+            : state.server_state.coop != 0.0f
+            ? "coop"
+            : "multiplayer";
+        summary.dedicated_server_foundation.mod_name = state.server_state.mod_name;
+        summary.dedicated_server_foundation.deathmatch = state.server_state.deathmatch;
+        summary.dedicated_server_foundation.coop = state.server_state.coop;
+        summary.dedicated_server_foundation.requested_maxclients =
+            state.server_state.requested_maxclients;
+        summary.dedicated_server_foundation.effective_maxclients = state.server_state.maxclients;
+        summary.dedicated_server_foundation.reserved_client_slots = state.server_state.maxclients;
+        summary.dedicated_server_foundation.first_non_client_slot = 1 + state.server_state.maxclients;
+        summary.dedicated_server_foundation.map_load =
+            summary.changelevel_transition.pre_changelevel_handoff.map_load_performed;
+        summary.dedicated_server_foundation.bsp_switch = false;
+        summary.dedicated_server_foundation.changelevel_execution =
+            summary.changelevel_transition.lifecycle_execution.execution_armed;
+        summary.dedicated_server_foundation.authoritative = true;
+        summary.dedicated_server_foundation.transport = "classic-goldsrc-pending";
+        summary.dedicated_server_foundation.query_surface = "pending";
+
+        summary.dedicated_player_lifecycle_foundation.enabled = true;
+        summary.dedicated_player_lifecycle_foundation.mode = "dedicated";
+        summary.dedicated_player_lifecycle_foundation.synthetic_players =
+            state.dedicated_multiplayer_foundation.synthetic_players_requested;
+        summary.dedicated_player_lifecycle_foundation.admitted =
+            state.dedicated_multiplayer_foundation.admitted;
+        summary.dedicated_player_lifecycle_foundation.connected =
+            state.dedicated_multiplayer_foundation.connected;
+        summary.dedicated_player_lifecycle_foundation.put_in_server =
+            state.dedicated_multiplayer_foundation.put_in_server;
+        summary.dedicated_player_lifecycle_foundation.spawned =
+            state.dedicated_multiplayer_foundation.spawned;
+        summary.dedicated_player_lifecycle_foundation.deaths =
+            state.dedicated_multiplayer_foundation.deaths;
+        summary.dedicated_player_lifecycle_foundation.respawns =
+            state.dedicated_multiplayer_foundation.respawns;
+        summary.dedicated_player_lifecycle_foundation.disconnected =
+            state.dedicated_multiplayer_foundation.disconnected;
+        summary.dedicated_player_lifecycle_foundation.reserved_client_slots =
+            state.server_state.maxclients;
+        summary.dedicated_player_lifecycle_foundation.authoritative = true;
+        summary.dedicated_player_lifecycle_foundation.scoreboard_ready = "partial";
+        summary.dedicated_player_lifecycle_foundation.replication_ready = "no";
+        summary.dedicated_player_lifecycle_foundation.slots.clear();
+        summary.dedicated_player_lifecycle_foundation.events =
+            state.dedicated_multiplayer_foundation.events;
+        for (const DedicatedPlayerRuntimeSlot& slot_state :
+             state.dedicated_multiplayer_foundation.slots)
+        {
+            summary.dedicated_player_lifecycle_foundation.slots.push_back(
+                BuildDedicatedPlayerSlotSummary(slot_state));
+        }
+
+        summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
+            summary.dedicated_server_foundation,
+            summary.dedicated_player_lifecycle_foundation);
+    }
 
     summary.ready_for_server_activation =
         summary.world_bootstrap.completed
@@ -52205,6 +52848,7 @@ void FinalizeServerBootstrapStep()
         ExecuteQueuedServerCommands(state, "post-server-activate");
     }
     PerformServerFrameLoop();
+    PerformDedicatedMultiplayerFoundation();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -54099,6 +54743,9 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.map_logic_dispatcher = {};
     impl_->summary.scripted_logic = {};
     impl_->summary.scripted_movement = {};
+    impl_->summary.dedicated_server_foundation = {};
+    impl_->summary.dedicated_player_lifecycle_foundation = {};
+    impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
     if (!impl_->module.IsLoaded())
@@ -54129,13 +54776,18 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->shim_state.entity_think_scheduler_state = {};
     impl_->shim_state.map_logic_dispatcher_state = {};
     impl_->shim_state.scripted_logic_state = {};
+    impl_->shim_state.dedicated_multiplayer_foundation = {};
+    impl_->shim_state.dedicated_synthetic_players_requested = options.synthetic_players;
     hl::game_api::detail::InitializeServerState(
         impl_->shim_state.server_state,
         impl_->shim_state.game_directory,
         options.mod_name,
         options.map_name,
         options.hostname,
-        options.maxclients);
+        options.requested_maxclients > 0 ? options.requested_maxclients : options.maxclients,
+        options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated,
+        options.deathmatch,
+        options.coop);
     SeedBuiltinCvars(impl_->shim_state.cvar_registry, impl_->shim_state.server_state);
     impl_->shim_state.precache_registry.Reset();
     impl_->shim_state.sound_precache_registry.Reset();

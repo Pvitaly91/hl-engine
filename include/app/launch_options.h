@@ -10,6 +10,12 @@
 
 namespace hl::app
 {
+enum class RuntimeMode
+{
+    kListen,
+    kDedicated,
+};
+
 enum class RegressionGuardProfile
 {
     kTrainstop26TerminalProbe,
@@ -20,11 +26,16 @@ enum class RegressionGuardProfile
 
 struct LaunchOptions
 {
+    RuntimeMode runtime_mode = RuntimeMode::kListen;
     std::optional<std::filesystem::path> game_directory;
     std::optional<std::wstring> map_name;
     std::optional<RegressionGuardProfile> regression_guard;
     std::optional<std::string> run_label;
     std::optional<std::string> prompt_id;
+    int maxclients = 1;
+    int deathmatch = 0;
+    int coop = 0;
+    int synthetic_players = 0;
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;

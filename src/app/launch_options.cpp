@@ -14,6 +14,10 @@ namespace
 {
 struct ParseState
 {
+    bool dedicated_explicit = false;
+    bool maxclients_explicit = false;
+    bool deathmatch_explicit = false;
+    bool coop_explicit = false;
     bool log_directory_explicit = false;
     bool log_console_level_explicit = false;
     bool log_file_level_explicit = false;
@@ -535,6 +539,36 @@ void ApplyLoggingDefaults(hl::app::LaunchOptions& options, const ParseState& par
         }
     }
 }
+
+void ApplyRuntimeDefaults(hl::app::LaunchOptions& options, const ParseState& parse_state)
+{
+    if (options.runtime_mode == hl::app::RuntimeMode::kDedicated)
+    {
+        if (!parse_state.deathmatch_explicit)
+        {
+            options.deathmatch = 1;
+        }
+        if (!parse_state.coop_explicit)
+        {
+            options.coop = 0;
+        }
+        if (!parse_state.maxclients_explicit)
+        {
+            options.maxclients = 4;
+        }
+    }
+
+    options.deathmatch = options.deathmatch != 0 ? 1 : 0;
+    options.coop = options.coop != 0 ? 1 : 0;
+    if (options.maxclients < 1)
+    {
+        options.maxclients = 1;
+    }
+    else if (options.maxclients > 32)
+    {
+        options.maxclients = 32;
+    }
+}
 } // namespace
 
 namespace hl::app
@@ -557,6 +591,32 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         if (argument == L"--verbose")
         {
             result.options.verbose = true;
+            continue;
+        }
+
+        if (argument == L"--dedicated" || argument == L"-dedicated")
+        {
+            result.options.runtime_mode = hl::app::RuntimeMode::kDedicated;
+            parse_state.dedicated_explicit = true;
+            continue;
+        }
+
+        constexpr std::wstring_view dedicated_prefix = L"--dedicated=";
+        if (StartsWith(argument, dedicated_prefix))
+        {
+            bool dedicated = false;
+            if (!ParseBoolValue(
+                    argument.substr(dedicated_prefix.size()),
+                    &dedicated,
+                    &result.error_message,
+                    L"--dedicated"))
+            {
+                return result;
+            }
+
+            result.options.runtime_mode =
+                dedicated ? hl::app::RuntimeMode::kDedicated : hl::app::RuntimeMode::kListen;
+            parse_state.dedicated_explicit = true;
             continue;
         }
 
@@ -716,6 +776,157 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             }
 
             result.options.prompt_id = *prompt_id;
+            continue;
+        }
+
+        if (argument == L"--maxclients")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --maxclients.";
+                return result;
+            }
+
+            int maxclients = 0;
+            if (!TryParseInteger(argv[++index], &maxclients) || maxclients <= 0 || maxclients > 32)
+            {
+                result.error_message =
+                    L"Invalid value for --maxclients. Expected an integer in the range 1..32.";
+                return result;
+            }
+
+            result.options.maxclients = maxclients;
+            parse_state.maxclients_explicit = true;
+            continue;
+        }
+
+        constexpr std::wstring_view maxclients_prefix = L"--maxclients=";
+        if (StartsWith(argument, maxclients_prefix))
+        {
+            int maxclients = 0;
+            if (!TryParseInteger(argument.substr(maxclients_prefix.size()), &maxclients)
+                || maxclients <= 0 || maxclients > 32)
+            {
+                result.error_message =
+                    L"Invalid value for --maxclients. Expected an integer in the range 1..32.";
+                return result;
+            }
+
+            result.options.maxclients = maxclients;
+            parse_state.maxclients_explicit = true;
+            continue;
+        }
+
+        if (argument == L"--deathmatch")
+        {
+            bool enabled = false;
+            if (!ParseRequiredBoolOption(
+                    argc,
+                    argv,
+                    &index,
+                    &enabled,
+                    &result.error_message,
+                    argument))
+            {
+                return result;
+            }
+
+            result.options.deathmatch = enabled ? 1 : 0;
+            parse_state.deathmatch_explicit = true;
+            continue;
+        }
+
+        constexpr std::wstring_view deathmatch_prefix = L"--deathmatch=";
+        if (StartsWith(argument, deathmatch_prefix))
+        {
+            bool enabled = false;
+            if (!ParseBoolValue(
+                    argument.substr(deathmatch_prefix.size()),
+                    &enabled,
+                    &result.error_message,
+                    L"--deathmatch"))
+            {
+                return result;
+            }
+
+            result.options.deathmatch = enabled ? 1 : 0;
+            parse_state.deathmatch_explicit = true;
+            continue;
+        }
+
+        if (argument == L"--coop")
+        {
+            bool enabled = false;
+            if (!ParseRequiredBoolOption(
+                    argc,
+                    argv,
+                    &index,
+                    &enabled,
+                    &result.error_message,
+                    argument))
+            {
+                return result;
+            }
+
+            result.options.coop = enabled ? 1 : 0;
+            parse_state.coop_explicit = true;
+            continue;
+        }
+
+        constexpr std::wstring_view coop_prefix = L"--coop=";
+        if (StartsWith(argument, coop_prefix))
+        {
+            bool enabled = false;
+            if (!ParseBoolValue(
+                    argument.substr(coop_prefix.size()),
+                    &enabled,
+                    &result.error_message,
+                    L"--coop"))
+            {
+                return result;
+            }
+
+            result.options.coop = enabled ? 1 : 0;
+            parse_state.coop_explicit = true;
+            continue;
+        }
+
+        if (argument == L"--synthetic-players")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --synthetic-players.";
+                return result;
+            }
+
+            int synthetic_players = 0;
+            if (!TryParseInteger(argv[++index], &synthetic_players)
+                || (synthetic_players != 0 && synthetic_players != 2))
+            {
+                result.error_message =
+                    L"Invalid value for --synthetic-players. Expected 0 or 2.";
+                return result;
+            }
+
+            result.options.synthetic_players = synthetic_players;
+            continue;
+        }
+
+        constexpr std::wstring_view synthetic_players_prefix = L"--synthetic-players=";
+        if (StartsWith(argument, synthetic_players_prefix))
+        {
+            int synthetic_players = 0;
+            if (!TryParseInteger(
+                    argument.substr(synthetic_players_prefix.size()),
+                    &synthetic_players)
+                || (synthetic_players != 0 && synthetic_players != 2))
+            {
+                result.error_message =
+                    L"Invalid value for --synthetic-players. Expected 0 or 2.";
+                return result;
+            }
+
+            result.options.synthetic_players = synthetic_players;
             continue;
         }
 
@@ -1591,6 +1802,7 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         return result;
     }
 
+    ApplyRuntimeDefaults(result.options, parse_state);
     ApplyLoggingDefaults(result.options, parse_state);
     if (!parse_state.log_directory_explicit)
     {
@@ -1607,7 +1819,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--gamedir <path>] [--map <name>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1615,8 +1827,13 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"    [--log-state-changes-only <0|1>] [--log-summary-file <0|1>] [--log-suppress-repeats <0|1>]\n"
              L"    [--stop-on-first-message <0|1>] [--stop-on-changelevel-request <0|1>] [--stop-on-node <name>]\n\n"
              L"Options:\n"
+             L"  --dedicated                  Enable dedicated HLDM-oriented runtime defaults (deathmatch=1, coop=0, maxclients=4 unless overridden)\n"
              L"  --gamedir <path>               Use an explicit Half-Life game directory (typically ...\\valve)\n"
              L"  --map <name>                   Set the bootstrap map name (default: c0a0)\n"
+             L"  --deathmatch <0|1>            Override the host-side deathmatch cvar seed\n"
+             L"  --coop <0|1>                  Override the host-side coop cvar seed\n"
+             L"  --maxclients <n>              Set the authoritative reserved client slot count (default: 1, dedicated default: 4)\n"
+             L"  --synthetic-players <0|2>     Run the bounded host-only dedicated lifecycle harness with 0 or 2 synthetic players\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"
