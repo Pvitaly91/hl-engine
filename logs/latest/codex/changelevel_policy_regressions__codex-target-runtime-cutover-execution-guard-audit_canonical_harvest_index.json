@@ -29,5 +29,10 @@
                  "canonicalRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_part01.log",
                  "canonicalSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_summary.log",
                  "canonicalManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_manifest.json"
-             }
+             },
+    "continuationBaseline":  {
+                                 "workingBranch":  "codex/HL-CL-20260401-081-target-runtime-completion-state",
+                                 "headBeforeChanges":  "79d17553ddcbfa4242fe81b2c7d2a3650798387d",
+                                 "finalSourceCommit":  "8212c09b70a93126d605ad78a9011bdcb06d3e24"
+                             }
 }
