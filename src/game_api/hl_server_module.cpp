@@ -9237,6 +9237,53 @@ std::string FormatChangeLevelPlayerTransferTargetRuntimeCutoverStateSummary(
     return line;
 }
 
+std::string
+FormatChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary&
+            execution_guard_audit =
+                summary
+                    .changelevel_player_transfer_target_runtime_cutover_execution_guard_audit;
+    return std::string("prepared=")
+        + BoolToYesNo(execution_guard_audit.prepared)
+        + ", skipped=" + BoolToYesNo(execution_guard_audit.skipped)
+        + ", decisionSource="
+        + (execution_guard_audit.decision_source.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.decision_source)
+        + ", targetRuntimeCutoverGateReady="
+        + BoolToYesNo(execution_guard_audit.target_runtime_cutover_gate_ready)
+        + ", targetRuntimeCutoverReady="
+        + BoolToYesNo(execution_guard_audit.target_runtime_cutover_ready)
+        + ", targetRuntimePresent="
+        + BoolToYesNo(execution_guard_audit.target_runtime_present)
+        + ", targetRuntimeActivated="
+        + BoolToYesNo(execution_guard_audit.target_runtime_activated)
+        + ", currentRuntimePresent="
+        + BoolToYesNo(execution_guard_audit.current_runtime_present)
+        + ", cutoverOuterGuardSatisfied="
+        + BoolToYesNo(execution_guard_audit.cutover_outer_guard_satisfied)
+        + ", cutoverInnerGuardSatisfied="
+        + BoolToYesNo(execution_guard_audit.cutover_inner_guard_satisfied)
+        + ", cutoverPathEligible="
+        + BoolToYesNo(execution_guard_audit.cutover_path_eligible)
+        + ", cutoverExecuted="
+        + BoolToYesNo(execution_guard_audit.cutover_executed)
+        + ", cutoverPathBlockedBy="
+        + (execution_guard_audit.cutover_path_blocked_by.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.cutover_path_blocked_by)
+        + ", shortCircuitReason="
+        + (execution_guard_audit.short_circuit_reason.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.short_circuit_reason)
+        + ", action="
+        + (execution_guard_audit.action.empty() ? std::string("<none>")
+                                               : execution_guard_audit.action);
+}
+
 std::string FormatChangeLevelPlayerTransferTargetRuntimeCutoverOutcomeSummary(
     const hl::game_api::ChangeLevelTransitionSummary& summary)
 {
@@ -19604,6 +19651,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_target_runtime_cutover_state: "
                     + FormatChangeLevelPlayerTransferTargetRuntimeCutoverStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_target_runtime_cutover_execution_guard_audit
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_target_runtime_cutover_execution_guard_audit: "
+                    + FormatChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition
@@ -40982,10 +41039,92 @@ void RefreshChangeLevelPlayerTransferTargetRuntimeCutoverState(
         return;
     }
 
+    const auto& cutover_gate =
+        summary.changelevel_player_transfer_target_runtime_cutover_gate;
+    auto cutover_state = BuildChangeLevelPlayerTransferTargetRuntimeCutoverState(
+        cutover_gate);
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferTargetRuntimeCutoverExecutionGuardAuditSummary
+            execution_guard_audit;
+    execution_guard_audit.attempted = true;
+    execution_guard_audit.prepared = cutover_state.prepared;
+    execution_guard_audit.skipped = cutover_state.skipped;
+    execution_guard_audit.decision_source = "target-runtime-cutover-state";
+    execution_guard_audit.target_runtime_cutover_gate_ready =
+        cutover_gate.target_runtime_cutover_gate_ready;
+    execution_guard_audit.target_runtime_cutover_ready =
+        cutover_state.target_runtime_cutover_ready;
+    const bool target_runtime_present =
+        cutover_state.target_runtime_materialized;
+    const bool target_runtime_activated =
+        cutover_state.target_runtime_activated;
+    const bool current_runtime_present =
+        state.server_activation_state.succeeded
+        && !state.server_activation_state.map_name.empty();
+    const bool cutover_outer_guard_satisfied =
+        cutover_gate.target_runtime_cutover_gate_ready
+        && cutover_state.target_runtime_cutover_ready;
+    const bool cutover_inner_guard_satisfied =
+        target_runtime_present && target_runtime_activated
+        && current_runtime_present;
+    const bool cutover_path_eligible =
+        cutover_outer_guard_satisfied && cutover_inner_guard_satisfied;
+    const bool cutover_executed =
+        cutover_state.target_runtime_cutover_started
+        || cutover_state.target_runtime_cutover_applied;
+    execution_guard_audit.target_runtime_present = target_runtime_present;
+    execution_guard_audit.target_runtime_activated = target_runtime_activated;
+    execution_guard_audit.current_runtime_present = current_runtime_present;
+    execution_guard_audit.cutover_outer_guard_satisfied =
+        cutover_outer_guard_satisfied;
+    execution_guard_audit.cutover_inner_guard_satisfied =
+        cutover_inner_guard_satisfied;
+    execution_guard_audit.cutover_path_eligible = cutover_path_eligible;
+    execution_guard_audit.cutover_executed = cutover_executed;
+    execution_guard_audit.short_circuit_reason =
+        cutover_state.short_circuit_reason;
+    execution_guard_audit.action = cutover_state.action;
+    const auto resolve_cutover_path_blocked_by = [&]() -> std::string
+    {
+        if (cutover_state.skipped && !cutover_state.short_circuit_reason.empty())
+        {
+            return cutover_state.short_circuit_reason;
+        }
+        if (!cutover_gate.target_runtime_cutover_gate_ready)
+        {
+            return "target-runtime-cutover-gate-not-ready";
+        }
+        if (!cutover_state.target_runtime_cutover_ready)
+        {
+            return cutover_state.target_runtime_cutover_block_reason.empty()
+                ? std::string("target-runtime-cutover-not-ready")
+                : cutover_state.target_runtime_cutover_block_reason;
+        }
+        if (!target_runtime_present)
+        {
+            return "target-runtime-not-present";
+        }
+        if (!target_runtime_activated)
+        {
+            return "target-runtime-not-activated";
+        }
+        if (!current_runtime_present)
+        {
+            return "current-runtime-not-present";
+        }
+        if (!cutover_state.target_runtime_cutover_state_reason.empty())
+        {
+            return cutover_state.target_runtime_cutover_state_reason;
+        }
+        return std::string();
+    };
+    execution_guard_audit.cutover_path_blocked_by =
+        resolve_cutover_path_blocked_by();
+    summary
+        .changelevel_player_transfer_target_runtime_cutover_execution_guard_audit =
+        std::move(execution_guard_audit);
     summary.changelevel_player_transfer_target_runtime_cutover_state =
-        BuildChangeLevelPlayerTransferTargetRuntimeCutoverState(
-            summary
-                .changelevel_player_transfer_target_runtime_cutover_gate);
+        std::move(cutover_state);
     RefreshChangeLevelPlayerTransferTargetRuntimeCutoverOutcome(state);
 }
 

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260408_233147",
+  "runInstanceId": "20260408_233147_065_pid19928",
+  "runLabel": "codex-target-runtime-cutover-execution-guard-audit-stop",
+  "promptId": "HL-CL-20260408-105-target-runtime-cutover-execution-guard-audit",
+  "regressionGuard": "changelevel-request-consumed",
+  "stopOnChangelevelRequest": 1,
+  "frames": 1800,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "79d17553ddcbfa4242fe81b2c7d2a3650798387d",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_part01.log"]
+}

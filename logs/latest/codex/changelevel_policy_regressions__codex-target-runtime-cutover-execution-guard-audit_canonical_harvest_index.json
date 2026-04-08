@@ -1,0 +1,33 @@
+﻿{
+    "runLabelPrefix":  "codex-target-runtime-cutover-execution-guard-audit",
+    "generatedByPromptId":  "HL-CL-20260405-094-canonical-harvest-index",
+    "generatedForPromptId":  "HL-CL-20260408-105-target-runtime-cutover-execution-guard-audit",
+    "workingBranch":  "codex/HL-CL-20260401-081-target-runtime-completion-state",
+    "gitCommit":  "79d17553ddcbfa4242fe81b2c7d2a3650798387d",
+    "baseline":  {
+                     "runLabel":  "codex-target-runtime-cutover-execution-guard-audit-baseline",
+                     "sessionId":  "20260408_232753",
+                     "runInstanceId":  "20260408_232753_959_pid25932",
+                     "regressionGuard":  "changelevel-latch-only-continuation",
+                     "stopOnChangelevelRequest":  0,
+                     "sourceRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_part01.log",
+                     "sourceSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\latch_only_continuation\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_summary.log",
+                     "sourceManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_manifest.json",
+                     "canonicalRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_part01.log",
+                     "canonicalSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_summary.log",
+                     "canonicalManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260408_232753_959_pid25932__codex-target-runtime-cutover-execution-guard-audit-baseline_manifest.json"
+                 },
+    "stop":  {
+                 "runLabel":  "codex-target-runtime-cutover-execution-guard-audit-stop",
+                 "sessionId":  "20260408_233147",
+                 "runInstanceId":  "20260408_233147_065_pid19928",
+                 "regressionGuard":  "changelevel-request-consumed",
+                 "stopOnChangelevelRequest":  1,
+                 "sourceRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_part01.log",
+                 "sourceSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\focused_stop_verification\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_summary.log",
+                 "sourceManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\changelevel_policy_regressions\\codex\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_manifest.json",
+                 "canonicalRuntimeFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_part01.log",
+                 "canonicalSummaryFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_summary.log",
+                 "canonicalManifestFile":  "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\codex\\hlhost_20260408_233147_065_pid19928__codex-target-runtime-cutover-execution-guard-audit-stop_manifest.json"
+             }
+}
