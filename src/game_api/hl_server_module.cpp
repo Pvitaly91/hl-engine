@@ -9932,6 +9932,52 @@ std::string FormatChangeLevelPlayerTransferCurrentRuntimeDeactivationStateSummar
     return line;
 }
 
+std::string
+FormatChangeLevelPlayerTransferCurrentRuntimeDeactivationExecutionGuardAuditSummary(
+    const hl::game_api::ChangeLevelTransitionSummary& summary)
+{
+    const hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCurrentRuntimeDeactivationExecutionGuardAuditSummary&
+            execution_guard_audit =
+                summary
+                    .changelevel_player_transfer_current_runtime_deactivation_execution_guard_audit;
+    return std::string("prepared=")
+        + BoolToYesNo(execution_guard_audit.prepared)
+        + ", skipped=" + BoolToYesNo(execution_guard_audit.skipped)
+        + ", decisionSource="
+        + (execution_guard_audit.decision_source.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.decision_source)
+        + ", currentRuntimeDeactivationGateReady="
+        + BoolToYesNo(
+            execution_guard_audit.current_runtime_deactivation_gate_ready)
+        + ", currentRuntimeDeactivationReady="
+        + BoolToYesNo(execution_guard_audit.current_runtime_deactivation_ready)
+        + ", currentRuntimePresent="
+        + BoolToYesNo(execution_guard_audit.current_runtime_present)
+        + ", deactivationOuterGuardSatisfied="
+        + BoolToYesNo(
+            execution_guard_audit.deactivation_outer_guard_satisfied)
+        + ", deactivationInnerGuardSatisfied="
+        + BoolToYesNo(
+            execution_guard_audit.deactivation_inner_guard_satisfied)
+        + ", deactivationPathEligible="
+        + BoolToYesNo(execution_guard_audit.deactivation_path_eligible)
+        + ", deactivationExecuted="
+        + BoolToYesNo(execution_guard_audit.deactivation_executed)
+        + ", deactivationPathBlockedBy="
+        + (execution_guard_audit.deactivation_path_blocked_by.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.deactivation_path_blocked_by)
+        + ", shortCircuitReason="
+        + (execution_guard_audit.short_circuit_reason.empty()
+            ? std::string("<none>")
+            : execution_guard_audit.short_circuit_reason)
+        + ", action="
+        + (execution_guard_audit.action.empty() ? std::string("<none>")
+                                               : execution_guard_audit.action);
+}
+
 std::string FormatChangeLevelPlayerTransferCurrentRuntimeDeactivationOutcomeSummary(
     const hl::game_api::ChangeLevelTransitionSummary& summary)
 {
@@ -19588,6 +19634,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 "  - changelevel_player_transfer_current_runtime_deactivation_state: "
                     + FormatChangeLevelPlayerTransferCurrentRuntimeDeactivationStateSummary(
+                        summary.changelevel_transition));
+        }
+        if (summary.changelevel_transition
+                .changelevel_player_transfer_current_runtime_deactivation_execution_guard_audit
+                .attempted)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "  - changelevel_player_transfer_current_runtime_deactivation_execution_guard_audit: "
+                    + FormatChangeLevelPlayerTransferCurrentRuntimeDeactivationExecutionGuardAuditSummary(
                         summary.changelevel_transition));
         }
         if (summary.changelevel_transition
@@ -40980,10 +41036,82 @@ void RefreshChangeLevelPlayerTransferCurrentRuntimeDeactivationState(
         return;
     }
 
-    summary.changelevel_player_transfer_current_runtime_deactivation_state =
+    const auto& deactivation_gate =
+        summary.changelevel_player_transfer_current_runtime_deactivation_gate;
+    auto deactivation_state =
         BuildChangeLevelPlayerTransferCurrentRuntimeDeactivationState(
-            summary
-                .changelevel_player_transfer_current_runtime_deactivation_gate);
+            deactivation_gate);
+    hl::game_api::ChangeLevelTransitionSummary::
+        ChangeLevelPlayerTransferCurrentRuntimeDeactivationExecutionGuardAuditSummary
+            execution_guard_audit;
+    execution_guard_audit.attempted = true;
+    execution_guard_audit.prepared = deactivation_state.prepared;
+    execution_guard_audit.skipped = deactivation_state.skipped;
+    execution_guard_audit.decision_source = "current-runtime-deactivation-state";
+    execution_guard_audit.current_runtime_deactivation_gate_ready =
+        deactivation_gate.current_runtime_deactivation_gate_ready;
+    execution_guard_audit.current_runtime_deactivation_ready =
+        deactivation_state.current_runtime_deactivation_ready;
+    const bool current_runtime_present =
+        state.server_activation_state.succeeded
+        && !state.server_activation_state.map_name.empty();
+    const bool deactivation_outer_guard_satisfied =
+        deactivation_gate.current_runtime_deactivation_gate_ready
+        && deactivation_state.current_runtime_deactivation_ready;
+    const bool deactivation_inner_guard_satisfied = current_runtime_present;
+    const bool deactivation_path_eligible =
+        deactivation_outer_guard_satisfied && deactivation_inner_guard_satisfied;
+    const bool deactivation_executed = false;
+    execution_guard_audit.current_runtime_present = current_runtime_present;
+    execution_guard_audit.deactivation_outer_guard_satisfied =
+        deactivation_outer_guard_satisfied;
+    execution_guard_audit.deactivation_inner_guard_satisfied =
+        deactivation_inner_guard_satisfied;
+    execution_guard_audit.deactivation_path_eligible =
+        deactivation_path_eligible;
+    execution_guard_audit.deactivation_executed = deactivation_executed;
+    execution_guard_audit.short_circuit_reason =
+        deactivation_state.short_circuit_reason;
+    execution_guard_audit.action = deactivation_state.action;
+    const auto resolve_deactivation_path_blocked_by = [&]() -> std::string
+    {
+        if (deactivation_state.skipped
+            && !deactivation_state.short_circuit_reason.empty())
+        {
+            return deactivation_state.short_circuit_reason;
+        }
+        if (!deactivation_gate.current_runtime_deactivation_gate_ready)
+        {
+            return "current-runtime-deactivation-gate-not-ready";
+        }
+        if (!deactivation_state.current_runtime_deactivation_ready)
+        {
+            return deactivation_state.current_runtime_deactivation_block_reason
+                       .empty()
+                ? std::string("current-runtime-deactivation-not-ready")
+                : deactivation_state.current_runtime_deactivation_block_reason;
+        }
+        if (!current_runtime_present)
+        {
+            return "current-runtime-not-present";
+        }
+        if (!deactivation_state.current_runtime_deactivation_block_reason.empty())
+        {
+            return deactivation_state.current_runtime_deactivation_block_reason;
+        }
+        if (!deactivation_state.current_runtime_deactivation_state_reason.empty())
+        {
+            return deactivation_state.current_runtime_deactivation_state_reason;
+        }
+        return std::string();
+    };
+    execution_guard_audit.deactivation_path_blocked_by =
+        resolve_deactivation_path_blocked_by();
+    summary
+        .changelevel_player_transfer_current_runtime_deactivation_execution_guard_audit =
+        std::move(execution_guard_audit);
+    summary.changelevel_player_transfer_current_runtime_deactivation_state =
+        std::move(deactivation_state);
     RefreshChangeLevelPlayerTransferCurrentRuntimeDeactivationOutcome(state);
 }
 
