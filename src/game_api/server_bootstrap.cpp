@@ -1017,13 +1017,18 @@ void InitializeServerState(
     std::string_view mod_name,
     std::string_view map_name,
     std::string_view hostname,
-    int maxclients)
+    int maxclients,
+    bool dedicated,
+    float deathmatch,
+    float coop)
 {
     state = {};
     state.game_directory = game_directory;
     state.game_directory_utf8 = common::ToUtf8(game_directory);
     state.mod_name = NormalizeModName(mod_name);
     state.hostname = NormalizeHostname(hostname);
+    state.dedicated = dedicated;
+    state.requested_maxclients = NormalizeMaxClients(maxclients);
     state.maxclients = NormalizeMaxClients(maxclients);
     state.map_name = NormalizeMapName(map_name);
     state.startspot.clear();
@@ -1036,8 +1041,8 @@ void InitializeServerState(
     state.server_frame = 0;
     state.time = 0.0f;
     state.frametime = 0.0f;
-    state.deathmatch = 0.0f;
-    state.coop = 0.0f;
+    state.deathmatch = deathmatch == 0.0f ? 0.0f : 1.0f;
+    state.coop = coop == 0.0f ? 0.0f : 1.0f;
 
     state.command_line_args = {
         "hlhost.exe",
@@ -1048,6 +1053,10 @@ void InitializeServerState(
         "--map",
         state.map_name,
     };
+    if (state.dedicated)
+    {
+        state.command_line_args.push_back("-dedicated");
+    }
     state.command_line_tail = JoinArgs(state.command_line_args);
 }
 

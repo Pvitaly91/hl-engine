@@ -63,6 +63,8 @@ struct ServerState
     std::string game_directory_utf8;
     std::string mod_name;
     std::string hostname;
+    bool dedicated = false;
+    int requested_maxclients = 1;
     int maxclients = 1;
     std::string map_name;
     std::string startspot;
@@ -232,7 +234,10 @@ void InitializeServerState(
     std::string_view mod_name,
     std::string_view map_name,
     std::string_view hostname,
-    int maxclients);
+    int maxclients,
+    bool dedicated,
+    float deathmatch,
+    float coop);
 
 void SeedServerCvars(CvarRegistry& registry, const ServerState& state);
 void FinalizeServerState(ServerState& state, const CvarRegistry& registry);

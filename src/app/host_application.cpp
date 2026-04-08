@@ -22446,7 +22446,15 @@ bool HostApplication::RunServerEngineShim(
         ? common::ToUtf8(*options.map_name)
         : "c0a0";
     init_options.hostname = "HLengine Test Server";
-    init_options.maxclients = 1;
+    init_options.runtime_mode =
+        options.runtime_mode == RuntimeMode::kDedicated
+        ? game_api::ServerRuntimeMode::kDedicated
+        : game_api::ServerRuntimeMode::kListenHost;
+    init_options.requested_maxclients = options.maxclients;
+    init_options.maxclients = options.maxclients;
+    init_options.deathmatch = options.deathmatch != 0 ? 1.0f : 0.0f;
+    init_options.coop = options.coop != 0 ? 1.0f : 0.0f;
+    init_options.synthetic_players = options.synthetic_players;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22464,6 +22472,18 @@ bool HostApplication::RunServerEngineShim(
         options.stop_on_changelevel_request;
     init_options.frame_bootstrap.stop_on_node =
         options.stop_on_node.has_value() ? common::ToUtf8(*options.stop_on_node) : std::string();
+
+    common::Logger::Info(
+        common::LogCategory::Startup,
+        "Runtime foundation config: mode="
+        + std::string(
+            init_options.runtime_mode == game_api::ServerRuntimeMode::kDedicated
+                ? "dedicated"
+                : "listen")
+        + ", deathmatch=" + std::to_string(static_cast<int>(init_options.deathmatch))
+        + ", coop=" + std::to_string(static_cast<int>(init_options.coop))
+        + ", maxclients=" + std::to_string(init_options.maxclients)
+        + ", synthetic_players=" + std::to_string(init_options.synthetic_players));
 
     common::Logger::Info(
         common::LogCategory::Startup,
