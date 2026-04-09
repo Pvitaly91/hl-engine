@@ -6015,6 +6015,8 @@ struct DedicatedPlayerSlotSummary
     bool connected = false;
     bool put_in_server = false;
     bool alive = false;
+    bool signon_ready = false;
+    bool bootstrap_delivered = false;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -6061,6 +6063,8 @@ struct DedicatedPlayerLifecycleFoundationSummary
     int connected = 0;
     int put_in_server = 0;
     int spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -6190,6 +6194,54 @@ struct DedicatedActivationProbeSummary
     std::string detail;
 };
 
+struct DedicatedBootstrapSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    bool shared_with_connect = false;
+    bool shared_with_activation = false;
+    std::string protocol_shape = "disabled";
+    bool bootstrap_enabled = false;
+    bool requires_activated_session = true;
+    std::string bootstrap_state = "disabled";
+    std::string bootstrap_payload = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int accepted = 0;
+    int rejected = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedBootstrapProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string parsed_session;
+    int parsed_slot = 0;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string parsed_ruleset;
+    int parsed_spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6211,6 +6263,9 @@ struct HlServerModuleInitOptions
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
+    bool bootstrap_surface_enabled = false;
+    bool bootstrap_probe_enabled = false;
+    std::string bootstrap_probe_scenario = "happy";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6265,6 +6320,8 @@ struct HlServerModuleSummary
     DedicatedConnectProbeSummary dedicated_connect_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
+    DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
+    DedicatedBootstrapProbeSummary dedicated_bootstrap_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };
