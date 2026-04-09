@@ -6023,6 +6023,8 @@ struct DedicatedPlayerSlotSummary
     bool bootstrap_records_staged = false;
     bool signon_template_ready = false;
     bool template_records_delivered = false;
+    bool signon_template_coverage_complete = false;
+    bool remaining_template_records_delivered = false;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -6077,6 +6079,8 @@ struct DedicatedPlayerLifecycleFoundationSummary
     int bootstrap_records_staged = 0;
     int signon_template_ready = 0;
     int template_records_delivered = 0;
+    int signon_template_coverage_complete = 0;
+    int remaining_template_records_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -6432,6 +6436,77 @@ struct DedicatedSignonTemplateProbeSummary
     std::string detail;
 };
 
+struct DedicatedSignonTemplateCompletionSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    bool shared_with_connect = false;
+    bool shared_with_activation = false;
+    bool shared_with_bootstrap = false;
+    bool shared_with_bootstrap_sequence = false;
+    bool shared_with_signon_catalog = false;
+    bool shared_with_signon_template = false;
+    std::string protocol_shape = "disabled";
+    bool completion_enabled = false;
+    bool requires_initially_templated_session = true;
+    std::string completion_payload = "disabled";
+    int completion_records = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int accepted = 0;
+    int rejected = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    int signon_catalog_ready = 0;
+    int bootstrap_records_staged = 0;
+    int signon_template_ready = 0;
+    int template_records_delivered = 0;
+    int signon_template_coverage_complete = 0;
+    int remaining_template_records_delivered = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedSignonTemplateCompletionProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string parsed_session;
+    int parsed_completion_count = 0;
+    int parsed_final_template = -1;
+    std::string parsed_template_ids;
+    std::string parsed_template_byte_lengths;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string parsed_ruleset;
+    int parsed_spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    int signon_catalog_ready = 0;
+    int bootstrap_records_staged = 0;
+    int signon_template_ready = 0;
+    int template_records_delivered = 0;
+    int signon_template_coverage_complete = 0;
+    int remaining_template_records_delivered = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6465,6 +6540,9 @@ struct HlServerModuleInitOptions
     bool signon_template_surface_enabled = false;
     bool signon_template_probe_enabled = false;
     std::string signon_template_probe_scenario = "happy";
+    bool signon_template_completion_surface_enabled = false;
+    bool signon_template_completion_probe_enabled = false;
+    std::string signon_template_completion_probe_scenario = "happy";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6527,6 +6605,8 @@ struct HlServerModuleSummary
     DedicatedSignonCatalogProbeSummary dedicated_signon_catalog_probe;
     DedicatedSignonTemplateSurfaceSummary dedicated_signon_template_surface;
     DedicatedSignonTemplateProbeSummary dedicated_signon_template_probe;
+    DedicatedSignonTemplateCompletionSurfaceSummary dedicated_signon_template_completion_surface;
+    DedicatedSignonTemplateCompletionProbeSummary dedicated_signon_template_completion_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260410_004350",
+  "runInstanceId": "20260410_004350_757_pid11800",
+  "runLabel": "codex-dedicated-goldsrc-signon-template-completion-happy",
+  "promptId": "HL-CL-20260409-118-dedicated-goldsrc-signon-template-completion-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 32,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "d2f8c09011822d89ebab0f5486f2d14815bab8b4",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_004350_757_pid11800__codex-dedicated-goldsrc-signon-template-completion-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_004350_757_pid11800__codex-dedicated-goldsrc-signon-template-completion-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_004350_757_pid11800__codex-dedicated-goldsrc-signon-template-completion-happy_part01.log"]
+}
