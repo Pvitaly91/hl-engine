@@ -208,6 +208,8 @@ enum class DedicatedPlayerLifecycleState
     kTemplateRecordsDelivered,
     kSignonTemplateCoverageComplete,
     kRemainingTemplateRecordsDelivered,
+    kSignonEnvelopeReady,
+    kFramedTemplateRecordsDelivered,
     kDead,
     kRespawned,
     kDisconnected,
@@ -234,9 +236,12 @@ struct DedicatedPlayerRuntimeSlot
     bool template_records_delivered = false;
     bool signon_template_coverage_complete = false;
     bool remaining_template_records_delivered = false;
+    bool signon_envelope_ready = false;
+    bool framed_template_records_delivered = false;
     int bootstrap_sequence_next_step = 0;
     int signon_catalog_next_record = 0;
     int signon_template_next_record = 0;
+    int signon_envelope_next_frame = 0;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -263,6 +268,8 @@ struct DedicatedMultiplayerFoundationRuntime
     int template_records_delivered = 0;
     int signon_template_coverage_complete = 0;
     int remaining_template_records_delivered = 0;
+    int signon_envelope_ready = 0;
+    int framed_template_records_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -510,6 +517,9 @@ struct EngineShimState
     hl::game_api::DedicatedSignonTemplateCompletionProbeSummary
         dedicated_signon_template_completion_probe;
     std::string dedicated_signon_template_completion_probe_scenario = "happy";
+    hl::game_api::DedicatedSignonEnvelopeSurfaceSummary dedicated_signon_envelope_surface;
+    hl::game_api::DedicatedSignonEnvelopeProbeSummary dedicated_signon_envelope_probe;
+    std::string dedicated_signon_envelope_probe_scenario = "happy";
     std::string dedicated_last_external_session_id;
     int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -597,6 +607,10 @@ std::string BuildDedicatedSignonTemplateCompletionSurfaceLine(
     const hl::game_api::DedicatedSignonTemplateCompletionSurfaceSummary& summary);
 std::string BuildDedicatedSignonTemplateCompletionProbeLine(
     const hl::game_api::DedicatedSignonTemplateCompletionProbeSummary& summary);
+std::string BuildDedicatedSignonEnvelopeSurfaceLine(
+    const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& summary);
+std::string BuildDedicatedSignonEnvelopeProbeLine(
+    const hl::game_api::DedicatedSignonEnvelopeProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -617,7 +631,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonTemplateCompletionSurfaceSummary&
         signon_template_completion_surface,
     const hl::game_api::DedicatedSignonTemplateCompletionProbeSummary&
-        signon_template_completion_probe);
+        signon_template_completion_probe,
+    const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& signon_envelope_surface,
+    const hl::game_api::DedicatedSignonEnvelopeProbeSummary& signon_envelope_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -19052,6 +19068,9 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + std::to_string(summary.signon_template_coverage_complete)
         + ", remainingTemplateRecordsDelivered="
         + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
         + ", deaths=" + std::to_string(summary.deaths)
         + ", respawns=" + std::to_string(summary.respawns)
         + ", disconnected=" + std::to_string(summary.disconnected)
@@ -19491,6 +19510,96 @@ std::string BuildDedicatedSignonTemplateCompletionProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedSignonEnvelopeSurfaceLine(
+    const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& summary)
+{
+    return "dedicated_signon_envelope_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", sharedWithActivation=" + BoolToYesNo(summary.shared_with_activation)
+        + ", sharedWithBootstrap=" + BoolToYesNo(summary.shared_with_bootstrap)
+        + ", sharedWithBootstrapSequence="
+        + BoolToYesNo(summary.shared_with_bootstrap_sequence)
+        + ", sharedWithSignonCatalog=" + BoolToYesNo(summary.shared_with_signon_catalog)
+        + ", sharedWithSignonTemplate=" + BoolToYesNo(summary.shared_with_signon_template)
+        + ", sharedWithSignonTemplateCompletion="
+        + BoolToYesNo(summary.shared_with_signon_template_completion)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", envelopeEnabled=" + BoolToYesNo(summary.envelope_enabled)
+        + ", requiresTemplateCoverageComplete="
+        + BoolToYesNo(summary.requires_template_coverage_complete)
+        + ", envelopePayload=" + summary.envelope_payload
+        + ", envelopeFrames=" + std::to_string(summary.envelope_frames)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedSignonEnvelopeProbeLine(
+    const hl::game_api::DedicatedSignonEnvelopeProbeSummary& summary)
+{
+    return "dedicated_signon_envelope_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", parsedSession="
+        + (summary.parsed_session.empty() ? std::string("<unset>") : summary.parsed_session)
+        + ", parsedFrameCount=" + std::to_string(summary.parsed_frame_count)
+        + ", parsedFinalFrame=" + std::to_string(summary.parsed_final_frame)
+        + ", parsedFrameIds="
+        + (summary.parsed_frame_ids.empty() ? std::string("<unset>") : summary.parsed_frame_ids)
+        + ", parsedFrameByteLengths="
+        + (summary.parsed_frame_byte_lengths.empty()
+            ? std::string("<unset>")
+            : summary.parsed_frame_byte_lengths)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName=" + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", parsedRuleset="
+        + (summary.parsed_ruleset.empty() ? std::string("<unset>") : summary.parsed_ruleset)
+        + ", parsedSpawned=" + std::to_string(summary.parsed_spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -19511,7 +19620,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonTemplateCompletionSurfaceSummary&
         signon_template_completion_surface,
     const hl::game_api::DedicatedSignonTemplateCompletionProbeSummary&
-        signon_template_completion_probe)
+        signon_template_completion_probe,
+    const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& signon_envelope_surface,
+    const hl::game_api::DedicatedSignonEnvelopeProbeSummary& signon_envelope_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -19566,8 +19677,29 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_template_completion_probe.template_records_delivered > 0
         && signon_template_completion_probe.signon_template_coverage_complete > 0
         && signon_template_completion_probe.remaining_template_records_delivered > 0;
+    const bool signon_envelope_probe_ready =
+        signon_envelope_surface.enabled
+        && signon_envelope_surface.bound_port > 0
+        && signon_envelope_probe.enabled
+        && signon_envelope_probe.accepted > 0
+        && signon_envelope_probe.parsed_frame_count >= 4
+        && signon_envelope_probe.parsed_final_frame >= 3
+        && !signon_envelope_probe.parsed_frame_ids.empty()
+        && !signon_envelope_probe.parsed_frame_byte_lengths.empty()
+        && signon_envelope_probe.signon_template_ready > 0
+        && signon_envelope_probe.template_records_delivered > 0
+        && signon_envelope_probe.signon_template_coverage_complete > 0
+        && signon_envelope_probe.remaining_template_records_delivered > 0
+        && signon_envelope_probe.signon_envelope_ready > 0
+        && signon_envelope_probe.framed_template_records_delivered > 0;
 
     const std::string implemented =
+        query_probe_ready && connect_probe_ready && activation_probe_ready
+            && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+            && signon_catalog_probe_ready && signon_template_probe_ready
+            && signon_template_completion_probe_ready && signon_envelope_probe_ready
+        ? "implemented dedicated foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, loopback bootstrap descriptor state, loopback ordered bootstrap-sequence descriptor state, loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state, loopback first byte-shaped signon-template delivery, loopback remaining byte-shaped signon-template completion, and loopback signon-envelope/record-framing delivery for the now fully covered pre-snapshot template set of accepted external sessions"
+        :
         query_probe_ready && connect_probe_ready && activation_probe_ready
             && bootstrap_probe_ready && bootstrap_sequence_probe_ready
             && signon_catalog_probe_ready && signon_template_probe_ready
@@ -19607,7 +19739,7 @@ std::string BuildDedicatedMultiplayerReadinessLine(
 
     return "dedicated_multiplayer_readiness: " + implemented
         + "; out_of_scope=real auth/session-validation/real-signon-bytes-compatibility/netchan/real-baselines/snapshots/gameplay-transport/replication/SteamNetworking"
-        + "; next=implement narrow wire-compatible envelope / record framing for the now fully covered pre-snapshot signon template set on the same authoritative slot state machine";
+        + "; next=implement narrow wire-compatible header/body mapping or first pseudo-packet batch emission for the framed pre-snapshot signon record set on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19991,6 +20123,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildDedicatedSignonTemplateCompletionProbeLine(
                     summary.dedicated_signon_template_completion_probe));
+        }
+        if (summary.dedicated_signon_envelope_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonEnvelopeSurfaceLine(
+                    summary.dedicated_signon_envelope_surface));
+        }
+        if (summary.dedicated_signon_envelope_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonEnvelopeProbeLine(
+                    summary.dedicated_signon_envelope_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -44190,6 +44336,10 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         return "signon_template_coverage_complete";
     case DedicatedPlayerLifecycleState::kRemainingTemplateRecordsDelivered:
         return "remaining_template_records_delivered";
+    case DedicatedPlayerLifecycleState::kSignonEnvelopeReady:
+        return "signon_envelope_ready";
+    case DedicatedPlayerLifecycleState::kFramedTemplateRecordsDelivered:
+        return "framed_template_records_delivered";
     case DedicatedPlayerLifecycleState::kDead:
         return "dead";
     case DedicatedPlayerLifecycleState::kRespawned:
@@ -44574,6 +44724,39 @@ void RecordDedicatedLifecycleTransition(
         slot_state.template_records_delivered = true;
         slot_state.signon_template_coverage_complete = true;
         slot_state.remaining_template_records_delivered = true;
+        break;
+    case DedicatedPlayerLifecycleState::kSignonEnvelopeReady:
+        ++runtime.signon_envelope_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        break;
+    case DedicatedPlayerLifecycleState::kFramedTemplateRecordsDelivered:
+        ++runtime.framed_template_records_delivered;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        slot_state.framed_template_records_delivered = true;
         break;
     case DedicatedPlayerLifecycleState::kDead:
         ++runtime.deaths;
@@ -45435,6 +45618,134 @@ bool AdvanceDedicatedLoopbackSignonTemplateCompletionRecord(
     return true;
 }
 
+bool AdvanceDedicatedLoopbackSignonEnvelopeFrame(
+    EngineShimState& state,
+    std::string_view session_id,
+    int requested_frame,
+    bool count_surface_result,
+    int* envelope_slot,
+    std::string* reject_reason)
+{
+    static constexpr int kSignonEnvelopeFrames = 4;
+    static constexpr int kSignonEnvelopeFinalFrame = kSignonEnvelopeFrames - 1;
+
+    if (envelope_slot != nullptr)
+    {
+        *envelope_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    const auto reject = [&](std::string reason) -> bool
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_signon_envelope_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(reason);
+        }
+        return false;
+    };
+
+    DedicatedPlayerRuntimeSlot* slot_state = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        session_id);
+    if (slot_state == nullptr)
+    {
+        return reject("unknown-session");
+    }
+
+    if (!slot_state->external_loopback_admission)
+    {
+        return reject("not-external-admission");
+    }
+
+    if (!slot_state->connected
+        || !slot_state->put_in_server
+        || !slot_state->alive
+        || slot_state->spawn_count <= 0)
+    {
+        return reject("not-activated");
+    }
+
+    if (!slot_state->signon_ready || !slot_state->bootstrap_delivered)
+    {
+        return reject("not-bootstrapped");
+    }
+
+    if (!slot_state->baseline_ready || !slot_state->bootstrap_sequence_completed)
+    {
+        return reject("not-sequenced");
+    }
+
+    if (!slot_state->signon_catalog_ready || !slot_state->bootstrap_records_staged)
+    {
+        return reject("not-cataloged");
+    }
+
+    if (!slot_state->signon_template_ready || !slot_state->template_records_delivered)
+    {
+        return reject("not-initially-templated");
+    }
+
+    if (!slot_state->signon_template_coverage_complete
+        || !slot_state->remaining_template_records_delivered)
+    {
+        return reject("template-coverage-incomplete");
+    }
+
+    if (slot_state->framed_template_records_delivered || slot_state->signon_envelope_ready)
+    {
+        return reject("already-framed");
+    }
+
+    if (requested_frame < 0 || requested_frame >= kSignonEnvelopeFrames)
+    {
+        return reject("invalid-frame");
+    }
+
+    if (requested_frame != slot_state->signon_envelope_next_frame)
+    {
+        return reject("unexpected-frame");
+    }
+
+    if (requested_frame < kSignonEnvelopeFinalFrame)
+    {
+        ++slot_state->signon_envelope_next_frame;
+        if (envelope_slot != nullptr)
+        {
+            *envelope_slot = slot_state->slot;
+        }
+        return true;
+    }
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kSignonEnvelopeReady,
+        "loopback signon-envelope final frame marked fully templated external session signon_envelope_ready");
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kFramedTemplateRecordsDelivered,
+        "loopback ordered framed template records delivered; real signon wire compatibility intentionally pending");
+    slot_state->signon_envelope_next_frame = kSignonEnvelopeFrames;
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_signon_envelope_surface.accepted;
+    }
+    if (envelope_slot != nullptr)
+    {
+        *envelope_slot = slot_state->slot;
+    }
+    return true;
+}
+
 void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
 {
     const int clamped_target =
@@ -45745,6 +46056,62 @@ void RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(EngineShimState& st
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,full-template-coverage-real-signon-wire-pending"
         : "loopback-bind-pending,full-template-coverage-real-signon-wire-pending";
+}
+
+void RefreshDedicatedSignonEnvelopeSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& surface =
+        state.dedicated_signon_envelope_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.shared_with_activation = state.dedicated_activation_surface.enabled;
+    surface.shared_with_bootstrap = state.dedicated_bootstrap_surface.enabled;
+    surface.shared_with_bootstrap_sequence = state.dedicated_bootstrap_sequence_surface.enabled;
+    surface.shared_with_signon_catalog = state.dedicated_signon_catalog_surface.enabled;
+    surface.shared_with_signon_template = state.dedicated_signon_template_surface.enabled;
+    surface.shared_with_signon_template_completion =
+        state.dedicated_signon_template_completion_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-signon-envelope-framed-records";
+    surface.envelope_enabled = true;
+    surface.requires_template_coverage_complete = true;
+    surface.envelope_payload =
+        "frame0-header+server-map-rules-slot-template-bytes;frame1-header+resource-precache-summary-template-bytes;frame2-header+player-session-spawn-baseline-summary-template-bytes;frame3-header+completion-staged-records-ready-template-bytes";
+    surface.envelope_frames = 4;
+    surface.auth = "none-loopback-post-template-coverage-only";
+    surface.signon = "framed-template-records-only";
+    surface.gameplay_transport = "no";
+    surface.signon_ready = state.dedicated_multiplayer_foundation.signon_ready;
+    surface.bootstrap_delivered = state.dedicated_multiplayer_foundation.bootstrap_delivered;
+    surface.baseline_ready = state.dedicated_multiplayer_foundation.baseline_ready;
+    surface.bootstrap_sequence_completed =
+        state.dedicated_multiplayer_foundation.bootstrap_sequence_completed;
+    surface.signon_catalog_ready = state.dedicated_multiplayer_foundation.signon_catalog_ready;
+    surface.bootstrap_records_staged =
+        state.dedicated_multiplayer_foundation.bootstrap_records_staged;
+    surface.signon_template_ready =
+        state.dedicated_multiplayer_foundation.signon_template_ready;
+    surface.template_records_delivered =
+        state.dedicated_multiplayer_foundation.template_records_delivered;
+    surface.signon_template_coverage_complete =
+        state.dedicated_multiplayer_foundation.signon_template_coverage_complete;
+    surface.remaining_template_records_delivered =
+        state.dedicated_multiplayer_foundation.remaining_template_records_delivered;
+    surface.signon_envelope_ready =
+        state.dedicated_multiplayer_foundation.signon_envelope_ready;
+    surface.framed_template_records_delivered =
+        state.dedicated_multiplayer_foundation.framed_template_records_delivered;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,framed-records-real-signon-wire-pending"
+        : "loopback-bind-pending,framed-records-real-signon-wire-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -46500,6 +46867,33 @@ std::vector<unsigned char> BuildDedicatedSignonTemplateBytes(
     return bytes;
 }
 
+std::vector<unsigned char> BuildDedicatedSignonEnvelopeFrameBytes(
+    const EngineShimState& state,
+    const DedicatedPlayerRuntimeSlot& slot_state,
+    int requested_frame)
+{
+    static constexpr unsigned char kTotalFrameCount = 4u;
+    std::vector<unsigned char> payload =
+        BuildDedicatedSignonTemplateBytes(state, slot_state, requested_frame);
+    if (payload.empty())
+    {
+        return {};
+    }
+
+    std::vector<unsigned char> bytes;
+    bytes.reserve(9 + payload.size());
+    bytes.push_back('H');
+    bytes.push_back('L');
+    bytes.push_back('E');
+    bytes.push_back('F');
+    bytes.push_back(static_cast<unsigned char>(std::max(requested_frame, 0)));
+    bytes.push_back(static_cast<unsigned char>(std::max(requested_frame, 0)));
+    AppendLittleEndianShort(bytes, static_cast<unsigned int>(payload.size()));
+    bytes.push_back(kTotalFrameCount);
+    bytes.insert(bytes.end(), payload.begin(), payload.end());
+    return bytes;
+}
+
 bool ParseSignonTemplateAcceptedResponseText(
     std::string_view text,
     hl::game_api::DedicatedSignonTemplateProbeSummary* probe,
@@ -46778,6 +47172,190 @@ bool ParseSignonTemplateCompletionRejectResponseText(
 {
     static constexpr std::string_view kPrefix =
         "signon_template_completion_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    if (players_marker == std::string_view::npos || players_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+    return true;
+}
+
+bool ParseSignonEnvelopeAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedSignonEnvelopeProbeSummary* probe,
+    int* parsed_frame_index)
+{
+    if (probe == nullptr || !StartsWithText(text, "signon_envelope "))
+    {
+        return false;
+    }
+
+    const std::string session = ExtractTokenValue(text, "session=");
+    const std::string frame_index = ExtractTokenValue(text, "frameIndex=");
+    const std::string record_id = ExtractTokenValue(text, "recordId=");
+    const std::string payload_byte_length = ExtractTokenValue(text, "payloadByteLength=");
+    const std::string total_frame_count = ExtractTokenValue(text, "totalFrameCount=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    const std::string signon_ready = ExtractTokenValue(text, "signonReady=");
+    const std::string bootstrap_delivered = ExtractTokenValue(text, "bootstrapDelivered=");
+    const std::string baseline_ready = ExtractTokenValue(text, "baselineReady=");
+    const std::string bootstrap_sequence_completed =
+        ExtractTokenValue(text, "bootstrapSequenceCompleted=");
+    const std::string signon_catalog_ready = ExtractTokenValue(text, "signonCatalogReady=");
+    const std::string bootstrap_records_staged =
+        ExtractTokenValue(text, "bootstrapRecordsStaged=");
+    const std::string signon_template_ready = ExtractTokenValue(text, "signonTemplateReady=");
+    const std::string template_records_delivered =
+        ExtractTokenValue(text, "templateRecordsDelivered=");
+    const std::string signon_template_coverage_complete =
+        ExtractTokenValue(text, "signonTemplateCoverageComplete=");
+    const std::string remaining_template_records_delivered =
+        ExtractTokenValue(text, "remainingTemplateRecordsDelivered=");
+    const std::string signon_envelope_ready =
+        ExtractTokenValue(text, "signonEnvelopeReady=");
+    const std::string framed_template_records_delivered =
+        ExtractTokenValue(text, "framedTemplateRecordsDelivered=");
+    const std::string frame_bytes = ExtractTokenValue(text, "frameBytes=");
+    if (session.empty()
+        || frame_index.empty()
+        || record_id.empty()
+        || payload_byte_length.empty()
+        || total_frame_count.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty()
+        || signon_ready.empty()
+        || bootstrap_delivered.empty()
+        || baseline_ready.empty()
+        || bootstrap_sequence_completed.empty()
+        || signon_catalog_ready.empty()
+        || bootstrap_records_staged.empty()
+        || signon_template_ready.empty()
+        || template_records_delivered.empty()
+        || signon_template_coverage_complete.empty()
+        || remaining_template_records_delivered.empty()
+        || signon_envelope_ready.empty()
+        || framed_template_records_delivered.empty()
+        || frame_bytes.empty())
+    {
+        return false;
+    }
+
+    const int parsed_frame = std::atoi(frame_index.c_str());
+    if (parsed_frame_index != nullptr)
+    {
+        *parsed_frame_index = parsed_frame;
+    }
+
+    std::vector<unsigned char> decoded_bytes;
+    if (!TryDecodeUpperHex(frame_bytes, &decoded_bytes))
+    {
+        return false;
+    }
+
+    const int parsed_record_id = std::atoi(record_id.c_str());
+    const int parsed_payload_byte_length = std::atoi(payload_byte_length.c_str());
+    const int parsed_total_frame_count = std::atoi(total_frame_count.c_str());
+    if (decoded_bytes.size() < 9
+        || decoded_bytes[0] != 'H'
+        || decoded_bytes[1] != 'L'
+        || decoded_bytes[2] != 'E'
+        || decoded_bytes[3] != 'F'
+        || decoded_bytes[4] != static_cast<unsigned char>(parsed_frame)
+        || decoded_bytes[5] != static_cast<unsigned char>(parsed_record_id))
+    {
+        return false;
+    }
+
+    const int decoded_payload_length =
+        static_cast<int>(decoded_bytes[6])
+        | (static_cast<int>(decoded_bytes[7]) << 8);
+    if (decoded_payload_length != parsed_payload_byte_length
+        || decoded_bytes[8] != static_cast<unsigned char>(parsed_total_frame_count)
+        || static_cast<int>(decoded_bytes.size()) != 9 + parsed_payload_byte_length
+        || parsed_payload_byte_length < 4
+        || decoded_bytes[9] != 'H'
+        || decoded_bytes[10] != 'L'
+        || decoded_bytes[11] != 'T'
+        || decoded_bytes[12] != static_cast<unsigned char>('0' + parsed_record_id))
+    {
+        return false;
+    }
+
+    probe->parsed_session = session;
+    probe->parsed_frame_count = parsed_total_frame_count;
+    probe->parsed_final_frame = parsed_total_frame_count - 1;
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+    probe->signon_ready = std::atoi(signon_ready.c_str());
+    probe->bootstrap_delivered = std::atoi(bootstrap_delivered.c_str());
+    probe->baseline_ready = std::atoi(baseline_ready.c_str());
+    probe->bootstrap_sequence_completed = std::atoi(bootstrap_sequence_completed.c_str());
+    probe->signon_catalog_ready = std::atoi(signon_catalog_ready.c_str());
+    probe->bootstrap_records_staged = std::atoi(bootstrap_records_staged.c_str());
+    probe->signon_template_ready = std::atoi(signon_template_ready.c_str());
+    probe->template_records_delivered = std::atoi(template_records_delivered.c_str());
+    probe->signon_template_coverage_complete =
+        std::atoi(signon_template_coverage_complete.c_str());
+    probe->remaining_template_records_delivered =
+        std::atoi(remaining_template_records_delivered.c_str());
+    probe->signon_envelope_ready = std::atoi(signon_envelope_ready.c_str());
+    probe->framed_template_records_delivered =
+        std::atoi(framed_template_records_delivered.c_str());
+    if (!probe->parsed_frame_ids.empty())
+    {
+        probe->parsed_frame_ids += "|";
+    }
+    probe->parsed_frame_ids += std::to_string(parsed_record_id);
+    if (!probe->parsed_frame_byte_lengths.empty())
+    {
+        probe->parsed_frame_byte_lengths += "|";
+    }
+    probe->parsed_frame_byte_lengths += std::to_string(parsed_payload_byte_length);
+
+    const bool final_frame_response = parsed_frame == (probe->parsed_frame_count - 1);
+    return parsed_frame >= 0
+        && parsed_record_id >= 0
+        && probe->parsed_frame_count >= 4
+        && probe->parsed_spawned > 0
+        && probe->signon_ready > 0
+        && probe->bootstrap_delivered > 0
+        && probe->baseline_ready > 0
+        && probe->bootstrap_sequence_completed > 0
+        && probe->signon_catalog_ready > 0
+        && probe->bootstrap_records_staged > 0
+        && probe->signon_template_ready > 0
+        && probe->template_records_delivered > 0
+        && probe->signon_template_coverage_complete > 0
+        && probe->remaining_template_records_delivered > 0
+        && (final_frame_response
+            ? (probe->signon_envelope_ready > 0
+                && probe->framed_template_records_delivered > 0)
+            : (probe->signon_envelope_ready == 0
+                && probe->framed_template_records_delivered == 0));
+}
+
+bool ParseSignonEnvelopeRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix = "signon_envelope_reject reason=";
     if (!StartsWithText(text, kPrefix))
     {
         return false;
@@ -48619,6 +49197,254 @@ bool PumpOneLoopbackSignonTemplateCompletionFlow(
         && probe->signon_template_coverage_complete > 0
         && probe->remaining_template_records_delivered > 0;
 }
+
+bool PumpOneLoopbackSignonEnvelopeFrameAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    int requested_frame,
+    bool expect_accept,
+    hl::game_api::DedicatedSignonEnvelopeProbeSummary* probe)
+{
+    static constexpr int kEnvelopeFrames = 4;
+
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail =
+            "signon envelope probe socket() failed WSA="
+            + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string envelope_session =
+        session_id.empty()
+        ? std::string("invalid_signon_envelope_session")
+        : std::string(session_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "signon_envelope session=" + envelope_session
+                + " frame=" + std::to_string(requested_frame),
+            &probe->detail,
+            "signon envelope probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in envelope_client_address{};
+    int envelope_client_address_size = sizeof(envelope_client_address);
+    std::string envelope_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &envelope_request,
+            &envelope_client_address,
+            &envelope_client_address_size,
+            &probe->detail,
+            "signon envelope surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(envelope_request, "signon_envelope "))
+    {
+        probe->detail =
+            "signon envelope surface received unexpected request: "
+            + envelope_request;
+        return false;
+    }
+
+    const std::string request_session = ExtractTokenValue(envelope_request, "session=");
+    const std::string request_frame_text = ExtractTokenValue(envelope_request, "frame=");
+    const int request_frame =
+        request_frame_text.empty() ? -1 : std::atoi(request_frame_text.c_str());
+
+    int envelope_slot = 0;
+    std::string reject_reason;
+    const bool envelope_accepted = AdvanceDedicatedLoopbackSignonEnvelopeFrame(
+        state,
+        request_session,
+        request_frame,
+        true,
+        &envelope_slot,
+        &reject_reason);
+
+    RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+    RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const DedicatedPlayerRuntimeSlot* slot_state = envelope_accepted
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            request_session)
+        : nullptr;
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::vector<unsigned char> frame_bytes =
+        envelope_accepted && slot_state != nullptr
+        ? BuildDedicatedSignonEnvelopeFrameBytes(state, *slot_state, request_frame)
+        : std::vector<unsigned char>();
+    const std::vector<unsigned char> payload_bytes =
+        envelope_accepted && slot_state != nullptr
+        ? BuildDedicatedSignonTemplateBytes(state, *slot_state, request_frame)
+        : std::vector<unsigned char>();
+    const std::string envelope_response =
+        envelope_accepted && slot_state != nullptr
+            && !frame_bytes.empty() && !payload_bytes.empty()
+        ? "signon_envelope session=" + request_session
+            + " frameIndex=" + std::to_string(request_frame)
+            + " recordId=" + std::to_string(request_frame)
+            + " payloadByteLength=" + std::to_string(static_cast<int>(payload_bytes.size()))
+            + " totalFrameCount=" + std::to_string(kEnvelopeFrames)
+            + " map="
+            + (state.server_state.map_name.empty() ? std::string("c0a0") : state.server_state.map_name)
+            + " name="
+            + (slot_state->player_name.empty() ? std::string("loopback_player") : slot_state->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " maxplayers=" + std::to_string(max_players)
+            + " spawned=" + std::to_string(slot_state->spawn_count > 0 ? 1 : 0)
+            + " signonReady=" + std::to_string(slot_state->signon_ready ? 1 : 0)
+            + " bootstrapDelivered=" + std::to_string(slot_state->bootstrap_delivered ? 1 : 0)
+            + " baselineReady=" + std::to_string(slot_state->baseline_ready ? 1 : 0)
+            + " bootstrapSequenceCompleted="
+            + std::to_string(slot_state->bootstrap_sequence_completed ? 1 : 0)
+            + " signonCatalogReady=" + std::to_string(slot_state->signon_catalog_ready ? 1 : 0)
+            + " bootstrapRecordsStaged="
+            + std::to_string(slot_state->bootstrap_records_staged ? 1 : 0)
+            + " signonTemplateReady=" + std::to_string(slot_state->signon_template_ready ? 1 : 0)
+            + " templateRecordsDelivered="
+            + std::to_string(slot_state->template_records_delivered ? 1 : 0)
+            + " signonTemplateCoverageComplete="
+            + std::to_string(slot_state->signon_template_coverage_complete ? 1 : 0)
+            + " remainingTemplateRecordsDelivered="
+            + std::to_string(slot_state->remaining_template_records_delivered ? 1 : 0)
+            + " signonEnvelopeReady="
+            + std::to_string(slot_state->signon_envelope_ready ? 1 : 0)
+            + " framedTemplateRecordsDelivered="
+            + std::to_string(slot_state->framed_template_records_delivered ? 1 : 0)
+            + " frameBytes=" + EncodeUpperHex(frame_bytes)
+            + " payload=" + DedicatedSignonTemplatePayloadName(request_frame)
+        : "signon_envelope_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            envelope_client_address,
+            envelope_client_address_size,
+            envelope_response,
+            &probe->detail,
+            "signon envelope surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_envelope_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_envelope_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "signon envelope probe response"))
+    {
+        return false;
+    }
+
+    int parsed_frame_index = -1;
+    if (ParseSignonEnvelopeAcceptedResponseText(
+            parsed_envelope_response,
+            probe,
+            &parsed_frame_index))
+    {
+        if (parsed_frame_index == probe->parsed_final_frame
+            && probe->signon_envelope_ready > 0
+            && probe->framed_template_records_delivered > 0)
+        {
+            ++probe->accepted;
+        }
+    }
+    else if (std::string parsed_reject_reason;
+             ParseSignonEnvelopeRejectResponseText(
+                 parsed_envelope_response,
+                 &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail =
+            "signon envelope probe could not parse response: "
+            + parsed_envelope_response;
+        return false;
+    }
+
+    if (envelope_accepted != expect_accept)
+    {
+        probe->detail =
+            std::string("signon envelope expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_envelope_response;
+        return false;
+    }
+
+    probe->detail = "loopback signon envelope probe frame="
+        + std::to_string(requested_frame)
+        + " completed on 127.0.0.1:" + std::to_string(bound_port);
+    return true;
+}
+
+bool PumpOneLoopbackSignonEnvelopeFlow(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    hl::game_api::DedicatedSignonEnvelopeProbeSummary* probe)
+{
+    for (int frame_index = 0; frame_index < 4; ++frame_index)
+    {
+        if (!PumpOneLoopbackSignonEnvelopeFrameAttempt(
+                state,
+                server_socket,
+                bound_port,
+                session_id,
+                frame_index,
+                true,
+                probe))
+        {
+            return false;
+        }
+    }
+
+    return probe != nullptr
+        && probe->accepted > 0
+        && probe->parsed_frame_count >= 4
+        && probe->parsed_final_frame >= 3
+        && !probe->parsed_frame_ids.empty()
+        && !probe->parsed_frame_byte_lengths.empty()
+        && probe->signon_template_coverage_complete > 0
+        && probe->remaining_template_records_delivered > 0
+        && probe->signon_envelope_ready > 0
+        && probe->framed_template_records_delivered > 0;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -48662,6 +49488,10 @@ void PerformDedicatedQuerySurface()
     hl::game_api::DedicatedSignonTemplateCompletionProbeSummary&
         signon_template_completion_probe =
             state.dedicated_signon_template_completion_probe;
+    hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& signon_envelope_surface =
+        state.dedicated_signon_envelope_surface;
+    hl::game_api::DedicatedSignonEnvelopeProbeSummary& signon_envelope_probe =
+        state.dedicated_signon_envelope_probe;
 
     if (probe.enabled)
     {
@@ -48756,6 +49586,19 @@ void PerformDedicatedQuerySurface()
         signon_template_completion_probe.compatibility =
             "loopback-pending,full-template-coverage-real-signon-wire-pending";
     }
+    if (signon_envelope_surface.enabled)
+    {
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+    }
+    if (signon_envelope_probe.enabled)
+    {
+        signon_envelope_probe.mode = "dedicated";
+        signon_envelope_probe.probe = "loopback";
+        signon_envelope_probe.protocol_shape =
+            "goldsrc-like-connectionless-signon-envelope-framed-records";
+        signon_envelope_probe.compatibility =
+            "loopback-pending,framed-records-real-signon-wire-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -48792,6 +49635,10 @@ void PerformDedicatedQuerySurface()
         if (signon_template_completion_probe.enabled)
         {
             signon_template_completion_probe.detail = surface.detail;
+        }
+        if (signon_envelope_probe.enabled)
+        {
+            signon_envelope_probe.detail = surface.detail;
         }
         return;
     }
@@ -48835,6 +49682,10 @@ void PerformDedicatedQuerySurface()
         if (signon_template_completion_probe.enabled)
         {
             signon_template_completion_probe.detail = surface.detail;
+        }
+        if (signon_envelope_probe.enabled)
+        {
+            signon_envelope_probe.detail = surface.detail;
         }
         return;
     }
@@ -48889,6 +49740,13 @@ void PerformDedicatedQuerySurface()
         signon_template_completion_surface.detail =
             "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template surfaces";
         RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+    }
+    if (signon_envelope_surface.enabled)
+    {
+        signon_envelope_surface.bound_port = bound_port;
+        signon_envelope_surface.detail =
+            "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template/signon-template-completion surfaces";
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
     }
 
     bool activation_ok = true;
@@ -48994,6 +49852,29 @@ void PerformDedicatedQuerySurface()
             2,
             false,
             &signon_template_completion_probe);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+    }
+
+    bool signon_envelope_ok = true;
+    if (signon_envelope_probe.enabled
+        && state.dedicated_signon_envelope_probe_scenario == "gate")
+    {
+        signon_envelope_ok = PumpOneLoopbackSignonEnvelopeFrameAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_signon_envelope_session",
+            0,
+            false,
+            &signon_envelope_probe);
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
         RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
         RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
         RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
@@ -49373,6 +50254,74 @@ void PerformDedicatedQuerySurface()
             : "loopback-probe-failed,full-template-coverage-real-signon-wire-pending";
     }
 
+    if (signon_envelope_probe.enabled)
+    {
+        if (signon_envelope_ok
+            && activation_ok
+            && connect_ok
+            && bootstrap_ok
+            && bootstrap_sequence_ok
+            && signon_catalog_ok
+            && signon_template_ok
+            && signon_template_completion_ok
+            && state.dedicated_signon_envelope_probe_scenario == "gate")
+        {
+            signon_envelope_ok = PumpOneLoopbackSignonEnvelopeFrameAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                1,
+                false,
+                &signon_envelope_probe);
+        }
+        if (signon_envelope_ok
+            && activation_ok
+            && connect_ok
+            && bootstrap_ok
+            && bootstrap_sequence_ok
+            && signon_catalog_ok
+            && signon_template_ok
+            && signon_template_completion_ok)
+        {
+            signon_envelope_ok = PumpOneLoopbackSignonEnvelopeFlow(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                &signon_envelope_probe);
+        }
+        if (signon_envelope_ok
+            && state.dedicated_signon_envelope_probe_scenario == "gate")
+        {
+            signon_envelope_ok = PumpOneLoopbackSignonEnvelopeFrameAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                3,
+                false,
+                &signon_envelope_probe);
+        }
+
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        signon_envelope_probe.protocol_shape = signon_envelope_surface.protocol_shape;
+        signon_envelope_probe.compatibility = signon_envelope_ok
+            ? "loopback-verified,framed-records-real-signon-wire-pending"
+            : "loopback-probe-failed,framed-records-real-signon-wire-pending";
+        signon_envelope_surface.compatibility = signon_envelope_ok
+            ? "loopback-verified,framed-records-real-signon-wire-pending"
+            : "loopback-probe-failed,framed-records-real-signon-wire-pending";
+    }
+
     if (probe.enabled)
     {
         const bool probe_ok =
@@ -49462,6 +50411,16 @@ void PerformDedicatedQuerySurface()
     {
         signon_template_completion_probe.detail = surface.detail;
         signon_template_completion_probe.compatibility = surface.compatibility;
+    }
+    if (signon_envelope_surface.enabled)
+    {
+        signon_envelope_surface.detail = surface.detail;
+        signon_envelope_surface.compatibility = surface.compatibility;
+    }
+    if (signon_envelope_probe.enabled)
+    {
+        signon_envelope_probe.detail = surface.detail;
+        signon_envelope_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -53556,6 +54515,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_signon_template_probe = {};
     summary.dedicated_signon_template_completion_surface = {};
     summary.dedicated_signon_template_completion_probe = {};
+    summary.dedicated_signon_envelope_surface = {};
+    summary.dedicated_signon_envelope_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -53620,6 +54581,10 @@ void PopulateBootstrapSummary(
             state.dedicated_multiplayer_foundation.signon_template_coverage_complete;
         summary.dedicated_player_lifecycle_foundation.remaining_template_records_delivered =
             state.dedicated_multiplayer_foundation.remaining_template_records_delivered;
+        summary.dedicated_player_lifecycle_foundation.signon_envelope_ready =
+            state.dedicated_multiplayer_foundation.signon_envelope_ready;
+        summary.dedicated_player_lifecycle_foundation.framed_template_records_delivered =
+            state.dedicated_multiplayer_foundation.framed_template_records_delivered;
         summary.dedicated_player_lifecycle_foundation.deaths =
             state.dedicated_multiplayer_foundation.deaths;
         summary.dedicated_player_lifecycle_foundation.respawns =
@@ -53661,6 +54626,8 @@ void PopulateBootstrapSummary(
             state.dedicated_signon_template_completion_surface;
         summary.dedicated_signon_template_completion_probe =
             state.dedicated_signon_template_completion_probe;
+        summary.dedicated_signon_envelope_surface = state.dedicated_signon_envelope_surface;
+        summary.dedicated_signon_envelope_probe = state.dedicated_signon_envelope_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -53680,7 +54647,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_signon_template_surface,
             summary.dedicated_signon_template_probe,
             summary.dedicated_signon_template_completion_surface,
-            summary.dedicated_signon_template_completion_probe);
+            summary.dedicated_signon_template_completion_probe,
+            summary.dedicated_signon_envelope_surface,
+            summary.dedicated_signon_envelope_probe);
     }
 
     summary.ready_for_server_activation =
@@ -60576,6 +61545,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_signon_template_probe = {};
     impl_->summary.dedicated_signon_template_completion_surface = {};
     impl_->summary.dedicated_signon_template_completion_probe = {};
+    impl_->summary.dedicated_signon_envelope_surface = {};
+    impl_->summary.dedicated_signon_envelope_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -60679,6 +61650,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         options.signon_template_completion_probe_enabled;
     impl_->shim_state.dedicated_signon_template_completion_probe_scenario =
         options.signon_template_completion_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_signon_envelope_surface = {};
+    impl_->shim_state.dedicated_signon_envelope_surface.enabled =
+        options.signon_envelope_surface_enabled;
+    impl_->shim_state.dedicated_signon_envelope_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_signon_envelope_probe = {};
+    impl_->shim_state.dedicated_signon_envelope_probe.enabled =
+        options.signon_envelope_probe_enabled;
+    impl_->shim_state.dedicated_signon_envelope_probe_scenario =
+        options.signon_envelope_probe_scenario == "gate" ? "gate" : "happy";
     impl_->shim_state.dedicated_last_external_session_id.clear();
     impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(
@@ -60896,6 +61877,43 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             || impl_->summary.dedicated_signon_template_probe.template_records_delivered <= 0
             || (impl_->shim_state.dedicated_signon_template_probe_scenario == "gate"
                 && impl_->summary.dedicated_signon_template_probe.rejected <= 0));
+    const bool dedicated_signon_template_completion_probe_failed =
+        options.signon_template_completion_probe_enabled
+        && (!impl_->summary.dedicated_signon_template_completion_probe.enabled
+            || impl_->summary.dedicated_signon_template_completion_probe.accepted <= 0
+            || impl_->summary.dedicated_signon_template_completion_probe.parsed_completion_count < 2
+            || impl_->summary.dedicated_signon_template_completion_probe.parsed_final_template < 3
+            || impl_->summary.dedicated_signon_template_completion_probe.parsed_template_ids.empty()
+            || impl_->summary.dedicated_signon_template_completion_probe
+                   .parsed_template_byte_lengths.empty()
+            || impl_->summary.dedicated_signon_template_completion_probe.signon_template_ready <= 0
+            || impl_->summary.dedicated_signon_template_completion_probe
+                   .template_records_delivered <= 0
+            || impl_->summary.dedicated_signon_template_completion_probe
+                   .signon_template_coverage_complete <= 0
+            || impl_->summary.dedicated_signon_template_completion_probe
+                   .remaining_template_records_delivered <= 0
+            || (impl_->shim_state.dedicated_signon_template_completion_probe_scenario == "gate"
+                && impl_->summary.dedicated_signon_template_completion_probe.rejected <= 0));
+    const bool dedicated_signon_envelope_probe_failed =
+        options.signon_envelope_probe_enabled
+        && (!impl_->summary.dedicated_signon_envelope_probe.enabled
+            || impl_->summary.dedicated_signon_envelope_probe.accepted <= 0
+            || impl_->summary.dedicated_signon_envelope_probe.parsed_frame_count < 4
+            || impl_->summary.dedicated_signon_envelope_probe.parsed_final_frame < 3
+            || impl_->summary.dedicated_signon_envelope_probe.parsed_frame_ids.empty()
+            || impl_->summary.dedicated_signon_envelope_probe.parsed_frame_byte_lengths.empty()
+            || impl_->summary.dedicated_signon_envelope_probe.signon_template_ready <= 0
+            || impl_->summary.dedicated_signon_envelope_probe.template_records_delivered <= 0
+            || impl_->summary.dedicated_signon_envelope_probe
+                   .signon_template_coverage_complete <= 0
+            || impl_->summary.dedicated_signon_envelope_probe
+                   .remaining_template_records_delivered <= 0
+            || impl_->summary.dedicated_signon_envelope_probe.signon_envelope_ready <= 0
+            || impl_->summary.dedicated_signon_envelope_probe
+                   .framed_template_records_delivered <= 0
+            || (impl_->shim_state.dedicated_signon_envelope_probe_scenario == "gate"
+                && impl_->summary.dedicated_signon_envelope_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -60910,7 +61928,9 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
         && !dedicated_signon_catalog_probe_failed
-        && !dedicated_signon_template_probe_failed;
+        && !dedicated_signon_template_probe_failed
+        && !dedicated_signon_template_completion_probe_failed
+        && !dedicated_signon_envelope_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept
