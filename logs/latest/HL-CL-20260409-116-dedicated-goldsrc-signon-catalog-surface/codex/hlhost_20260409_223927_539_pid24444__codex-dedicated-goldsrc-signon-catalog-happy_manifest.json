@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260409_223927",
+  "runInstanceId": "20260409_223927_539_pid24444",
+  "runLabel": "codex-dedicated-goldsrc-signon-catalog-happy",
+  "promptId": "HL-CL-20260409-116-dedicated-goldsrc-signon-catalog-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 32,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "82a6f9325d78a6b9a678c82e3bda964b6b0aedcf",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_223927_539_pid24444__codex-dedicated-goldsrc-signon-catalog-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_223927_539_pid24444__codex-dedicated-goldsrc-signon-catalog-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260409_223927_539_pid24444__codex-dedicated-goldsrc-signon-catalog-happy_part01.log"]
+}
