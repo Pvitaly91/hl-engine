@@ -198,6 +198,8 @@ enum class DedicatedPlayerLifecycleState
     kConnected,
     kPutInServer,
     kSpawned,
+    kSignonReady,
+    kBootstrapDelivered,
     kDead,
     kRespawned,
     kDisconnected,
@@ -213,6 +215,9 @@ struct DedicatedPlayerRuntimeSlot
     bool connected = false;
     bool put_in_server = false;
     bool alive = false;
+    bool external_loopback_admission = false;
+    bool signon_ready = false;
+    bool bootstrap_delivered = false;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -229,6 +234,8 @@ struct DedicatedMultiplayerFoundationRuntime
     int connected = 0;
     int put_in_server = 0;
     int spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -459,6 +466,9 @@ struct EngineShimState
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
+    hl::game_api::DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
+    hl::game_api::DedicatedBootstrapProbeSummary dedicated_bootstrap_probe;
+    std::string dedicated_bootstrap_probe_scenario = "happy";
     std::string dedicated_last_external_session_id;
     int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -526,6 +536,10 @@ std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
     const hl::game_api::DedicatedActivationProbeSummary& summary);
+std::string BuildDedicatedBootstrapSurfaceLine(
+    const hl::game_api::DedicatedBootstrapSurfaceSummary& summary);
+std::string BuildDedicatedBootstrapProbeLine(
+    const hl::game_api::DedicatedBootstrapProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -534,7 +548,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
     const hl::game_api::DedicatedConnectProbeSummary& connect_probe,
     const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
-    const hl::game_api::DedicatedActivationProbeSummary& activation_probe);
+    const hl::game_api::DedicatedActivationProbeSummary& activation_probe,
+    const hl::game_api::DedicatedBootstrapSurfaceSummary& bootstrap_surface,
+    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -18957,6 +18973,8 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + ", connected=" + std::to_string(summary.connected)
         + ", putInServer=" + std::to_string(summary.put_in_server)
         + ", spawned=" + std::to_string(summary.spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
         + ", deaths=" + std::to_string(summary.deaths)
         + ", respawns=" + std::to_string(summary.respawns)
         + ", disconnected=" + std::to_string(summary.disconnected)
@@ -19081,6 +19099,55 @@ std::string BuildDedicatedActivationProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedBootstrapSurfaceLine(
+    const hl::game_api::DedicatedBootstrapSurfaceSummary& summary)
+{
+    return "dedicated_bootstrap_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", sharedWithActivation=" + BoolToYesNo(summary.shared_with_activation)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", bootstrapEnabled=" + BoolToYesNo(summary.bootstrap_enabled)
+        + ", requiresActivatedSession=" + BoolToYesNo(summary.requires_activated_session)
+        + ", bootstrapState=" + summary.bootstrap_state
+        + ", bootstrapPayload=" + summary.bootstrap_payload
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedBootstrapProbeLine(
+    const hl::game_api::DedicatedBootstrapProbeSummary& summary)
+{
+    return "dedicated_bootstrap_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", parsedSession="
+        + (summary.parsed_session.empty() ? std::string("<unset>") : summary.parsed_session)
+        + ", parsedSlot=" + std::to_string(summary.parsed_slot)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName=" + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", parsedRuleset="
+        + (summary.parsed_ruleset.empty() ? std::string("<unset>") : summary.parsed_ruleset)
+        + ", parsedSpawned=" + std::to_string(summary.parsed_spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -19089,7 +19156,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
     const hl::game_api::DedicatedConnectProbeSummary& connect_probe,
     const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
-    const hl::game_api::DedicatedActivationProbeSummary& activation_probe)
+    const hl::game_api::DedicatedActivationProbeSummary& activation_probe,
+    const hl::game_api::DedicatedBootstrapSurfaceSummary& bootstrap_surface,
+    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -19104,12 +19173,21 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && activation_probe.enabled && activation_probe.accepted > 0
         && activation_probe.activated_put_in_server > 0
         && activation_probe.activated_spawned > 0;
+    const bool bootstrap_probe_ready =
+        bootstrap_surface.enabled && bootstrap_surface.bound_port > 0
+        && bootstrap_probe.enabled && bootstrap_probe.accepted > 0
+        && bootstrap_probe.signon_ready > 0
+        && bootstrap_probe.bootstrap_delivered > 0;
 
     const std::string implemented =
-        query_probe_ready && connect_probe_ready && activation_probe_ready
-        ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, loopback GoldSrc-like challenge/connect admission preauth surface, and loopback post-connect activation to put_in_server/spawned"
+        query_probe_ready && connect_probe_ready && activation_probe_ready && bootstrap_probe_ready
+        ? "implemented dedicated HLDM boot/foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, and loopback signon/bootstrap descriptor state for accepted-and-activated external sessions"
+        : query_probe_ready && connect_probe_ready && activation_probe_ready
+        ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, loopback GoldSrc-like challenge/connect admission preauth surface, and loopback post-connect activation to put_in_server/spawned; bootstrap descriptor surface requested but not locally verified"
         : query_probe_ready && connect_probe_ready
         ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, and loopback GoldSrc-like challenge/connect admission preauth surface"
+        : bootstrap_surface.enabled
+        ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; bootstrap descriptor surface requested but activation/bootstrap path not locally verified"
         : activation_surface.enabled
         ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; post-connect activation surface requested but not locally verified"
         : query_probe_ready
@@ -19124,8 +19202,8 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         : "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation";
 
     return "dedicated_multiplayer_readiness: " + implemented
-        + "; out_of_scope=real auth/session-validation/signon/gameplay-transport/replication/SteamNetworking"
-        + "; next=implement narrow signon/bootstrap state for accepted-and-activated external sessions on the same authoritative slot state machine";
+        + "; out_of_scope=real auth/session-validation/full-signon/netchan/gameplay-transport/replication/SteamNetworking"
+        + "; next=implement narrow baseline/bootstrap payload sequencing for accepted-and-activated-and-bootstrapped external sessions on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19441,6 +19519,18 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             hl::common::Logger::Info(
                 hl::common::LogCategory::Summary,
                 BuildDedicatedActivationProbeLine(summary.dedicated_activation_probe));
+        }
+        if (summary.dedicated_bootstrap_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedBootstrapSurfaceLine(summary.dedicated_bootstrap_surface));
+        }
+        if (summary.dedicated_bootstrap_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedBootstrapProbeLine(summary.dedicated_bootstrap_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -43620,6 +43710,10 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         return "put_in_server";
     case DedicatedPlayerLifecycleState::kSpawned:
         return "spawned";
+    case DedicatedPlayerLifecycleState::kSignonReady:
+        return "signon_ready";
+    case DedicatedPlayerLifecycleState::kBootstrapDelivered:
+        return "bootstrap_delivered";
     case DedicatedPlayerLifecycleState::kDead:
         return "dead";
     case DedicatedPlayerLifecycleState::kRespawned:
@@ -43900,6 +43994,19 @@ void RecordDedicatedLifecycleTransition(
         slot_state.put_in_server = true;
         slot_state.alive = true;
         break;
+    case DedicatedPlayerLifecycleState::kSignonReady:
+        ++runtime.signon_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        break;
+    case DedicatedPlayerLifecycleState::kBootstrapDelivered:
+        ++runtime.bootstrap_delivered;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        break;
     case DedicatedPlayerLifecycleState::kDead:
         ++runtime.deaths;
         ++slot_state.death_count;
@@ -43945,6 +44052,8 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     summary.connected = slot_state.connected;
     summary.put_in_server = slot_state.put_in_server;
     summary.alive = slot_state.alive;
+    summary.signon_ready = slot_state.signon_ready;
+    summary.bootstrap_delivered = slot_state.bootstrap_delivered;
     summary.spawn_count = slot_state.spawn_count;
     summary.death_count = slot_state.death_count;
     summary.respawn_count = slot_state.respawn_count;
@@ -44048,6 +44157,10 @@ bool AdmitDedicatedLoopbackPreauthPlayer(
         slot,
         session_id,
         player_name);
+    if (count_surface_accept)
+    {
+        slot_state.external_loopback_admission = true;
+    }
     PrimeDedicatedClientEdict(state, slot_state);
     RecordDedicatedLifecycleTransition(
         state.dedicated_multiplayer_foundation,
@@ -44185,6 +44298,104 @@ bool ActivateDedicatedLoopbackSession(
     return true;
 }
 
+bool BootstrapDedicatedLoopbackSession(
+    EngineShimState& state,
+    std::string_view session_id,
+    bool count_surface_result,
+    int* bootstrapped_slot,
+    std::string* reject_reason)
+{
+    if (bootstrapped_slot != nullptr)
+    {
+        *bootstrapped_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    DedicatedPlayerRuntimeSlot* slot_state = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        session_id);
+    if (slot_state == nullptr)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_bootstrap_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "unknown-session";
+        }
+        return false;
+    }
+
+    if (!slot_state->external_loopback_admission)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_bootstrap_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "not-external-admission";
+        }
+        return false;
+    }
+
+    if (!slot_state->connected
+        || !slot_state->put_in_server
+        || !slot_state->alive
+        || slot_state->spawn_count <= 0)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_bootstrap_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "not-activated";
+        }
+        return false;
+    }
+
+    if (slot_state->bootstrap_delivered)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_bootstrap_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "already-bootstrapped";
+        }
+        return false;
+    }
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kSignonReady,
+        "loopback bootstrap descriptor request marked activated external session signon_ready");
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kBootstrapDelivered,
+        "loopback bootstrap descriptor delivered; full signon stream intentionally pending");
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_bootstrap_surface.accepted;
+        ++state.dedicated_bootstrap_surface.signon_ready;
+        ++state.dedicated_bootstrap_surface.bootstrap_delivered;
+    }
+    if (bootstrapped_slot != nullptr)
+    {
+        *bootstrapped_slot = slot_state->slot;
+    }
+    return true;
+}
+
 void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
 {
     const int clamped_target =
@@ -44294,6 +44505,37 @@ void RefreshDedicatedActivationSurfaceSnapshot(EngineShimState& state)
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,signon-replication-pending"
         : "loopback-bind-pending,signon-replication-pending";
+}
+
+void RefreshDedicatedBootstrapSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedBootstrapSurfaceSummary& surface =
+        state.dedicated_bootstrap_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.shared_with_activation = state.dedicated_activation_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-bootstrap-descriptor";
+    surface.bootstrap_enabled = true;
+    surface.requires_activated_session = true;
+    surface.bootstrap_state = "signon_ready+bootstrap_delivered";
+    surface.bootstrap_payload = "bounded-session-slot-map-name-ruleset-spawned-state";
+    surface.auth = "none-loopback-post-activation-only";
+    surface.signon = "bootstrap-descriptor-only";
+    surface.gameplay_transport = "no";
+    surface.signon_ready = state.dedicated_multiplayer_foundation.signon_ready;
+    surface.bootstrap_delivered = state.dedicated_multiplayer_foundation.bootstrap_delivered;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,full-signon-pending"
+        : "loopback-bind-pending,full-signon-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -44627,6 +44869,72 @@ bool ParseActivationRejectResponseText(
     if (max_players != nullptr)
     {
         *max_players = std::atoi(max_text.c_str());
+    }
+    return true;
+}
+
+bool ParseBootstrapAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedBootstrapProbeSummary* probe)
+{
+    if (probe == nullptr || !StartsWithText(text, "bootstrap "))
+    {
+        return false;
+    }
+
+    const std::string session = ExtractTokenValue(text, "session=");
+    const std::string slot = ExtractTokenValue(text, "slot=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    const std::string signon_ready = ExtractTokenValue(text, "signonReady=");
+    const std::string bootstrap_delivered = ExtractTokenValue(text, "bootstrapDelivered=");
+    if (session.empty()
+        || slot.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty()
+        || signon_ready.empty()
+        || bootstrap_delivered.empty())
+    {
+        return false;
+    }
+
+    probe->parsed_session = session;
+    probe->parsed_slot = std::atoi(slot.c_str());
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+    probe->signon_ready = std::atoi(signon_ready.c_str());
+    probe->bootstrap_delivered = std::atoi(bootstrap_delivered.c_str());
+    return probe->parsed_slot > 0
+        && probe->parsed_spawned > 0
+        && probe->signon_ready > 0
+        && probe->bootstrap_delivered > 0;
+}
+
+bool ParseBootstrapRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix = "bootstrap_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t end_marker = text.find(" players=");
+    if (end_marker == std::string_view::npos || end_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), end_marker - kPrefix.size()));
     }
     return true;
 }
@@ -45364,6 +45672,157 @@ bool PumpOneLoopbackPostConnectActivationAttempt(
         + std::to_string(bound_port);
     return true;
 }
+
+bool PumpOneLoopbackBootstrapDescriptorAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    bool expect_accept,
+    hl::game_api::DedicatedBootstrapProbeSummary* probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail = "bootstrap probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string bootstrap_session =
+        session_id.empty() ? std::string("invalid_bootstrap_session") : std::string(session_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "bootstrap session=" + bootstrap_session,
+            &probe->detail,
+            "bootstrap probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in bootstrap_client_address{};
+    int bootstrap_client_address_size = sizeof(bootstrap_client_address);
+    std::string bootstrap_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &bootstrap_request,
+            &bootstrap_client_address,
+            &bootstrap_client_address_size,
+            &probe->detail,
+            "bootstrap surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(bootstrap_request, "bootstrap "))
+    {
+        probe->detail = "bootstrap surface received unexpected request: "
+            + bootstrap_request;
+        return false;
+    }
+
+    const std::string request_session = ExtractTokenValue(bootstrap_request, "session=");
+    int bootstrapped_slot = 0;
+    std::string reject_reason;
+    const bool bootstrapped = BootstrapDedicatedLoopbackSession(
+        state,
+        request_session,
+        true,
+        &bootstrapped_slot,
+        &reject_reason);
+    RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const DedicatedPlayerRuntimeSlot* slot_state = bootstrapped
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            request_session)
+        : nullptr;
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::string bootstrap_response =
+        bootstrapped && slot_state != nullptr
+        ? "bootstrap session=" + request_session
+            + " slot=" + std::to_string(bootstrapped_slot)
+            + " map=" + (state.server_state.map_name.empty() ? std::string("c0a0") : state.server_state.map_name)
+            + " name=" + (slot_state->player_name.empty() ? std::string("loopback_player") : slot_state->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " spawned=" + std::to_string(slot_state->spawn_count > 0 ? 1 : 0)
+            + " signonReady=" + std::to_string(slot_state->signon_ready ? 1 : 0)
+            + " bootstrapDelivered=" + std::to_string(slot_state->bootstrap_delivered ? 1 : 0)
+            + " signon=bootstrap-descriptor-only"
+            + " gameplayTransport=no"
+        : "bootstrap_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            bootstrap_client_address,
+            bootstrap_client_address_size,
+            bootstrap_response,
+            &probe->detail,
+            "bootstrap surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_bootstrap_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_bootstrap_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "bootstrap probe response"))
+    {
+        return false;
+    }
+
+    if (ParseBootstrapAcceptedResponseText(parsed_bootstrap_response, probe))
+    {
+        ++probe->accepted;
+    }
+    else if (std::string parsed_reject_reason;
+             ParseBootstrapRejectResponseText(
+                 parsed_bootstrap_response,
+                 &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail = "bootstrap probe could not parse bootstrap response: "
+            + parsed_bootstrap_response;
+        return false;
+    }
+
+    if (bootstrapped != expect_accept)
+    {
+        probe->detail =
+            std::string("bootstrap probe expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_bootstrap_response;
+        return false;
+    }
+
+    probe->detail = "loopback bootstrap descriptor probe completed on 127.0.0.1:"
+        + std::to_string(bound_port);
+    return true;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -45385,6 +45844,10 @@ void PerformDedicatedQuerySurface()
         state.dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary& activation_probe =
         state.dedicated_activation_probe;
+    hl::game_api::DedicatedBootstrapSurfaceSummary& bootstrap_surface =
+        state.dedicated_bootstrap_surface;
+    hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe =
+        state.dedicated_bootstrap_probe;
 
     if (probe.enabled)
     {
@@ -45416,6 +45879,17 @@ void PerformDedicatedQuerySurface()
         activation_probe.protocol_shape = "goldsrc-like-connectionless-post-connect-activate";
         activation_probe.compatibility = "loopback-pending,signon-replication-pending";
     }
+    if (bootstrap_surface.enabled)
+    {
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    }
+    if (bootstrap_probe.enabled)
+    {
+        bootstrap_probe.mode = "dedicated";
+        bootstrap_probe.probe = "loopback";
+        bootstrap_probe.protocol_shape = "goldsrc-like-connectionless-bootstrap-descriptor";
+        bootstrap_probe.compatibility = "loopback-pending,full-signon-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -45432,6 +45906,10 @@ void PerformDedicatedQuerySurface()
         if (activation_probe.enabled)
         {
             activation_probe.detail = surface.detail;
+        }
+        if (bootstrap_probe.enabled)
+        {
+            bootstrap_probe.detail = surface.detail;
         }
         return;
     }
@@ -45456,6 +45934,10 @@ void PerformDedicatedQuerySurface()
         {
             activation_probe.detail = surface.detail;
         }
+        if (bootstrap_probe.enabled)
+        {
+            bootstrap_probe.detail = surface.detail;
+        }
         return;
     }
 
@@ -45475,6 +45957,13 @@ void PerformDedicatedQuerySurface()
             "sharing loopback UDP socket with dedicated query and connect surfaces";
         RefreshDedicatedActivationSurfaceSnapshot(state);
     }
+    if (bootstrap_surface.enabled)
+    {
+        bootstrap_surface.bound_port = bound_port;
+        bootstrap_surface.detail =
+            "sharing loopback UDP socket with dedicated query/connect/activation surfaces";
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    }
 
     bool activation_ok = true;
     if (activation_probe.enabled && state.dedicated_activation_probe_scenario == "gate")
@@ -45486,6 +45975,22 @@ void PerformDedicatedQuerySurface()
             "invalid_activation_session",
             false,
             &activation_probe);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+    }
+
+    bool bootstrap_ok = true;
+    if (bootstrap_probe.enabled && state.dedicated_bootstrap_probe_scenario == "gate")
+    {
+        bootstrap_ok = PumpOneLoopbackBootstrapDescriptorAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_bootstrap_session",
+            false,
+            &bootstrap_probe);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
         RefreshDedicatedActivationSurfaceSnapshot(state);
         RefreshDedicatedConnectSurfaceSnapshot(state);
         RefreshDedicatedQuerySurfaceSnapshot(state);
@@ -45557,6 +46062,7 @@ void PerformDedicatedQuerySurface()
         RefreshDedicatedActivationSurfaceSnapshot(state);
         RefreshDedicatedConnectSurfaceSnapshot(state);
         RefreshDedicatedQuerySurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
         activation_probe.protocol_shape = activation_surface.protocol_shape;
         activation_probe.compatibility = activation_ok
             ? "loopback-verified,signon-replication-pending"
@@ -45564,6 +46070,43 @@ void PerformDedicatedQuerySurface()
         activation_surface.compatibility = activation_ok
             ? "loopback-verified,signon-replication-pending"
             : "loopback-probe-failed,signon-replication-pending";
+    }
+
+    if (bootstrap_probe.enabled)
+    {
+        if (bootstrap_ok && activation_ok && connect_ok)
+        {
+            bootstrap_ok = PumpOneLoopbackBootstrapDescriptorAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                true,
+                &bootstrap_probe);
+        }
+        if (bootstrap_ok
+            && state.dedicated_bootstrap_probe_scenario == "gate")
+        {
+            bootstrap_ok = PumpOneLoopbackBootstrapDescriptorAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                false,
+                &bootstrap_probe);
+        }
+
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        bootstrap_probe.protocol_shape = bootstrap_surface.protocol_shape;
+        bootstrap_probe.compatibility = bootstrap_ok
+            ? "loopback-verified,full-signon-pending"
+            : "loopback-probe-failed,full-signon-pending";
+        bootstrap_surface.compatibility = bootstrap_ok
+            ? "loopback-verified,full-signon-pending"
+            : "loopback-probe-failed,full-signon-pending";
     }
 
     if (probe.enabled)
@@ -45605,6 +46148,16 @@ void PerformDedicatedQuerySurface()
     {
         activation_probe.detail = surface.detail;
         activation_probe.compatibility = surface.compatibility;
+    }
+    if (bootstrap_surface.enabled)
+    {
+        bootstrap_surface.detail = surface.detail;
+        bootstrap_surface.compatibility = surface.compatibility;
+    }
+    if (bootstrap_probe.enabled)
+    {
+        bootstrap_probe.detail = surface.detail;
+        bootstrap_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -49689,6 +50242,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_connect_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
+    summary.dedicated_bootstrap_surface = {};
+    summary.dedicated_bootstrap_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -49733,6 +50288,10 @@ void PopulateBootstrapSummary(
             state.dedicated_multiplayer_foundation.put_in_server;
         summary.dedicated_player_lifecycle_foundation.spawned =
             state.dedicated_multiplayer_foundation.spawned;
+        summary.dedicated_player_lifecycle_foundation.signon_ready =
+            state.dedicated_multiplayer_foundation.signon_ready;
+        summary.dedicated_player_lifecycle_foundation.bootstrap_delivered =
+            state.dedicated_multiplayer_foundation.bootstrap_delivered;
         summary.dedicated_player_lifecycle_foundation.deaths =
             state.dedicated_multiplayer_foundation.deaths;
         summary.dedicated_player_lifecycle_foundation.respawns =
@@ -49760,6 +50319,8 @@ void PopulateBootstrapSummary(
         summary.dedicated_connect_probe = state.dedicated_connect_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
+        summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
+        summary.dedicated_bootstrap_probe = state.dedicated_bootstrap_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -49769,7 +50330,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_connect_surface,
             summary.dedicated_connect_probe,
             summary.dedicated_activation_surface,
-            summary.dedicated_activation_probe);
+            summary.dedicated_activation_probe,
+            summary.dedicated_bootstrap_surface,
+            summary.dedicated_bootstrap_probe);
     }
 
     summary.ready_for_server_activation =
@@ -56655,6 +57218,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_connect_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
+    impl_->summary.dedicated_bootstrap_surface = {};
+    impl_->summary.dedicated_bootstrap_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -56710,6 +57275,14 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->shim_state.dedicated_activation_probe.enabled = options.activation_probe_enabled;
     impl_->shim_state.dedicated_activation_probe_scenario =
         options.activation_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_bootstrap_surface = {};
+    impl_->shim_state.dedicated_bootstrap_surface.enabled = options.bootstrap_surface_enabled;
+    impl_->shim_state.dedicated_bootstrap_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_bootstrap_probe = {};
+    impl_->shim_state.dedicated_bootstrap_probe.enabled = options.bootstrap_probe_enabled;
+    impl_->shim_state.dedicated_bootstrap_probe_scenario =
+        options.bootstrap_probe_scenario == "gate" ? "gate" : "happy";
     impl_->shim_state.dedicated_last_external_session_id.clear();
     impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(
@@ -56888,6 +57461,14 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             || impl_->summary.dedicated_activation_probe.activated_spawned <= 0
             || (impl_->shim_state.dedicated_activation_probe_scenario == "gate"
                 && impl_->summary.dedicated_activation_probe.rejected <= 0));
+    const bool dedicated_bootstrap_probe_failed =
+        options.bootstrap_probe_enabled
+        && (!impl_->summary.dedicated_bootstrap_probe.enabled
+            || impl_->summary.dedicated_bootstrap_probe.accepted <= 0
+            || impl_->summary.dedicated_bootstrap_probe.signon_ready <= 0
+            || impl_->summary.dedicated_bootstrap_probe.bootstrap_delivered <= 0
+            || (impl_->shim_state.dedicated_bootstrap_probe_scenario == "gate"
+                && impl_->summary.dedicated_bootstrap_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -56898,7 +57479,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !impl_->summary.server_frame_loop.any_seh
         && !dedicated_query_probe_failed
         && !dedicated_connect_probe_failed
-        && !dedicated_activation_probe_failed;
+        && !dedicated_activation_probe_failed
+        && !dedicated_bootstrap_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept
