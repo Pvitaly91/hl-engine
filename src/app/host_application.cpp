@@ -22461,6 +22461,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.connect_surface_enabled = options.connect_surface_enabled;
     init_options.connect_probe_enabled = options.connect_probe_enabled;
     init_options.connect_probe_scenario = options.connect_probe_scenario;
+    init_options.activation_surface_enabled = options.activation_surface_enabled;
+    init_options.activation_probe_enabled = options.activation_probe_enabled;
+    init_options.activation_probe_scenario = options.activation_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22495,7 +22498,10 @@ bool HostApplication::RunServerEngineShim(
         + ", query_port=" + std::to_string(init_options.query_port)
         + ", connect_surface=" + std::string(init_options.connect_surface_enabled ? "1" : "0")
         + ", connect_probe=" + std::string(init_options.connect_probe_enabled ? "1" : "0")
-        + ", connect_probe_scenario=" + init_options.connect_probe_scenario);
+        + ", connect_probe_scenario=" + init_options.connect_probe_scenario
+        + ", activation_surface=" + std::string(init_options.activation_surface_enabled ? "1" : "0")
+        + ", activation_probe=" + std::string(init_options.activation_probe_enabled ? "1" : "0")
+        + ", activation_probe_scenario=" + init_options.activation_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,

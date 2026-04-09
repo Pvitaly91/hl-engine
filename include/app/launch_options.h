@@ -42,6 +42,9 @@ struct LaunchOptions
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";
+    bool activation_surface_enabled = false;
+    bool activation_probe_enabled = false;
+    std::string activation_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
