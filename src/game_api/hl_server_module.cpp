@@ -200,6 +200,8 @@ enum class DedicatedPlayerLifecycleState
     kSpawned,
     kSignonReady,
     kBootstrapDelivered,
+    kBaselineReady,
+    kBootstrapSequenceCompleted,
     kDead,
     kRespawned,
     kDisconnected,
@@ -218,6 +220,9 @@ struct DedicatedPlayerRuntimeSlot
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
+    bool baseline_ready = false;
+    bool bootstrap_sequence_completed = false;
+    int bootstrap_sequence_next_step = 0;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -236,6 +241,8 @@ struct DedicatedMultiplayerFoundationRuntime
     int spawned = 0;
     int signon_ready = 0;
     int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -469,6 +476,9 @@ struct EngineShimState
     hl::game_api::DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
     hl::game_api::DedicatedBootstrapProbeSummary dedicated_bootstrap_probe;
     std::string dedicated_bootstrap_probe_scenario = "happy";
+    hl::game_api::DedicatedBootstrapSequenceSurfaceSummary dedicated_bootstrap_sequence_surface;
+    hl::game_api::DedicatedBootstrapSequenceProbeSummary dedicated_bootstrap_sequence_probe;
+    std::string dedicated_bootstrap_sequence_probe_scenario = "happy";
     std::string dedicated_last_external_session_id;
     int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -540,6 +550,10 @@ std::string BuildDedicatedBootstrapSurfaceLine(
     const hl::game_api::DedicatedBootstrapSurfaceSummary& summary);
 std::string BuildDedicatedBootstrapProbeLine(
     const hl::game_api::DedicatedBootstrapProbeSummary& summary);
+std::string BuildDedicatedBootstrapSequenceSurfaceLine(
+    const hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& summary);
+std::string BuildDedicatedBootstrapSequenceProbeLine(
+    const hl::game_api::DedicatedBootstrapSequenceProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -550,7 +564,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
     const hl::game_api::DedicatedActivationProbeSummary& activation_probe,
     const hl::game_api::DedicatedBootstrapSurfaceSummary& bootstrap_surface,
-    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe);
+    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe,
+    const hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& bootstrap_sequence_surface,
+    const hl::game_api::DedicatedBootstrapSequenceProbeSummary& bootstrap_sequence_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -18975,6 +18991,8 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + ", spawned=" + std::to_string(summary.spawned)
         + ", signonReady=" + std::to_string(summary.signon_ready)
         + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
         + ", deaths=" + std::to_string(summary.deaths)
         + ", respawns=" + std::to_string(summary.respawns)
         + ", disconnected=" + std::to_string(summary.disconnected)
@@ -19148,6 +19166,61 @@ std::string BuildDedicatedBootstrapProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedBootstrapSequenceSurfaceLine(
+    const hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& summary)
+{
+    return "dedicated_bootstrap_sequence_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", sharedWithActivation=" + BoolToYesNo(summary.shared_with_activation)
+        + ", sharedWithBootstrap=" + BoolToYesNo(summary.shared_with_bootstrap)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", sequenceEnabled=" + BoolToYesNo(summary.sequence_enabled)
+        + ", requiresBootstrappedSession=" + BoolToYesNo(summary.requires_bootstrapped_session)
+        + ", sequencePayload=" + summary.sequence_payload
+        + ", sequenceSteps=" + std::to_string(summary.sequence_steps)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedBootstrapSequenceProbeLine(
+    const hl::game_api::DedicatedBootstrapSequenceProbeSummary& summary)
+{
+    return "dedicated_bootstrap_sequence_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", parsedSession="
+        + (summary.parsed_session.empty() ? std::string("<unset>") : summary.parsed_session)
+        + ", parsedStepCount=" + std::to_string(summary.parsed_step_count)
+        + ", parsedFinalStep=" + std::to_string(summary.parsed_final_step)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName=" + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", parsedRuleset="
+        + (summary.parsed_ruleset.empty() ? std::string("<unset>") : summary.parsed_ruleset)
+        + ", parsedSpawned=" + std::to_string(summary.parsed_spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -19158,7 +19231,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
     const hl::game_api::DedicatedActivationProbeSummary& activation_probe,
     const hl::game_api::DedicatedBootstrapSurfaceSummary& bootstrap_surface,
-    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe)
+    const hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe,
+    const hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& bootstrap_sequence_surface,
+    const hl::game_api::DedicatedBootstrapSequenceProbeSummary& bootstrap_sequence_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -19178,9 +19253,19 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && bootstrap_probe.enabled && bootstrap_probe.accepted > 0
         && bootstrap_probe.signon_ready > 0
         && bootstrap_probe.bootstrap_delivered > 0;
+    const bool bootstrap_sequence_probe_ready =
+        bootstrap_sequence_surface.enabled && bootstrap_sequence_surface.bound_port > 0
+        && bootstrap_sequence_probe.enabled && bootstrap_sequence_probe.accepted > 0
+        && bootstrap_sequence_probe.parsed_step_count >= 3
+        && bootstrap_sequence_probe.parsed_final_step >= 2
+        && bootstrap_sequence_probe.baseline_ready > 0
+        && bootstrap_sequence_probe.bootstrap_sequence_completed > 0;
 
     const std::string implemented =
-        query_probe_ready && connect_probe_ready && activation_probe_ready && bootstrap_probe_ready
+        query_probe_ready && connect_probe_ready && activation_probe_ready
+            && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+        ? "implemented dedicated foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, loopback bootstrap descriptor state, and loopback ordered bootstrap-sequence descriptor state for accepted-and-activated-and-bootstrapped external sessions"
+        : query_probe_ready && connect_probe_ready && activation_probe_ready && bootstrap_probe_ready
         ? "implemented dedicated HLDM boot/foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, and loopback signon/bootstrap descriptor state for accepted-and-activated external sessions"
         : query_probe_ready && connect_probe_ready && activation_probe_ready
         ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, loopback GoldSrc-like challenge/connect admission preauth surface, and loopback post-connect activation to put_in_server/spawned; bootstrap descriptor surface requested but not locally verified"
@@ -19202,8 +19287,8 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         : "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation";
 
     return "dedicated_multiplayer_readiness: " + implemented
-        + "; out_of_scope=real auth/session-validation/full-signon/netchan/gameplay-transport/replication/SteamNetworking"
-        + "; next=implement narrow baseline/bootstrap payload sequencing for accepted-and-activated-and-bootstrapped external sessions on the same authoritative slot state machine";
+        + "; out_of_scope=real auth/session-validation/full-signon-bytes/netchan/baselines/snapshots/gameplay-transport/replication/SteamNetworking"
+        + "; next=implement narrow pre-snapshot signon packet catalog/bootstrap-record staging for accepted-and-activated-and-bootstrapped-and-sequenced external sessions on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19531,6 +19616,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             hl::common::Logger::Info(
                 hl::common::LogCategory::Summary,
                 BuildDedicatedBootstrapProbeLine(summary.dedicated_bootstrap_probe));
+        }
+        if (summary.dedicated_bootstrap_sequence_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedBootstrapSequenceSurfaceLine(
+                    summary.dedicated_bootstrap_sequence_surface));
+        }
+        if (summary.dedicated_bootstrap_sequence_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedBootstrapSequenceProbeLine(
+                    summary.dedicated_bootstrap_sequence_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -43714,6 +43813,10 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         return "signon_ready";
     case DedicatedPlayerLifecycleState::kBootstrapDelivered:
         return "bootstrap_delivered";
+    case DedicatedPlayerLifecycleState::kBaselineReady:
+        return "baseline_ready";
+    case DedicatedPlayerLifecycleState::kBootstrapSequenceCompleted:
+        return "bootstrap_sequence_completed";
     case DedicatedPlayerLifecycleState::kDead:
         return "dead";
     case DedicatedPlayerLifecycleState::kRespawned:
@@ -44007,6 +44110,23 @@ void RecordDedicatedLifecycleTransition(
         slot_state.signon_ready = true;
         slot_state.bootstrap_delivered = true;
         break;
+    case DedicatedPlayerLifecycleState::kBaselineReady:
+        ++runtime.baseline_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        break;
+    case DedicatedPlayerLifecycleState::kBootstrapSequenceCompleted:
+        ++runtime.bootstrap_sequence_completed;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        break;
     case DedicatedPlayerLifecycleState::kDead:
         ++runtime.deaths;
         ++slot_state.death_count;
@@ -44054,6 +44174,8 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     summary.alive = slot_state.alive;
     summary.signon_ready = slot_state.signon_ready;
     summary.bootstrap_delivered = slot_state.bootstrap_delivered;
+    summary.baseline_ready = slot_state.baseline_ready;
+    summary.bootstrap_sequence_completed = slot_state.bootstrap_sequence_completed;
     summary.spawn_count = slot_state.spawn_count;
     summary.death_count = slot_state.death_count;
     summary.respawn_count = slot_state.respawn_count;
@@ -44396,6 +44518,113 @@ bool BootstrapDedicatedLoopbackSession(
     return true;
 }
 
+bool AdvanceDedicatedLoopbackBootstrapSequenceStep(
+    EngineShimState& state,
+    std::string_view session_id,
+    int requested_step,
+    bool count_surface_result,
+    int* sequenced_slot,
+    std::string* reject_reason)
+{
+    static constexpr int kBootstrapSequenceSteps = 3;
+    static constexpr int kBootstrapSequenceFinalStep = kBootstrapSequenceSteps - 1;
+
+    if (sequenced_slot != nullptr)
+    {
+        *sequenced_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    const auto reject = [&](std::string reason) -> bool
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_bootstrap_sequence_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(reason);
+        }
+        return false;
+    };
+
+    DedicatedPlayerRuntimeSlot* slot_state = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        session_id);
+    if (slot_state == nullptr)
+    {
+        return reject("unknown-session");
+    }
+
+    if (!slot_state->external_loopback_admission)
+    {
+        return reject("not-external-admission");
+    }
+
+    if (!slot_state->connected
+        || !slot_state->put_in_server
+        || !slot_state->alive
+        || slot_state->spawn_count <= 0)
+    {
+        return reject("not-activated");
+    }
+
+    if (!slot_state->signon_ready || !slot_state->bootstrap_delivered)
+    {
+        return reject("not-bootstrapped");
+    }
+
+    if (slot_state->bootstrap_sequence_completed)
+    {
+        return reject("already-sequenced");
+    }
+
+    if (requested_step < 0 || requested_step >= kBootstrapSequenceSteps)
+    {
+        return reject("invalid-step");
+    }
+
+    if (requested_step != slot_state->bootstrap_sequence_next_step)
+    {
+        return reject("unexpected-step");
+    }
+
+    if (requested_step < kBootstrapSequenceFinalStep)
+    {
+        ++slot_state->bootstrap_sequence_next_step;
+        if (sequenced_slot != nullptr)
+        {
+            *sequenced_slot = slot_state->slot;
+        }
+        return true;
+    }
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kBaselineReady,
+        "loopback ordered bootstrap-sequence final descriptor marked bounded baseline_ready");
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kBootstrapSequenceCompleted,
+        "loopback ordered bootstrap-sequence completed; real baselines/snapshots intentionally pending");
+    slot_state->bootstrap_sequence_next_step = kBootstrapSequenceSteps;
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_bootstrap_sequence_surface.accepted;
+    }
+    if (sequenced_slot != nullptr)
+    {
+        *sequenced_slot = slot_state->slot;
+    }
+    return true;
+}
+
 void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
 {
     const int clamped_target =
@@ -44536,6 +44765,41 @@ void RefreshDedicatedBootstrapSurfaceSnapshot(EngineShimState& state)
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,full-signon-pending"
         : "loopback-bind-pending,full-signon-pending";
+}
+
+void RefreshDedicatedBootstrapSequenceSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& surface =
+        state.dedicated_bootstrap_sequence_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.shared_with_activation = state.dedicated_activation_surface.enabled;
+    surface.shared_with_bootstrap = state.dedicated_bootstrap_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-bootstrap-sequence-descriptor";
+    surface.sequence_enabled = true;
+    surface.requires_bootstrapped_session = true;
+    surface.sequence_payload = "step0-server-map-rules-slot;step1-player-session-spawn;step2-complete-baseline-ready";
+    surface.sequence_steps = 3;
+    surface.auth = "none-loopback-post-bootstrap-only";
+    surface.signon = "sequenced-bootstrap-descriptor-only";
+    surface.gameplay_transport = "no";
+    surface.signon_ready = state.dedicated_multiplayer_foundation.signon_ready;
+    surface.bootstrap_delivered = state.dedicated_multiplayer_foundation.bootstrap_delivered;
+    surface.baseline_ready = state.dedicated_multiplayer_foundation.baseline_ready;
+    surface.bootstrap_sequence_completed =
+        state.dedicated_multiplayer_foundation.bootstrap_sequence_completed;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,real-signon-baselines-pending"
+        : "loopback-bind-pending,real-signon-baselines-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -44935,6 +45199,92 @@ bool ParseBootstrapRejectResponseText(
     if (reason != nullptr)
     {
         *reason = std::string(text.substr(kPrefix.size(), end_marker - kPrefix.size()));
+    }
+    return true;
+}
+
+bool ParseBootstrapSequenceAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedBootstrapSequenceProbeSummary* probe,
+    int* parsed_step)
+{
+    if (probe == nullptr || !StartsWithText(text, "bootstrap_sequence "))
+    {
+        return false;
+    }
+
+    const std::string session = ExtractTokenValue(text, "session=");
+    const std::string step = ExtractTokenValue(text, "step=");
+    const std::string step_count = ExtractTokenValue(text, "stepCount=");
+    const std::string final_step = ExtractTokenValue(text, "finalStep=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    const std::string signon_ready = ExtractTokenValue(text, "signonReady=");
+    const std::string bootstrap_delivered = ExtractTokenValue(text, "bootstrapDelivered=");
+    const std::string baseline_ready = ExtractTokenValue(text, "baselineReady=");
+    const std::string sequence_completed = ExtractTokenValue(text, "bootstrapSequenceCompleted=");
+    if (session.empty()
+        || step.empty()
+        || step_count.empty()
+        || final_step.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty()
+        || signon_ready.empty()
+        || bootstrap_delivered.empty()
+        || baseline_ready.empty()
+        || sequence_completed.empty())
+    {
+        return false;
+    }
+
+    const int parsed_step_value = std::atoi(step.c_str());
+    if (parsed_step != nullptr)
+    {
+        *parsed_step = parsed_step_value;
+    }
+
+    probe->parsed_session = session;
+    probe->parsed_step_count = std::atoi(step_count.c_str());
+    probe->parsed_final_step = std::atoi(final_step.c_str());
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+    probe->signon_ready = std::atoi(signon_ready.c_str());
+    probe->bootstrap_delivered = std::atoi(bootstrap_delivered.c_str());
+    probe->baseline_ready = std::atoi(baseline_ready.c_str());
+    probe->bootstrap_sequence_completed = std::atoi(sequence_completed.c_str());
+    return parsed_step_value >= 0
+        && probe->parsed_step_count >= 3
+        && probe->parsed_final_step >= 2
+        && probe->parsed_spawned > 0
+        && probe->signon_ready > 0
+        && probe->bootstrap_delivered > 0;
+}
+
+bool ParseBootstrapSequenceRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix = "bootstrap_sequence_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    if (players_marker == std::string_view::npos || players_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
     }
     return true;
 }
@@ -45823,6 +46173,229 @@ bool PumpOneLoopbackBootstrapDescriptorAttempt(
         + std::to_string(bound_port);
     return true;
 }
+
+std::string DedicatedBootstrapSequencePayloadName(int requested_step)
+{
+    switch (requested_step)
+    {
+    case 0:
+        return "server-map-rules-maxplayers-slot";
+    case 1:
+        return "player-session-spawn-state";
+    case 2:
+        return "completion-baseline-ready";
+    default:
+        return "invalid";
+    }
+}
+
+bool PumpOneLoopbackBootstrapSequenceStepAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    int requested_step,
+    bool expect_accept,
+    hl::game_api::DedicatedBootstrapSequenceProbeSummary* probe)
+{
+    static constexpr int kBootstrapSequenceSteps = 3;
+    static constexpr int kBootstrapSequenceFinalStep = kBootstrapSequenceSteps - 1;
+
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail =
+            "bootstrap sequence probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string sequence_session =
+        session_id.empty()
+        ? std::string("invalid_bootstrap_sequence_session")
+        : std::string(session_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "bootstrap_sequence session=" + sequence_session
+                + " step=" + std::to_string(requested_step),
+            &probe->detail,
+            "bootstrap sequence probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in sequence_client_address{};
+    int sequence_client_address_size = sizeof(sequence_client_address);
+    std::string sequence_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &sequence_request,
+            &sequence_client_address,
+            &sequence_client_address_size,
+            &probe->detail,
+            "bootstrap sequence surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(sequence_request, "bootstrap_sequence "))
+    {
+        probe->detail = "bootstrap sequence surface received unexpected request: "
+            + sequence_request;
+        return false;
+    }
+
+    const std::string request_session = ExtractTokenValue(sequence_request, "session=");
+    const std::string request_step_text = ExtractTokenValue(sequence_request, "step=");
+    const int request_step =
+        request_step_text.empty() ? -1 : std::atoi(request_step_text.c_str());
+
+    int sequenced_slot = 0;
+    std::string reject_reason;
+    const bool step_accepted = AdvanceDedicatedLoopbackBootstrapSequenceStep(
+        state,
+        request_session,
+        request_step,
+        true,
+        &sequenced_slot,
+        &reject_reason);
+
+    RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const DedicatedPlayerRuntimeSlot* slot_state = step_accepted
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            request_session)
+        : nullptr;
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::string sequence_response =
+        step_accepted && slot_state != nullptr
+        ? "bootstrap_sequence session=" + request_session
+            + " slot=" + std::to_string(sequenced_slot)
+            + " step=" + std::to_string(request_step)
+            + " stepCount=" + std::to_string(kBootstrapSequenceSteps)
+            + " finalStep=" + std::to_string(kBootstrapSequenceFinalStep)
+            + " map=" + (state.server_state.map_name.empty() ? std::string("c0a0") : state.server_state.map_name)
+            + " name=" + (slot_state->player_name.empty() ? std::string("loopback_player") : slot_state->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " maxplayers=" + std::to_string(max_players)
+            + " spawned=" + std::to_string(slot_state->spawn_count > 0 ? 1 : 0)
+            + " signonReady=" + std::to_string(slot_state->signon_ready ? 1 : 0)
+            + " bootstrapDelivered=" + std::to_string(slot_state->bootstrap_delivered ? 1 : 0)
+            + " baselineReady=" + std::to_string(slot_state->baseline_ready ? 1 : 0)
+            + " bootstrapSequenceCompleted=" + std::to_string(slot_state->bootstrap_sequence_completed ? 1 : 0)
+            + " payload=" + DedicatedBootstrapSequencePayloadName(request_step)
+        : "bootstrap_sequence_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            sequence_client_address,
+            sequence_client_address_size,
+            sequence_response,
+            &probe->detail,
+            "bootstrap sequence surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_sequence_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_sequence_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "bootstrap sequence probe response"))
+    {
+        return false;
+    }
+
+    int parsed_step = -1;
+    if (ParseBootstrapSequenceAcceptedResponseText(
+            parsed_sequence_response,
+            probe,
+            &parsed_step))
+    {
+        if (parsed_step == probe->parsed_final_step
+            && probe->bootstrap_sequence_completed > 0)
+        {
+            ++probe->accepted;
+        }
+    }
+    else if (std::string parsed_reject_reason;
+             ParseBootstrapSequenceRejectResponseText(
+                 parsed_sequence_response,
+                 &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail = "bootstrap sequence probe could not parse response: "
+            + parsed_sequence_response;
+        return false;
+    }
+
+    if (step_accepted != expect_accept)
+    {
+        probe->detail =
+            std::string("bootstrap sequence expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_sequence_response;
+        return false;
+    }
+
+    probe->detail = "loopback bootstrap sequence probe step="
+        + std::to_string(requested_step)
+        + " completed on 127.0.0.1:" + std::to_string(bound_port);
+    return true;
+}
+
+bool PumpOneLoopbackBootstrapSequenceFlow(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    hl::game_api::DedicatedBootstrapSequenceProbeSummary* probe)
+{
+    for (int step = 0; step < 3; ++step)
+    {
+        if (!PumpOneLoopbackBootstrapSequenceStepAttempt(
+                state,
+                server_socket,
+                bound_port,
+                session_id,
+                step,
+                true,
+                probe))
+        {
+            return false;
+        }
+    }
+
+    return probe != nullptr
+        && probe->accepted > 0
+        && probe->baseline_ready > 0
+        && probe->bootstrap_sequence_completed > 0;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -45848,6 +46421,10 @@ void PerformDedicatedQuerySurface()
         state.dedicated_bootstrap_surface;
     hl::game_api::DedicatedBootstrapProbeSummary& bootstrap_probe =
         state.dedicated_bootstrap_probe;
+    hl::game_api::DedicatedBootstrapSequenceSurfaceSummary& bootstrap_sequence_surface =
+        state.dedicated_bootstrap_sequence_surface;
+    hl::game_api::DedicatedBootstrapSequenceProbeSummary& bootstrap_sequence_probe =
+        state.dedicated_bootstrap_sequence_probe;
 
     if (probe.enabled)
     {
@@ -45890,6 +46467,19 @@ void PerformDedicatedQuerySurface()
         bootstrap_probe.protocol_shape = "goldsrc-like-connectionless-bootstrap-descriptor";
         bootstrap_probe.compatibility = "loopback-pending,full-signon-pending";
     }
+    if (bootstrap_sequence_surface.enabled)
+    {
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+    }
+    if (bootstrap_sequence_probe.enabled)
+    {
+        bootstrap_sequence_probe.mode = "dedicated";
+        bootstrap_sequence_probe.probe = "loopback";
+        bootstrap_sequence_probe.protocol_shape =
+            "goldsrc-like-connectionless-bootstrap-sequence-descriptor";
+        bootstrap_sequence_probe.compatibility =
+            "loopback-pending,real-signon-baselines-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -45910,6 +46500,10 @@ void PerformDedicatedQuerySurface()
         if (bootstrap_probe.enabled)
         {
             bootstrap_probe.detail = surface.detail;
+        }
+        if (bootstrap_sequence_probe.enabled)
+        {
+            bootstrap_sequence_probe.detail = surface.detail;
         }
         return;
     }
@@ -45938,6 +46532,10 @@ void PerformDedicatedQuerySurface()
         {
             bootstrap_probe.detail = surface.detail;
         }
+        if (bootstrap_sequence_probe.enabled)
+        {
+            bootstrap_sequence_probe.detail = surface.detail;
+        }
         return;
     }
 
@@ -45963,6 +46561,13 @@ void PerformDedicatedQuerySurface()
         bootstrap_surface.detail =
             "sharing loopback UDP socket with dedicated query/connect/activation surfaces";
         RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    }
+    if (bootstrap_sequence_surface.enabled)
+    {
+        bootstrap_sequence_surface.bound_port = bound_port;
+        bootstrap_sequence_surface.detail =
+            "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap surfaces";
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
     }
 
     bool activation_ok = true;
@@ -45990,6 +46595,25 @@ void PerformDedicatedQuerySurface()
             "invalid_bootstrap_session",
             false,
             &bootstrap_probe);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+    }
+
+    bool bootstrap_sequence_ok = true;
+    if (bootstrap_sequence_probe.enabled
+        && state.dedicated_bootstrap_sequence_probe_scenario == "gate")
+    {
+        bootstrap_sequence_ok = PumpOneLoopbackBootstrapSequenceStepAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_bootstrap_sequence_session",
+            0,
+            false,
+            &bootstrap_sequence_probe);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
         RefreshDedicatedBootstrapSurfaceSnapshot(state);
         RefreshDedicatedActivationSurfaceSnapshot(state);
         RefreshDedicatedConnectSurfaceSnapshot(state);
@@ -46063,6 +46687,7 @@ void PerformDedicatedQuerySurface()
         RefreshDedicatedConnectSurfaceSnapshot(state);
         RefreshDedicatedQuerySurfaceSnapshot(state);
         RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
         activation_probe.protocol_shape = activation_surface.protocol_shape;
         activation_probe.compatibility = activation_ok
             ? "loopback-verified,signon-replication-pending"
@@ -46100,6 +46725,7 @@ void PerformDedicatedQuerySurface()
         RefreshDedicatedActivationSurfaceSnapshot(state);
         RefreshDedicatedConnectSurfaceSnapshot(state);
         RefreshDedicatedQuerySurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
         bootstrap_probe.protocol_shape = bootstrap_surface.protocol_shape;
         bootstrap_probe.compatibility = bootstrap_ok
             ? "loopback-verified,full-signon-pending"
@@ -46107,6 +46733,59 @@ void PerformDedicatedQuerySurface()
         bootstrap_surface.compatibility = bootstrap_ok
             ? "loopback-verified,full-signon-pending"
             : "loopback-probe-failed,full-signon-pending";
+    }
+
+    if (bootstrap_sequence_probe.enabled)
+    {
+        if (bootstrap_sequence_ok
+            && activation_ok
+            && connect_ok
+            && bootstrap_ok
+            && state.dedicated_bootstrap_sequence_probe_scenario == "gate")
+        {
+            bootstrap_sequence_ok = PumpOneLoopbackBootstrapSequenceStepAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                1,
+                false,
+                &bootstrap_sequence_probe);
+        }
+        if (bootstrap_sequence_ok && activation_ok && connect_ok && bootstrap_ok)
+        {
+            bootstrap_sequence_ok = PumpOneLoopbackBootstrapSequenceFlow(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                &bootstrap_sequence_probe);
+        }
+        if (bootstrap_sequence_ok
+            && state.dedicated_bootstrap_sequence_probe_scenario == "gate")
+        {
+            bootstrap_sequence_ok = PumpOneLoopbackBootstrapSequenceStepAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                2,
+                false,
+                &bootstrap_sequence_probe);
+        }
+
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        bootstrap_sequence_probe.protocol_shape = bootstrap_sequence_surface.protocol_shape;
+        bootstrap_sequence_probe.compatibility = bootstrap_sequence_ok
+            ? "loopback-verified,real-signon-baselines-pending"
+            : "loopback-probe-failed,real-signon-baselines-pending";
+        bootstrap_sequence_surface.compatibility = bootstrap_sequence_ok
+            ? "loopback-verified,real-signon-baselines-pending"
+            : "loopback-probe-failed,real-signon-baselines-pending";
     }
 
     if (probe.enabled)
@@ -46158,6 +46837,16 @@ void PerformDedicatedQuerySurface()
     {
         bootstrap_probe.detail = surface.detail;
         bootstrap_probe.compatibility = surface.compatibility;
+    }
+    if (bootstrap_sequence_surface.enabled)
+    {
+        bootstrap_sequence_surface.detail = surface.detail;
+        bootstrap_sequence_surface.compatibility = surface.compatibility;
+    }
+    if (bootstrap_sequence_probe.enabled)
+    {
+        bootstrap_sequence_probe.detail = surface.detail;
+        bootstrap_sequence_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -50244,6 +50933,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
     summary.dedicated_bootstrap_probe = {};
+    summary.dedicated_bootstrap_sequence_surface = {};
+    summary.dedicated_bootstrap_sequence_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -50292,6 +50983,10 @@ void PopulateBootstrapSummary(
             state.dedicated_multiplayer_foundation.signon_ready;
         summary.dedicated_player_lifecycle_foundation.bootstrap_delivered =
             state.dedicated_multiplayer_foundation.bootstrap_delivered;
+        summary.dedicated_player_lifecycle_foundation.baseline_ready =
+            state.dedicated_multiplayer_foundation.baseline_ready;
+        summary.dedicated_player_lifecycle_foundation.bootstrap_sequence_completed =
+            state.dedicated_multiplayer_foundation.bootstrap_sequence_completed;
         summary.dedicated_player_lifecycle_foundation.deaths =
             state.dedicated_multiplayer_foundation.deaths;
         summary.dedicated_player_lifecycle_foundation.respawns =
@@ -50321,6 +51016,10 @@ void PopulateBootstrapSummary(
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
         summary.dedicated_bootstrap_probe = state.dedicated_bootstrap_probe;
+        summary.dedicated_bootstrap_sequence_surface =
+            state.dedicated_bootstrap_sequence_surface;
+        summary.dedicated_bootstrap_sequence_probe =
+            state.dedicated_bootstrap_sequence_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -50332,7 +51031,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_activation_surface,
             summary.dedicated_activation_probe,
             summary.dedicated_bootstrap_surface,
-            summary.dedicated_bootstrap_probe);
+            summary.dedicated_bootstrap_probe,
+            summary.dedicated_bootstrap_sequence_surface,
+            summary.dedicated_bootstrap_sequence_probe);
     }
 
     summary.ready_for_server_activation =
@@ -57220,6 +57921,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
     impl_->summary.dedicated_bootstrap_probe = {};
+    impl_->summary.dedicated_bootstrap_sequence_surface = {};
+    impl_->summary.dedicated_bootstrap_sequence_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -57283,6 +57986,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->shim_state.dedicated_bootstrap_probe.enabled = options.bootstrap_probe_enabled;
     impl_->shim_state.dedicated_bootstrap_probe_scenario =
         options.bootstrap_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_bootstrap_sequence_surface = {};
+    impl_->shim_state.dedicated_bootstrap_sequence_surface.enabled =
+        options.bootstrap_sequence_surface_enabled;
+    impl_->shim_state.dedicated_bootstrap_sequence_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_bootstrap_sequence_probe = {};
+    impl_->shim_state.dedicated_bootstrap_sequence_probe.enabled =
+        options.bootstrap_sequence_probe_enabled;
+    impl_->shim_state.dedicated_bootstrap_sequence_probe_scenario =
+        options.bootstrap_sequence_probe_scenario == "gate" ? "gate" : "happy";
     impl_->shim_state.dedicated_last_external_session_id.clear();
     impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(
@@ -57469,6 +58182,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             || impl_->summary.dedicated_bootstrap_probe.bootstrap_delivered <= 0
             || (impl_->shim_state.dedicated_bootstrap_probe_scenario == "gate"
                 && impl_->summary.dedicated_bootstrap_probe.rejected <= 0));
+    const bool dedicated_bootstrap_sequence_probe_failed =
+        options.bootstrap_sequence_probe_enabled
+        && (!impl_->summary.dedicated_bootstrap_sequence_probe.enabled
+            || impl_->summary.dedicated_bootstrap_sequence_probe.accepted <= 0
+            || impl_->summary.dedicated_bootstrap_sequence_probe.parsed_step_count < 3
+            || impl_->summary.dedicated_bootstrap_sequence_probe.parsed_final_step < 2
+            || impl_->summary.dedicated_bootstrap_sequence_probe.baseline_ready <= 0
+            || impl_->summary.dedicated_bootstrap_sequence_probe.bootstrap_sequence_completed <= 0
+            || (impl_->shim_state.dedicated_bootstrap_sequence_probe_scenario == "gate"
+                && impl_->summary.dedicated_bootstrap_sequence_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -57480,7 +58203,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_query_probe_failed
         && !dedicated_connect_probe_failed
         && !dedicated_activation_probe_failed
-        && !dedicated_bootstrap_probe_failed;
+        && !dedicated_bootstrap_probe_failed
+        && !dedicated_bootstrap_sequence_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept

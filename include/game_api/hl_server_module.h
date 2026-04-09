@@ -6017,6 +6017,8 @@ struct DedicatedPlayerSlotSummary
     bool alive = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
+    bool baseline_ready = false;
+    bool bootstrap_sequence_completed = false;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -6065,6 +6067,8 @@ struct DedicatedPlayerLifecycleFoundationSummary
     int spawned = 0;
     int signon_ready = 0;
     int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -6242,6 +6246,60 @@ struct DedicatedBootstrapProbeSummary
     std::string detail;
 };
 
+struct DedicatedBootstrapSequenceSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    bool shared_with_connect = false;
+    bool shared_with_activation = false;
+    bool shared_with_bootstrap = false;
+    std::string protocol_shape = "disabled";
+    bool sequence_enabled = false;
+    bool requires_bootstrapped_session = true;
+    std::string sequence_payload = "disabled";
+    int sequence_steps = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int accepted = 0;
+    int rejected = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedBootstrapSequenceProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string parsed_session;
+    int parsed_step_count = 0;
+    int parsed_final_step = -1;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string parsed_ruleset;
+    int parsed_spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6266,6 +6324,9 @@ struct HlServerModuleInitOptions
     bool bootstrap_surface_enabled = false;
     bool bootstrap_probe_enabled = false;
     std::string bootstrap_probe_scenario = "happy";
+    bool bootstrap_sequence_surface_enabled = false;
+    bool bootstrap_sequence_probe_enabled = false;
+    std::string bootstrap_sequence_probe_scenario = "happy";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6322,6 +6383,8 @@ struct HlServerModuleSummary
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
     DedicatedBootstrapProbeSummary dedicated_bootstrap_probe;
+    DedicatedBootstrapSequenceSurfaceSummary dedicated_bootstrap_sequence_surface;
+    DedicatedBootstrapSequenceProbeSummary dedicated_bootstrap_sequence_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };

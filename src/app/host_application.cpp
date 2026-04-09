@@ -22467,6 +22467,10 @@ bool HostApplication::RunServerEngineShim(
     init_options.bootstrap_surface_enabled = options.bootstrap_surface_enabled;
     init_options.bootstrap_probe_enabled = options.bootstrap_probe_enabled;
     init_options.bootstrap_probe_scenario = options.bootstrap_probe_scenario;
+    init_options.bootstrap_sequence_surface_enabled =
+        options.bootstrap_sequence_surface_enabled;
+    init_options.bootstrap_sequence_probe_enabled = options.bootstrap_sequence_probe_enabled;
+    init_options.bootstrap_sequence_probe_scenario = options.bootstrap_sequence_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22507,7 +22511,13 @@ bool HostApplication::RunServerEngineShim(
         + ", activation_probe_scenario=" + init_options.activation_probe_scenario
         + ", bootstrap_surface=" + std::string(init_options.bootstrap_surface_enabled ? "1" : "0")
         + ", bootstrap_probe=" + std::string(init_options.bootstrap_probe_enabled ? "1" : "0")
-        + ", bootstrap_probe_scenario=" + init_options.bootstrap_probe_scenario);
+        + ", bootstrap_probe_scenario=" + init_options.bootstrap_probe_scenario
+        + ", bootstrap_sequence_surface="
+        + std::string(init_options.bootstrap_sequence_surface_enabled ? "1" : "0")
+        + ", bootstrap_sequence_probe="
+        + std::string(init_options.bootstrap_sequence_probe_enabled ? "1" : "0")
+        + ", bootstrap_sequence_probe_scenario="
+        + init_options.bootstrap_sequence_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,

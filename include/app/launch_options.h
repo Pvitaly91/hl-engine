@@ -48,6 +48,9 @@ struct LaunchOptions
     bool bootstrap_surface_enabled = false;
     bool bootstrap_probe_enabled = false;
     std::string bootstrap_probe_scenario = "happy";
+    bool bootstrap_sequence_surface_enabled = false;
+    bool bootstrap_sequence_probe_enabled = false;
+    std::string bootstrap_sequence_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
