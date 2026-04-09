@@ -39,6 +39,9 @@ struct LaunchOptions
     bool query_surface_enabled = false;
     bool query_probe_enabled = false;
     int query_port = 0;
+    bool connect_surface_enabled = false;
+    bool connect_probe_enabled = false;
+    std::string connect_probe_scenario = "accept";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
