@@ -6072,6 +6072,42 @@ struct DedicatedPlayerLifecycleFoundationSummary
     std::vector<DedicatedPlayerLifecycleEventSummary> events;
 };
 
+struct DedicatedQuerySurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string ruleset = "singleplayer";
+    std::string mod_name;
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    std::string protocol_shape = "disabled";
+    std::string authoritative_player_source = "n/a";
+    int players = 0;
+    int max_players = 0;
+    std::string map_name;
+    std::string server_name;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedQueryProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    std::string request_type = "disabled";
+    bool response_received = false;
+    bool parse_ok = false;
+    int parsed_players = 0;
+    int parsed_max_players = 0;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6084,6 +6120,9 @@ struct HlServerModuleInitOptions
     float deathmatch = 0.0f;
     float coop = 0.0f;
     int synthetic_players = 0;
+    bool query_surface_enabled = false;
+    bool query_probe_enabled = false;
+    int query_port = 0;
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6132,6 +6171,8 @@ struct HlServerModuleSummary
     ScriptedMovementStateSummary scripted_movement;
     DedicatedServerFoundationSummary dedicated_server_foundation;
     DedicatedPlayerLifecycleFoundationSummary dedicated_player_lifecycle_foundation;
+    DedicatedQuerySurfaceSummary dedicated_query_surface;
+    DedicatedQueryProbeSummary dedicated_query_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };

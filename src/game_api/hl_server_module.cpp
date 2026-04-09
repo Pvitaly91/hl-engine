@@ -1,5 +1,16 @@
 #include "game_api/hl_server_module.h"
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#if defined(_MSC_VER)
+#pragma comment(lib, "ws2_32.lib")
+#endif
+#endif
+
 #include <algorithm>
 #include <array>
 #include <charconv>
@@ -439,6 +450,8 @@ struct EngineShimState
     hl::game_api::ScriptedMovementStateSummary scripted_movement_state;
     DedicatedMultiplayerFoundationRuntime dedicated_multiplayer_foundation;
     int dedicated_synthetic_players_requested = 0;
+    hl::game_api::DedicatedQuerySurfaceSummary dedicated_query_surface;
+    hl::game_api::DedicatedQueryProbeSummary dedicated_query_probe;
     DeterministicRandomDiagnostics random_diagnostics;
     std::unordered_map<void*, LoadedFileBuffer> loaded_files;
     std::unordered_set<std::string> path_track_terminal_dead_end_targets;
@@ -492,9 +505,15 @@ std::string BuildDedicatedServerFoundationLine(
     const hl::game_api::DedicatedServerFoundationSummary& summary);
 std::string BuildDedicatedPlayerLifecycleFoundationLine(
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& summary);
+std::string BuildDedicatedQuerySurfaceLine(
+    const hl::game_api::DedicatedQuerySurfaceSummary& summary);
+std::string BuildDedicatedQueryProbeLine(
+    const hl::game_api::DedicatedQueryProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
-    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle);
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
+    const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
+    const hl::game_api::DedicatedQueryProbeSummary& query_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -18926,19 +18945,65 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + ", replicationReady=" + summary.replication_ready;
 }
 
+std::string BuildDedicatedQuerySurfaceLine(
+    const hl::game_api::DedicatedQuerySurfaceSummary& summary)
+{
+    return "dedicated_query_surface: mode=" + summary.mode
+        + ", ruleset=" + summary.ruleset
+        + ", mod=" + (summary.mod_name.empty() ? std::string("<unset>") : summary.mod_name)
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", queryEnabled=" + BoolToYesNo(summary.enabled)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", authoritativePlayerSource=" + summary.authoritative_player_source
+        + ", players=" + std::to_string(summary.players)
+        + ", maxPlayers=" + std::to_string(summary.max_players)
+        + ", map=" + (summary.map_name.empty() ? std::string("<unset>") : summary.map_name)
+        + ", serverName=" + (summary.server_name.empty() ? std::string("<unset>") : summary.server_name)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedQueryProbeLine(
+    const hl::game_api::DedicatedQueryProbeSummary& summary)
+{
+    return "dedicated_query_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", requestType=" + summary.request_type
+        + ", responseReceived=" + BoolToYesNo(summary.response_received)
+        + ", parseOk=" + BoolToYesNo(summary.parse_ok)
+        + ", parsedPlayers=" + std::to_string(summary.parsed_players)
+        + ", parsedMaxPlayers=" + std::to_string(summary.parsed_max_players)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName=" + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
-    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle)
+    const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
+    const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
+    const hl::game_api::DedicatedQueryProbeSummary& query_probe)
 {
     (void)foundation;
-    std::string implemented =
+    const bool query_probe_ready =
+        query_surface.enabled && query_surface.bound_port > 0
+        && query_probe.enabled && query_probe.response_received && query_probe.parse_ok;
+
+    const std::string implemented =
+        query_probe_ready
+        ? "implemented dedicated HLDM boot, authoritative slot/session foundation, and loopback-probeable classic GoldSrc info-query surface"
+        : query_surface.enabled
+        ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; query/discovery surface requested but not locally verified"
+        :
         lifecycle.synthetic_players > 0
         ? "implemented dedicated HLDM boot plus authoritative synthetic two-player slot/session lifecycle"
         : "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation";
 
     return "dedicated_multiplayer_readiness: " + implemented
-        + "; out_of_scope=real client transport/query/auth/replication/full damage-weapon parity"
-        + "; next=wire classic GoldSrc connect/auth/query surfaces onto the same authoritative slot state machine";
+        + "; out_of_scope=real client connect/auth/session-validation/gameplay-transport/replication/SteamNetworking"
+        + "; next=wire classic GoldSrc connect/admission surface onto the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19219,6 +19284,18 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             hl::common::LogCategory::Summary,
             BuildDedicatedPlayerLifecycleFoundationLine(
                 summary.dedicated_player_lifecycle_foundation));
+        if (summary.dedicated_query_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedQuerySurfaceLine(summary.dedicated_query_surface));
+        }
+        if (summary.dedicated_query_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedQueryProbeLine(summary.dedicated_query_probe));
+        }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
             hl::common::Logger::Info(
@@ -43731,6 +43808,517 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     return summary;
 }
 
+int CountDedicatedQueryPlayers(const DedicatedMultiplayerFoundationRuntime& runtime)
+{
+    int players = 0;
+    for (const DedicatedPlayerRuntimeSlot& slot_state : runtime.slots)
+    {
+        if (slot_state.occupied
+            && slot_state.connected
+            && slot_state.put_in_server
+            && slot_state.lifecycle_state != DedicatedPlayerLifecycleState::kDisconnected)
+        {
+            ++players;
+        }
+    }
+
+    return players;
+}
+
+std::string DedicatedRulesetName(const hl::game_api::detail::ServerState& server_state)
+{
+    return server_state.deathmatch != 0.0f && server_state.coop == 0.0f
+        ? "hldm"
+        : server_state.coop != 0.0f
+        ? "coop"
+        : "multiplayer";
+}
+
+void RefreshDedicatedQuerySurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedQuerySurfaceSummary& surface = state.dedicated_query_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.ruleset = DedicatedRulesetName(state.server_state);
+    surface.mod_name = state.server_state.mod_name;
+    surface.bind = "loopback";
+    surface.protocol_shape = "goldsrc-a2s-info-legacy-m";
+    surface.authoritative_player_source = "slot-state-machine";
+    surface.players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    surface.max_players = state.server_state.maxclients;
+    surface.map_name = state.server_state.map_name;
+    surface.server_name = state.server_state.hostname;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,browser-pending"
+        : "loopback-bind-pending,browser-pending";
+}
+
+std::vector<unsigned char> BuildGoldSrcInfoRequest()
+{
+    static constexpr std::array<unsigned char, 25> kRequest = {{
+        0xFFu, 0xFFu, 0xFFu, 0xFFu,
+        'T',
+        'S', 'o', 'u', 'r', 'c', 'e', ' ', 'E', 'n', 'g', 'i', 'n', 'e', ' ',
+        'Q', 'u', 'e', 'r', 'y',
+        0x00u,
+    }};
+
+    return std::vector<unsigned char>(kRequest.begin(), kRequest.end());
+}
+
+bool IsGoldSrcInfoRequest(const unsigned char* data, int size)
+{
+    const std::vector<unsigned char> expected = BuildGoldSrcInfoRequest();
+    return size == static_cast<int>(expected.size())
+        && std::equal(expected.begin(), expected.end(), data);
+}
+
+void AppendGoldSrcCString(std::vector<unsigned char>& bytes, std::string_view value)
+{
+    bytes.insert(bytes.end(), value.begin(), value.end());
+    bytes.push_back(0x00u);
+}
+
+std::vector<unsigned char> BuildGoldSrcInfoResponse(
+    const hl::game_api::DedicatedQuerySurfaceSummary& surface)
+{
+    std::vector<unsigned char> bytes;
+    bytes.reserve(192);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.push_back('m');
+    AppendGoldSrcCString(
+        bytes,
+        "127.0.0.1:" + std::to_string(surface.bound_port));
+    AppendGoldSrcCString(bytes, surface.server_name.empty() ? "HLengine Test Server" : surface.server_name);
+    AppendGoldSrcCString(bytes, surface.map_name.empty() ? "c0a0" : surface.map_name);
+    AppendGoldSrcCString(bytes, surface.mod_name.empty() ? "valve" : surface.mod_name);
+    AppendGoldSrcCString(bytes, surface.ruleset == "hldm" ? "Half-Life Deathmatch" : "Half-Life");
+    bytes.push_back(static_cast<unsigned char>(std::max(0, std::min(surface.players, 255))));
+    bytes.push_back(static_cast<unsigned char>(std::max(0, std::min(surface.max_players, 255))));
+    bytes.push_back(48u);
+    bytes.push_back('d');
+    bytes.push_back('w');
+    bytes.push_back(0u);
+    bytes.push_back(0u);
+    bytes.push_back(0u);
+    return bytes;
+}
+
+bool ReadGoldSrcCString(
+    const std::vector<unsigned char>& bytes,
+    std::size_t* offset,
+    std::string* value)
+{
+    if (offset == nullptr || value == nullptr || *offset >= bytes.size())
+    {
+        return false;
+    }
+
+    const std::size_t start = *offset;
+    while (*offset < bytes.size() && bytes[*offset] != 0x00u)
+    {
+        ++(*offset);
+    }
+
+    if (*offset >= bytes.size())
+    {
+        return false;
+    }
+
+    *value = std::string(
+        reinterpret_cast<const char*>(bytes.data() + start),
+        *offset - start);
+    ++(*offset);
+    return true;
+}
+
+bool ParseGoldSrcInfoResponse(
+    const std::vector<unsigned char>& bytes,
+    hl::game_api::DedicatedQueryProbeSummary* probe)
+{
+    if (probe == nullptr || bytes.size() < 5
+        || bytes[0] != 0xFFu
+        || bytes[1] != 0xFFu
+        || bytes[2] != 0xFFu
+        || bytes[3] != 0xFFu
+        || bytes[4] != static_cast<unsigned char>('m'))
+    {
+        return false;
+    }
+
+    std::size_t offset = 5;
+    std::string address;
+    std::string game_directory;
+    std::string game_description;
+    if (!ReadGoldSrcCString(bytes, &offset, &address)
+        || !ReadGoldSrcCString(bytes, &offset, &probe->parsed_name)
+        || !ReadGoldSrcCString(bytes, &offset, &probe->parsed_map)
+        || !ReadGoldSrcCString(bytes, &offset, &game_directory)
+        || !ReadGoldSrcCString(bytes, &offset, &game_description)
+        || offset + 2 > bytes.size())
+    {
+        return false;
+    }
+
+    probe->parsed_players = static_cast<int>(bytes[offset++]);
+    probe->parsed_max_players = static_cast<int>(bytes[offset++]);
+    (void)address;
+    (void)game_directory;
+    (void)game_description;
+    return true;
+}
+
+#if defined(_WIN32)
+class ScopedWinsockSession
+{
+public:
+    ScopedWinsockSession() = default;
+    ScopedWinsockSession(const ScopedWinsockSession&) = delete;
+    ScopedWinsockSession& operator=(const ScopedWinsockSession&) = delete;
+    ~ScopedWinsockSession()
+    {
+        if (started_)
+        {
+            WSACleanup();
+        }
+    }
+
+    bool Start(std::string* detail)
+    {
+        WSADATA data{};
+        const int result = WSAStartup(MAKEWORD(2, 2), &data);
+        started_ = result == 0;
+        if (!started_ && detail != nullptr)
+        {
+            *detail = "WSAStartup failed code=" + std::to_string(result);
+        }
+        return started_;
+    }
+
+private:
+    bool started_ = false;
+};
+
+class ScopedUdpSocket
+{
+public:
+    ScopedUdpSocket() = default;
+    explicit ScopedUdpSocket(SOCKET socket) : socket_(socket) {}
+    ScopedUdpSocket(const ScopedUdpSocket&) = delete;
+    ScopedUdpSocket& operator=(const ScopedUdpSocket&) = delete;
+    ~ScopedUdpSocket()
+    {
+        Close();
+    }
+
+    SOCKET Get() const noexcept
+    {
+        return socket_;
+    }
+
+    bool Valid() const noexcept
+    {
+        return socket_ != INVALID_SOCKET;
+    }
+
+    void Reset(SOCKET socket)
+    {
+        Close();
+        socket_ = socket;
+    }
+
+    void Close()
+    {
+        if (socket_ != INVALID_SOCKET)
+        {
+            closesocket(socket_);
+            socket_ = INVALID_SOCKET;
+        }
+    }
+
+    SOCKET Release() noexcept
+    {
+        const SOCKET socket = socket_;
+        socket_ = INVALID_SOCKET;
+        return socket;
+    }
+
+private:
+    SOCKET socket_ = INVALID_SOCKET;
+};
+
+sockaddr_in MakeLoopbackAddress(unsigned short port)
+{
+    sockaddr_in address{};
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
+    address.sin_port = htons(port);
+    return address;
+}
+
+bool WaitForSocketReadable(SOCKET socket, int timeout_ms)
+{
+    fd_set read_set;
+    FD_ZERO(&read_set);
+    FD_SET(socket, &read_set);
+
+    timeval timeout{};
+    timeout.tv_sec = timeout_ms / 1000;
+    timeout.tv_usec = (timeout_ms % 1000) * 1000;
+
+    return select(0, &read_set, nullptr, nullptr, &timeout) > 0
+        && FD_ISSET(socket, &read_set);
+}
+
+bool BindLoopbackQuerySocket(
+    int requested_port,
+    ScopedUdpSocket* socket,
+    int* bound_port,
+    std::string* detail)
+{
+    if (socket == nullptr || bound_port == nullptr)
+    {
+        return false;
+    }
+
+    ScopedUdpSocket candidate(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!candidate.Valid())
+    {
+        if (detail != nullptr)
+        {
+            *detail = "socket() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    const sockaddr_in address =
+        MakeLoopbackAddress(static_cast<unsigned short>(std::max(0, requested_port)));
+    if (bind(candidate.Get(), reinterpret_cast<const sockaddr*>(&address), sizeof(address))
+        == SOCKET_ERROR)
+    {
+        if (detail != nullptr)
+        {
+            *detail = "bind(127.0.0.1:" + std::to_string(requested_port)
+                + ") failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    sockaddr_in bound_address{};
+    int bound_address_size = sizeof(bound_address);
+    if (getsockname(
+            candidate.Get(),
+            reinterpret_cast<sockaddr*>(&bound_address),
+            &bound_address_size) == SOCKET_ERROR)
+    {
+        if (detail != nullptr)
+        {
+            *detail = "getsockname() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    *bound_port = ntohs(bound_address.sin_port);
+    socket->Reset(candidate.Release());
+    return true;
+}
+
+bool PumpOneLoopbackGoldSrcInfoQuery(
+    SOCKET server_socket,
+    int bound_port,
+    const hl::game_api::DedicatedQuerySurfaceSummary& surface,
+    hl::game_api::DedicatedQueryProbeSummary* probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail = "probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const std::vector<unsigned char> request = BuildGoldSrcInfoRequest();
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    if (sendto(
+            probe_socket.Get(),
+            reinterpret_cast<const char*>(request.data()),
+            static_cast<int>(request.size()),
+            0,
+            reinterpret_cast<const sockaddr*>(&server_address),
+            sizeof(server_address)) == SOCKET_ERROR)
+    {
+        probe->detail = "probe sendto() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    if (!WaitForSocketReadable(server_socket, 1000))
+    {
+        probe->detail = "server query socket did not receive loopback request";
+        return false;
+    }
+
+    std::array<unsigned char, 512> request_buffer{};
+    sockaddr_in client_address{};
+    int client_address_size = sizeof(client_address);
+    const int request_size = recvfrom(
+        server_socket,
+        reinterpret_cast<char*>(request_buffer.data()),
+        static_cast<int>(request_buffer.size()),
+        0,
+        reinterpret_cast<sockaddr*>(&client_address),
+        &client_address_size);
+    if (request_size == SOCKET_ERROR)
+    {
+        probe->detail = "server recvfrom() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    if (!IsGoldSrcInfoRequest(request_buffer.data(), request_size))
+    {
+        probe->detail = "server received non-info-query request bytes="
+            + std::to_string(request_size);
+        return false;
+    }
+
+    const std::vector<unsigned char> response = BuildGoldSrcInfoResponse(surface);
+    if (sendto(
+            server_socket,
+            reinterpret_cast<const char*>(response.data()),
+            static_cast<int>(response.size()),
+            0,
+            reinterpret_cast<const sockaddr*>(&client_address),
+            client_address_size) == SOCKET_ERROR)
+    {
+        probe->detail = "server response sendto() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    if (!WaitForSocketReadable(probe_socket.Get(), 1000))
+    {
+        probe->detail = "probe socket did not receive query response";
+        return false;
+    }
+
+    std::array<unsigned char, 512> response_buffer{};
+    sockaddr_in response_address{};
+    int response_address_size = sizeof(response_address);
+    const int response_size = recvfrom(
+        probe_socket.Get(),
+        reinterpret_cast<char*>(response_buffer.data()),
+        static_cast<int>(response_buffer.size()),
+        0,
+        reinterpret_cast<sockaddr*>(&response_address),
+        &response_address_size);
+    if (response_size == SOCKET_ERROR)
+    {
+        probe->detail = "probe recvfrom() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    probe->response_received = true;
+    const std::vector<unsigned char> response_bytes(
+        response_buffer.begin(),
+        response_buffer.begin() + response_size);
+    probe->parse_ok = ParseGoldSrcInfoResponse(response_bytes, probe);
+    if (!probe->parse_ok)
+    {
+        probe->detail = "probe received response but parser rejected bytes="
+            + std::to_string(response_size);
+        return false;
+    }
+
+    probe->detail = "loopback info-query response parsed from 127.0.0.1:"
+        + std::to_string(bound_port);
+    return true;
+}
+#endif
+
+void PerformDedicatedQuerySurface()
+{
+    EngineShimState& state = CurrentShimState();
+    if (!state.server_state.dedicated || !state.dedicated_query_surface.enabled)
+    {
+        return;
+    }
+
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+    hl::game_api::DedicatedQuerySurfaceSummary& surface = state.dedicated_query_surface;
+    hl::game_api::DedicatedQueryProbeSummary& probe = state.dedicated_query_probe;
+
+    if (probe.enabled)
+    {
+        probe.mode = "dedicated";
+        probe.probe = "loopback";
+        probe.request_type = "goldsrc-a2s-info";
+        probe.protocol_shape = surface.protocol_shape;
+        probe.compatibility = "loopback-pending,browser-pending";
+    }
+
+#if defined(_WIN32)
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&surface.detail))
+    {
+        if (probe.enabled)
+        {
+            probe.detail = surface.detail;
+        }
+        return;
+    }
+
+    ScopedUdpSocket server_socket;
+    int bound_port = 0;
+    if (!BindLoopbackQuerySocket(
+            surface.requested_port,
+            &server_socket,
+            &bound_port,
+            &surface.detail))
+    {
+        if (probe.enabled)
+        {
+            probe.detail = surface.detail;
+        }
+        return;
+    }
+
+    surface.bound_port = bound_port;
+    surface.detail = "bound loopback UDP info-query socket";
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    if (probe.enabled)
+    {
+        const bool probe_ok =
+            PumpOneLoopbackGoldSrcInfoQuery(server_socket.Get(), bound_port, surface, &probe);
+        probe.protocol_shape = surface.protocol_shape;
+        probe.compatibility = probe_ok
+            ? "loopback-verified,browser-pending"
+            : "loopback-probe-failed,browser-pending";
+        surface.compatibility = probe_ok
+            ? "loopback-verified,browser-pending"
+            : "loopback-probe-failed,browser-pending";
+    }
+#else
+    surface.detail = "UDP query surface is only implemented on WinSock in this host milestone";
+    surface.compatibility = "unsupported-on-this-platform";
+    if (probe.enabled)
+    {
+        probe.detail = surface.detail;
+        probe.compatibility = surface.compatibility;
+    }
+#endif
+}
+
 void PerformDedicatedMultiplayerFoundation()
 {
     EngineShimState& state = CurrentShimState();
@@ -43824,16 +44412,19 @@ void PerformDedicatedMultiplayerFoundation()
             "respawned at " + respawn_detail);
     }
 
-    if (DedicatedPlayerRuntimeSlot* player_two =
-            FindDedicatedPlayerRuntimeSlot(state.dedicated_multiplayer_foundation, 2);
-        player_two != nullptr)
+    if (!state.dedicated_query_surface.enabled)
     {
-        ApplyDedicatedClientDisconnect(state, *player_two);
-        RecordDedicatedLifecycleTransition(
-            state.dedicated_multiplayer_foundation,
-            *player_two,
-            DedicatedPlayerLifecycleState::kDisconnected,
-            "bounded synthetic disconnect to close the dedicated lifecycle harness");
+        if (DedicatedPlayerRuntimeSlot* player_two =
+                FindDedicatedPlayerRuntimeSlot(state.dedicated_multiplayer_foundation, 2);
+            player_two != nullptr)
+        {
+            ApplyDedicatedClientDisconnect(state, *player_two);
+            RecordDedicatedLifecycleTransition(
+                state.dedicated_multiplayer_foundation,
+                *player_two,
+                DedicatedPlayerLifecycleState::kDisconnected,
+                "bounded synthetic disconnect to close the dedicated lifecycle harness");
+        }
     }
 }
 
@@ -47802,6 +48393,8 @@ void PopulateBootstrapSummary(
     summary.scripted_movement = state.scripted_movement_state;
     summary.dedicated_server_foundation = {};
     summary.dedicated_player_lifecycle_foundation = {};
+    summary.dedicated_query_surface = {};
+    summary.dedicated_query_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -47829,7 +48422,10 @@ void PopulateBootstrapSummary(
             summary.changelevel_transition.lifecycle_execution.execution_armed;
         summary.dedicated_server_foundation.authoritative = true;
         summary.dedicated_server_foundation.transport = "classic-goldsrc-pending";
-        summary.dedicated_server_foundation.query_surface = "pending";
+        summary.dedicated_server_foundation.query_surface =
+            state.dedicated_query_surface.enabled
+            ? state.dedicated_query_surface.protocol_shape
+            : "pending";
 
         summary.dedicated_player_lifecycle_foundation.enabled = true;
         summary.dedicated_player_lifecycle_foundation.mode = "dedicated";
@@ -47864,9 +48460,14 @@ void PopulateBootstrapSummary(
                 BuildDedicatedPlayerSlotSummary(slot_state));
         }
 
+        summary.dedicated_query_surface = state.dedicated_query_surface;
+        summary.dedicated_query_probe = state.dedicated_query_probe;
+
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
-            summary.dedicated_player_lifecycle_foundation);
+            summary.dedicated_player_lifecycle_foundation,
+            summary.dedicated_query_surface,
+            summary.dedicated_query_probe);
     }
 
     summary.ready_for_server_activation =
@@ -52849,6 +53450,7 @@ void FinalizeServerBootstrapStep()
     }
     PerformServerFrameLoop();
     PerformDedicatedMultiplayerFoundation();
+    PerformDedicatedQuerySurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -54745,6 +55347,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.scripted_movement = {};
     impl_->summary.dedicated_server_foundation = {};
     impl_->summary.dedicated_player_lifecycle_foundation = {};
+    impl_->summary.dedicated_query_surface = {};
+    impl_->summary.dedicated_query_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -54778,6 +55382,12 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->shim_state.scripted_logic_state = {};
     impl_->shim_state.dedicated_multiplayer_foundation = {};
     impl_->shim_state.dedicated_synthetic_players_requested = options.synthetic_players;
+    impl_->shim_state.dedicated_query_surface = {};
+    impl_->shim_state.dedicated_query_surface.enabled = options.query_surface_enabled;
+    impl_->shim_state.dedicated_query_surface.requested_port =
+        options.query_port < 0 ? 0 : options.query_port > 65535 ? 65535 : options.query_port;
+    impl_->shim_state.dedicated_query_probe = {};
+    impl_->shim_state.dedicated_query_probe.enabled = options.query_probe_enabled;
     hl::game_api::detail::InitializeServerState(
         impl_->shim_state.server_state,
         impl_->shim_state.game_directory,
@@ -54933,6 +55543,11 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         impl_->summary.entity_pipeline.attempted
         && !impl_->summary.entity_pipeline.entities_lump_parsed
         && !impl_->summary.entity_pipeline.partially_parsed;
+    const bool dedicated_query_probe_failed =
+        options.query_probe_enabled
+        && (!impl_->summary.dedicated_query_probe.enabled
+            || !impl_->summary.dedicated_query_probe.response_received
+            || !impl_->summary.dedicated_query_probe.parse_ok);
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -54940,7 +55555,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !entity_pipeline_fundamentally_failed
         && (!impl_->summary.ready_for_server_activation
             || impl_->summary.server_activation.succeeded)
-        && !impl_->summary.server_frame_loop.any_seh;
+        && !impl_->summary.server_frame_loop.any_seh
+        && !dedicated_query_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept

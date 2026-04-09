@@ -22455,6 +22455,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.deathmatch = options.deathmatch != 0 ? 1.0f : 0.0f;
     init_options.coop = options.coop != 0 ? 1.0f : 0.0f;
     init_options.synthetic_players = options.synthetic_players;
+    init_options.query_surface_enabled = options.query_surface_enabled;
+    init_options.query_probe_enabled = options.query_probe_enabled;
+    init_options.query_port = options.query_port;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22483,7 +22486,10 @@ bool HostApplication::RunServerEngineShim(
         + ", deathmatch=" + std::to_string(static_cast<int>(init_options.deathmatch))
         + ", coop=" + std::to_string(static_cast<int>(init_options.coop))
         + ", maxclients=" + std::to_string(init_options.maxclients)
-        + ", synthetic_players=" + std::to_string(init_options.synthetic_players));
+        + ", synthetic_players=" + std::to_string(init_options.synthetic_players)
+        + ", query_surface=" + std::string(init_options.query_surface_enabled ? "1" : "0")
+        + ", query_probe=" + std::string(init_options.query_probe_enabled ? "1" : "0")
+        + ", query_port=" + std::to_string(init_options.query_port));
 
     common::Logger::Info(
         common::LogCategory::Startup,
