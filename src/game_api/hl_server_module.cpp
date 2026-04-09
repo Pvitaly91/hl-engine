@@ -456,6 +456,11 @@ struct EngineShimState
     hl::game_api::DedicatedConnectSurfaceSummary dedicated_connect_surface;
     hl::game_api::DedicatedConnectProbeSummary dedicated_connect_probe;
     std::string dedicated_connect_probe_scenario = "accept";
+    hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
+    hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
+    std::string dedicated_activation_probe_scenario = "happy";
+    std::string dedicated_last_external_session_id;
+    int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
     std::unordered_map<void*, LoadedFileBuffer> loaded_files;
     std::unordered_set<std::string> path_track_terminal_dead_end_targets;
@@ -517,13 +522,19 @@ std::string BuildDedicatedConnectSurfaceLine(
     const hl::game_api::DedicatedConnectSurfaceSummary& summary);
 std::string BuildDedicatedConnectProbeLine(
     const hl::game_api::DedicatedConnectProbeSummary& summary);
+std::string BuildDedicatedActivationSurfaceLine(
+    const hl::game_api::DedicatedActivationSurfaceSummary& summary);
+std::string BuildDedicatedActivationProbeLine(
+    const hl::game_api::DedicatedActivationProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
     const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
     const hl::game_api::DedicatedQueryProbeSummary& query_probe,
     const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
-    const hl::game_api::DedicatedConnectProbeSummary& connect_probe);
+    const hl::game_api::DedicatedConnectProbeSummary& connect_probe,
+    const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
+    const hl::game_api::DedicatedActivationProbeSummary& activation_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -19029,13 +19040,56 @@ std::string BuildDedicatedConnectProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedActivationSurfaceLine(
+    const hl::game_api::DedicatedActivationSurfaceSummary& summary)
+{
+    return "dedicated_activation_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", activationEnabled=" + BoolToYesNo(summary.activation_enabled)
+        + ", requiresAcceptedAdmission=" + BoolToYesNo(summary.requires_accepted_admission)
+        + ", activatesTo=" + summary.activates_to
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", putInServer=" + std::to_string(summary.put_in_server)
+        + ", spawned=" + std::to_string(summary.spawned)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedActivationProbeLine(
+    const hl::game_api::DedicatedActivationProbeSummary& summary)
+{
+    return "dedicated_activation_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", activatedPutInServer=" + std::to_string(summary.activated_put_in_server)
+        + ", activatedSpawned=" + std::to_string(summary.activated_spawned)
+        + ", postActivationPlayers=" + std::to_string(summary.post_activation_players)
+        + ", postActivationMaxPlayers=" + std::to_string(summary.post_activation_max_players)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
     const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
     const hl::game_api::DedicatedQueryProbeSummary& query_probe,
     const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
-    const hl::game_api::DedicatedConnectProbeSummary& connect_probe)
+    const hl::game_api::DedicatedConnectProbeSummary& connect_probe,
+    const hl::game_api::DedicatedActivationSurfaceSummary& activation_surface,
+    const hl::game_api::DedicatedActivationProbeSummary& activation_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -19045,10 +19099,19 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         connect_surface.enabled && connect_surface.bound_port > 0
         && connect_probe.enabled && connect_probe.challenge_received > 0
         && connect_probe.connect_attempted > 0 && connect_probe.accepted > 0;
+    const bool activation_probe_ready =
+        activation_surface.enabled && activation_surface.bound_port > 0
+        && activation_probe.enabled && activation_probe.accepted > 0
+        && activation_probe.activated_put_in_server > 0
+        && activation_probe.activated_spawned > 0;
 
     const std::string implemented =
-        query_probe_ready && connect_probe_ready
+        query_probe_ready && connect_probe_ready && activation_probe_ready
+        ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, loopback GoldSrc-like challenge/connect admission preauth surface, and loopback post-connect activation to put_in_server/spawned"
+        : query_probe_ready && connect_probe_ready
         ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, and loopback GoldSrc-like challenge/connect admission preauth surface"
+        : activation_surface.enabled
+        ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; post-connect activation surface requested but not locally verified"
         : query_probe_ready
         ? "implemented dedicated HLDM boot, authoritative slot/session foundation, and loopback-probeable classic GoldSrc info-query surface"
         : connect_surface.enabled
@@ -19062,7 +19125,7 @@ std::string BuildDedicatedMultiplayerReadinessLine(
 
     return "dedicated_multiplayer_readiness: " + implemented
         + "; out_of_scope=real auth/session-validation/signon/gameplay-transport/replication/SteamNetworking"
-        + "; next=bind accepted external admissions into put_in_server/spawn/signon activation on the same authoritative slot state machine";
+        + "; next=implement narrow signon/bootstrap state for accepted-and-activated external sessions on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19366,6 +19429,18 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             hl::common::Logger::Info(
                 hl::common::LogCategory::Summary,
                 BuildDedicatedConnectProbeLine(summary.dedicated_connect_probe));
+        }
+        if (summary.dedicated_activation_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedActivationSurfaceLine(summary.dedicated_activation_surface));
+        }
+        if (summary.dedicated_activation_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedActivationProbeLine(summary.dedicated_activation_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -43989,10 +44064,123 @@ bool AdmitDedicatedLoopbackPreauthPlayer(
     if (count_surface_accept)
     {
         ++state.dedicated_connect_surface.accepted;
+        state.dedicated_last_external_session_id = std::string(session_id);
+        state.dedicated_last_external_slot = slot;
     }
     if (admitted_slot != nullptr)
     {
         *admitted_slot = slot;
+    }
+    return true;
+}
+
+DedicatedPlayerRuntimeSlot* FindDedicatedPlayerRuntimeSlotBySession(
+    DedicatedMultiplayerFoundationRuntime& runtime,
+    std::string_view session_id)
+{
+    if (session_id.empty())
+    {
+        return nullptr;
+    }
+
+    for (DedicatedPlayerRuntimeSlot& slot_state : runtime.slots)
+    {
+        if (slot_state.session_id == session_id)
+        {
+            return &slot_state;
+        }
+    }
+
+    return nullptr;
+}
+
+bool ActivateDedicatedLoopbackSession(
+    EngineShimState& state,
+    std::string_view session_id,
+    bool count_surface_result,
+    int* activated_slot,
+    std::string* reject_reason)
+{
+    if (activated_slot != nullptr)
+    {
+        *activated_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    DedicatedPlayerRuntimeSlot* slot_state = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        session_id);
+    if (slot_state == nullptr)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_activation_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "unknown-session";
+        }
+        return false;
+    }
+
+    if (!slot_state->connected)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_activation_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "not-connected";
+        }
+        return false;
+    }
+
+    if (slot_state->put_in_server
+        || slot_state->lifecycle_state == DedicatedPlayerLifecycleState::kSpawned
+        || slot_state->lifecycle_state == DedicatedPlayerLifecycleState::kRespawned)
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_activation_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "already-activated";
+        }
+        return false;
+    }
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kPutInServer,
+        "loopback post-connect activation promoted externally admitted session to put_in_server");
+
+    Vector spawn_origin;
+    std::string spawn_detail;
+    TryResolveDedicatedSpawnOrigin(state, slot_state->slot - 1, &spawn_origin, &spawn_detail);
+    ApplyDedicatedClientSpawn(state, *slot_state, spawn_origin);
+    slot_state->last_origin = spawn_origin;
+    slot_state->has_last_origin = true;
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kSpawned,
+        "loopback post-connect activation spawned externally admitted session at " + spawn_detail);
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_activation_surface.accepted;
+        ++state.dedicated_activation_surface.put_in_server;
+        ++state.dedicated_activation_surface.spawned;
+    }
+    if (activated_slot != nullptr)
+    {
+        *activated_slot = slot_state->slot;
     }
     return true;
 }
@@ -44079,6 +44267,33 @@ void RefreshDedicatedConnectSurfaceSnapshot(EngineShimState& state)
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,auth-signon-pending"
         : "loopback-bind-pending,auth-signon-pending";
+}
+
+void RefreshDedicatedActivationSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedActivationSurfaceSummary& surface =
+        state.dedicated_activation_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-post-connect-activate";
+    surface.activation_enabled = true;
+    surface.requires_accepted_admission = true;
+    surface.activates_to = "put_in_server+spawned";
+    surface.auth = "none-loopback-post-connect-only";
+    surface.signon = "pending";
+    surface.gameplay_transport = "no";
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,signon-replication-pending"
+        : "loopback-bind-pending,signon-replication-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -44322,6 +44537,89 @@ bool ParseRejectResponseText(
     const std::string players_text(
         text.substr(players_marker + 9, max_marker - (players_marker + 9)));
     const std::string max_text(text.substr(max_marker + 5));
+    if (players != nullptr)
+    {
+        *players = std::atoi(players_text.c_str());
+    }
+    if (max_players != nullptr)
+    {
+        *max_players = std::atoi(max_text.c_str());
+    }
+    return true;
+}
+
+bool ParseActivationAcceptedResponseText(
+    std::string_view text,
+    int* players,
+    int* max_players,
+    int* activated_put_in_server,
+    int* activated_spawned)
+{
+    if (!StartsWithText(text, "activated "))
+    {
+        return false;
+    }
+
+    const std::string players_text = ExtractTokenValue(text, "players=");
+    const std::string max_text = ExtractTokenValue(text, "max=");
+    const std::string put_in_server_text = ExtractTokenValue(text, "putInServer=");
+    const std::string spawned_text = ExtractTokenValue(text, "spawned=");
+    if (players_text.empty()
+        || max_text.empty()
+        || put_in_server_text.empty()
+        || spawned_text.empty())
+    {
+        return false;
+    }
+
+    if (players != nullptr)
+    {
+        *players = std::atoi(players_text.c_str());
+    }
+    if (max_players != nullptr)
+    {
+        *max_players = std::atoi(max_text.c_str());
+    }
+    if (activated_put_in_server != nullptr)
+    {
+        *activated_put_in_server = std::atoi(put_in_server_text.c_str());
+    }
+    if (activated_spawned != nullptr)
+    {
+        *activated_spawned = std::atoi(spawned_text.c_str());
+    }
+    return true;
+}
+
+bool ParseActivationRejectResponseText(
+    std::string_view text,
+    std::string* reason,
+    int* players,
+    int* max_players)
+{
+    static constexpr std::string_view kPrefix = "activation_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    const std::size_t max_marker = text.find(" max=");
+    if (players_marker == std::string_view::npos
+        || max_marker == std::string_view::npos
+        || max_marker <= players_marker)
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+
+    const std::string players_text =
+        std::string(text.substr(players_marker + 9, max_marker - (players_marker + 9)));
+    const std::string max_text = std::string(text.substr(max_marker + 5));
     if (players != nullptr)
     {
         *players = std::atoi(players_text.c_str());
@@ -44822,9 +45120,11 @@ bool PumpOneLoopbackConnectAdmissionAttempt(
 
     int admitted_slot = 0;
     std::string reject_reason;
+    const std::string session_id =
+        "loopback_preauth_session_" + std::to_string(attempt_index);
     const bool admitted = AdmitDedicatedLoopbackPreauthPlayer(
         state,
-        "loopback_preauth_session_" + std::to_string(attempt_index),
+        session_id,
         player_name,
         true,
         &admitted_slot,
@@ -44837,6 +45137,7 @@ bool PumpOneLoopbackConnectAdmissionAttempt(
     const std::string connect_response =
         admitted
         ? "accept slot=" + std::to_string(admitted_slot)
+            + " session=" + session_id
             + " players=" + std::to_string(players)
             + " max=" + std::to_string(max_players)
         : "reject reason=" + (reject_reason.empty() ? std::string("rejected") : reject_reason)
@@ -44908,6 +45209,161 @@ bool PumpOneLoopbackConnectAdmissionAttempt(
         + std::to_string(bound_port);
     return true;
 }
+
+bool PumpOneLoopbackPostConnectActivationAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    bool expect_accept,
+    hl::game_api::DedicatedActivationProbeSummary* probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail = "activation probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string activation_session =
+        session_id.empty() ? std::string("invalid_activation_session") : std::string(session_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "activate session=" + activation_session,
+            &probe->detail,
+            "activation probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in activation_client_address{};
+    int activation_client_address_size = sizeof(activation_client_address);
+    std::string activation_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &activation_request,
+            &activation_client_address,
+            &activation_client_address_size,
+            &probe->detail,
+            "activation surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(activation_request, "activate "))
+    {
+        probe->detail = "activation surface received unexpected request: "
+            + activation_request;
+        return false;
+    }
+
+    const std::string request_session = ExtractTokenValue(activation_request, "session=");
+    int activated_slot = 0;
+    std::string reject_reason;
+    const bool activated = ActivateDedicatedLoopbackSession(
+        state,
+        request_session,
+        true,
+        &activated_slot,
+        &reject_reason);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::string activation_response =
+        activated
+        ? "activated session=" + request_session
+            + " slot=" + std::to_string(activated_slot)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players)
+            + " putInServer=1 spawned=1"
+        : "activation_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            activation_client_address,
+            activation_client_address_size,
+            activation_response,
+            &probe->detail,
+            "activation surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_activation_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_activation_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "activation probe response"))
+    {
+        return false;
+    }
+
+    int parsed_players = 0;
+    int parsed_max_players = 0;
+    int parsed_put_in_server = 0;
+    int parsed_spawned = 0;
+    if (ParseActivationAcceptedResponseText(
+            parsed_activation_response,
+            &parsed_players,
+            &parsed_max_players,
+            &parsed_put_in_server,
+            &parsed_spawned))
+    {
+        ++probe->accepted;
+        probe->activated_put_in_server += parsed_put_in_server;
+        probe->activated_spawned += parsed_spawned;
+    }
+    else if (std::string parsed_reject_reason;
+             ParseActivationRejectResponseText(
+                 parsed_activation_response,
+                 &parsed_reject_reason,
+                 &parsed_players,
+                 &parsed_max_players))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail = "activation probe could not parse activation response: "
+            + parsed_activation_response;
+        return false;
+    }
+
+    probe->post_activation_players = parsed_players;
+    probe->post_activation_max_players = parsed_max_players;
+    if (activated != expect_accept)
+    {
+        probe->detail =
+            std::string("activation probe expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_activation_response;
+        return false;
+    }
+
+    probe->detail = "loopback post-connect activation probe completed on 127.0.0.1:"
+        + std::to_string(bound_port);
+    return true;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -44925,6 +45381,10 @@ void PerformDedicatedQuerySurface()
         state.dedicated_connect_surface;
     hl::game_api::DedicatedConnectProbeSummary& connect_probe =
         state.dedicated_connect_probe;
+    hl::game_api::DedicatedActivationSurfaceSummary& activation_surface =
+        state.dedicated_activation_surface;
+    hl::game_api::DedicatedActivationProbeSummary& activation_probe =
+        state.dedicated_activation_probe;
 
     if (probe.enabled)
     {
@@ -44945,6 +45405,17 @@ void PerformDedicatedQuerySurface()
         connect_probe.protocol_shape = "goldsrc-like-connectionless-challenge-connect";
         connect_probe.compatibility = "loopback-pending,auth-signon-pending";
     }
+    if (activation_surface.enabled)
+    {
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+    }
+    if (activation_probe.enabled)
+    {
+        activation_probe.mode = "dedicated";
+        activation_probe.probe = "loopback";
+        activation_probe.protocol_shape = "goldsrc-like-connectionless-post-connect-activate";
+        activation_probe.compatibility = "loopback-pending,signon-replication-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -44957,6 +45428,10 @@ void PerformDedicatedQuerySurface()
         if (connect_probe.enabled)
         {
             connect_probe.detail = surface.detail;
+        }
+        if (activation_probe.enabled)
+        {
+            activation_probe.detail = surface.detail;
         }
         return;
     }
@@ -44977,6 +45452,10 @@ void PerformDedicatedQuerySurface()
         {
             connect_probe.detail = surface.detail;
         }
+        if (activation_probe.enabled)
+        {
+            activation_probe.detail = surface.detail;
+        }
         return;
     }
 
@@ -44989,7 +45468,30 @@ void PerformDedicatedQuerySurface()
         connect_surface.detail = "sharing loopback UDP socket with the dedicated query surface";
         RefreshDedicatedConnectSurfaceSnapshot(state);
     }
+    if (activation_surface.enabled)
+    {
+        activation_surface.bound_port = bound_port;
+        activation_surface.detail =
+            "sharing loopback UDP socket with dedicated query and connect surfaces";
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+    }
 
+    bool activation_ok = true;
+    if (activation_probe.enabled && state.dedicated_activation_probe_scenario == "gate")
+    {
+        activation_ok = PumpOneLoopbackPostConnectActivationAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_activation_session",
+            false,
+            &activation_probe);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+    }
+
+    bool connect_ok = true;
     if (connect_probe.enabled)
     {
         if (state.dedicated_connect_probe_scenario == "capacity-gate")
@@ -44999,7 +45501,7 @@ void PerformDedicatedQuerySurface()
             RefreshDedicatedQuerySurfaceSnapshot(state);
         }
 
-        bool connect_ok = PumpOneLoopbackConnectAdmissionAttempt(
+        connect_ok = PumpOneLoopbackConnectAdmissionAttempt(
             state,
             server_socket.Get(),
             bound_port,
@@ -45026,6 +45528,42 @@ void PerformDedicatedQuerySurface()
         connect_surface.compatibility = connect_ok
             ? "loopback-verified,auth-signon-pending"
             : "loopback-probe-failed,auth-signon-pending";
+    }
+
+    if (activation_probe.enabled)
+    {
+        if (activation_ok && connect_ok)
+        {
+            activation_ok = PumpOneLoopbackPostConnectActivationAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                true,
+                &activation_probe);
+        }
+        if (activation_ok
+            && state.dedicated_activation_probe_scenario == "gate")
+        {
+            activation_ok = PumpOneLoopbackPostConnectActivationAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                false,
+                &activation_probe);
+        }
+
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        activation_probe.protocol_shape = activation_surface.protocol_shape;
+        activation_probe.compatibility = activation_ok
+            ? "loopback-verified,signon-replication-pending"
+            : "loopback-probe-failed,signon-replication-pending";
+        activation_surface.compatibility = activation_ok
+            ? "loopback-verified,signon-replication-pending"
+            : "loopback-probe-failed,signon-replication-pending";
     }
 
     if (probe.enabled)
@@ -45057,6 +45595,16 @@ void PerformDedicatedQuerySurface()
     {
         connect_probe.detail = surface.detail;
         connect_probe.compatibility = surface.compatibility;
+    }
+    if (activation_surface.enabled)
+    {
+        activation_surface.detail = surface.detail;
+        activation_surface.compatibility = surface.compatibility;
+    }
+    if (activation_probe.enabled)
+    {
+        activation_probe.detail = surface.detail;
+        activation_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -49139,6 +49687,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_query_probe = {};
     summary.dedicated_connect_surface = {};
     summary.dedicated_connect_probe = {};
+    summary.dedicated_activation_surface = {};
+    summary.dedicated_activation_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -49208,6 +49758,8 @@ void PopulateBootstrapSummary(
         summary.dedicated_query_probe = state.dedicated_query_probe;
         summary.dedicated_connect_surface = state.dedicated_connect_surface;
         summary.dedicated_connect_probe = state.dedicated_connect_probe;
+        summary.dedicated_activation_surface = state.dedicated_activation_surface;
+        summary.dedicated_activation_probe = state.dedicated_activation_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -49215,7 +49767,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_query_surface,
             summary.dedicated_query_probe,
             summary.dedicated_connect_surface,
-            summary.dedicated_connect_probe);
+            summary.dedicated_connect_probe,
+            summary.dedicated_activation_surface,
+            summary.dedicated_activation_probe);
     }
 
     summary.ready_for_server_activation =
@@ -56099,6 +56653,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_query_probe = {};
     impl_->summary.dedicated_connect_surface = {};
     impl_->summary.dedicated_connect_probe = {};
+    impl_->summary.dedicated_activation_surface = {};
+    impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -56146,6 +56702,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->shim_state.dedicated_connect_probe.enabled = options.connect_probe_enabled;
     impl_->shim_state.dedicated_connect_probe_scenario =
         options.connect_probe_scenario == "capacity-gate" ? "capacity-gate" : "accept";
+    impl_->shim_state.dedicated_activation_surface = {};
+    impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
+    impl_->shim_state.dedicated_activation_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_activation_probe = {};
+    impl_->shim_state.dedicated_activation_probe.enabled = options.activation_probe_enabled;
+    impl_->shim_state.dedicated_activation_probe_scenario =
+        options.activation_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_last_external_session_id.clear();
+    impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(
         impl_->shim_state.server_state,
         impl_->shim_state.game_directory,
@@ -56314,6 +56880,14 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             || impl_->summary.dedicated_connect_probe.accepted <= 0
             || (impl_->shim_state.dedicated_connect_probe_scenario == "capacity-gate"
                 && impl_->summary.dedicated_connect_probe.rejected <= 0));
+    const bool dedicated_activation_probe_failed =
+        options.activation_probe_enabled
+        && (!impl_->summary.dedicated_activation_probe.enabled
+            || impl_->summary.dedicated_activation_probe.accepted <= 0
+            || impl_->summary.dedicated_activation_probe.activated_put_in_server <= 0
+            || impl_->summary.dedicated_activation_probe.activated_spawned <= 0
+            || (impl_->shim_state.dedicated_activation_probe_scenario == "gate"
+                && impl_->summary.dedicated_activation_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -56323,7 +56897,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             || impl_->summary.server_activation.succeeded)
         && !impl_->summary.server_frame_loop.any_seh
         && !dedicated_query_probe_failed
-        && !dedicated_connect_probe_failed;
+        && !dedicated_connect_probe_failed
+        && !dedicated_activation_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept

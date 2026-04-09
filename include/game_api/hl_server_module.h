@@ -6148,6 +6148,48 @@ struct DedicatedConnectProbeSummary
     std::string detail;
 };
 
+struct DedicatedActivationSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    bool shared_with_connect = false;
+    std::string protocol_shape = "disabled";
+    bool activation_enabled = false;
+    bool requires_accepted_admission = true;
+    std::string activates_to = "put_in_server+spawned";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int accepted = 0;
+    int rejected = 0;
+    int put_in_server = 0;
+    int spawned = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedActivationProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    int activated_put_in_server = 0;
+    int activated_spawned = 0;
+    int post_activation_players = 0;
+    int post_activation_max_players = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6166,6 +6208,9 @@ struct HlServerModuleInitOptions
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";
+    bool activation_surface_enabled = false;
+    bool activation_probe_enabled = false;
+    std::string activation_probe_scenario = "happy";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6218,6 +6263,8 @@ struct HlServerModuleSummary
     DedicatedQueryProbeSummary dedicated_query_probe;
     DedicatedConnectSurfaceSummary dedicated_connect_surface;
     DedicatedConnectProbeSummary dedicated_connect_probe;
+    DedicatedActivationSurfaceSummary dedicated_activation_surface;
+    DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };
