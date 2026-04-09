@@ -6108,6 +6108,46 @@ struct DedicatedQueryProbeSummary
     std::string detail;
 };
 
+struct DedicatedConnectSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    std::string protocol_shape = "disabled";
+    bool challenge_enabled = false;
+    bool connect_enabled = false;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string authoritative_admission = "n/a";
+    int players = 0;
+    int max_players = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedConnectProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int challenge_received = 0;
+    int connect_attempted = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    int post_admission_players = 0;
+    int post_admission_max_players = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -6123,6 +6163,9 @@ struct HlServerModuleInitOptions
     bool query_surface_enabled = false;
     bool query_probe_enabled = false;
     int query_port = 0;
+    bool connect_surface_enabled = false;
+    bool connect_probe_enabled = false;
+    std::string connect_probe_scenario = "accept";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -6173,6 +6216,8 @@ struct HlServerModuleSummary
     DedicatedPlayerLifecycleFoundationSummary dedicated_player_lifecycle_foundation;
     DedicatedQuerySurfaceSummary dedicated_query_surface;
     DedicatedQueryProbeSummary dedicated_query_probe;
+    DedicatedConnectSurfaceSummary dedicated_connect_surface;
+    DedicatedConnectProbeSummary dedicated_connect_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };

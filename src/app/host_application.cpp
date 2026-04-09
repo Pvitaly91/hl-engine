@@ -22458,6 +22458,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.query_surface_enabled = options.query_surface_enabled;
     init_options.query_probe_enabled = options.query_probe_enabled;
     init_options.query_port = options.query_port;
+    init_options.connect_surface_enabled = options.connect_surface_enabled;
+    init_options.connect_probe_enabled = options.connect_probe_enabled;
+    init_options.connect_probe_scenario = options.connect_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22489,7 +22492,10 @@ bool HostApplication::RunServerEngineShim(
         + ", synthetic_players=" + std::to_string(init_options.synthetic_players)
         + ", query_surface=" + std::string(init_options.query_surface_enabled ? "1" : "0")
         + ", query_probe=" + std::string(init_options.query_probe_enabled ? "1" : "0")
-        + ", query_port=" + std::to_string(init_options.query_port));
+        + ", query_port=" + std::to_string(init_options.query_port)
+        + ", connect_surface=" + std::string(init_options.connect_surface_enabled ? "1" : "0")
+        + ", connect_probe=" + std::string(init_options.connect_probe_enabled ? "1" : "0")
+        + ", connect_probe_scenario=" + init_options.connect_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,

@@ -18,6 +18,7 @@
 #include <cstdarg>
 #include <cstring>
 #include <cstdio>
+#include <cstdlib>
 #include <cmath>
 #include <deque>
 #include <iomanip>
@@ -452,6 +453,9 @@ struct EngineShimState
     int dedicated_synthetic_players_requested = 0;
     hl::game_api::DedicatedQuerySurfaceSummary dedicated_query_surface;
     hl::game_api::DedicatedQueryProbeSummary dedicated_query_probe;
+    hl::game_api::DedicatedConnectSurfaceSummary dedicated_connect_surface;
+    hl::game_api::DedicatedConnectProbeSummary dedicated_connect_probe;
+    std::string dedicated_connect_probe_scenario = "accept";
     DeterministicRandomDiagnostics random_diagnostics;
     std::unordered_map<void*, LoadedFileBuffer> loaded_files;
     std::unordered_set<std::string> path_track_terminal_dead_end_targets;
@@ -509,11 +513,17 @@ std::string BuildDedicatedQuerySurfaceLine(
     const hl::game_api::DedicatedQuerySurfaceSummary& summary);
 std::string BuildDedicatedQueryProbeLine(
     const hl::game_api::DedicatedQueryProbeSummary& summary);
+std::string BuildDedicatedConnectSurfaceLine(
+    const hl::game_api::DedicatedConnectSurfaceSummary& summary);
+std::string BuildDedicatedConnectProbeLine(
+    const hl::game_api::DedicatedConnectProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
     const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
-    const hl::game_api::DedicatedQueryProbeSummary& query_probe);
+    const hl::game_api::DedicatedQueryProbeSummary& query_probe,
+    const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
+    const hl::game_api::DedicatedConnectProbeSummary& connect_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -18980,20 +18990,69 @@ std::string BuildDedicatedQueryProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedConnectSurfaceLine(
+    const hl::game_api::DedicatedConnectSurfaceSummary& summary)
+{
+    return "dedicated_connect_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", challengeEnabled=" + BoolToYesNo(summary.challenge_enabled)
+        + ", connectEnabled=" + BoolToYesNo(summary.connect_enabled)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", authoritativeAdmission=" + summary.authoritative_admission
+        + ", players=" + std::to_string(summary.players)
+        + ", maxPlayers=" + std::to_string(summary.max_players)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedConnectProbeLine(
+    const hl::game_api::DedicatedConnectProbeSummary& summary)
+{
+    return "dedicated_connect_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", challengeReceived=" + std::to_string(summary.challenge_received)
+        + ", connectAttempted=" + std::to_string(summary.connect_attempted)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", postAdmissionPlayers=" + std::to_string(summary.post_admission_players)
+        + ", postAdmissionMaxPlayers=" + std::to_string(summary.post_admission_max_players)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
     const hl::game_api::DedicatedQuerySurfaceSummary& query_surface,
-    const hl::game_api::DedicatedQueryProbeSummary& query_probe)
+    const hl::game_api::DedicatedQueryProbeSummary& query_probe,
+    const hl::game_api::DedicatedConnectSurfaceSummary& connect_surface,
+    const hl::game_api::DedicatedConnectProbeSummary& connect_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
         query_surface.enabled && query_surface.bound_port > 0
         && query_probe.enabled && query_probe.response_received && query_probe.parse_ok;
+    const bool connect_probe_ready =
+        connect_surface.enabled && connect_surface.bound_port > 0
+        && connect_probe.enabled && connect_probe.challenge_received > 0
+        && connect_probe.connect_attempted > 0 && connect_probe.accepted > 0;
 
     const std::string implemented =
-        query_probe_ready
+        query_probe_ready && connect_probe_ready
+        ? "implemented dedicated HLDM boot, authoritative slot/session foundation, loopback-probeable classic GoldSrc info-query surface, and loopback GoldSrc-like challenge/connect admission preauth surface"
+        : query_probe_ready
         ? "implemented dedicated HLDM boot, authoritative slot/session foundation, and loopback-probeable classic GoldSrc info-query surface"
+        : connect_surface.enabled
+        ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; connect/admission surface requested but not locally verified"
         : query_surface.enabled
         ? "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation; query/discovery surface requested but not locally verified"
         :
@@ -19002,8 +19061,8 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         : "implemented dedicated HLDM boot plus authoritative reserved client-slot/session foundation";
 
     return "dedicated_multiplayer_readiness: " + implemented
-        + "; out_of_scope=real client connect/auth/session-validation/gameplay-transport/replication/SteamNetworking"
-        + "; next=wire classic GoldSrc connect/admission surface onto the same authoritative slot state machine";
+        + "; out_of_scope=real auth/session-validation/signon/gameplay-transport/replication/SteamNetworking"
+        + "; next=bind accepted external admissions into put_in_server/spawn/signon activation on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -19295,6 +19354,18 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
             hl::common::Logger::Info(
                 hl::common::LogCategory::Summary,
                 BuildDedicatedQueryProbeLine(summary.dedicated_query_probe));
+        }
+        if (summary.dedicated_connect_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedConnectSurfaceLine(summary.dedicated_connect_surface));
+        }
+        if (summary.dedicated_connect_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedConnectProbeLine(summary.dedicated_connect_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -43808,21 +43879,148 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     return summary;
 }
 
+bool IsDedicatedSlotConnectedOccupant(const DedicatedPlayerRuntimeSlot& slot_state)
+{
+    return slot_state.occupied
+        && slot_state.connected
+        && slot_state.lifecycle_state != DedicatedPlayerLifecycleState::kDisconnected;
+}
+
 int CountDedicatedQueryPlayers(const DedicatedMultiplayerFoundationRuntime& runtime)
 {
     int players = 0;
     for (const DedicatedPlayerRuntimeSlot& slot_state : runtime.slots)
     {
-        if (slot_state.occupied
-            && slot_state.connected
-            && slot_state.put_in_server
-            && slot_state.lifecycle_state != DedicatedPlayerLifecycleState::kDisconnected)
+        if (IsDedicatedSlotConnectedOccupant(slot_state))
         {
             ++players;
         }
     }
 
     return players;
+}
+
+int FindFreeDedicatedAdmissionSlot(const EngineShimState& state)
+{
+    for (int slot = 1; slot <= state.server_state.maxclients; ++slot)
+    {
+        const DedicatedPlayerRuntimeSlot* slot_state = nullptr;
+        for (const DedicatedPlayerRuntimeSlot& candidate : state.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.slot == slot)
+            {
+                slot_state = &candidate;
+                break;
+            }
+        }
+
+        if (slot_state == nullptr || !IsDedicatedSlotConnectedOccupant(*slot_state))
+        {
+            return slot;
+        }
+    }
+
+    return 0;
+}
+
+bool AdmitDedicatedLoopbackPreauthPlayer(
+    EngineShimState& state,
+    std::string_view session_id,
+    std::string_view player_name,
+    bool count_surface_accept,
+    int* admitted_slot,
+    std::string* reject_reason)
+{
+    if (admitted_slot != nullptr)
+    {
+        *admitted_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    if (CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation)
+        >= state.server_state.maxclients)
+    {
+        if (count_surface_accept)
+        {
+            ++state.dedicated_connect_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "server-full";
+        }
+        return false;
+    }
+
+    const int slot = FindFreeDedicatedAdmissionSlot(state);
+    if (slot <= 0)
+    {
+        if (count_surface_accept)
+        {
+            ++state.dedicated_connect_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = "no-authoritative-slot";
+        }
+        return false;
+    }
+
+    DedicatedPlayerRuntimeSlot& slot_state = EnsureDedicatedPlayerRuntimeSlot(
+        state.dedicated_multiplayer_foundation,
+        slot,
+        session_id,
+        player_name);
+    PrimeDedicatedClientEdict(state, slot_state);
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        slot_state,
+        DedicatedPlayerLifecycleState::kReservedConnecting,
+        "loopback connectionless preauth reserved authoritative client slot "
+            + std::to_string(slot));
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        slot_state,
+        DedicatedPlayerLifecycleState::kConnected,
+        "loopback connectionless preauth accepted; signon/gameplay transport intentionally pending");
+
+    if (count_surface_accept)
+    {
+        ++state.dedicated_connect_surface.accepted;
+    }
+    if (admitted_slot != nullptr)
+    {
+        *admitted_slot = slot;
+    }
+    return true;
+}
+
+void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
+{
+    const int clamped_target =
+        std::max(0, std::min(target_players, state.server_state.maxclients));
+    while (CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation) < clamped_target)
+    {
+        const int next_index =
+            CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation) + 1;
+        std::string reject_reason;
+        int admitted_slot = 0;
+        if (!AdmitDedicatedLoopbackPreauthPlayer(
+                state,
+                "prefill_loopback_session_" + std::to_string(next_index),
+                "prefill_loopback_player_" + std::to_string(next_index),
+                false,
+                &admitted_slot,
+                &reject_reason))
+        {
+            hl::common::Logger::Warn(
+                hl::common::LogCategory::Server,
+                "Dedicated connect prefill stopped: " + reject_reason);
+            return;
+        }
+    }
 }
 
 std::string DedicatedRulesetName(const hl::game_api::detail::ServerState& server_state)
@@ -43855,6 +44053,32 @@ void RefreshDedicatedQuerySurfaceSnapshot(EngineShimState& state)
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,browser-pending"
         : "loopback-bind-pending,browser-pending";
+}
+
+void RefreshDedicatedConnectSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedConnectSurfaceSummary& surface = state.dedicated_connect_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-challenge-connect";
+    surface.challenge_enabled = true;
+    surface.connect_enabled = true;
+    surface.auth = "none-loopback-preauth-only";
+    surface.signon = "pending";
+    surface.authoritative_admission = "slot-state-machine";
+    surface.players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    surface.max_players = state.server_state.maxclients;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,auth-signon-pending"
+        : "loopback-bind-pending,auth-signon-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -43972,6 +44196,140 @@ bool ParseGoldSrcInfoResponse(
     (void)address;
     (void)game_directory;
     (void)game_description;
+    return true;
+}
+
+std::vector<unsigned char> BuildConnectionlessTextPacket(std::string_view text)
+{
+    std::vector<unsigned char> bytes;
+    bytes.reserve(text.size() + 5);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.push_back(0xFFu);
+    bytes.insert(bytes.end(), text.begin(), text.end());
+    bytes.push_back(0x00u);
+    return bytes;
+}
+
+std::string ExtractConnectionlessText(const unsigned char* data, int size)
+{
+    if (data == nullptr || size < 5
+        || data[0] != 0xFFu
+        || data[1] != 0xFFu
+        || data[2] != 0xFFu
+        || data[3] != 0xFFu)
+    {
+        return {};
+    }
+
+    int end = size;
+    while (end > 4 && data[end - 1] == 0x00u)
+    {
+        --end;
+    }
+
+    return std::string(
+        reinterpret_cast<const char*>(data + 4),
+        static_cast<std::size_t>(std::max(0, end - 4)));
+}
+
+bool ParseChallengeResponseText(std::string_view text, int* challenge)
+{
+    static constexpr std::string_view kPrefix = "challenge ";
+    if (challenge == nullptr || !StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::string_view challenge_text = text.substr(kPrefix.size());
+    const char* begin = challenge_text.data();
+    const char* end = challenge_text.data() + challenge_text.size();
+    int parsed = 0;
+    const std::from_chars_result result = std::from_chars(begin, end, parsed);
+    if (result.ec != std::errc{} || result.ptr != end)
+    {
+        return false;
+    }
+
+    *challenge = parsed;
+    return true;
+}
+
+bool ParseAcceptResponseText(
+    std::string_view text,
+    int* players,
+    int* max_players,
+    int* accepted_slot)
+{
+    if (!StartsWithText(text, "accept "))
+    {
+        return false;
+    }
+
+    const std::string slot_text = ExtractTokenValue(text, "slot=");
+    const std::string players_text = ExtractTokenValue(text, "players=");
+    const std::string max_text = ExtractTokenValue(text, "max=");
+    if (slot_text.empty() || players_text.empty() || max_text.empty())
+    {
+        return false;
+    }
+    const int parsed_slot = std::atoi(slot_text.c_str());
+    const int parsed_players = std::atoi(players_text.c_str());
+    const int parsed_max_players = std::atoi(max_text.c_str());
+
+    if (players != nullptr)
+    {
+        *players = parsed_players;
+    }
+    if (max_players != nullptr)
+    {
+        *max_players = parsed_max_players;
+    }
+    if (accepted_slot != nullptr)
+    {
+        *accepted_slot = parsed_slot;
+    }
+    return true;
+}
+
+bool ParseRejectResponseText(
+    std::string_view text,
+    std::string* reason,
+    int* players,
+    int* max_players)
+{
+    static constexpr std::string_view kPrefix = "reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    const std::size_t max_marker = text.find(" max=");
+    if (players_marker == std::string_view::npos
+        || max_marker == std::string_view::npos
+        || max_marker <= players_marker)
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+
+    const std::string players_text(
+        text.substr(players_marker + 9, max_marker - (players_marker + 9)));
+    const std::string max_text(text.substr(max_marker + 5));
+    if (players != nullptr)
+    {
+        *players = std::atoi(players_text.c_str());
+    }
+    if (max_players != nullptr)
+    {
+        *max_players = std::atoi(max_text.c_str());
+    }
     return true;
 }
 
@@ -44243,6 +44601,313 @@ bool PumpOneLoopbackGoldSrcInfoQuery(
         + std::to_string(bound_port);
     return true;
 }
+
+bool SendConnectionlessText(
+    SOCKET socket,
+    const sockaddr_in& address,
+    int address_size,
+    std::string_view text,
+    std::string* detail,
+    std::string_view role)
+{
+    const std::vector<unsigned char> packet = BuildConnectionlessTextPacket(text);
+    if (sendto(
+            socket,
+            reinterpret_cast<const char*>(packet.data()),
+            static_cast<int>(packet.size()),
+            0,
+            reinterpret_cast<const sockaddr*>(&address),
+            address_size) == SOCKET_ERROR)
+    {
+        if (detail != nullptr)
+        {
+            *detail = std::string(role)
+                + " sendto() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    return true;
+}
+
+bool ReceiveConnectionlessText(
+    SOCKET socket,
+    std::string* text,
+    sockaddr_in* address,
+    int* address_size,
+    std::string* detail,
+    std::string_view role)
+{
+    if (text == nullptr)
+    {
+        return false;
+    }
+
+    if (!WaitForSocketReadable(socket, 1000))
+    {
+        if (detail != nullptr)
+        {
+            *detail = std::string(role) + " did not receive a loopback packet";
+        }
+        return false;
+    }
+
+    std::array<unsigned char, 512> buffer{};
+    sockaddr_in fallback_address{};
+    int fallback_address_size = sizeof(fallback_address);
+    sockaddr_in* receive_address = address != nullptr ? address : &fallback_address;
+    int* receive_address_size =
+        address_size != nullptr ? address_size : &fallback_address_size;
+    const int received = recvfrom(
+        socket,
+        reinterpret_cast<char*>(buffer.data()),
+        static_cast<int>(buffer.size()),
+        0,
+        reinterpret_cast<sockaddr*>(receive_address),
+        receive_address_size);
+    if (received == SOCKET_ERROR)
+    {
+        if (detail != nullptr)
+        {
+            *detail = std::string(role)
+                + " recvfrom() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    *text = ExtractConnectionlessText(buffer.data(), received);
+    if (text->empty())
+    {
+        if (detail != nullptr)
+        {
+            *detail = std::string(role)
+                + " received a non-connectionless packet bytes=" + std::to_string(received);
+        }
+        return false;
+    }
+
+    return true;
+}
+
+bool PumpOneLoopbackConnectAdmissionAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    int attempt_index,
+    bool expect_accept,
+    hl::game_api::DedicatedConnectProbeSummary* probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+    const int deterministic_challenge = 112358 + attempt_index;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail = "connect probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "getchallenge",
+            &probe->detail,
+            "connect probe challenge request"))
+    {
+        return false;
+    }
+
+    sockaddr_in challenge_client_address{};
+    int challenge_client_address_size = sizeof(challenge_client_address);
+    std::string challenge_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &challenge_request,
+            &challenge_client_address,
+            &challenge_client_address_size,
+            &probe->detail,
+            "connect surface challenge receiver"))
+    {
+        return false;
+    }
+    if (challenge_request != "getchallenge")
+    {
+        probe->detail = "connect surface received unexpected challenge request: "
+            + challenge_request;
+        return false;
+    }
+
+    if (!SendConnectionlessText(
+            server_socket,
+            challenge_client_address,
+            challenge_client_address_size,
+            "challenge " + std::to_string(deterministic_challenge),
+            &probe->detail,
+            "connect surface challenge response"))
+    {
+        return false;
+    }
+
+    std::string challenge_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &challenge_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "connect probe challenge response"))
+    {
+        return false;
+    }
+
+    int parsed_challenge = 0;
+    if (!ParseChallengeResponseText(challenge_response, &parsed_challenge)
+        || parsed_challenge != deterministic_challenge)
+    {
+        probe->detail = "connect probe could not parse challenge response: "
+            + challenge_response;
+        return false;
+    }
+    ++probe->challenge_received;
+
+    const std::string player_name =
+        "loopback_preauth_player_" + std::to_string(attempt_index);
+    const std::string connect_text =
+        "connect challenge=" + std::to_string(parsed_challenge)
+        + " name=" + player_name;
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            connect_text,
+            &probe->detail,
+            "connect probe connect request"))
+    {
+        return false;
+    }
+    ++probe->connect_attempted;
+
+    sockaddr_in connect_client_address{};
+    int connect_client_address_size = sizeof(connect_client_address);
+    std::string connect_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &connect_request,
+            &connect_client_address,
+            &connect_client_address_size,
+            &probe->detail,
+            "connect surface connect receiver"))
+    {
+        return false;
+    }
+
+    const std::string expected_challenge =
+        "challenge=" + std::to_string(parsed_challenge);
+    if (!StartsWithText(connect_request, "connect ")
+        || connect_request.find(expected_challenge) == std::string::npos
+        || connect_request.find("name=") == std::string::npos)
+    {
+        probe->detail = "connect surface received unexpected connect request: "
+            + connect_request;
+        return false;
+    }
+
+    int admitted_slot = 0;
+    std::string reject_reason;
+    const bool admitted = AdmitDedicatedLoopbackPreauthPlayer(
+        state,
+        "loopback_preauth_session_" + std::to_string(attempt_index),
+        player_name,
+        true,
+        &admitted_slot,
+        &reject_reason);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::string connect_response =
+        admitted
+        ? "accept slot=" + std::to_string(admitted_slot)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players)
+        : "reject reason=" + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            connect_client_address,
+            connect_client_address_size,
+            connect_response,
+            &probe->detail,
+            "connect surface connect response"))
+    {
+        return false;
+    }
+
+    std::string parsed_connect_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_connect_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "connect probe connect response"))
+    {
+        return false;
+    }
+
+    int parsed_players = 0;
+    int parsed_max_players = 0;
+    int parsed_slot = 0;
+    if (ParseAcceptResponseText(
+            parsed_connect_response,
+            &parsed_players,
+            &parsed_max_players,
+            &parsed_slot))
+    {
+        ++probe->accepted;
+    }
+    else if (std::string parsed_reject_reason;
+             ParseRejectResponseText(
+                 parsed_connect_response,
+                 &parsed_reject_reason,
+                 &parsed_players,
+                 &parsed_max_players))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail = "connect probe could not parse connect response: "
+            + parsed_connect_response;
+        return false;
+    }
+
+    probe->post_admission_players = parsed_players;
+    probe->post_admission_max_players = parsed_max_players;
+    if (admitted != expect_accept)
+    {
+        probe->detail =
+            std::string("connect probe admission expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_connect_response;
+        return false;
+    }
+
+    probe->detail = "loopback challenge/connect probe completed on 127.0.0.1:"
+        + std::to_string(bound_port);
+    return true;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -44256,6 +44921,10 @@ void PerformDedicatedQuerySurface()
     RefreshDedicatedQuerySurfaceSnapshot(state);
     hl::game_api::DedicatedQuerySurfaceSummary& surface = state.dedicated_query_surface;
     hl::game_api::DedicatedQueryProbeSummary& probe = state.dedicated_query_probe;
+    hl::game_api::DedicatedConnectSurfaceSummary& connect_surface =
+        state.dedicated_connect_surface;
+    hl::game_api::DedicatedConnectProbeSummary& connect_probe =
+        state.dedicated_connect_probe;
 
     if (probe.enabled)
     {
@@ -44265,6 +44934,17 @@ void PerformDedicatedQuerySurface()
         probe.protocol_shape = surface.protocol_shape;
         probe.compatibility = "loopback-pending,browser-pending";
     }
+    if (connect_surface.enabled)
+    {
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+    }
+    if (connect_probe.enabled)
+    {
+        connect_probe.mode = "dedicated";
+        connect_probe.probe = "loopback";
+        connect_probe.protocol_shape = "goldsrc-like-connectionless-challenge-connect";
+        connect_probe.compatibility = "loopback-pending,auth-signon-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -44273,6 +44953,10 @@ void PerformDedicatedQuerySurface()
         if (probe.enabled)
         {
             probe.detail = surface.detail;
+        }
+        if (connect_probe.enabled)
+        {
+            connect_probe.detail = surface.detail;
         }
         return;
     }
@@ -44289,12 +44973,60 @@ void PerformDedicatedQuerySurface()
         {
             probe.detail = surface.detail;
         }
+        if (connect_probe.enabled)
+        {
+            connect_probe.detail = surface.detail;
+        }
         return;
     }
 
     surface.bound_port = bound_port;
     surface.detail = "bound loopback UDP info-query socket";
     RefreshDedicatedQuerySurfaceSnapshot(state);
+    if (connect_surface.enabled)
+    {
+        connect_surface.bound_port = bound_port;
+        connect_surface.detail = "sharing loopback UDP socket with the dedicated query surface";
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+    }
+
+    if (connect_probe.enabled)
+    {
+        if (state.dedicated_connect_probe_scenario == "capacity-gate")
+        {
+            PrefillDedicatedLoopbackAdmissions(state, std::max(0, state.server_state.maxclients - 1));
+            RefreshDedicatedConnectSurfaceSnapshot(state);
+            RefreshDedicatedQuerySurfaceSnapshot(state);
+        }
+
+        bool connect_ok = PumpOneLoopbackConnectAdmissionAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            1,
+            true,
+            &connect_probe);
+        if (connect_ok && state.dedicated_connect_probe_scenario == "capacity-gate")
+        {
+            connect_ok = PumpOneLoopbackConnectAdmissionAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                2,
+                false,
+                &connect_probe);
+        }
+
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        connect_probe.protocol_shape = connect_surface.protocol_shape;
+        connect_probe.compatibility = connect_ok
+            ? "loopback-verified,auth-signon-pending"
+            : "loopback-probe-failed,auth-signon-pending";
+        connect_surface.compatibility = connect_ok
+            ? "loopback-verified,auth-signon-pending"
+            : "loopback-probe-failed,auth-signon-pending";
+    }
 
     if (probe.enabled)
     {
@@ -44315,6 +45047,16 @@ void PerformDedicatedQuerySurface()
     {
         probe.detail = surface.detail;
         probe.compatibility = surface.compatibility;
+    }
+    if (connect_surface.enabled)
+    {
+        connect_surface.detail = surface.detail;
+        connect_surface.compatibility = surface.compatibility;
+    }
+    if (connect_probe.enabled)
+    {
+        connect_probe.detail = surface.detail;
+        connect_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -48395,6 +49137,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_player_lifecycle_foundation = {};
     summary.dedicated_query_surface = {};
     summary.dedicated_query_probe = {};
+    summary.dedicated_connect_surface = {};
+    summary.dedicated_connect_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -48462,12 +49206,16 @@ void PopulateBootstrapSummary(
 
         summary.dedicated_query_surface = state.dedicated_query_surface;
         summary.dedicated_query_probe = state.dedicated_query_probe;
+        summary.dedicated_connect_surface = state.dedicated_connect_surface;
+        summary.dedicated_connect_probe = state.dedicated_connect_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
             summary.dedicated_player_lifecycle_foundation,
             summary.dedicated_query_surface,
-            summary.dedicated_query_probe);
+            summary.dedicated_query_probe,
+            summary.dedicated_connect_surface,
+            summary.dedicated_connect_probe);
     }
 
     summary.ready_for_server_activation =
@@ -55349,6 +56097,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_player_lifecycle_foundation = {};
     impl_->summary.dedicated_query_surface = {};
     impl_->summary.dedicated_query_probe = {};
+    impl_->summary.dedicated_connect_surface = {};
+    impl_->summary.dedicated_connect_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -55388,6 +56138,14 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         options.query_port < 0 ? 0 : options.query_port > 65535 ? 65535 : options.query_port;
     impl_->shim_state.dedicated_query_probe = {};
     impl_->shim_state.dedicated_query_probe.enabled = options.query_probe_enabled;
+    impl_->shim_state.dedicated_connect_surface = {};
+    impl_->shim_state.dedicated_connect_surface.enabled = options.connect_surface_enabled;
+    impl_->shim_state.dedicated_connect_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_connect_probe = {};
+    impl_->shim_state.dedicated_connect_probe.enabled = options.connect_probe_enabled;
+    impl_->shim_state.dedicated_connect_probe_scenario =
+        options.connect_probe_scenario == "capacity-gate" ? "capacity-gate" : "accept";
     hl::game_api::detail::InitializeServerState(
         impl_->shim_state.server_state,
         impl_->shim_state.game_directory,
@@ -55548,6 +56306,14 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && (!impl_->summary.dedicated_query_probe.enabled
             || !impl_->summary.dedicated_query_probe.response_received
             || !impl_->summary.dedicated_query_probe.parse_ok);
+    const bool dedicated_connect_probe_failed =
+        options.connect_probe_enabled
+        && (!impl_->summary.dedicated_connect_probe.enabled
+            || impl_->summary.dedicated_connect_probe.challenge_received <= 0
+            || impl_->summary.dedicated_connect_probe.connect_attempted <= 0
+            || impl_->summary.dedicated_connect_probe.accepted <= 0
+            || (impl_->shim_state.dedicated_connect_probe_scenario == "capacity-gate"
+                && impl_->summary.dedicated_connect_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -55556,7 +56322,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && (!impl_->summary.ready_for_server_activation
             || impl_->summary.server_activation.succeeded)
         && !impl_->summary.server_frame_loop.any_seh
-        && !dedicated_query_probe_failed;
+        && !dedicated_query_probe_failed
+        && !dedicated_connect_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept

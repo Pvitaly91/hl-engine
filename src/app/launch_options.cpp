@@ -1006,6 +1006,82 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--connect-surface")
+        {
+            result.options.connect_surface_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view connect_surface_prefix = L"--connect-surface=";
+        if (StartsWith(argument, connect_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(connect_surface_prefix.size()),
+                    &result.options.connect_surface_enabled,
+                    &result.error_message,
+                    L"--connect-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--connect-probe")
+        {
+            result.options.connect_probe_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view connect_probe_prefix = L"--connect-probe=";
+        if (StartsWith(argument, connect_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(connect_probe_prefix.size()),
+                    &result.options.connect_probe_enabled,
+                    &result.error_message,
+                    L"--connect-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--connect-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --connect-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"accept" && normalized != L"capacity-gate")
+            {
+                result.error_message =
+                    L"Invalid value for --connect-probe-scenario. Expected accept or capacity-gate.";
+                return result;
+            }
+
+            result.options.connect_probe_scenario = NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view connect_probe_scenario_prefix = L"--connect-probe-scenario=";
+        if (StartsWith(argument, connect_probe_scenario_prefix))
+        {
+            const std::wstring normalized =
+                ToLowerCopy(argument.substr(connect_probe_scenario_prefix.size()));
+            if (normalized != L"accept" && normalized != L"capacity-gate")
+            {
+                result.error_message =
+                    L"Invalid value for --connect-probe-scenario. Expected accept or capacity-gate.";
+                return result;
+            }
+
+            result.options.connect_probe_scenario = NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--frames")
         {
             if (index + 1 >= argc)
@@ -1883,6 +1959,14 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options.query_surface_enabled = true;
     }
+    if (result.options.connect_probe_enabled)
+    {
+        result.options.connect_surface_enabled = true;
+    }
+    if (result.options.connect_surface_enabled)
+    {
+        result.options.query_surface_enabled = true;
+    }
     ApplyLoggingDefaults(result.options, parse_state);
     if (!parse_state.log_directory_explicit)
     {
@@ -1899,7 +1983,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1917,6 +2001,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --query-surface               Enable the bounded loopback dedicated UDP info-query surface\n"
              L"  --query-probe                 Run one deterministic loopback info-query probe against the enabled query surface\n"
              L"  --query-port <0..65535>       Requested loopback query UDP port (0 requests a dynamic OS-assigned port)\n"
+             L"  --connect-surface             Enable the bounded loopback dedicated UDP challenge/connect admission surface\n"
+             L"  --connect-probe               Run a deterministic loopback challenge/connect probe against the enabled connect surface\n"
+             L"  --connect-probe-scenario <s>  Connect probe scenario: accept or capacity-gate (default: accept)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"
