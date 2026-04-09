@@ -930,6 +930,82 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--query-surface")
+        {
+            result.options.query_surface_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view query_surface_prefix = L"--query-surface=";
+        if (StartsWith(argument, query_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(query_surface_prefix.size()),
+                    &result.options.query_surface_enabled,
+                    &result.error_message,
+                    L"--query-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--query-probe")
+        {
+            result.options.query_probe_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view query_probe_prefix = L"--query-probe=";
+        if (StartsWith(argument, query_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(query_probe_prefix.size()),
+                    &result.options.query_probe_enabled,
+                    &result.error_message,
+                    L"--query-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--query-port")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message = L"Missing value for --query-port.";
+                return result;
+            }
+
+            int query_port = 0;
+            if (!TryParseInteger(argv[++index], &query_port) || query_port < 0 || query_port > 65535)
+            {
+                result.error_message =
+                    L"Invalid value for --query-port. Expected an integer in the range 0..65535.";
+                return result;
+            }
+
+            result.options.query_port = query_port;
+            continue;
+        }
+
+        constexpr std::wstring_view query_port_prefix = L"--query-port=";
+        if (StartsWith(argument, query_port_prefix))
+        {
+            int query_port = 0;
+            if (!TryParseInteger(argument.substr(query_port_prefix.size()), &query_port)
+                || query_port < 0 || query_port > 65535)
+            {
+                result.error_message =
+                    L"Invalid value for --query-port. Expected an integer in the range 0..65535.";
+                return result;
+            }
+
+            result.options.query_port = query_port;
+            continue;
+        }
+
         if (argument == L"--frames")
         {
             if (index + 1 >= argc)
@@ -1803,6 +1879,10 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     }
 
     ApplyRuntimeDefaults(result.options, parse_state);
+    if (result.options.query_probe_enabled)
+    {
+        result.options.query_surface_enabled = true;
+    }
     ApplyLoggingDefaults(result.options, parse_state);
     if (!parse_state.log_directory_explicit)
     {
@@ -1819,7 +1899,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -1834,6 +1914,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --coop <0|1>                  Override the host-side coop cvar seed\n"
              L"  --maxclients <n>              Set the authoritative reserved client slot count (default: 1, dedicated default: 4)\n"
              L"  --synthetic-players <0|2>     Run the bounded host-only dedicated lifecycle harness with 0 or 2 synthetic players\n"
+             L"  --query-surface               Enable the bounded loopback dedicated UDP info-query surface\n"
+             L"  --query-probe                 Run one deterministic loopback info-query probe against the enabled query surface\n"
+             L"  --query-port <0..65535>       Requested loopback query UDP port (0 requests a dynamic OS-assigned port)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"
