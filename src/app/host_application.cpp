@@ -22504,6 +22504,12 @@ bool HostApplication::RunServerEngineShim(
         options.signon_stream_window_probe_enabled;
     init_options.signon_stream_window_probe_scenario =
         options.signon_stream_window_probe_scenario;
+    init_options.signon_message_catalog_surface_enabled =
+        options.signon_message_catalog_surface_enabled;
+    init_options.signon_message_catalog_probe_enabled =
+        options.signon_message_catalog_probe_enabled;
+    init_options.signon_message_catalog_probe_scenario =
+        options.signon_message_catalog_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22604,7 +22610,13 @@ bool HostApplication::RunServerEngineShim(
         + ", signon_stream_window_probe="
         + std::string(init_options.signon_stream_window_probe_enabled ? "1" : "0")
         + ", signon_stream_window_probe_scenario="
-        + init_options.signon_stream_window_probe_scenario);
+        + init_options.signon_stream_window_probe_scenario
+        + ", signon_message_catalog_surface="
+        + std::string(init_options.signon_message_catalog_surface_enabled ? "1" : "0")
+        + ", signon_message_catalog_probe="
+        + std::string(init_options.signon_message_catalog_probe_enabled ? "1" : "0")
+        + ", signon_message_catalog_probe_scenario="
+        + init_options.signon_message_catalog_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,
