@@ -6035,6 +6035,8 @@ struct DedicatedPlayerSlotSummary
     bool pseudo_wire_burst_delivered = false;
     bool signon_stream_ready = false;
     bool contiguous_stream_delivered = false;
+    bool signon_stream_window_ready = false;
+    bool windowed_stream_delivered = false;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -6101,6 +6103,8 @@ struct DedicatedPlayerLifecycleFoundationSummary
     int pseudo_wire_burst_delivered = 0;
     int signon_stream_ready = 0;
     int contiguous_stream_delivered = 0;
+    int signon_stream_window_ready = 0;
+    int windowed_stream_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -6960,6 +6964,113 @@ struct DedicatedSignonStreamProbeSummary
     std::string detail;
 };
 
+struct DedicatedSignonStreamWindowSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    bool shared_with_query = false;
+    bool shared_with_connect = false;
+    bool shared_with_activation = false;
+    bool shared_with_bootstrap = false;
+    bool shared_with_bootstrap_sequence = false;
+    bool shared_with_signon_catalog = false;
+    bool shared_with_signon_template = false;
+    bool shared_with_signon_template_completion = false;
+    bool shared_with_signon_envelope = false;
+    bool shared_with_signon_batch = false;
+    bool shared_with_signon_wiremap = false;
+    bool shared_with_signon_burst = false;
+    bool shared_with_signon_stream = false;
+    std::string protocol_shape = "disabled";
+    bool windowing_enabled = false;
+    bool requires_stream_ready_session = true;
+    std::string window_payload = "disabled";
+    int window_count = 0;
+    std::string replay_policy = "disabled";
+    int replays_accepted = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int accepted = 0;
+    int rejected = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    int signon_catalog_ready = 0;
+    int bootstrap_records_staged = 0;
+    int signon_template_ready = 0;
+    int template_records_delivered = 0;
+    int signon_template_coverage_complete = 0;
+    int remaining_template_records_delivered = 0;
+    int signon_envelope_ready = 0;
+    int framed_template_records_delivered = 0;
+    int signon_batch_ready = 0;
+    int pseudo_packet_batch_delivered = 0;
+    int signon_wiremap_ready = 0;
+    int wiremapped_batch_delivered = 0;
+    int signon_burst_ready = 0;
+    int pseudo_wire_burst_delivered = 0;
+    int signon_stream_ready = 0;
+    int contiguous_stream_delivered = 0;
+    int signon_stream_window_ready = 0;
+    int windowed_stream_delivered = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedSignonStreamWindowProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    int replays_accepted = 0;
+    std::string last_reject_reason = "<none>";
+    std::string parsed_session;
+    int parsed_window_count = 0;
+    int parsed_final_window = -1;
+    std::string parsed_window_byte_lengths;
+    std::string parsed_offset_ranges;
+    int parsed_final_stream_byte_length = 0;
+    int parsed_replay_window = -1;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string parsed_ruleset;
+    int parsed_spawned = 0;
+    int signon_ready = 0;
+    int bootstrap_delivered = 0;
+    int baseline_ready = 0;
+    int bootstrap_sequence_completed = 0;
+    int signon_catalog_ready = 0;
+    int bootstrap_records_staged = 0;
+    int signon_template_ready = 0;
+    int template_records_delivered = 0;
+    int signon_template_coverage_complete = 0;
+    int remaining_template_records_delivered = 0;
+    int signon_envelope_ready = 0;
+    int framed_template_records_delivered = 0;
+    int signon_batch_ready = 0;
+    int pseudo_packet_batch_delivered = 0;
+    int signon_wiremap_ready = 0;
+    int wiremapped_batch_delivered = 0;
+    int signon_burst_ready = 0;
+    int pseudo_wire_burst_delivered = 0;
+    int signon_stream_ready = 0;
+    int contiguous_stream_delivered = 0;
+    int signon_stream_window_ready = 0;
+    int windowed_stream_delivered = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+    unsigned int parsed_window_mask = 0u;
+};
+
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
@@ -7011,6 +7122,9 @@ struct HlServerModuleInitOptions
     bool signon_stream_surface_enabled = false;
     bool signon_stream_probe_enabled = false;
     std::string signon_stream_probe_scenario = "happy";
+    bool signon_stream_window_surface_enabled = false;
+    bool signon_stream_window_probe_enabled = false;
+    std::string signon_stream_window_probe_scenario = "happy";
     FrameBootstrapOptions frame_bootstrap;
 };
 
@@ -7085,6 +7199,8 @@ struct HlServerModuleSummary
     DedicatedSignonBurstProbeSummary dedicated_signon_burst_probe;
     DedicatedSignonStreamSurfaceSummary dedicated_signon_stream_surface;
     DedicatedSignonStreamProbeSummary dedicated_signon_stream_probe;
+    DedicatedSignonStreamWindowSurfaceSummary dedicated_signon_stream_window_surface;
+    DedicatedSignonStreamWindowProbeSummary dedicated_signon_stream_window_probe;
     std::string dedicated_multiplayer_readiness;
     bool ready_for_server_activation = false;
 };
