@@ -1634,6 +1634,86 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--signon-batch-surface")
+        {
+            result.options.signon_batch_surface_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view signon_batch_surface_prefix =
+            L"--signon-batch-surface=";
+        if (StartsWith(argument, signon_batch_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(signon_batch_surface_prefix.size()),
+                    &result.options.signon_batch_surface_enabled,
+                    &result.error_message,
+                    L"--signon-batch-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--signon-batch-probe")
+        {
+            result.options.signon_batch_probe_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view signon_batch_probe_prefix =
+            L"--signon-batch-probe=";
+        if (StartsWith(argument, signon_batch_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(signon_batch_probe_prefix.size()),
+                    &result.options.signon_batch_probe_enabled,
+                    &result.error_message,
+                    L"--signon-batch-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--signon-batch-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --signon-batch-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-batch-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options.signon_batch_probe_scenario = NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view signon_batch_probe_scenario_prefix =
+            L"--signon-batch-probe-scenario=";
+        if (StartsWith(argument, signon_batch_probe_scenario_prefix))
+        {
+            const std::wstring normalized =
+                ToLowerCopy(argument.substr(signon_batch_probe_scenario_prefix.size()));
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-batch-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options.signon_batch_probe_scenario = NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--frames")
         {
             if (index + 1 >= argc)
@@ -2605,6 +2685,23 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         result.options.connect_surface_enabled = true;
         result.options.query_surface_enabled = true;
     }
+    if (result.options.signon_batch_probe_enabled)
+    {
+        result.options.signon_batch_surface_enabled = true;
+        result.options.signon_envelope_probe_enabled = true;
+    }
+    if (result.options.signon_batch_surface_enabled)
+    {
+        result.options.signon_envelope_surface_enabled = true;
+        result.options.signon_template_completion_surface_enabled = true;
+        result.options.signon_template_surface_enabled = true;
+        result.options.signon_catalog_surface_enabled = true;
+        result.options.bootstrap_sequence_surface_enabled = true;
+        result.options.bootstrap_surface_enabled = true;
+        result.options.activation_surface_enabled = true;
+        result.options.connect_surface_enabled = true;
+        result.options.query_surface_enabled = true;
+    }
     ApplyLoggingDefaults(result.options, parse_state);
     if (!parse_state.log_directory_explicit)
     {
@@ -2621,7 +2718,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--activation-surface] [--activation-probe] [--activation-probe-scenario <happy|gate>] [--bootstrap-surface] [--bootstrap-probe] [--bootstrap-probe-scenario <happy|gate>] [--bootstrap-sequence-surface] [--bootstrap-sequence-probe] [--bootstrap-sequence-probe-scenario <happy|gate>] [--signon-catalog-surface] [--signon-catalog-probe] [--signon-catalog-probe-scenario <happy|gate>] [--signon-template-surface] [--signon-template-probe] [--signon-template-probe-scenario <happy|gate>] [--signon-template-completion-surface] [--signon-template-completion-probe] [--signon-template-completion-probe-scenario <happy|gate>] [--signon-envelope-surface] [--signon-envelope-probe] [--signon-envelope-probe-scenario <happy|gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--activation-surface] [--activation-probe] [--activation-probe-scenario <happy|gate>] [--bootstrap-surface] [--bootstrap-probe] [--bootstrap-probe-scenario <happy|gate>] [--bootstrap-sequence-surface] [--bootstrap-sequence-probe] [--bootstrap-sequence-probe-scenario <happy|gate>] [--signon-catalog-surface] [--signon-catalog-probe] [--signon-catalog-probe-scenario <happy|gate>] [--signon-template-surface] [--signon-template-probe] [--signon-template-probe-scenario <happy|gate>] [--signon-template-completion-surface] [--signon-template-completion-probe] [--signon-template-completion-probe-scenario <happy|gate>] [--signon-envelope-surface] [--signon-envelope-probe] [--signon-envelope-probe-scenario <happy|gate>] [--signon-batch-surface] [--signon-batch-probe] [--signon-batch-probe-scenario <happy|gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
              L"    [--log-console-level <level>] [--log-file-level <level>] [--log-categories <csv>]\n"
@@ -2663,6 +2760,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --signon-envelope-surface     Enable the bounded loopback dedicated UDP signon-envelope framed-record surface\n"
              L"  --signon-envelope-probe       Run a deterministic loopback ordered signon-envelope framed-record probe against a fully templated admission\n"
              L"  --signon-envelope-probe-scenario <s> Signon-envelope probe scenario: happy or gate (default: happy)\n"
+             L"  --signon-batch-surface        Enable the bounded loopback dedicated UDP signon pseudo-packet batch surface\n"
+             L"  --signon-batch-probe          Run a deterministic loopback ordered signon pseudo-packet batch probe against an envelope-ready admission\n"
+             L"  --signon-batch-probe-scenario <s> Signon-batch probe scenario: happy or gate (default: happy)\n"
              L"  --regression-guard <profile>   Run a narrow acceptance guard after summary capture\n"
              L"                                 Profiles: trainstop26-terminal-probe, trainstop26-baseline, changelevel-latch-only-continuation, changelevel-request-consumed\n"
              L"  --run-label <label>            Optional Codex trace label; sanitized for filesystem-safe log and manifest names\n"

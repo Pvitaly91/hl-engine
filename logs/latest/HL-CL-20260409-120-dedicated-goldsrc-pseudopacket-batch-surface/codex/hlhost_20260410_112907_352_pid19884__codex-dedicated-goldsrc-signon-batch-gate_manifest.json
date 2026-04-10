@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260410_112907",
+  "runInstanceId": "20260410_112907_352_pid19884",
+  "runLabel": "codex-dedicated-goldsrc-signon-batch-gate",
+  "promptId": "HL-CL-20260409-120-dedicated-goldsrc-pseudopacket-batch-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 32,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "423d539fb13554ca1d959abba534bf80f80789f5",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_112907_352_pid19884__codex-dedicated-goldsrc-signon-batch-gate_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_112907_352_pid19884__codex-dedicated-goldsrc-signon-batch-gate_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260410_112907_352_pid19884__codex-dedicated-goldsrc-signon-batch-gate_part01.log"]
+}
