@@ -69,6 +69,9 @@ struct LaunchOptions
     bool signon_wiremap_surface_enabled = false;
     bool signon_wiremap_probe_enabled = false;
     std::string signon_wiremap_probe_scenario = "happy";
+    bool signon_burst_surface_enabled = false;
+    bool signon_burst_probe_enabled = false;
+    std::string signon_burst_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
