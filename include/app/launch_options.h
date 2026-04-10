@@ -63,6 +63,9 @@ struct LaunchOptions
     bool signon_envelope_surface_enabled = false;
     bool signon_envelope_probe_enabled = false;
     std::string signon_envelope_probe_scenario = "happy";
+    bool signon_batch_surface_enabled = false;
+    bool signon_batch_probe_enabled = false;
+    std::string signon_batch_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
