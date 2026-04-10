@@ -22495,6 +22495,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.signon_burst_surface_enabled = options.signon_burst_surface_enabled;
     init_options.signon_burst_probe_enabled = options.signon_burst_probe_enabled;
     init_options.signon_burst_probe_scenario = options.signon_burst_probe_scenario;
+    init_options.signon_stream_surface_enabled = options.signon_stream_surface_enabled;
+    init_options.signon_stream_probe_enabled = options.signon_stream_probe_enabled;
+    init_options.signon_stream_probe_scenario = options.signon_stream_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22583,7 +22586,13 @@ bool HostApplication::RunServerEngineShim(
         + ", signon_burst_probe="
         + std::string(init_options.signon_burst_probe_enabled ? "1" : "0")
         + ", signon_burst_probe_scenario="
-        + init_options.signon_burst_probe_scenario);
+        + init_options.signon_burst_probe_scenario
+        + ", signon_stream_surface="
+        + std::string(init_options.signon_stream_surface_enabled ? "1" : "0")
+        + ", signon_stream_probe="
+        + std::string(init_options.signon_stream_probe_enabled ? "1" : "0")
+        + ", signon_stream_probe_scenario="
+        + init_options.signon_stream_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,
