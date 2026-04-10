@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260411_023919",
+  "runInstanceId": "20260411_023919_777_pid33308",
+  "runLabel": "codex-dedicated-goldsrc-signon-message-range-fetch-happy",
+  "promptId": "HL-CL-20260410-128-dedicated-goldsrc-signon-message-range-fetch-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "e8e4873cd8e785928069663ebeb7f32bba03baa0",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_023919_777_pid33308__codex-dedicated-goldsrc-signon-message-range-fetch-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_023919_777_pid33308__codex-dedicated-goldsrc-signon-message-range-fetch-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_023919_777_pid33308__codex-dedicated-goldsrc-signon-message-range-fetch-happy_part01.log"]
+}
