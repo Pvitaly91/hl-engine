@@ -212,6 +212,8 @@ enum class DedicatedPlayerLifecycleState
     kFramedTemplateRecordsDelivered,
     kSignonBatchReady,
     kPseudoPacketBatchDelivered,
+    kSignonWiremapReady,
+    kWiremappedBatchDelivered,
     kDead,
     kRespawned,
     kDisconnected,
@@ -242,11 +244,14 @@ struct DedicatedPlayerRuntimeSlot
     bool framed_template_records_delivered = false;
     bool signon_batch_ready = false;
     bool pseudo_packet_batch_delivered = false;
+    bool signon_wiremap_ready = false;
+    bool wiremapped_batch_delivered = false;
     int bootstrap_sequence_next_step = 0;
     int signon_catalog_next_record = 0;
     int signon_template_next_record = 0;
     int signon_envelope_next_frame = 0;
     int signon_batch_next_packet = 0;
+    int signon_wiremap_next_packet = 0;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -277,6 +282,8 @@ struct DedicatedMultiplayerFoundationRuntime
     int framed_template_records_delivered = 0;
     int signon_batch_ready = 0;
     int pseudo_packet_batch_delivered = 0;
+    int signon_wiremap_ready = 0;
+    int wiremapped_batch_delivered = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -530,6 +537,9 @@ struct EngineShimState
     hl::game_api::DedicatedSignonBatchSurfaceSummary dedicated_signon_batch_surface;
     hl::game_api::DedicatedSignonBatchProbeSummary dedicated_signon_batch_probe;
     std::string dedicated_signon_batch_probe_scenario = "happy";
+    hl::game_api::DedicatedSignonWiremapSurfaceSummary dedicated_signon_wiremap_surface;
+    hl::game_api::DedicatedSignonWiremapProbeSummary dedicated_signon_wiremap_probe;
+    std::string dedicated_signon_wiremap_probe_scenario = "happy";
     std::string dedicated_last_external_session_id;
     int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -625,6 +635,10 @@ std::string BuildDedicatedSignonBatchSurfaceLine(
     const hl::game_api::DedicatedSignonBatchSurfaceSummary& summary);
 std::string BuildDedicatedSignonBatchProbeLine(
     const hl::game_api::DedicatedSignonBatchProbeSummary& summary);
+std::string BuildDedicatedSignonWiremapSurfaceLine(
+    const hl::game_api::DedicatedSignonWiremapSurfaceSummary& summary);
+std::string BuildDedicatedSignonWiremapProbeLine(
+    const hl::game_api::DedicatedSignonWiremapProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -649,7 +663,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& signon_envelope_surface,
     const hl::game_api::DedicatedSignonEnvelopeProbeSummary& signon_envelope_probe,
     const hl::game_api::DedicatedSignonBatchSurfaceSummary& signon_batch_surface,
-    const hl::game_api::DedicatedSignonBatchProbeSummary& signon_batch_probe);
+    const hl::game_api::DedicatedSignonBatchProbeSummary& signon_batch_probe,
+    const hl::game_api::DedicatedSignonWiremapSurfaceSummary& signon_wiremap_surface,
+    const hl::game_api::DedicatedSignonWiremapProbeSummary& signon_wiremap_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -19090,6 +19106,9 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + ", signonBatchReady=" + std::to_string(summary.signon_batch_ready)
         + ", pseudoPacketBatchDelivered="
         + std::to_string(summary.pseudo_packet_batch_delivered)
+        + ", signonWiremapReady=" + std::to_string(summary.signon_wiremap_ready)
+        + ", wiremappedBatchDelivered="
+        + std::to_string(summary.wiremapped_batch_delivered)
         + ", deaths=" + std::to_string(summary.deaths)
         + ", respawns=" + std::to_string(summary.respawns)
         + ", disconnected=" + std::to_string(summary.disconnected)
@@ -19720,6 +19739,112 @@ std::string BuildDedicatedSignonBatchProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedSignonWiremapSurfaceLine(
+    const hl::game_api::DedicatedSignonWiremapSurfaceSummary& summary)
+{
+    return "dedicated_signon_wiremap_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", sharedWithActivation=" + BoolToYesNo(summary.shared_with_activation)
+        + ", sharedWithBootstrap=" + BoolToYesNo(summary.shared_with_bootstrap)
+        + ", sharedWithBootstrapSequence="
+        + BoolToYesNo(summary.shared_with_bootstrap_sequence)
+        + ", sharedWithSignonCatalog=" + BoolToYesNo(summary.shared_with_signon_catalog)
+        + ", sharedWithSignonTemplate=" + BoolToYesNo(summary.shared_with_signon_template)
+        + ", sharedWithSignonTemplateCompletion="
+        + BoolToYesNo(summary.shared_with_signon_template_completion)
+        + ", sharedWithSignonEnvelope=" + BoolToYesNo(summary.shared_with_signon_envelope)
+        + ", sharedWithSignonBatch=" + BoolToYesNo(summary.shared_with_signon_batch)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", wiremapEnabled=" + BoolToYesNo(summary.wiremap_enabled)
+        + ", requiresBatchReadySession="
+        + BoolToYesNo(summary.requires_batch_ready_session)
+        + ", wiremapPayload=" + summary.wiremap_payload
+        + ", wiremapPackets=" + std::to_string(summary.wiremap_packets)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", signonBatchReady=" + std::to_string(summary.signon_batch_ready)
+        + ", pseudoPacketBatchDelivered="
+        + std::to_string(summary.pseudo_packet_batch_delivered)
+        + ", signonWiremapReady=" + std::to_string(summary.signon_wiremap_ready)
+        + ", wiremappedBatchDelivered="
+        + std::to_string(summary.wiremapped_batch_delivered)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedSignonWiremapProbeLine(
+    const hl::game_api::DedicatedSignonWiremapProbeSummary& summary)
+{
+    return "dedicated_signon_wiremap_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", parsedSession="
+        + (summary.parsed_session.empty() ? std::string("<unset>") : summary.parsed_session)
+        + ", parsedWiremapCount=" + std::to_string(summary.parsed_wiremap_count)
+        + ", parsedFinalPacket=" + std::to_string(summary.parsed_final_packet)
+        + ", parsedSequenceIds="
+        + (summary.parsed_sequence_ids.empty() ? std::string("<unset>") : summary.parsed_sequence_ids)
+        + ", parsedFlags="
+        + (summary.parsed_flags.empty() ? std::string("<unset>") : summary.parsed_flags)
+        + ", parsedPacketByteLengths="
+        + (summary.parsed_packet_byte_lengths.empty()
+            ? std::string("<unset>")
+            : summary.parsed_packet_byte_lengths)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName=" + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", parsedRuleset="
+        + (summary.parsed_ruleset.empty() ? std::string("<unset>") : summary.parsed_ruleset)
+        + ", parsedSpawned=" + std::to_string(summary.parsed_spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", signonBatchReady=" + std::to_string(summary.signon_batch_ready)
+        + ", pseudoPacketBatchDelivered="
+        + std::to_string(summary.pseudo_packet_batch_delivered)
+        + ", signonWiremapReady=" + std::to_string(summary.signon_wiremap_ready)
+        + ", wiremappedBatchDelivered="
+        + std::to_string(summary.wiremapped_batch_delivered)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -19744,7 +19869,9 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonEnvelopeSurfaceSummary& signon_envelope_surface,
     const hl::game_api::DedicatedSignonEnvelopeProbeSummary& signon_envelope_probe,
     const hl::game_api::DedicatedSignonBatchSurfaceSummary& signon_batch_surface,
-    const hl::game_api::DedicatedSignonBatchProbeSummary& signon_batch_probe)
+    const hl::game_api::DedicatedSignonBatchProbeSummary& signon_batch_probe,
+    const hl::game_api::DedicatedSignonWiremapSurfaceSummary& signon_wiremap_surface,
+    const hl::game_api::DedicatedSignonWiremapProbeSummary& signon_wiremap_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -19832,14 +19959,36 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_batch_probe.framed_template_records_delivered > 0
         && signon_batch_probe.signon_batch_ready > 0
         && signon_batch_probe.pseudo_packet_batch_delivered > 0;
+    const bool signon_wiremap_probe_ready =
+        signon_wiremap_surface.enabled
+        && signon_wiremap_surface.bound_port > 0
+        && signon_wiremap_probe.enabled
+        && signon_wiremap_probe.accepted > 0
+        && signon_wiremap_probe.parsed_wiremap_count >= 2
+        && signon_wiremap_probe.parsed_final_packet >= 1
+        && !signon_wiremap_probe.parsed_sequence_ids.empty()
+        && !signon_wiremap_probe.parsed_flags.empty()
+        && !signon_wiremap_probe.parsed_packet_byte_lengths.empty()
+        && signon_wiremap_probe.signon_envelope_ready > 0
+        && signon_wiremap_probe.framed_template_records_delivered > 0
+        && signon_wiremap_probe.signon_batch_ready > 0
+        && signon_wiremap_probe.pseudo_packet_batch_delivered > 0
+        && signon_wiremap_probe.signon_wiremap_ready > 0
+        && signon_wiremap_probe.wiremapped_batch_delivered > 0;
 
     const std::string implemented =
         query_probe_ready && connect_probe_ready && activation_probe_ready
             && bootstrap_probe_ready && bootstrap_sequence_probe_ready
             && signon_catalog_probe_ready && signon_template_probe_ready
             && signon_template_completion_probe_ready && signon_envelope_probe_ready
+            && signon_batch_probe_ready && signon_wiremap_probe_ready
+        ? "implemented dedicated foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, loopback bootstrap descriptor state, loopback ordered bootstrap-sequence descriptor state, loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state, loopback first and remaining signon-template delivery, loopback signon-envelope/record-framing delivery, loopback signon pseudo-packet batch delivery, and loopback wire-shaped header/body mapping for the batched pre-snapshot signon record set of accepted external sessions"
+        : query_probe_ready && connect_probe_ready && activation_probe_ready
+            && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+            && signon_catalog_probe_ready && signon_template_probe_ready
+            && signon_template_completion_probe_ready && signon_envelope_probe_ready
             && signon_batch_probe_ready
-        ? "implemented dedicated foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, loopback bootstrap descriptor state, loopback ordered bootstrap-sequence descriptor state, loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state, loopback first and remaining signon-template delivery, loopback signon-envelope/record-framing delivery, and loopback signon pseudo-packet batch delivery for the framed pre-snapshot record set of accepted external sessions"
+        ? "implemented dedicated foundation, loopback query/discovery, loopback challenge/connect admission preauth, loopback post-connect activation to put_in_server/spawned, loopback bootstrap descriptor state, loopback ordered bootstrap-sequence descriptor state, loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state, loopback first and remaining signon-template delivery, loopback signon-envelope/record-framing delivery, and loopback signon pseudo-packet batch delivery for the framed pre-snapshot record set of accepted external sessions; wire-shaped header/body mapping requested but not locally verified"
         : query_probe_ready && connect_probe_ready && activation_probe_ready
             && bootstrap_probe_ready && bootstrap_sequence_probe_ready
             && signon_catalog_probe_ready && signon_template_probe_ready
@@ -19884,7 +20033,7 @@ std::string BuildDedicatedMultiplayerReadinessLine(
 
     return "dedicated_multiplayer_readiness: " + implemented
         + "; out_of_scope=real auth/session-validation/real-signon-bytes-compatibility/netchan/real-baselines/snapshots/gameplay-transport/replication/SteamNetworking"
-        + "; next=implement narrow wire-compatible packet header/body mapping or first pseudo-wire burst emission for the batched pre-snapshot signon record set on the same authoritative slot state machine";
+        + "; next=implement narrow pseudo-wire burst emission or first contiguous signon record stream delivery for the now wire-mapped pre-snapshot signon batch on the same authoritative slot state machine";
 }
 
 void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& summary)
@@ -20296,6 +20445,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildDedicatedSignonBatchProbeLine(
                     summary.dedicated_signon_batch_probe));
+        }
+        if (summary.dedicated_signon_wiremap_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonWiremapSurfaceLine(
+                    summary.dedicated_signon_wiremap_surface));
+        }
+        if (summary.dedicated_signon_wiremap_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonWiremapProbeLine(
+                    summary.dedicated_signon_wiremap_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -44503,6 +44666,10 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         return "signon_batch_ready";
     case DedicatedPlayerLifecycleState::kPseudoPacketBatchDelivered:
         return "pseudo_packet_batch_delivered";
+    case DedicatedPlayerLifecycleState::kSignonWiremapReady:
+        return "signon_wiremap_ready";
+    case DedicatedPlayerLifecycleState::kWiremappedBatchDelivered:
+        return "wiremapped_batch_delivered";
     case DedicatedPlayerLifecycleState::kDead:
         return "dead";
     case DedicatedPlayerLifecycleState::kRespawned:
@@ -44958,6 +45125,47 @@ void RecordDedicatedLifecycleTransition(
         slot_state.signon_batch_ready = true;
         slot_state.pseudo_packet_batch_delivered = true;
         break;
+    case DedicatedPlayerLifecycleState::kSignonWiremapReady:
+        ++runtime.signon_wiremap_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        slot_state.framed_template_records_delivered = true;
+        slot_state.signon_batch_ready = true;
+        slot_state.pseudo_packet_batch_delivered = true;
+        slot_state.signon_wiremap_ready = true;
+        break;
+    case DedicatedPlayerLifecycleState::kWiremappedBatchDelivered:
+        ++runtime.wiremapped_batch_delivered;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        slot_state.framed_template_records_delivered = true;
+        slot_state.signon_batch_ready = true;
+        slot_state.pseudo_packet_batch_delivered = true;
+        slot_state.signon_wiremap_ready = true;
+        slot_state.wiremapped_batch_delivered = true;
+        break;
     case DedicatedPlayerLifecycleState::kDead:
         ++runtime.deaths;
         ++slot_state.death_count;
@@ -45021,6 +45229,8 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     summary.signon_batch_ready = slot_state.signon_batch_ready;
     summary.pseudo_packet_batch_delivered =
         slot_state.pseudo_packet_batch_delivered;
+    summary.signon_wiremap_ready = slot_state.signon_wiremap_ready;
+    summary.wiremapped_batch_delivered = slot_state.wiremapped_batch_delivered;
     summary.spawn_count = slot_state.spawn_count;
     summary.death_count = slot_state.death_count;
     summary.respawn_count = slot_state.respawn_count;
@@ -46085,6 +46295,144 @@ bool AdvanceDedicatedLoopbackSignonBatchPacket(
     return true;
 }
 
+bool AdvanceDedicatedLoopbackSignonWiremapPacket(
+    EngineShimState& state,
+    std::string_view session_id,
+    int requested_packet,
+    bool count_surface_result,
+    int* wiremap_slot,
+    std::string* reject_reason)
+{
+    static constexpr int kSignonWiremapPackets = 2;
+    static constexpr int kSignonWiremapFinalPacket = kSignonWiremapPackets - 1;
+
+    if (wiremap_slot != nullptr)
+    {
+        *wiremap_slot = 0;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    const auto reject = [&](std::string reason) -> bool
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_signon_wiremap_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(reason);
+        }
+        return false;
+    };
+
+    DedicatedPlayerRuntimeSlot* slot_state = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        session_id);
+    if (slot_state == nullptr)
+    {
+        return reject("unknown-session");
+    }
+
+    if (!slot_state->external_loopback_admission)
+    {
+        return reject("not-external-admission");
+    }
+
+    if (!slot_state->connected
+        || !slot_state->put_in_server
+        || !slot_state->alive
+        || slot_state->spawn_count <= 0)
+    {
+        return reject("not-activated");
+    }
+
+    if (!slot_state->signon_ready || !slot_state->bootstrap_delivered)
+    {
+        return reject("not-bootstrapped");
+    }
+
+    if (!slot_state->baseline_ready || !slot_state->bootstrap_sequence_completed)
+    {
+        return reject("not-sequenced");
+    }
+
+    if (!slot_state->signon_catalog_ready || !slot_state->bootstrap_records_staged)
+    {
+        return reject("not-cataloged");
+    }
+
+    if (!slot_state->signon_template_ready || !slot_state->template_records_delivered)
+    {
+        return reject("not-initially-templated");
+    }
+
+    if (!slot_state->signon_template_coverage_complete
+        || !slot_state->remaining_template_records_delivered)
+    {
+        return reject("template-coverage-incomplete");
+    }
+
+    if (!slot_state->signon_envelope_ready || !slot_state->framed_template_records_delivered)
+    {
+        return reject("envelope-incomplete");
+    }
+
+    if (!slot_state->signon_batch_ready || !slot_state->pseudo_packet_batch_delivered)
+    {
+        return reject("not-batch-ready");
+    }
+
+    if (slot_state->wiremapped_batch_delivered || slot_state->signon_wiremap_ready)
+    {
+        return reject("already-wiremapped");
+    }
+
+    if (requested_packet < 0 || requested_packet >= kSignonWiremapPackets)
+    {
+        return reject("invalid-packet");
+    }
+
+    if (requested_packet != slot_state->signon_wiremap_next_packet)
+    {
+        return reject("unexpected-packet");
+    }
+
+    if (requested_packet < kSignonWiremapFinalPacket)
+    {
+        ++slot_state->signon_wiremap_next_packet;
+        if (wiremap_slot != nullptr)
+        {
+            *wiremap_slot = slot_state->slot;
+        }
+        return true;
+    }
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kSignonWiremapReady,
+        "loopback signon wiremap final packet marked batch-ready external session signon_wiremap_ready");
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kWiremappedBatchDelivered,
+        "loopback ordered wire-shaped header/body mappings delivered for batched pre-snapshot records; real signon wire compatibility intentionally pending");
+    slot_state->signon_wiremap_next_packet = kSignonWiremapPackets;
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_signon_wiremap_surface.accepted;
+    }
+    if (wiremap_slot != nullptr)
+    {
+        *wiremap_slot = slot_state->slot;
+    }
+    return true;
+}
+
 void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
 {
     const int clamped_target =
@@ -46511,6 +46859,71 @@ void RefreshDedicatedSignonBatchSurfaceSnapshot(EngineShimState& state)
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,pseudo-packet-batch-real-signon-wire-pending"
         : "loopback-bind-pending,pseudo-packet-batch-real-signon-wire-pending";
+}
+
+void RefreshDedicatedSignonWiremapSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedSignonWiremapSurfaceSummary& surface =
+        state.dedicated_signon_wiremap_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.shared_with_activation = state.dedicated_activation_surface.enabled;
+    surface.shared_with_bootstrap = state.dedicated_bootstrap_surface.enabled;
+    surface.shared_with_bootstrap_sequence = state.dedicated_bootstrap_sequence_surface.enabled;
+    surface.shared_with_signon_catalog = state.dedicated_signon_catalog_surface.enabled;
+    surface.shared_with_signon_template = state.dedicated_signon_template_surface.enabled;
+    surface.shared_with_signon_template_completion =
+        state.dedicated_signon_template_completion_surface.enabled;
+    surface.shared_with_signon_envelope = state.dedicated_signon_envelope_surface.enabled;
+    surface.shared_with_signon_batch = state.dedicated_signon_batch_surface.enabled;
+    surface.protocol_shape = "goldsrc-like-connectionless-signon-wire-header-body-mapping";
+    surface.wiremap_enabled = true;
+    surface.requires_batch_ready_session = true;
+    surface.wiremap_payload =
+        "packet0-header(packetIndex/sequenceId/flags/payloadByteLength/messageKind)+pseudo-packet0-body;packet1-header(packetIndex/sequenceId/flags/payloadByteLength/messageKind)+pseudo-packet1-body";
+    surface.wiremap_packets = 2;
+    surface.auth = "none-loopback-post-batch-only";
+    surface.signon = "wire-header-body-mapping-only";
+    surface.gameplay_transport = "no";
+    surface.signon_ready = state.dedicated_multiplayer_foundation.signon_ready;
+    surface.bootstrap_delivered = state.dedicated_multiplayer_foundation.bootstrap_delivered;
+    surface.baseline_ready = state.dedicated_multiplayer_foundation.baseline_ready;
+    surface.bootstrap_sequence_completed =
+        state.dedicated_multiplayer_foundation.bootstrap_sequence_completed;
+    surface.signon_catalog_ready = state.dedicated_multiplayer_foundation.signon_catalog_ready;
+    surface.bootstrap_records_staged =
+        state.dedicated_multiplayer_foundation.bootstrap_records_staged;
+    surface.signon_template_ready =
+        state.dedicated_multiplayer_foundation.signon_template_ready;
+    surface.template_records_delivered =
+        state.dedicated_multiplayer_foundation.template_records_delivered;
+    surface.signon_template_coverage_complete =
+        state.dedicated_multiplayer_foundation.signon_template_coverage_complete;
+    surface.remaining_template_records_delivered =
+        state.dedicated_multiplayer_foundation.remaining_template_records_delivered;
+    surface.signon_envelope_ready =
+        state.dedicated_multiplayer_foundation.signon_envelope_ready;
+    surface.framed_template_records_delivered =
+        state.dedicated_multiplayer_foundation.framed_template_records_delivered;
+    surface.signon_batch_ready = state.dedicated_multiplayer_foundation.signon_batch_ready;
+    surface.pseudo_packet_batch_delivered =
+        state.dedicated_multiplayer_foundation.pseudo_packet_batch_delivered;
+    surface.signon_wiremap_ready =
+        state.dedicated_multiplayer_foundation.signon_wiremap_ready;
+    surface.wiremapped_batch_delivered =
+        state.dedicated_multiplayer_foundation.wiremapped_batch_delivered;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,wire-shaped-mapping-real-signon-wire-pending"
+        : "loopback-bind-pending,wire-shaped-mapping-real-signon-wire-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -47338,6 +47751,63 @@ std::vector<unsigned char> BuildDedicatedSignonBatchPacketBytes(
     return bytes;
 }
 
+unsigned short DedicatedSignonWiremapSequenceId(int requested_packet)
+{
+    return static_cast<unsigned short>(0x1200u + static_cast<unsigned int>(std::max(requested_packet, 0)));
+}
+
+unsigned short DedicatedSignonWiremapFlags(int requested_packet)
+{
+    unsigned short flags = 0u;
+    if (requested_packet == 0)
+    {
+        flags |= 0x0001u;
+    }
+    if (requested_packet == 1)
+    {
+        flags |= 0x0002u;
+    }
+    return flags;
+}
+
+std::string_view DedicatedSignonWiremapMessageKind()
+{
+    return "pseudo-packet-body";
+}
+
+std::vector<unsigned char> BuildDedicatedSignonWiremapPacketBytes(
+    const EngineShimState& state,
+    const DedicatedPlayerRuntimeSlot& slot_state,
+    int requested_packet)
+{
+    const std::vector<unsigned char> batch_bytes =
+        BuildDedicatedSignonBatchPacketBytes(state, slot_state, requested_packet);
+    if (batch_bytes.empty())
+    {
+        return {};
+    }
+
+    const unsigned short sequence_id = DedicatedSignonWiremapSequenceId(requested_packet);
+    const unsigned short flags = DedicatedSignonWiremapFlags(requested_packet);
+    const std::string_view message_kind = DedicatedSignonWiremapMessageKind();
+
+    std::vector<unsigned char> bytes;
+    bytes.reserve(13 + message_kind.size() + batch_bytes.size());
+    bytes.push_back('H');
+    bytes.push_back('L');
+    bytes.push_back('W');
+    bytes.push_back('M');
+    bytes.push_back(static_cast<unsigned char>(std::max(requested_packet, 0)));
+    bytes.push_back(2u);
+    AppendLittleEndianShort(bytes, sequence_id);
+    AppendLittleEndianShort(bytes, flags);
+    AppendLittleEndianShort(bytes, static_cast<unsigned int>(batch_bytes.size()));
+    bytes.push_back(static_cast<unsigned char>(message_kind.size()));
+    bytes.insert(bytes.end(), message_kind.begin(), message_kind.end());
+    bytes.insert(bytes.end(), batch_bytes.begin(), batch_bytes.end());
+    return bytes;
+}
+
 bool ParseSignonTemplateAcceptedResponseText(
     std::string_view text,
     hl::game_api::DedicatedSignonTemplateProbeSummary* probe,
@@ -48040,6 +48510,245 @@ bool ParseSignonBatchRejectResponseText(
     std::string* reason)
 {
     static constexpr std::string_view kPrefix = "signon_batch_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    if (players_marker == std::string_view::npos || players_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+    return true;
+}
+
+bool ParseSignonWiremapAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedSignonWiremapProbeSummary* probe,
+    int* parsed_packet_index)
+{
+    if (probe == nullptr || !StartsWithText(text, "signon_wiremap "))
+    {
+        return false;
+    }
+
+    const std::string session = ExtractTokenValue(text, "session=");
+    const std::string packet_index = ExtractTokenValue(text, "packetIndex=");
+    const std::string total_packet_count = ExtractTokenValue(text, "totalPacketCount=");
+    const std::string sequence_id = ExtractTokenValue(text, "sequenceId=");
+    const std::string flags = ExtractTokenValue(text, "flags=");
+    const std::string payload_byte_length = ExtractTokenValue(text, "payloadByteLength=");
+    const std::string message_kind = ExtractTokenValue(text, "messageKind=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    const std::string signon_ready = ExtractTokenValue(text, "signonReady=");
+    const std::string bootstrap_delivered = ExtractTokenValue(text, "bootstrapDelivered=");
+    const std::string baseline_ready = ExtractTokenValue(text, "baselineReady=");
+    const std::string bootstrap_sequence_completed =
+        ExtractTokenValue(text, "bootstrapSequenceCompleted=");
+    const std::string signon_catalog_ready = ExtractTokenValue(text, "signonCatalogReady=");
+    const std::string bootstrap_records_staged =
+        ExtractTokenValue(text, "bootstrapRecordsStaged=");
+    const std::string signon_template_ready = ExtractTokenValue(text, "signonTemplateReady=");
+    const std::string template_records_delivered =
+        ExtractTokenValue(text, "templateRecordsDelivered=");
+    const std::string signon_template_coverage_complete =
+        ExtractTokenValue(text, "signonTemplateCoverageComplete=");
+    const std::string remaining_template_records_delivered =
+        ExtractTokenValue(text, "remainingTemplateRecordsDelivered=");
+    const std::string signon_envelope_ready =
+        ExtractTokenValue(text, "signonEnvelopeReady=");
+    const std::string framed_template_records_delivered =
+        ExtractTokenValue(text, "framedTemplateRecordsDelivered=");
+    const std::string signon_batch_ready = ExtractTokenValue(text, "signonBatchReady=");
+    const std::string pseudo_packet_batch_delivered =
+        ExtractTokenValue(text, "pseudoPacketBatchDelivered=");
+    const std::string signon_wiremap_ready =
+        ExtractTokenValue(text, "signonWiremapReady=");
+    const std::string wiremapped_batch_delivered =
+        ExtractTokenValue(text, "wiremappedBatchDelivered=");
+    const std::string mapping_bytes = ExtractTokenValue(text, "mappingBytes=");
+    if (session.empty()
+        || packet_index.empty()
+        || total_packet_count.empty()
+        || sequence_id.empty()
+        || flags.empty()
+        || payload_byte_length.empty()
+        || message_kind.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty()
+        || signon_ready.empty()
+        || bootstrap_delivered.empty()
+        || baseline_ready.empty()
+        || bootstrap_sequence_completed.empty()
+        || signon_catalog_ready.empty()
+        || bootstrap_records_staged.empty()
+        || signon_template_ready.empty()
+        || template_records_delivered.empty()
+        || signon_template_coverage_complete.empty()
+        || remaining_template_records_delivered.empty()
+        || signon_envelope_ready.empty()
+        || framed_template_records_delivered.empty()
+        || signon_batch_ready.empty()
+        || pseudo_packet_batch_delivered.empty()
+        || signon_wiremap_ready.empty()
+        || wiremapped_batch_delivered.empty()
+        || mapping_bytes.empty())
+    {
+        return false;
+    }
+
+    const int parsed_packet = std::atoi(packet_index.c_str());
+    if (parsed_packet_index != nullptr)
+    {
+        *parsed_packet_index = parsed_packet;
+    }
+
+    std::vector<unsigned char> decoded_bytes;
+    if (!TryDecodeUpperHex(mapping_bytes, &decoded_bytes))
+    {
+        return false;
+    }
+
+    const int parsed_total_packet_count = std::atoi(total_packet_count.c_str());
+    const int parsed_sequence_id = std::atoi(sequence_id.c_str());
+    const int parsed_flags = std::atoi(flags.c_str());
+    const int parsed_payload_byte_length = std::atoi(payload_byte_length.c_str());
+    const std::size_t minimum_size = 13u + message_kind.size();
+    if (decoded_bytes.size() < minimum_size
+        || decoded_bytes[0] != 'H'
+        || decoded_bytes[1] != 'L'
+        || decoded_bytes[2] != 'W'
+        || decoded_bytes[3] != 'M'
+        || decoded_bytes[4] != static_cast<unsigned char>(parsed_packet)
+        || decoded_bytes[5] != static_cast<unsigned char>(parsed_total_packet_count))
+    {
+        return false;
+    }
+
+    const int decoded_sequence_id =
+        static_cast<int>(decoded_bytes[6])
+        | (static_cast<int>(decoded_bytes[7]) << 8);
+    const int decoded_flags =
+        static_cast<int>(decoded_bytes[8])
+        | (static_cast<int>(decoded_bytes[9]) << 8);
+    const int decoded_payload_length =
+        static_cast<int>(decoded_bytes[10])
+        | (static_cast<int>(decoded_bytes[11]) << 8);
+    const int message_kind_length = static_cast<int>(decoded_bytes[12]);
+    if (decoded_sequence_id != parsed_sequence_id
+        || decoded_flags != parsed_flags
+        || decoded_payload_length != parsed_payload_byte_length
+        || message_kind_length != static_cast<int>(message_kind.size())
+        || decoded_bytes.size() != minimum_size + static_cast<std::size_t>(parsed_payload_byte_length))
+    {
+        return false;
+    }
+
+    const std::string decoded_message_kind(
+        decoded_bytes.begin() + 13,
+        decoded_bytes.begin() + 13 + message_kind_length);
+    if (decoded_message_kind != message_kind)
+    {
+        return false;
+    }
+
+    const std::size_t body_offset = 13u + static_cast<std::size_t>(message_kind_length);
+    if ((body_offset + 10u) > decoded_bytes.size()
+        || decoded_bytes[body_offset + 0] != 'H'
+        || decoded_bytes[body_offset + 1] != 'L'
+        || decoded_bytes[body_offset + 2] != 'P'
+        || decoded_bytes[body_offset + 3] != 'B'
+        || decoded_bytes[body_offset + 4] != static_cast<unsigned char>(parsed_packet)
+        || decoded_bytes[body_offset + 5] != static_cast<unsigned char>(parsed_total_packet_count))
+    {
+        return false;
+    }
+
+    probe->parsed_session = session;
+    probe->parsed_wiremap_count = parsed_total_packet_count;
+    probe->parsed_final_packet = parsed_total_packet_count - 1;
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+    probe->signon_ready = std::atoi(signon_ready.c_str());
+    probe->bootstrap_delivered = std::atoi(bootstrap_delivered.c_str());
+    probe->baseline_ready = std::atoi(baseline_ready.c_str());
+    probe->bootstrap_sequence_completed = std::atoi(bootstrap_sequence_completed.c_str());
+    probe->signon_catalog_ready = std::atoi(signon_catalog_ready.c_str());
+    probe->bootstrap_records_staged = std::atoi(bootstrap_records_staged.c_str());
+    probe->signon_template_ready = std::atoi(signon_template_ready.c_str());
+    probe->template_records_delivered = std::atoi(template_records_delivered.c_str());
+    probe->signon_template_coverage_complete =
+        std::atoi(signon_template_coverage_complete.c_str());
+    probe->remaining_template_records_delivered =
+        std::atoi(remaining_template_records_delivered.c_str());
+    probe->signon_envelope_ready = std::atoi(signon_envelope_ready.c_str());
+    probe->framed_template_records_delivered =
+        std::atoi(framed_template_records_delivered.c_str());
+    probe->signon_batch_ready = std::atoi(signon_batch_ready.c_str());
+    probe->pseudo_packet_batch_delivered =
+        std::atoi(pseudo_packet_batch_delivered.c_str());
+    probe->signon_wiremap_ready = std::atoi(signon_wiremap_ready.c_str());
+    probe->wiremapped_batch_delivered =
+        std::atoi(wiremapped_batch_delivered.c_str());
+    if (!probe->parsed_sequence_ids.empty())
+    {
+        probe->parsed_sequence_ids += "|";
+    }
+    probe->parsed_sequence_ids += std::to_string(parsed_sequence_id);
+    if (!probe->parsed_flags.empty())
+    {
+        probe->parsed_flags += "|";
+    }
+    probe->parsed_flags += std::to_string(parsed_flags);
+    if (!probe->parsed_packet_byte_lengths.empty())
+    {
+        probe->parsed_packet_byte_lengths += "|";
+    }
+    probe->parsed_packet_byte_lengths += std::to_string(parsed_payload_byte_length);
+
+    const bool final_packet_response = parsed_packet == (probe->parsed_wiremap_count - 1);
+    return parsed_packet >= 0
+        && probe->parsed_wiremap_count >= 2
+        && probe->parsed_spawned > 0
+        && probe->signon_ready > 0
+        && probe->bootstrap_delivered > 0
+        && probe->baseline_ready > 0
+        && probe->bootstrap_sequence_completed > 0
+        && probe->signon_catalog_ready > 0
+        && probe->bootstrap_records_staged > 0
+        && probe->signon_template_ready > 0
+        && probe->template_records_delivered > 0
+        && probe->signon_template_coverage_complete > 0
+        && probe->remaining_template_records_delivered > 0
+        && probe->signon_envelope_ready > 0
+        && probe->framed_template_records_delivered > 0
+        && probe->signon_batch_ready > 0
+        && probe->pseudo_packet_batch_delivered > 0
+        && (final_packet_response
+            ? (probe->signon_wiremap_ready > 0
+                && probe->wiremapped_batch_delivered > 0)
+            : (probe->signon_wiremap_ready == 0
+                && probe->wiremapped_batch_delivered == 0));
+}
+
+bool ParseSignonWiremapRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix = "signon_wiremap_reject reason=";
     if (!StartsWithText(text, kPrefix))
     {
         return false;
@@ -49212,6 +49921,19 @@ std::string DedicatedSignonBatchPayloadName(int requested_packet)
         return "framed-records0-1";
     case 1:
         return "framed-records2-3";
+    default:
+        return "invalid";
+    }
+}
+
+std::string DedicatedSignonWiremapPayloadName(int requested_packet)
+{
+    switch (requested_packet)
+    {
+    case 0:
+        return "pseudo-packet0-body";
+    case 1:
+        return "pseudo-packet1-body";
     default:
         return "invalid";
     }
@@ -50398,6 +51120,268 @@ bool PumpOneLoopbackSignonBatchFlow(
         && probe->signon_batch_ready > 0
         && probe->pseudo_packet_batch_delivered > 0;
 }
+
+bool PumpOneLoopbackSignonWiremapPacketAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    int requested_packet,
+    bool expect_accept,
+    hl::game_api::DedicatedSignonWiremapProbeSummary* probe)
+{
+    static constexpr int kWiremapPackets = 2;
+
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail =
+            "signon wiremap probe socket() failed WSA=" + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string wiremap_session =
+        session_id.empty()
+        ? std::string("invalid_signon_wiremap_session")
+        : std::string(session_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "signon_wiremap session=" + wiremap_session
+                + " packet=" + std::to_string(requested_packet),
+            &probe->detail,
+            "signon wiremap probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in wiremap_client_address{};
+    int wiremap_client_address_size = sizeof(wiremap_client_address);
+    std::string wiremap_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &wiremap_request,
+            &wiremap_client_address,
+            &wiremap_client_address_size,
+            &probe->detail,
+            "signon wiremap surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(wiremap_request, "signon_wiremap "))
+    {
+        probe->detail =
+            "signon wiremap surface received unexpected request: "
+            + wiremap_request;
+        return false;
+    }
+
+    const std::string request_session = ExtractTokenValue(wiremap_request, "session=");
+    const std::string request_packet_text = ExtractTokenValue(wiremap_request, "packet=");
+    const int request_packet =
+        request_packet_text.empty() ? -1 : std::atoi(request_packet_text.c_str());
+
+    int wiremap_slot = 0;
+    std::string reject_reason;
+    const bool wiremap_accepted = AdvanceDedicatedLoopbackSignonWiremapPacket(
+        state,
+        request_session,
+        request_packet,
+        true,
+        &wiremap_slot,
+        &reject_reason);
+
+    RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+    RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+    RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+    RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const DedicatedPlayerRuntimeSlot* slot_state = wiremap_accepted
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            request_session)
+        : nullptr;
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const unsigned short sequence_id = DedicatedSignonWiremapSequenceId(request_packet);
+    const unsigned short flags = DedicatedSignonWiremapFlags(request_packet);
+    const std::string message_kind(DedicatedSignonWiremapMessageKind());
+    const std::vector<unsigned char> mapping_bytes =
+        wiremap_accepted && slot_state != nullptr
+        ? BuildDedicatedSignonWiremapPacketBytes(state, *slot_state, request_packet)
+        : std::vector<unsigned char>();
+    const std::vector<unsigned char> packet_body_bytes =
+        wiremap_accepted && slot_state != nullptr
+        ? BuildDedicatedSignonBatchPacketBytes(state, *slot_state, request_packet)
+        : std::vector<unsigned char>();
+    const int payload_byte_length = static_cast<int>(packet_body_bytes.size());
+    const std::string wiremap_response =
+        wiremap_accepted && slot_state != nullptr && !mapping_bytes.empty() && !packet_body_bytes.empty()
+        ? "signon_wiremap session=" + request_session
+            + " packetIndex=" + std::to_string(request_packet)
+            + " totalPacketCount=" + std::to_string(kWiremapPackets)
+            + " sequenceId=" + std::to_string(sequence_id)
+            + " flags=" + std::to_string(flags)
+            + " payloadByteLength=" + std::to_string(payload_byte_length)
+            + " messageKind=" + message_kind
+            + " map="
+            + (state.server_state.map_name.empty() ? std::string("c0a0") : state.server_state.map_name)
+            + " name="
+            + (slot_state->player_name.empty() ? std::string("loopback_player") : slot_state->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " maxplayers=" + std::to_string(max_players)
+            + " spawned=" + std::to_string(slot_state->spawn_count > 0 ? 1 : 0)
+            + " signonReady=" + std::to_string(slot_state->signon_ready ? 1 : 0)
+            + " bootstrapDelivered=" + std::to_string(slot_state->bootstrap_delivered ? 1 : 0)
+            + " baselineReady=" + std::to_string(slot_state->baseline_ready ? 1 : 0)
+            + " bootstrapSequenceCompleted="
+            + std::to_string(slot_state->bootstrap_sequence_completed ? 1 : 0)
+            + " signonCatalogReady=" + std::to_string(slot_state->signon_catalog_ready ? 1 : 0)
+            + " bootstrapRecordsStaged="
+            + std::to_string(slot_state->bootstrap_records_staged ? 1 : 0)
+            + " signonTemplateReady=" + std::to_string(slot_state->signon_template_ready ? 1 : 0)
+            + " templateRecordsDelivered="
+            + std::to_string(slot_state->template_records_delivered ? 1 : 0)
+            + " signonTemplateCoverageComplete="
+            + std::to_string(slot_state->signon_template_coverage_complete ? 1 : 0)
+            + " remainingTemplateRecordsDelivered="
+            + std::to_string(slot_state->remaining_template_records_delivered ? 1 : 0)
+            + " signonEnvelopeReady="
+            + std::to_string(slot_state->signon_envelope_ready ? 1 : 0)
+            + " framedTemplateRecordsDelivered="
+            + std::to_string(slot_state->framed_template_records_delivered ? 1 : 0)
+            + " signonBatchReady=" + std::to_string(slot_state->signon_batch_ready ? 1 : 0)
+            + " pseudoPacketBatchDelivered="
+            + std::to_string(slot_state->pseudo_packet_batch_delivered ? 1 : 0)
+            + " signonWiremapReady="
+            + std::to_string(slot_state->signon_wiremap_ready ? 1 : 0)
+            + " wiremappedBatchDelivered="
+            + std::to_string(slot_state->wiremapped_batch_delivered ? 1 : 0)
+            + " mappingBytes=" + EncodeUpperHex(mapping_bytes)
+            + " payload=" + DedicatedSignonWiremapPayloadName(request_packet)
+        : "signon_wiremap_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            wiremap_client_address,
+            wiremap_client_address_size,
+            wiremap_response,
+            &probe->detail,
+            "signon wiremap surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_wiremap_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_wiremap_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "signon wiremap probe response"))
+    {
+        return false;
+    }
+
+    int parsed_packet_index = -1;
+    if (ParseSignonWiremapAcceptedResponseText(
+            parsed_wiremap_response,
+            probe,
+            &parsed_packet_index))
+    {
+        if (parsed_packet_index == probe->parsed_final_packet
+            && probe->signon_wiremap_ready > 0
+            && probe->wiremapped_batch_delivered > 0)
+        {
+            ++probe->accepted;
+        }
+    }
+    else if (std::string parsed_reject_reason;
+             ParseSignonWiremapRejectResponseText(
+                 parsed_wiremap_response,
+                 &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail =
+            "signon wiremap probe could not parse response: "
+            + parsed_wiremap_response;
+        return false;
+    }
+
+    if (wiremap_accepted != expect_accept)
+    {
+        probe->detail =
+            std::string("signon wiremap expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_wiremap_response;
+        return false;
+    }
+
+    probe->detail = "loopback signon wiremap probe packet="
+        + std::to_string(requested_packet)
+        + " completed on 127.0.0.1:" + std::to_string(bound_port);
+    return true;
+}
+
+bool PumpOneLoopbackSignonWiremapFlow(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view session_id,
+    hl::game_api::DedicatedSignonWiremapProbeSummary* probe)
+{
+    for (int packet_index = 0; packet_index < 2; ++packet_index)
+    {
+        if (!PumpOneLoopbackSignonWiremapPacketAttempt(
+                state,
+                server_socket,
+                bound_port,
+                session_id,
+                packet_index,
+                true,
+                probe))
+        {
+            return false;
+        }
+    }
+
+    return probe != nullptr
+        && probe->accepted > 0
+        && probe->parsed_wiremap_count >= 2
+        && probe->parsed_final_packet >= 1
+        && !probe->parsed_sequence_ids.empty()
+        && !probe->parsed_flags.empty()
+        && !probe->parsed_packet_byte_lengths.empty()
+        && probe->signon_batch_ready > 0
+        && probe->pseudo_packet_batch_delivered > 0
+        && probe->signon_wiremap_ready > 0
+        && probe->wiremapped_batch_delivered > 0;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -50449,6 +51433,10 @@ void PerformDedicatedQuerySurface()
         state.dedicated_signon_batch_surface;
     hl::game_api::DedicatedSignonBatchProbeSummary& signon_batch_probe =
         state.dedicated_signon_batch_probe;
+    hl::game_api::DedicatedSignonWiremapSurfaceSummary& signon_wiremap_surface =
+        state.dedicated_signon_wiremap_surface;
+    hl::game_api::DedicatedSignonWiremapProbeSummary& signon_wiremap_probe =
+        state.dedicated_signon_wiremap_probe;
 
     if (probe.enabled)
     {
@@ -50569,6 +51557,19 @@ void PerformDedicatedQuerySurface()
         signon_batch_probe.compatibility =
             "loopback-pending,pseudo-packet-batch-real-signon-wire-pending";
     }
+    if (signon_wiremap_surface.enabled)
+    {
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+    }
+    if (signon_wiremap_probe.enabled)
+    {
+        signon_wiremap_probe.mode = "dedicated";
+        signon_wiremap_probe.probe = "loopback";
+        signon_wiremap_probe.protocol_shape =
+            "goldsrc-like-connectionless-signon-wire-header-body-mapping";
+        signon_wiremap_probe.compatibility =
+            "loopback-pending,wire-shaped-mapping-real-signon-wire-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -50613,6 +51614,10 @@ void PerformDedicatedQuerySurface()
         if (signon_batch_probe.enabled)
         {
             signon_batch_probe.detail = surface.detail;
+        }
+        if (signon_wiremap_probe.enabled)
+        {
+            signon_wiremap_probe.detail = surface.detail;
         }
         return;
     }
@@ -50664,6 +51669,10 @@ void PerformDedicatedQuerySurface()
         if (signon_batch_probe.enabled)
         {
             signon_batch_probe.detail = surface.detail;
+        }
+        if (signon_wiremap_probe.enabled)
+        {
+            signon_wiremap_probe.detail = surface.detail;
         }
         return;
     }
@@ -50732,6 +51741,13 @@ void PerformDedicatedQuerySurface()
         signon_batch_surface.detail =
             "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template/signon-template-completion/signon-envelope surfaces";
         RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+    }
+    if (signon_wiremap_surface.enabled)
+    {
+        signon_wiremap_surface.bound_port = bound_port;
+        signon_wiremap_surface.detail =
+            "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template/signon-template-completion/signon-envelope/signon-batch surfaces";
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
     }
 
     bool activation_ok = true;
@@ -50882,6 +51898,32 @@ void PerformDedicatedQuerySurface()
             0,
             false,
             &signon_batch_probe);
+        RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+    }
+
+    bool signon_wiremap_ok = true;
+    if (signon_wiremap_probe.enabled
+        && state.dedicated_signon_wiremap_probe_scenario == "gate")
+    {
+        signon_wiremap_ok = PumpOneLoopbackSignonWiremapPacketAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_signon_wiremap_session",
+            0,
+            false,
+            &signon_wiremap_probe);
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
         RefreshDedicatedSignonBatchSurfaceSnapshot(state);
         RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
         RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
@@ -51393,6 +52435,7 @@ void PerformDedicatedQuerySurface()
         RefreshDedicatedActivationSurfaceSnapshot(state);
         RefreshDedicatedConnectSurfaceSnapshot(state);
         RefreshDedicatedQuerySurfaceSnapshot(state);
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
         signon_batch_probe.protocol_shape = signon_batch_surface.protocol_shape;
         signon_batch_probe.compatibility = signon_batch_ok
             ? "loopback-verified,pseudo-packet-batch-real-signon-wire-pending"
@@ -51400,6 +52443,80 @@ void PerformDedicatedQuerySurface()
         signon_batch_surface.compatibility = signon_batch_ok
             ? "loopback-verified,pseudo-packet-batch-real-signon-wire-pending"
             : "loopback-probe-failed,pseudo-packet-batch-real-signon-wire-pending";
+    }
+
+    if (signon_wiremap_probe.enabled)
+    {
+        if (signon_wiremap_ok
+            && activation_ok
+            && connect_ok
+            && bootstrap_ok
+            && bootstrap_sequence_ok
+            && signon_catalog_ok
+            && signon_template_ok
+            && signon_template_completion_ok
+            && signon_envelope_ok
+            && signon_batch_ok
+            && state.dedicated_signon_wiremap_probe_scenario == "gate")
+        {
+            signon_wiremap_ok = PumpOneLoopbackSignonWiremapPacketAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                1,
+                false,
+                &signon_wiremap_probe);
+        }
+        if (signon_wiremap_ok
+            && activation_ok
+            && connect_ok
+            && bootstrap_ok
+            && bootstrap_sequence_ok
+            && signon_catalog_ok
+            && signon_template_ok
+            && signon_template_completion_ok
+            && signon_envelope_ok
+            && signon_batch_ok)
+        {
+            signon_wiremap_ok = PumpOneLoopbackSignonWiremapFlow(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                &signon_wiremap_probe);
+        }
+        if (signon_wiremap_ok
+            && state.dedicated_signon_wiremap_probe_scenario == "gate")
+        {
+            signon_wiremap_ok = PumpOneLoopbackSignonWiremapPacketAttempt(
+                state,
+                server_socket.Get(),
+                bound_port,
+                state.dedicated_last_external_session_id,
+                1,
+                false,
+                &signon_wiremap_probe);
+        }
+
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+        RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        signon_wiremap_probe.protocol_shape = signon_wiremap_surface.protocol_shape;
+        signon_wiremap_probe.compatibility = signon_wiremap_ok
+            ? "loopback-verified,wire-shaped-mapping-real-signon-wire-pending"
+            : "loopback-probe-failed,wire-shaped-mapping-real-signon-wire-pending";
+        signon_wiremap_surface.compatibility = signon_wiremap_ok
+            ? "loopback-verified,wire-shaped-mapping-real-signon-wire-pending"
+            : "loopback-probe-failed,wire-shaped-mapping-real-signon-wire-pending";
     }
 
     if (probe.enabled)
@@ -51511,6 +52628,16 @@ void PerformDedicatedQuerySurface()
     {
         signon_batch_probe.detail = surface.detail;
         signon_batch_probe.compatibility = surface.compatibility;
+    }
+    if (signon_wiremap_surface.enabled)
+    {
+        signon_wiremap_surface.detail = surface.detail;
+        signon_wiremap_surface.compatibility = surface.compatibility;
+    }
+    if (signon_wiremap_probe.enabled)
+    {
+        signon_wiremap_probe.detail = surface.detail;
+        signon_wiremap_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -55609,6 +56736,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_signon_envelope_probe = {};
     summary.dedicated_signon_batch_surface = {};
     summary.dedicated_signon_batch_probe = {};
+    summary.dedicated_signon_wiremap_surface = {};
+    summary.dedicated_signon_wiremap_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -55681,6 +56810,10 @@ void PopulateBootstrapSummary(
             state.dedicated_multiplayer_foundation.signon_batch_ready;
         summary.dedicated_player_lifecycle_foundation.pseudo_packet_batch_delivered =
             state.dedicated_multiplayer_foundation.pseudo_packet_batch_delivered;
+        summary.dedicated_player_lifecycle_foundation.signon_wiremap_ready =
+            state.dedicated_multiplayer_foundation.signon_wiremap_ready;
+        summary.dedicated_player_lifecycle_foundation.wiremapped_batch_delivered =
+            state.dedicated_multiplayer_foundation.wiremapped_batch_delivered;
         summary.dedicated_player_lifecycle_foundation.deaths =
             state.dedicated_multiplayer_foundation.deaths;
         summary.dedicated_player_lifecycle_foundation.respawns =
@@ -55726,6 +56859,8 @@ void PopulateBootstrapSummary(
         summary.dedicated_signon_envelope_probe = state.dedicated_signon_envelope_probe;
         summary.dedicated_signon_batch_surface = state.dedicated_signon_batch_surface;
         summary.dedicated_signon_batch_probe = state.dedicated_signon_batch_probe;
+        summary.dedicated_signon_wiremap_surface = state.dedicated_signon_wiremap_surface;
+        summary.dedicated_signon_wiremap_probe = state.dedicated_signon_wiremap_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -55749,7 +56884,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_signon_envelope_surface,
             summary.dedicated_signon_envelope_probe,
             summary.dedicated_signon_batch_surface,
-            summary.dedicated_signon_batch_probe);
+            summary.dedicated_signon_batch_probe,
+            summary.dedicated_signon_wiremap_surface,
+            summary.dedicated_signon_wiremap_probe);
     }
 
     summary.ready_for_server_activation =
@@ -62649,6 +63786,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_signon_envelope_probe = {};
     impl_->summary.dedicated_signon_batch_surface = {};
     impl_->summary.dedicated_signon_batch_probe = {};
+    impl_->summary.dedicated_signon_wiremap_surface = {};
+    impl_->summary.dedicated_signon_wiremap_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -62772,6 +63911,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         options.signon_batch_probe_enabled;
     impl_->shim_state.dedicated_signon_batch_probe_scenario =
         options.signon_batch_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_signon_wiremap_surface = {};
+    impl_->shim_state.dedicated_signon_wiremap_surface.enabled =
+        options.signon_wiremap_surface_enabled;
+    impl_->shim_state.dedicated_signon_wiremap_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_signon_wiremap_probe = {};
+    impl_->shim_state.dedicated_signon_wiremap_probe.enabled =
+        options.signon_wiremap_probe_enabled;
+    impl_->shim_state.dedicated_signon_wiremap_probe_scenario =
+        options.signon_wiremap_probe_scenario == "gate" ? "gate" : "happy";
     impl_->shim_state.dedicated_last_external_session_id.clear();
     impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(

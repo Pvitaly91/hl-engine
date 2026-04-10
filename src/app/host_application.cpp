@@ -22489,6 +22489,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.signon_batch_surface_enabled = options.signon_batch_surface_enabled;
     init_options.signon_batch_probe_enabled = options.signon_batch_probe_enabled;
     init_options.signon_batch_probe_scenario = options.signon_batch_probe_scenario;
+    init_options.signon_wiremap_surface_enabled = options.signon_wiremap_surface_enabled;
+    init_options.signon_wiremap_probe_enabled = options.signon_wiremap_probe_enabled;
+    init_options.signon_wiremap_probe_scenario = options.signon_wiremap_probe_scenario;
     init_options.frame_bootstrap.frames = options.frame_count;
     init_options.frame_bootstrap.frametime = options.frame_time;
     init_options.frame_bootstrap.think_limit = options.think_limit;
@@ -22565,7 +22568,13 @@ bool HostApplication::RunServerEngineShim(
         + ", signon_batch_probe="
         + std::string(init_options.signon_batch_probe_enabled ? "1" : "0")
         + ", signon_batch_probe_scenario="
-        + init_options.signon_batch_probe_scenario);
+        + init_options.signon_batch_probe_scenario
+        + ", signon_wiremap_surface="
+        + std::string(init_options.signon_wiremap_surface_enabled ? "1" : "0")
+        + ", signon_wiremap_probe="
+        + std::string(init_options.signon_wiremap_probe_enabled ? "1" : "0")
+        + ", signon_wiremap_probe_scenario="
+        + init_options.signon_wiremap_probe_scenario);
 
     common::Logger::Info(
         common::LogCategory::Startup,
