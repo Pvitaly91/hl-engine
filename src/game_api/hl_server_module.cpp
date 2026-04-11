@@ -232,6 +232,8 @@ enum class DedicatedPlayerLifecycleState
     kMessageCursorCheckpointed,
     kSignonMessageCursorAdvanceReady,
     kCursorAdvancedRangeDelivered,
+    kSignonMessageCursorEofReady,
+    kMessageCursorExhausted,
     kDead,
     kRespawned,
     kDisconnected,
@@ -282,6 +284,8 @@ struct DedicatedPlayerRuntimeSlot
     bool message_cursor_checkpointed = false;
     bool signon_message_cursor_advance_ready = false;
     bool cursor_advanced_range_delivered = false;
+    bool signon_message_cursor_eof_ready = false;
+    bool message_cursor_exhausted = false;
     int bootstrap_sequence_next_step = 0;
     int signon_catalog_next_record = 0;
     int signon_template_next_record = 0;
@@ -313,6 +317,12 @@ struct DedicatedPlayerRuntimeSlot
     int last_message_cursor_advance_next_start_message_index = -1;
     int last_message_cursor_advance_remaining_message_count = 0;
     std::string last_message_cursor_advance_resume_policy;
+    std::string last_message_cursor_eof_id;
+    int last_message_cursor_eof_current_start_message_index = -1;
+    int last_message_cursor_eof_current_message_count = 0;
+    int last_message_cursor_eof_next_start_message_index = -1;
+    int last_message_cursor_eof_remaining_message_count = 0;
+    std::string last_message_cursor_eof_resume_policy;
     int spawn_count = 0;
     int death_count = 0;
     int respawn_count = 0;
@@ -363,6 +373,8 @@ struct DedicatedMultiplayerFoundationRuntime
     int message_cursor_checkpointed = 0;
     int signon_message_cursor_advance_ready = 0;
     int cursor_advanced_range_delivered = 0;
+    int signon_message_cursor_eof_ready = 0;
+    int message_cursor_exhausted = 0;
     int deaths = 0;
     int respawns = 0;
     int disconnected = 0;
@@ -669,6 +681,11 @@ struct EngineShimState
     hl::game_api::DedicatedSignonMessageCursorAdvanceProbeSummary
         dedicated_signon_message_cursor_advance_probe;
     std::string dedicated_signon_message_cursor_advance_probe_scenario = "happy";
+    hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary
+        dedicated_signon_message_cursor_eof_surface;
+    hl::game_api::DedicatedSignonMessageCursorEofProbeSummary
+        dedicated_signon_message_cursor_eof_probe;
+    std::string dedicated_signon_message_cursor_eof_probe_scenario = "happy";
     std::string dedicated_last_external_session_id;
     int dedicated_last_external_slot = 0;
     DeterministicRandomDiagnostics random_diagnostics;
@@ -804,6 +821,10 @@ std::string BuildDedicatedSignonMessageCursorAdvanceSurfaceLine(
     const hl::game_api::DedicatedSignonMessageCursorAdvanceSurfaceSummary& summary);
 std::string BuildDedicatedSignonMessageCursorAdvanceProbeLine(
     const hl::game_api::DedicatedSignonMessageCursorAdvanceProbeSummary& summary);
+std::string BuildDedicatedSignonMessageCursorEofSurfaceLine(
+    const hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary& summary);
+std::string BuildDedicatedSignonMessageCursorEofProbeLine(
+    const hl::game_api::DedicatedSignonMessageCursorEofProbeSummary& summary);
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -860,7 +881,11 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonMessageCursorAdvanceSurfaceSummary&
         signon_message_cursor_advance_surface,
     const hl::game_api::DedicatedSignonMessageCursorAdvanceProbeSummary&
-        signon_message_cursor_advance_probe);
+        signon_message_cursor_advance_probe,
+    const hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary&
+        signon_message_cursor_eof_surface,
+    const hl::game_api::DedicatedSignonMessageCursorEofProbeSummary&
+        signon_message_cursor_eof_probe);
 const hl::game_api::detail::EntityDefinition* FindParsedEntityDefinitionByOrdinal(
     const EngineShimState& state,
     std::size_t ordinal);
@@ -19397,6 +19422,10 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + std::to_string(summary.signon_message_cursor_advance_ready)
         + ", cursorAdvancedRangeDelivered="
         + std::to_string(summary.cursor_advanced_range_delivered)
+        + ", signonMessageCursorEofReady="
+        + std::to_string(summary.signon_message_cursor_eof_ready)
+        + ", messageCursorExhausted="
+        + std::to_string(summary.message_cursor_exhausted)
         + ", deaths=" + std::to_string(summary.deaths)
         + ", respawns=" + std::to_string(summary.respawns)
         + ", disconnected=" + std::to_string(summary.disconnected)
@@ -21569,6 +21598,227 @@ std::string BuildDedicatedSignonMessageCursorAdvanceProbeLine(
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedSignonMessageCursorEofSurfaceLine(
+    const hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary& summary)
+{
+    return "dedicated_signon_message_cursor_eof_surface: mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", requestedPort=" + std::to_string(summary.requested_port)
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", sharedWithQuery=" + BoolToYesNo(summary.shared_with_query)
+        + ", sharedWithConnect=" + BoolToYesNo(summary.shared_with_connect)
+        + ", sharedWithActivation=" + BoolToYesNo(summary.shared_with_activation)
+        + ", sharedWithBootstrap=" + BoolToYesNo(summary.shared_with_bootstrap)
+        + ", sharedWithBootstrapSequence="
+        + BoolToYesNo(summary.shared_with_bootstrap_sequence)
+        + ", sharedWithSignonCatalog=" + BoolToYesNo(summary.shared_with_signon_catalog)
+        + ", sharedWithSignonTemplate=" + BoolToYesNo(summary.shared_with_signon_template)
+        + ", sharedWithSignonTemplateCompletion="
+        + BoolToYesNo(summary.shared_with_signon_template_completion)
+        + ", sharedWithSignonEnvelope=" + BoolToYesNo(summary.shared_with_signon_envelope)
+        + ", sharedWithSignonBatch=" + BoolToYesNo(summary.shared_with_signon_batch)
+        + ", sharedWithSignonWiremap=" + BoolToYesNo(summary.shared_with_signon_wiremap)
+        + ", sharedWithSignonBurst=" + BoolToYesNo(summary.shared_with_signon_burst)
+        + ", sharedWithSignonStream=" + BoolToYesNo(summary.shared_with_signon_stream)
+        + ", sharedWithSignonStreamWindow="
+        + BoolToYesNo(summary.shared_with_signon_stream_window)
+        + ", sharedWithSignonMessageCatalog="
+        + BoolToYesNo(summary.shared_with_signon_message_catalog)
+        + ", sharedWithSignonMessageFetch="
+        + BoolToYesNo(summary.shared_with_signon_message_fetch)
+        + ", sharedWithSignonMultiMessageFetch="
+        + BoolToYesNo(summary.shared_with_signon_multi_message_fetch)
+        + ", sharedWithSignonMessageRange="
+        + BoolToYesNo(summary.shared_with_signon_message_range)
+        + ", sharedWithSignonMessageCursor="
+        + BoolToYesNo(summary.shared_with_signon_message_cursor)
+        + ", sharedWithSignonMessageCursorAdvance="
+        + BoolToYesNo(summary.shared_with_signon_message_cursor_advance)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", messageCursorEofEnabled="
+        + BoolToYesNo(summary.message_cursor_eof_enabled)
+        + ", requiresMessageCursorAdvanceReadySession="
+        + BoolToYesNo(summary.requires_message_cursor_advance_ready_session)
+        + ", cursorSource=" + summary.cursor_source
+        + ", eofPayload=" + summary.eof_payload
+        + ", eofCount=" + std::to_string(summary.eof_count)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastEofCursorId="
+        + (summary.last_eof_cursor_id.empty()
+            ? std::string("<none>")
+            : summary.last_eof_cursor_id)
+        + ", eof=" + BoolToYesNo(summary.eof)
+        + ", exhausted=" + BoolToYesNo(summary.exhausted)
+        + ", currentStartMessageIndex="
+        + std::to_string(summary.current_start_message_index)
+        + ", currentMessageCount="
+        + std::to_string(summary.current_message_count)
+        + ", nextStartMessageIndex=" + summary.next_start_message_index
+        + ", remainingMessageCount=" + std::to_string(summary.remaining_message_count)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", signonBatchReady=" + std::to_string(summary.signon_batch_ready)
+        + ", pseudoPacketBatchDelivered="
+        + std::to_string(summary.pseudo_packet_batch_delivered)
+        + ", signonWiremapReady=" + std::to_string(summary.signon_wiremap_ready)
+        + ", wiremappedBatchDelivered="
+        + std::to_string(summary.wiremapped_batch_delivered)
+        + ", signonBurstReady=" + std::to_string(summary.signon_burst_ready)
+        + ", pseudoWireBurstDelivered="
+        + std::to_string(summary.pseudo_wire_burst_delivered)
+        + ", signonStreamReady=" + std::to_string(summary.signon_stream_ready)
+        + ", contiguousStreamDelivered="
+        + std::to_string(summary.contiguous_stream_delivered)
+        + ", signonStreamWindowReady="
+        + std::to_string(summary.signon_stream_window_ready)
+        + ", windowedStreamDelivered="
+        + std::to_string(summary.windowed_stream_delivered)
+        + ", signonMessageCatalogReady="
+        + std::to_string(summary.signon_message_catalog_ready)
+        + ", messageBoundariesCataloged="
+        + std::to_string(summary.message_boundaries_cataloged)
+        + ", signonMessageFetchReady="
+        + std::to_string(summary.signon_message_fetch_ready)
+        + ", targetedMessageFetchDelivered="
+        + std::to_string(summary.targeted_message_fetch_delivered)
+        + ", signonMultiMessageFetchReady="
+        + std::to_string(summary.signon_multi_message_fetch_ready)
+        + ", selectiveMessageSetDelivered="
+        + std::to_string(summary.selective_message_set_delivered)
+        + ", signonMessageRangeFetchReady="
+        + std::to_string(summary.signon_message_range_fetch_ready)
+        + ", rangeMessageSetDelivered="
+        + std::to_string(summary.range_message_set_delivered)
+        + ", signonMessageCursorReady="
+        + std::to_string(summary.signon_message_cursor_ready)
+        + ", messageCursorCheckpointed="
+        + std::to_string(summary.message_cursor_checkpointed)
+        + ", signonMessageCursorAdvanceReady="
+        + std::to_string(summary.signon_message_cursor_advance_ready)
+        + ", cursorAdvancedRangeDelivered="
+        + std::to_string(summary.cursor_advanced_range_delivered)
+        + ", signonMessageCursorEofReady="
+        + std::to_string(summary.signon_message_cursor_eof_ready)
+        + ", messageCursorExhausted="
+        + std::to_string(summary.message_cursor_exhausted)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedSignonMessageCursorEofProbeLine(
+    const hl::game_api::DedicatedSignonMessageCursorEofProbeSummary& summary)
+{
+    return "dedicated_signon_message_cursor_eof_probe: mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", requestedCursorId="
+        + (summary.requested_cursor_id.empty()
+            ? std::string("<none>")
+            : summary.requested_cursor_id)
+        + ", parsedCursorId="
+        + (summary.parsed_cursor_id.empty() ? std::string("<unset>") : summary.parsed_cursor_id)
+        + ", parsedEof=" + BoolToYesNo(summary.parsed_eof)
+        + ", parsedExhausted=" + BoolToYesNo(summary.parsed_exhausted)
+        + ", parsedCurrentRange="
+        + (summary.parsed_current_range.empty()
+            ? std::string("<unset>")
+            : summary.parsed_current_range)
+        + ", parsedNextStartMessageIndex=" + summary.parsed_next_start_message_index
+        + ", parsedRemainingMessageCount="
+        + std::to_string(summary.parsed_remaining_message_count)
+        + ", parsedResumePolicy="
+        + (summary.parsed_resume_policy.empty()
+            ? std::string("<unset>")
+            : summary.parsed_resume_policy)
+        + ", parsedMap=" + (summary.parsed_map.empty() ? std::string("<unset>") : summary.parsed_map)
+        + ", parsedName="
+        + (summary.parsed_name.empty() ? std::string("<unset>") : summary.parsed_name)
+        + ", parsedRuleset="
+        + (summary.parsed_ruleset.empty() ? std::string("<unset>") : summary.parsed_ruleset)
+        + ", parsedSpawned=" + std::to_string(summary.parsed_spawned)
+        + ", signonReady=" + std::to_string(summary.signon_ready)
+        + ", bootstrapDelivered=" + std::to_string(summary.bootstrap_delivered)
+        + ", baselineReady=" + std::to_string(summary.baseline_ready)
+        + ", bootstrapSequenceCompleted=" + std::to_string(summary.bootstrap_sequence_completed)
+        + ", signonCatalogReady=" + std::to_string(summary.signon_catalog_ready)
+        + ", bootstrapRecordsStaged=" + std::to_string(summary.bootstrap_records_staged)
+        + ", signonTemplateReady=" + std::to_string(summary.signon_template_ready)
+        + ", templateRecordsDelivered=" + std::to_string(summary.template_records_delivered)
+        + ", signonTemplateCoverageComplete="
+        + std::to_string(summary.signon_template_coverage_complete)
+        + ", remainingTemplateRecordsDelivered="
+        + std::to_string(summary.remaining_template_records_delivered)
+        + ", signonEnvelopeReady=" + std::to_string(summary.signon_envelope_ready)
+        + ", framedTemplateRecordsDelivered="
+        + std::to_string(summary.framed_template_records_delivered)
+        + ", signonBatchReady=" + std::to_string(summary.signon_batch_ready)
+        + ", pseudoPacketBatchDelivered="
+        + std::to_string(summary.pseudo_packet_batch_delivered)
+        + ", signonWiremapReady=" + std::to_string(summary.signon_wiremap_ready)
+        + ", wiremappedBatchDelivered="
+        + std::to_string(summary.wiremapped_batch_delivered)
+        + ", signonBurstReady=" + std::to_string(summary.signon_burst_ready)
+        + ", pseudoWireBurstDelivered="
+        + std::to_string(summary.pseudo_wire_burst_delivered)
+        + ", signonStreamReady=" + std::to_string(summary.signon_stream_ready)
+        + ", contiguousStreamDelivered="
+        + std::to_string(summary.contiguous_stream_delivered)
+        + ", signonStreamWindowReady="
+        + std::to_string(summary.signon_stream_window_ready)
+        + ", windowedStreamDelivered="
+        + std::to_string(summary.windowed_stream_delivered)
+        + ", signonMessageCatalogReady="
+        + std::to_string(summary.signon_message_catalog_ready)
+        + ", messageBoundariesCataloged="
+        + std::to_string(summary.message_boundaries_cataloged)
+        + ", signonMessageFetchReady="
+        + std::to_string(summary.signon_message_fetch_ready)
+        + ", targetedMessageFetchDelivered="
+        + std::to_string(summary.targeted_message_fetch_delivered)
+        + ", signonMultiMessageFetchReady="
+        + std::to_string(summary.signon_multi_message_fetch_ready)
+        + ", selectiveMessageSetDelivered="
+        + std::to_string(summary.selective_message_set_delivered)
+        + ", signonMessageRangeFetchReady="
+        + std::to_string(summary.signon_message_range_fetch_ready)
+        + ", rangeMessageSetDelivered="
+        + std::to_string(summary.range_message_set_delivered)
+        + ", signonMessageCursorReady="
+        + std::to_string(summary.signon_message_cursor_ready)
+        + ", messageCursorCheckpointed="
+        + std::to_string(summary.message_cursor_checkpointed)
+        + ", signonMessageCursorAdvanceReady="
+        + std::to_string(summary.signon_message_cursor_advance_ready)
+        + ", cursorAdvancedRangeDelivered="
+        + std::to_string(summary.cursor_advanced_range_delivered)
+        + ", signonMessageCursorEofReady="
+        + std::to_string(summary.signon_message_cursor_eof_ready)
+        + ", messageCursorExhausted="
+        + std::to_string(summary.message_cursor_exhausted)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedServerFoundationSummary& foundation,
     const hl::game_api::DedicatedPlayerLifecycleFoundationSummary& lifecycle,
@@ -21625,7 +21875,11 @@ std::string BuildDedicatedMultiplayerReadinessLine(
     const hl::game_api::DedicatedSignonMessageCursorAdvanceSurfaceSummary&
         signon_message_cursor_advance_surface,
     const hl::game_api::DedicatedSignonMessageCursorAdvanceProbeSummary&
-        signon_message_cursor_advance_probe)
+        signon_message_cursor_advance_probe,
+    const hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary&
+        signon_message_cursor_eof_surface,
+    const hl::game_api::DedicatedSignonMessageCursorEofProbeSummary&
+        signon_message_cursor_eof_probe)
 {
     (void)foundation;
     const bool query_probe_ready =
@@ -21927,6 +22181,41 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_message_cursor_advance_probe.message_cursor_checkpointed > 0
         && signon_message_cursor_advance_probe.signon_message_cursor_advance_ready > 0
         && signon_message_cursor_advance_probe.cursor_advanced_range_delivered > 0;
+    const bool signon_message_cursor_eof_probe_ready =
+        signon_message_cursor_eof_surface.enabled
+        && signon_message_cursor_eof_surface.bound_port > 0
+        && signon_message_cursor_eof_probe.enabled
+        && signon_message_cursor_eof_probe.accepted > 0
+        && !signon_message_cursor_eof_probe.requested_cursor_id.empty()
+        && !signon_message_cursor_eof_probe.parsed_cursor_id.empty()
+        && signon_message_cursor_eof_probe.parsed_eof
+        && signon_message_cursor_eof_probe.parsed_exhausted
+        && !signon_message_cursor_eof_probe.parsed_current_range.empty()
+        && !signon_message_cursor_eof_probe.parsed_next_start_message_index.empty()
+        && signon_message_cursor_eof_probe.parsed_remaining_message_count == 0
+        && !signon_message_cursor_eof_probe.parsed_resume_policy.empty()
+        && !signon_message_cursor_eof_probe.parsed_map.empty()
+        && !signon_message_cursor_eof_probe.parsed_name.empty()
+        && !signon_message_cursor_eof_probe.parsed_ruleset.empty()
+        && signon_message_cursor_eof_probe.parsed_spawned > 0
+        && signon_message_cursor_eof_probe.signon_stream_ready > 0
+        && signon_message_cursor_eof_probe.contiguous_stream_delivered > 0
+        && signon_message_cursor_eof_probe.signon_stream_window_ready > 0
+        && signon_message_cursor_eof_probe.windowed_stream_delivered > 0
+        && signon_message_cursor_eof_probe.signon_message_catalog_ready > 0
+        && signon_message_cursor_eof_probe.message_boundaries_cataloged > 0
+        && signon_message_cursor_eof_probe.signon_message_fetch_ready > 0
+        && signon_message_cursor_eof_probe.targeted_message_fetch_delivered > 0
+        && signon_message_cursor_eof_probe.signon_multi_message_fetch_ready > 0
+        && signon_message_cursor_eof_probe.selective_message_set_delivered > 0
+        && signon_message_cursor_eof_probe.signon_message_range_fetch_ready > 0
+        && signon_message_cursor_eof_probe.range_message_set_delivered > 0
+        && signon_message_cursor_eof_probe.signon_message_cursor_ready > 0
+        && signon_message_cursor_eof_probe.message_cursor_checkpointed > 0
+        && signon_message_cursor_eof_probe.signon_message_cursor_advance_ready > 0
+        && signon_message_cursor_eof_probe.cursor_advanced_range_delivered > 0
+        && signon_message_cursor_eof_probe.signon_message_cursor_eof_ready > 0
+        && signon_message_cursor_eof_probe.message_cursor_exhausted > 0;
 
     if (query_probe_ready && connect_probe_ready && activation_probe_ready
         && bootstrap_probe_ready && bootstrap_sequence_probe_ready
@@ -21937,14 +22226,15 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_stream_window_probe_ready && signon_message_catalog_probe_ready
         && signon_message_fetch_probe_ready && signon_multi_message_fetch_probe_ready
         && signon_message_range_fetch_probe_ready && signon_message_cursor_probe_ready
-        && signon_message_cursor_advance_probe_ready)
+        && signon_message_cursor_advance_probe_ready
+        && signon_message_cursor_eof_probe_ready)
     {
-        return "dedicated_multiplayer_readiness: dedicated foundation remains implemented; loopback query/discovery remains implemented; loopback challenge/connect admission preauth remains implemented; loopback post-connect activation to put_in_server/spawned remains implemented; loopback bootstrap descriptor state remains implemented; loopback ordered bootstrap-sequence descriptor state remains implemented; loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state remains implemented; loopback first and remaining signon-template delivery remains implemented; loopback signon-envelope/record-framing delivery remains implemented; loopback signon pseudo-packet batch delivery remains implemented; loopback wire-shaped header/body mapping remains implemented; loopback signon pseudo-wire burst delivery remains implemented; loopback contiguous signon-record stream delivery remains implemented; loopback stream windowing plus bounded replay remains implemented; loopback pseudo signon message-boundary catalog remains implemented; loopback single-message fetch, selective multi-message fetch, contiguous range fetch, and message-cursor checkpoint remain implemented; loopback first cursor-advancing contiguous range fetch from the checkpointed position is now implemented; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; next step unlocked: end-of-catalog/EOF checkpoint semantics or cursor-driven replay/resume over the same authoritative slot state machine";
+        return "dedicated_multiplayer_readiness: dedicated foundation remains implemented; loopback query/discovery remains implemented; loopback challenge/connect admission preauth remains implemented; loopback post-connect activation to put_in_server/spawned remains implemented; loopback bootstrap descriptor state remains implemented; loopback ordered bootstrap-sequence descriptor state remains implemented; loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state remains implemented; loopback first and remaining signon-template delivery remains implemented; loopback signon-envelope/record-framing delivery remains implemented; loopback signon pseudo-packet batch delivery remains implemented; loopback wire-shaped header/body mapping remains implemented; loopback signon pseudo-wire burst delivery remains implemented; loopback contiguous signon-record stream delivery remains implemented; loopback stream windowing plus bounded replay remains implemented; loopback pseudo signon message-boundary catalog remains implemented; loopback single-message fetch, selective multi-message fetch, contiguous range fetch, message-cursor checkpoint, and cursor-advancing range fetch remain implemented; loopback first terminal EOF/exhausted-cursor semantics is now implemented; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; next step unlocked: cursor-driven replay/resume or terminal-EOF-aware resume denial on the same authoritative slot state machine";
     }
 
     if (query_probe_ready && connect_probe_ready)
     {
-        return "dedicated_multiplayer_readiness: previous dedicated multiplayer milestones remain implemented, but the full signon cursor-advance milestone was not locally verified";
+        return "dedicated_multiplayer_readiness: previous dedicated multiplayer milestones remain implemented, but the full signon cursor-eof milestone was not locally verified";
     }
 
     return lifecycle.synthetic_players > 0
@@ -22501,6 +22791,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildDedicatedSignonMessageCursorAdvanceProbeLine(
                     summary.dedicated_signon_message_cursor_advance_probe));
+        }
+        if (summary.dedicated_signon_message_cursor_eof_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonMessageCursorEofSurfaceLine(
+                    summary.dedicated_signon_message_cursor_eof_surface));
+        }
+        if (summary.dedicated_signon_message_cursor_eof_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonMessageCursorEofProbeLine(
+                    summary.dedicated_signon_message_cursor_eof_probe));
         }
         if (!summary.dedicated_multiplayer_readiness.empty())
         {
@@ -46748,6 +47052,10 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         return "signon_message_cursor_advance_ready";
     case DedicatedPlayerLifecycleState::kCursorAdvancedRangeDelivered:
         return "cursor_advanced_range_delivered";
+    case DedicatedPlayerLifecycleState::kSignonMessageCursorEofReady:
+        return "signon_message_cursor_eof_ready";
+    case DedicatedPlayerLifecycleState::kMessageCursorExhausted:
+        return "message_cursor_exhausted";
     case DedicatedPlayerLifecycleState::kDead:
         return "dead";
     case DedicatedPlayerLifecycleState::kRespawned:
@@ -47793,6 +48101,87 @@ void RecordDedicatedLifecycleTransition(
         slot_state.signon_message_cursor_advance_ready = true;
         slot_state.cursor_advanced_range_delivered = true;
         break;
+    case DedicatedPlayerLifecycleState::kSignonMessageCursorEofReady:
+        ++runtime.signon_message_cursor_eof_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        slot_state.framed_template_records_delivered = true;
+        slot_state.signon_batch_ready = true;
+        slot_state.pseudo_packet_batch_delivered = true;
+        slot_state.signon_wiremap_ready = true;
+        slot_state.wiremapped_batch_delivered = true;
+        slot_state.signon_burst_ready = true;
+        slot_state.pseudo_wire_burst_delivered = true;
+        slot_state.signon_stream_ready = true;
+        slot_state.contiguous_stream_delivered = true;
+        slot_state.signon_stream_window_ready = true;
+        slot_state.windowed_stream_delivered = true;
+        slot_state.signon_message_catalog_ready = true;
+        slot_state.message_boundaries_cataloged = true;
+        slot_state.signon_message_fetch_ready = true;
+        slot_state.targeted_message_fetch_delivered = true;
+        slot_state.signon_multi_message_fetch_ready = true;
+        slot_state.selective_message_set_delivered = true;
+        slot_state.signon_message_range_fetch_ready = true;
+        slot_state.range_message_set_delivered = true;
+        slot_state.signon_message_cursor_ready = true;
+        slot_state.message_cursor_checkpointed = true;
+        slot_state.signon_message_cursor_advance_ready = true;
+        slot_state.cursor_advanced_range_delivered = true;
+        slot_state.signon_message_cursor_eof_ready = true;
+        break;
+    case DedicatedPlayerLifecycleState::kMessageCursorExhausted:
+        ++runtime.message_cursor_exhausted;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.signon_ready = true;
+        slot_state.bootstrap_delivered = true;
+        slot_state.baseline_ready = true;
+        slot_state.bootstrap_sequence_completed = true;
+        slot_state.signon_catalog_ready = true;
+        slot_state.bootstrap_records_staged = true;
+        slot_state.signon_template_ready = true;
+        slot_state.template_records_delivered = true;
+        slot_state.signon_template_coverage_complete = true;
+        slot_state.remaining_template_records_delivered = true;
+        slot_state.signon_envelope_ready = true;
+        slot_state.framed_template_records_delivered = true;
+        slot_state.signon_batch_ready = true;
+        slot_state.pseudo_packet_batch_delivered = true;
+        slot_state.signon_wiremap_ready = true;
+        slot_state.wiremapped_batch_delivered = true;
+        slot_state.signon_burst_ready = true;
+        slot_state.pseudo_wire_burst_delivered = true;
+        slot_state.signon_stream_ready = true;
+        slot_state.contiguous_stream_delivered = true;
+        slot_state.signon_stream_window_ready = true;
+        slot_state.windowed_stream_delivered = true;
+        slot_state.signon_message_catalog_ready = true;
+        slot_state.message_boundaries_cataloged = true;
+        slot_state.signon_message_fetch_ready = true;
+        slot_state.targeted_message_fetch_delivered = true;
+        slot_state.signon_multi_message_fetch_ready = true;
+        slot_state.selective_message_set_delivered = true;
+        slot_state.signon_message_range_fetch_ready = true;
+        slot_state.range_message_set_delivered = true;
+        slot_state.signon_message_cursor_ready = true;
+        slot_state.message_cursor_checkpointed = true;
+        slot_state.signon_message_cursor_advance_ready = true;
+        slot_state.cursor_advanced_range_delivered = true;
+        slot_state.signon_message_cursor_eof_ready = true;
+        slot_state.message_cursor_exhausted = true;
+        break;
     case DedicatedPlayerLifecycleState::kDead:
         ++runtime.deaths;
         ++slot_state.death_count;
@@ -47878,6 +48267,10 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
         slot_state.signon_message_cursor_advance_ready;
     summary.cursor_advanced_range_delivered =
         slot_state.cursor_advanced_range_delivered;
+    summary.signon_message_cursor_eof_ready =
+        slot_state.signon_message_cursor_eof_ready;
+    summary.message_cursor_exhausted =
+        slot_state.message_cursor_exhausted;
     summary.spawn_count = slot_state.spawn_count;
     summary.death_count = slot_state.death_count;
     summary.respawn_count = slot_state.respawn_count;
@@ -50927,6 +51320,257 @@ bool AdvanceDedicatedLoopbackSignonMessageCursorRangeFetch(
     return true;
 }
 
+bool CompleteDedicatedLoopbackSignonMessageCursorEof(
+    EngineShimState& state,
+    std::string_view cursor_id,
+    bool count_surface_result,
+    int* current_start_message_index,
+    int* current_message_count,
+    std::string* next_start_message_index,
+    int* remaining_message_count,
+    std::string* resume_policy,
+    std::string* reject_reason)
+{
+    if (current_start_message_index != nullptr)
+    {
+        *current_start_message_index = -1;
+    }
+    if (current_message_count != nullptr)
+    {
+        *current_message_count = 0;
+    }
+    if (next_start_message_index != nullptr)
+    {
+        *next_start_message_index = "<none>";
+    }
+    if (remaining_message_count != nullptr)
+    {
+        *remaining_message_count = 0;
+    }
+    if (resume_policy != nullptr)
+    {
+        resume_policy->clear();
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    const auto reject = [&](std::string reason) -> bool
+    {
+        if (count_surface_result)
+        {
+            ++state.dedicated_signon_message_cursor_eof_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(reason);
+        }
+        return false;
+    };
+
+    if (cursor_id.empty())
+    {
+        return reject("unknown-cursor");
+    }
+
+    DedicatedPlayerRuntimeSlot* slot_state = nullptr;
+    for (DedicatedPlayerRuntimeSlot& candidate : state.dedicated_multiplayer_foundation.slots)
+    {
+        if (candidate.last_message_cursor_advance_id == cursor_id)
+        {
+            slot_state = &candidate;
+            break;
+        }
+    }
+    if (slot_state == nullptr)
+    {
+        return reject("unknown-cursor");
+    }
+
+    if (!slot_state->external_loopback_admission)
+    {
+        return reject("not-external-admission");
+    }
+
+    if (!slot_state->connected
+        || !slot_state->put_in_server
+        || !slot_state->alive
+        || slot_state->spawn_count <= 0)
+    {
+        return reject("not-activated");
+    }
+
+    if (!slot_state->signon_ready || !slot_state->bootstrap_delivered)
+    {
+        return reject("not-bootstrapped");
+    }
+
+    if (!slot_state->baseline_ready || !slot_state->bootstrap_sequence_completed)
+    {
+        return reject("not-sequenced");
+    }
+
+    if (!slot_state->signon_catalog_ready || !slot_state->bootstrap_records_staged)
+    {
+        return reject("not-cataloged");
+    }
+
+    if (!slot_state->signon_template_ready || !slot_state->template_records_delivered)
+    {
+        return reject("not-initially-templated");
+    }
+
+    if (!slot_state->signon_template_coverage_complete
+        || !slot_state->remaining_template_records_delivered)
+    {
+        return reject("template-coverage-incomplete");
+    }
+
+    if (!slot_state->signon_envelope_ready || !slot_state->framed_template_records_delivered)
+    {
+        return reject("envelope-incomplete");
+    }
+
+    if (!slot_state->signon_batch_ready || !slot_state->pseudo_packet_batch_delivered)
+    {
+        return reject("not-batch-ready");
+    }
+
+    if (!slot_state->signon_wiremap_ready || !slot_state->wiremapped_batch_delivered)
+    {
+        return reject("not-wiremap-ready");
+    }
+
+    if (!slot_state->signon_burst_ready || !slot_state->pseudo_wire_burst_delivered)
+    {
+        return reject("not-burst-ready");
+    }
+
+    if (!slot_state->signon_stream_ready || !slot_state->contiguous_stream_delivered)
+    {
+        return reject("not-stream-ready");
+    }
+
+    if (!slot_state->signon_stream_window_ready || !slot_state->windowed_stream_delivered)
+    {
+        return reject("not-stream-window-ready");
+    }
+
+    if (!slot_state->signon_message_catalog_ready || !slot_state->message_boundaries_cataloged)
+    {
+        return reject("not-message-catalog-ready");
+    }
+
+    if (!slot_state->signon_message_fetch_ready || !slot_state->targeted_message_fetch_delivered)
+    {
+        return reject("not-message-fetch-ready");
+    }
+
+    if (!slot_state->signon_multi_message_fetch_ready
+        || !slot_state->selective_message_set_delivered)
+    {
+        return reject("not-multi-message-fetch-ready");
+    }
+
+    if (!slot_state->signon_message_range_fetch_ready
+        || !slot_state->range_message_set_delivered)
+    {
+        return reject("not-message-range-fetch-ready");
+    }
+
+    if (!slot_state->signon_message_cursor_ready
+        || !slot_state->message_cursor_checkpointed)
+    {
+        return reject("not-message-cursor-ready");
+    }
+
+    if (!slot_state->signon_message_cursor_advance_ready
+        || !slot_state->cursor_advanced_range_delivered)
+    {
+        return reject("not-message-cursor-advance-ready");
+    }
+
+    if (slot_state->signon_message_cursor_eof_ready
+        || slot_state->message_cursor_exhausted)
+    {
+        return reject("already-eof");
+    }
+
+    if (slot_state->last_message_cursor_advance_remaining_message_count > 0)
+    {
+        return reject("not-exhausted");
+    }
+
+    if (slot_state->last_message_cursor_advance_requested_message_count <= 0
+        || slot_state->last_message_cursor_advance_next_start_message_index < 0)
+    {
+        return reject("invalid-eof-state");
+    }
+
+    const int local_current_message_count =
+        slot_state->last_message_cursor_advance_requested_message_count;
+    const int local_current_start_message_index =
+        slot_state->last_message_cursor_advance_next_start_message_index
+        - local_current_message_count;
+    if (local_current_start_message_index < 0)
+    {
+        return reject("invalid-eof-state");
+    }
+
+    const std::string local_resume_policy = "terminal-eof-no-resume";
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kSignonMessageCursorEofReady,
+        "loopback pseudo signon message cursor eof marked checkpointed external session signon_message_cursor_eof_ready");
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *slot_state,
+        DedicatedPlayerLifecycleState::kMessageCursorExhausted,
+        "loopback pseudo signon message cursor eof delivered terminal exhausted descriptor currentStartMessageIndex="
+            + std::to_string(local_current_start_message_index)
+            + " currentMessageCount=" + std::to_string(local_current_message_count)
+            + " nextStartMessageIndex=<none> remainingMessageCount=0 resumePolicy="
+            + local_resume_policy
+            + "; real signon wire compatibility intentionally pending");
+    slot_state->last_message_cursor_eof_id = std::string(cursor_id);
+    slot_state->last_message_cursor_eof_current_start_message_index =
+        local_current_start_message_index;
+    slot_state->last_message_cursor_eof_current_message_count =
+        local_current_message_count;
+    slot_state->last_message_cursor_eof_next_start_message_index = -1;
+    slot_state->last_message_cursor_eof_remaining_message_count = 0;
+    slot_state->last_message_cursor_eof_resume_policy = local_resume_policy;
+
+    if (count_surface_result)
+    {
+        ++state.dedicated_signon_message_cursor_eof_surface.accepted;
+    }
+    if (current_start_message_index != nullptr)
+    {
+        *current_start_message_index = local_current_start_message_index;
+    }
+    if (current_message_count != nullptr)
+    {
+        *current_message_count = local_current_message_count;
+    }
+    if (next_start_message_index != nullptr)
+    {
+        *next_start_message_index = "<none>";
+    }
+    if (remaining_message_count != nullptr)
+    {
+        *remaining_message_count = 0;
+    }
+    if (resume_policy != nullptr)
+    {
+        *resume_policy = local_resume_policy;
+    }
+    return true;
+}
+
 void PrefillDedicatedLoopbackAdmissions(EngineShimState& state, int target_players)
 {
     const int clamped_target =
@@ -52332,6 +52976,165 @@ void RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(EngineShimState& 
     surface.compatibility = surface.bound_port > 0
         ? "loopback-verified,cursor-advance-range-real-signon-wire-pending"
         : "loopback-bind-pending,cursor-advance-range-real-signon-wire-pending";
+}
+
+void RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(EngineShimState& state)
+{
+    hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary& surface =
+        state.dedicated_signon_message_cursor_eof_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.shared_with_query = state.dedicated_query_surface.enabled;
+    surface.shared_with_connect = state.dedicated_connect_surface.enabled;
+    surface.shared_with_activation = state.dedicated_activation_surface.enabled;
+    surface.shared_with_bootstrap = state.dedicated_bootstrap_surface.enabled;
+    surface.shared_with_bootstrap_sequence =
+        state.dedicated_bootstrap_sequence_surface.enabled;
+    surface.shared_with_signon_catalog = state.dedicated_signon_catalog_surface.enabled;
+    surface.shared_with_signon_template = state.dedicated_signon_template_surface.enabled;
+    surface.shared_with_signon_template_completion =
+        state.dedicated_signon_template_completion_surface.enabled;
+    surface.shared_with_signon_envelope = state.dedicated_signon_envelope_surface.enabled;
+    surface.shared_with_signon_batch = state.dedicated_signon_batch_surface.enabled;
+    surface.shared_with_signon_wiremap = state.dedicated_signon_wiremap_surface.enabled;
+    surface.shared_with_signon_burst = state.dedicated_signon_burst_surface.enabled;
+    surface.shared_with_signon_stream = state.dedicated_signon_stream_surface.enabled;
+    surface.shared_with_signon_stream_window =
+        state.dedicated_signon_stream_window_surface.enabled;
+    surface.shared_with_signon_message_catalog =
+        state.dedicated_signon_message_catalog_surface.enabled;
+    surface.shared_with_signon_message_fetch =
+        state.dedicated_signon_message_fetch_surface.enabled;
+    surface.shared_with_signon_multi_message_fetch =
+        state.dedicated_signon_multi_message_fetch_surface.enabled;
+    surface.shared_with_signon_message_range =
+        state.dedicated_signon_message_range_surface.enabled;
+    surface.shared_with_signon_message_cursor =
+        state.dedicated_signon_message_cursor_surface.enabled;
+    surface.shared_with_signon_message_cursor_advance =
+        state.dedicated_signon_message_cursor_advance_surface.enabled;
+    surface.protocol_shape =
+        "goldsrc-like-connectionless-signon-cursor-terminal-eof-descriptor";
+    surface.message_cursor_eof_enabled = true;
+    surface.requires_message_cursor_advance_ready_session = true;
+    surface.cursor_source = "lastAdvancedMessageRange";
+    surface.eof_payload =
+        "truthful-bounded-terminal-exhausted-cursor-descriptor";
+    surface.eof_count = state.dedicated_multiplayer_foundation.message_cursor_exhausted;
+    surface.last_eof_cursor_id.clear();
+    surface.eof = false;
+    surface.exhausted = false;
+    surface.current_start_message_index = -1;
+    surface.current_message_count = 0;
+    surface.next_start_message_index = "<none>";
+    surface.remaining_message_count = 0;
+    surface.auth = "none-loopback-post-message-cursor-advance-only";
+    surface.signon = "cursor-terminal-eof-only";
+    surface.gameplay_transport = "no";
+    for (const DedicatedPlayerRuntimeSlot& slot_state :
+         state.dedicated_multiplayer_foundation.slots)
+    {
+        if (slot_state.signon_message_cursor_eof_ready
+            || slot_state.message_cursor_exhausted
+            || !slot_state.last_message_cursor_eof_id.empty())
+        {
+            if (!slot_state.last_message_cursor_eof_id.empty())
+            {
+                surface.last_eof_cursor_id = slot_state.last_message_cursor_eof_id;
+            }
+            if (slot_state.last_message_cursor_eof_current_start_message_index >= 0
+                && slot_state.last_message_cursor_eof_current_message_count > 0)
+            {
+                surface.current_start_message_index =
+                    slot_state.last_message_cursor_eof_current_start_message_index;
+                surface.current_message_count =
+                    slot_state.last_message_cursor_eof_current_message_count;
+                surface.next_start_message_index =
+                    slot_state.last_message_cursor_eof_next_start_message_index >= 0
+                    ? std::to_string(slot_state.last_message_cursor_eof_next_start_message_index)
+                    : std::string("<none>");
+                surface.remaining_message_count =
+                    slot_state.last_message_cursor_eof_remaining_message_count;
+                surface.eof = slot_state.signon_message_cursor_eof_ready;
+                surface.exhausted = slot_state.message_cursor_exhausted;
+            }
+        }
+    }
+    surface.signon_ready = state.dedicated_multiplayer_foundation.signon_ready;
+    surface.bootstrap_delivered = state.dedicated_multiplayer_foundation.bootstrap_delivered;
+    surface.baseline_ready = state.dedicated_multiplayer_foundation.baseline_ready;
+    surface.bootstrap_sequence_completed =
+        state.dedicated_multiplayer_foundation.bootstrap_sequence_completed;
+    surface.signon_catalog_ready = state.dedicated_multiplayer_foundation.signon_catalog_ready;
+    surface.bootstrap_records_staged =
+        state.dedicated_multiplayer_foundation.bootstrap_records_staged;
+    surface.signon_template_ready =
+        state.dedicated_multiplayer_foundation.signon_template_ready;
+    surface.template_records_delivered =
+        state.dedicated_multiplayer_foundation.template_records_delivered;
+    surface.signon_template_coverage_complete =
+        state.dedicated_multiplayer_foundation.signon_template_coverage_complete;
+    surface.remaining_template_records_delivered =
+        state.dedicated_multiplayer_foundation.remaining_template_records_delivered;
+    surface.signon_envelope_ready =
+        state.dedicated_multiplayer_foundation.signon_envelope_ready;
+    surface.framed_template_records_delivered =
+        state.dedicated_multiplayer_foundation.framed_template_records_delivered;
+    surface.signon_batch_ready = state.dedicated_multiplayer_foundation.signon_batch_ready;
+    surface.pseudo_packet_batch_delivered =
+        state.dedicated_multiplayer_foundation.pseudo_packet_batch_delivered;
+    surface.signon_wiremap_ready =
+        state.dedicated_multiplayer_foundation.signon_wiremap_ready;
+    surface.wiremapped_batch_delivered =
+        state.dedicated_multiplayer_foundation.wiremapped_batch_delivered;
+    surface.signon_burst_ready = state.dedicated_multiplayer_foundation.signon_burst_ready;
+    surface.pseudo_wire_burst_delivered =
+        state.dedicated_multiplayer_foundation.pseudo_wire_burst_delivered;
+    surface.signon_stream_ready = state.dedicated_multiplayer_foundation.signon_stream_ready;
+    surface.contiguous_stream_delivered =
+        state.dedicated_multiplayer_foundation.contiguous_stream_delivered;
+    surface.signon_stream_window_ready =
+        state.dedicated_multiplayer_foundation.signon_stream_window_ready;
+    surface.windowed_stream_delivered =
+        state.dedicated_multiplayer_foundation.windowed_stream_delivered;
+    surface.signon_message_catalog_ready =
+        state.dedicated_multiplayer_foundation.signon_message_catalog_ready;
+    surface.message_boundaries_cataloged =
+        state.dedicated_multiplayer_foundation.message_boundaries_cataloged;
+    surface.signon_message_fetch_ready =
+        state.dedicated_multiplayer_foundation.signon_message_fetch_ready;
+    surface.targeted_message_fetch_delivered =
+        state.dedicated_multiplayer_foundation.targeted_message_fetch_delivered;
+    surface.signon_multi_message_fetch_ready =
+        state.dedicated_multiplayer_foundation.signon_multi_message_fetch_ready;
+    surface.selective_message_set_delivered =
+        state.dedicated_multiplayer_foundation.selective_message_set_delivered;
+    surface.signon_message_range_fetch_ready =
+        state.dedicated_multiplayer_foundation.signon_message_range_fetch_ready;
+    surface.range_message_set_delivered =
+        state.dedicated_multiplayer_foundation.range_message_set_delivered;
+    surface.signon_message_cursor_ready =
+        state.dedicated_multiplayer_foundation.signon_message_cursor_ready;
+    surface.message_cursor_checkpointed =
+        state.dedicated_multiplayer_foundation.message_cursor_checkpointed;
+    surface.signon_message_cursor_advance_ready =
+        state.dedicated_multiplayer_foundation.signon_message_cursor_advance_ready;
+    surface.cursor_advanced_range_delivered =
+        state.dedicated_multiplayer_foundation.cursor_advanced_range_delivered;
+    surface.signon_message_cursor_eof_ready =
+        state.dedicated_multiplayer_foundation.signon_message_cursor_eof_ready;
+    surface.message_cursor_exhausted =
+        state.dedicated_multiplayer_foundation.message_cursor_exhausted;
+    surface.compatibility = surface.bound_port > 0
+        ? "loopback-verified,cursor-eof-real-signon-wire-pending"
+        : "loopback-bind-pending,cursor-eof-real-signon-wire-pending";
 }
 
 std::vector<unsigned char> BuildGoldSrcInfoRequest()
@@ -57142,6 +57945,303 @@ bool ParseSignonMessageCursorAdvanceRejectResponseText(
 {
     static constexpr std::string_view kPrefix =
         "signon_message_cursor_advance_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    if (players_marker == std::string_view::npos || players_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+    return true;
+}
+
+bool ParseSignonMessageCursorEofAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedSignonMessageCursorEofProbeSummary* probe)
+{
+    if (probe == nullptr || !StartsWithText(text, "signon_message_cursor_eof "))
+    {
+        return false;
+    }
+
+    const std::string cursor_id = ExtractTokenValue(text, "cursorId=");
+    const std::string eof = ExtractTokenValue(text, "eof=");
+    const std::string exhausted = ExtractTokenValue(text, "exhausted=");
+    const std::string current_start_message_index =
+        ExtractTokenValue(text, "currentStartMessageIndex=");
+    const std::string current_message_count =
+        ExtractTokenValue(text, "currentMessageCount=");
+    const std::string next_start_message_index =
+        ExtractTokenValue(text, "nextStartMessageIndex=");
+    const std::string remaining_message_count =
+        ExtractTokenValue(text, "remainingMessageCount=");
+    const std::string resume_policy = ExtractTokenValue(text, "resumePolicy=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    const std::string signon_ready = ExtractTokenValue(text, "signonReady=");
+    const std::string bootstrap_delivered = ExtractTokenValue(text, "bootstrapDelivered=");
+    const std::string baseline_ready = ExtractTokenValue(text, "baselineReady=");
+    const std::string bootstrap_sequence_completed =
+        ExtractTokenValue(text, "bootstrapSequenceCompleted=");
+    const std::string signon_catalog_ready = ExtractTokenValue(text, "signonCatalogReady=");
+    const std::string bootstrap_records_staged =
+        ExtractTokenValue(text, "bootstrapRecordsStaged=");
+    const std::string signon_template_ready = ExtractTokenValue(text, "signonTemplateReady=");
+    const std::string template_records_delivered =
+        ExtractTokenValue(text, "templateRecordsDelivered=");
+    const std::string signon_template_coverage_complete =
+        ExtractTokenValue(text, "signonTemplateCoverageComplete=");
+    const std::string remaining_template_records_delivered =
+        ExtractTokenValue(text, "remainingTemplateRecordsDelivered=");
+    const std::string signon_envelope_ready =
+        ExtractTokenValue(text, "signonEnvelopeReady=");
+    const std::string framed_template_records_delivered =
+        ExtractTokenValue(text, "framedTemplateRecordsDelivered=");
+    const std::string signon_batch_ready = ExtractTokenValue(text, "signonBatchReady=");
+    const std::string pseudo_packet_batch_delivered =
+        ExtractTokenValue(text, "pseudoPacketBatchDelivered=");
+    const std::string signon_wiremap_ready =
+        ExtractTokenValue(text, "signonWiremapReady=");
+    const std::string wiremapped_batch_delivered =
+        ExtractTokenValue(text, "wiremappedBatchDelivered=");
+    const std::string signon_burst_ready = ExtractTokenValue(text, "signonBurstReady=");
+    const std::string pseudo_wire_burst_delivered =
+        ExtractTokenValue(text, "pseudoWireBurstDelivered=");
+    const std::string signon_stream_ready = ExtractTokenValue(text, "signonStreamReady=");
+    const std::string contiguous_stream_delivered =
+        ExtractTokenValue(text, "contiguousStreamDelivered=");
+    const std::string signon_stream_window_ready =
+        ExtractTokenValue(text, "signonStreamWindowReady=");
+    const std::string windowed_stream_delivered =
+        ExtractTokenValue(text, "windowedStreamDelivered=");
+    const std::string signon_message_catalog_ready =
+        ExtractTokenValue(text, "signonMessageCatalogReady=");
+    const std::string message_boundaries_cataloged =
+        ExtractTokenValue(text, "messageBoundariesCataloged=");
+    const std::string signon_message_fetch_ready =
+        ExtractTokenValue(text, "signonMessageFetchReady=");
+    const std::string targeted_message_fetch_delivered =
+        ExtractTokenValue(text, "targetedMessageFetchDelivered=");
+    const std::string signon_multi_message_fetch_ready =
+        ExtractTokenValue(text, "signonMultiMessageFetchReady=");
+    const std::string selective_message_set_delivered =
+        ExtractTokenValue(text, "selectiveMessageSetDelivered=");
+    const std::string signon_message_range_fetch_ready =
+        ExtractTokenValue(text, "signonMessageRangeFetchReady=");
+    const std::string range_message_set_delivered =
+        ExtractTokenValue(text, "rangeMessageSetDelivered=");
+    const std::string signon_message_cursor_ready =
+        ExtractTokenValue(text, "signonMessageCursorReady=");
+    const std::string message_cursor_checkpointed =
+        ExtractTokenValue(text, "messageCursorCheckpointed=");
+    const std::string signon_message_cursor_advance_ready =
+        ExtractTokenValue(text, "signonMessageCursorAdvanceReady=");
+    const std::string cursor_advanced_range_delivered =
+        ExtractTokenValue(text, "cursorAdvancedRangeDelivered=");
+    const std::string signon_message_cursor_eof_ready =
+        ExtractTokenValue(text, "signonMessageCursorEofReady=");
+    const std::string message_cursor_exhausted =
+        ExtractTokenValue(text, "messageCursorExhausted=");
+    if (cursor_id.empty()
+        || eof.empty()
+        || exhausted.empty()
+        || current_start_message_index.empty()
+        || current_message_count.empty()
+        || next_start_message_index.empty()
+        || remaining_message_count.empty()
+        || resume_policy.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty()
+        || signon_ready.empty()
+        || bootstrap_delivered.empty()
+        || baseline_ready.empty()
+        || bootstrap_sequence_completed.empty()
+        || signon_catalog_ready.empty()
+        || bootstrap_records_staged.empty()
+        || signon_template_ready.empty()
+        || template_records_delivered.empty()
+        || signon_template_coverage_complete.empty()
+        || remaining_template_records_delivered.empty()
+        || signon_envelope_ready.empty()
+        || framed_template_records_delivered.empty()
+        || signon_batch_ready.empty()
+        || pseudo_packet_batch_delivered.empty()
+        || signon_wiremap_ready.empty()
+        || wiremapped_batch_delivered.empty()
+        || signon_burst_ready.empty()
+        || pseudo_wire_burst_delivered.empty()
+        || signon_stream_ready.empty()
+        || contiguous_stream_delivered.empty()
+        || signon_stream_window_ready.empty()
+        || windowed_stream_delivered.empty()
+        || signon_message_catalog_ready.empty()
+        || message_boundaries_cataloged.empty()
+        || signon_message_fetch_ready.empty()
+        || targeted_message_fetch_delivered.empty()
+        || signon_multi_message_fetch_ready.empty()
+        || selective_message_set_delivered.empty()
+        || signon_message_range_fetch_ready.empty()
+        || range_message_set_delivered.empty()
+        || signon_message_cursor_ready.empty()
+        || message_cursor_checkpointed.empty()
+        || signon_message_cursor_advance_ready.empty()
+        || cursor_advanced_range_delivered.empty()
+        || signon_message_cursor_eof_ready.empty()
+        || message_cursor_exhausted.empty())
+    {
+        return false;
+    }
+
+    const int parsed_current_start_message_index =
+        std::atoi(current_start_message_index.c_str());
+    const int parsed_current_message_count =
+        std::atoi(current_message_count.c_str());
+    const int parsed_remaining_message_count =
+        std::atoi(remaining_message_count.c_str());
+    if (parsed_current_start_message_index < 0
+        || parsed_current_message_count <= 0
+        || parsed_remaining_message_count != 0)
+    {
+        return false;
+    }
+
+    probe->requested_cursor_id = cursor_id;
+    probe->parsed_cursor_id = cursor_id;
+    probe->parsed_eof = EqualsIgnoreCase(eof, "yes");
+    probe->parsed_exhausted = EqualsIgnoreCase(exhausted, "yes");
+    probe->parsed_current_range = BuildDedicatedSignonMessageRangeToken(
+        parsed_current_start_message_index,
+        parsed_current_message_count);
+    probe->parsed_next_start_message_index = next_start_message_index;
+    probe->parsed_remaining_message_count = parsed_remaining_message_count;
+    probe->parsed_resume_policy = resume_policy;
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+    probe->signon_ready = std::atoi(signon_ready.c_str());
+    probe->bootstrap_delivered = std::atoi(bootstrap_delivered.c_str());
+    probe->baseline_ready = std::atoi(baseline_ready.c_str());
+    probe->bootstrap_sequence_completed = std::atoi(bootstrap_sequence_completed.c_str());
+    probe->signon_catalog_ready = std::atoi(signon_catalog_ready.c_str());
+    probe->bootstrap_records_staged = std::atoi(bootstrap_records_staged.c_str());
+    probe->signon_template_ready = std::atoi(signon_template_ready.c_str());
+    probe->template_records_delivered = std::atoi(template_records_delivered.c_str());
+    probe->signon_template_coverage_complete =
+        std::atoi(signon_template_coverage_complete.c_str());
+    probe->remaining_template_records_delivered =
+        std::atoi(remaining_template_records_delivered.c_str());
+    probe->signon_envelope_ready = std::atoi(signon_envelope_ready.c_str());
+    probe->framed_template_records_delivered =
+        std::atoi(framed_template_records_delivered.c_str());
+    probe->signon_batch_ready = std::atoi(signon_batch_ready.c_str());
+    probe->pseudo_packet_batch_delivered =
+        std::atoi(pseudo_packet_batch_delivered.c_str());
+    probe->signon_wiremap_ready = std::atoi(signon_wiremap_ready.c_str());
+    probe->wiremapped_batch_delivered =
+        std::atoi(wiremapped_batch_delivered.c_str());
+    probe->signon_burst_ready = std::atoi(signon_burst_ready.c_str());
+    probe->pseudo_wire_burst_delivered =
+        std::atoi(pseudo_wire_burst_delivered.c_str());
+    probe->signon_stream_ready = std::atoi(signon_stream_ready.c_str());
+    probe->contiguous_stream_delivered =
+        std::atoi(contiguous_stream_delivered.c_str());
+    probe->signon_stream_window_ready =
+        std::atoi(signon_stream_window_ready.c_str());
+    probe->windowed_stream_delivered =
+        std::atoi(windowed_stream_delivered.c_str());
+    probe->signon_message_catalog_ready =
+        std::atoi(signon_message_catalog_ready.c_str());
+    probe->message_boundaries_cataloged =
+        std::atoi(message_boundaries_cataloged.c_str());
+    probe->signon_message_fetch_ready =
+        std::atoi(signon_message_fetch_ready.c_str());
+    probe->targeted_message_fetch_delivered =
+        std::atoi(targeted_message_fetch_delivered.c_str());
+    probe->signon_multi_message_fetch_ready =
+        std::atoi(signon_multi_message_fetch_ready.c_str());
+    probe->selective_message_set_delivered =
+        std::atoi(selective_message_set_delivered.c_str());
+    probe->signon_message_range_fetch_ready =
+        std::atoi(signon_message_range_fetch_ready.c_str());
+    probe->range_message_set_delivered =
+        std::atoi(range_message_set_delivered.c_str());
+    probe->signon_message_cursor_ready =
+        std::atoi(signon_message_cursor_ready.c_str());
+    probe->message_cursor_checkpointed =
+        std::atoi(message_cursor_checkpointed.c_str());
+    probe->signon_message_cursor_advance_ready =
+        std::atoi(signon_message_cursor_advance_ready.c_str());
+    probe->cursor_advanced_range_delivered =
+        std::atoi(cursor_advanced_range_delivered.c_str());
+    probe->signon_message_cursor_eof_ready =
+        std::atoi(signon_message_cursor_eof_ready.c_str());
+    probe->message_cursor_exhausted =
+        std::atoi(message_cursor_exhausted.c_str());
+
+    return probe->parsed_eof
+        && probe->parsed_exhausted
+        && !probe->parsed_current_range.empty()
+        && next_start_message_index == "<none>"
+        && probe->parsed_remaining_message_count == 0
+        && !probe->parsed_resume_policy.empty()
+        && probe->parsed_spawned > 0
+        && probe->signon_ready > 0
+        && probe->bootstrap_delivered > 0
+        && probe->baseline_ready > 0
+        && probe->bootstrap_sequence_completed > 0
+        && probe->signon_catalog_ready > 0
+        && probe->bootstrap_records_staged > 0
+        && probe->signon_template_ready > 0
+        && probe->template_records_delivered > 0
+        && probe->signon_template_coverage_complete > 0
+        && probe->remaining_template_records_delivered > 0
+        && probe->signon_envelope_ready > 0
+        && probe->framed_template_records_delivered > 0
+        && probe->signon_batch_ready > 0
+        && probe->pseudo_packet_batch_delivered > 0
+        && probe->signon_wiremap_ready > 0
+        && probe->wiremapped_batch_delivered > 0
+        && probe->signon_burst_ready > 0
+        && probe->pseudo_wire_burst_delivered > 0
+        && probe->signon_stream_ready > 0
+        && probe->contiguous_stream_delivered > 0
+        && probe->signon_stream_window_ready > 0
+        && probe->windowed_stream_delivered > 0
+        && probe->signon_message_catalog_ready > 0
+        && probe->message_boundaries_cataloged > 0
+        && probe->signon_message_fetch_ready > 0
+        && probe->targeted_message_fetch_delivered > 0
+        && probe->signon_multi_message_fetch_ready > 0
+        && probe->selective_message_set_delivered > 0
+        && probe->signon_message_range_fetch_ready > 0
+        && probe->range_message_set_delivered > 0
+        && probe->signon_message_cursor_ready > 0
+        && probe->message_cursor_checkpointed > 0
+        && probe->signon_message_cursor_advance_ready > 0
+        && probe->cursor_advanced_range_delivered > 0
+        && probe->signon_message_cursor_eof_ready > 0
+        && probe->message_cursor_exhausted > 0;
+}
+
+bool ParseSignonMessageCursorEofRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix =
+        "signon_message_cursor_eof_reject reason=";
     if (!StartsWithText(text, kPrefix))
     {
         return false;
@@ -62340,6 +63440,327 @@ bool PumpOneLoopbackSignonMessageCursorAdvanceFlow(
         && probe->signon_message_cursor_advance_ready > 0
         && probe->cursor_advanced_range_delivered > 0;
 }
+
+bool PumpOneLoopbackSignonMessageCursorEofAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view cursor_id,
+    bool expect_accept,
+    hl::game_api::DedicatedSignonMessageCursorEofProbeSummary* probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+    probe->requested_cursor_id = std::string(cursor_id);
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail =
+            "signon message cursor eof probe socket() failed WSA="
+            + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string requested_cursor_id =
+        cursor_id.empty()
+        ? std::string("invalid_signon_message_cursor_eof_cursor")
+        : std::string(cursor_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "signon_message_cursor_eof cursorId=" + requested_cursor_id,
+            &probe->detail,
+            "signon message cursor eof probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in eof_client_address{};
+    int eof_client_address_size = sizeof(eof_client_address);
+    std::string eof_request;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &eof_request,
+            &eof_client_address,
+            &eof_client_address_size,
+            &probe->detail,
+            "signon message cursor eof surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(eof_request, "signon_message_cursor_eof "))
+    {
+        probe->detail =
+            "signon message cursor eof surface received unexpected request: "
+            + eof_request;
+        return false;
+    }
+
+    const std::string request_cursor_id = ExtractTokenValue(eof_request, "cursorId=");
+    int current_start_message_index = -1;
+    int current_message_count = 0;
+    std::string next_start_message_index = "<none>";
+    int remaining_message_count = 0;
+    std::string resume_policy;
+    std::string reject_reason;
+    const bool eof_accepted = CompleteDedicatedLoopbackSignonMessageCursorEof(
+        state,
+        request_cursor_id,
+        true,
+        &current_start_message_index,
+        &current_message_count,
+        &next_start_message_index,
+        &remaining_message_count,
+        &resume_policy,
+        &reject_reason);
+
+    RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
+    RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
+    RefreshDedicatedSignonMessageCursorSurfaceSnapshot(state);
+    RefreshDedicatedSignonMessageRangeFetchSurfaceSnapshot(state);
+    RefreshDedicatedSignonMultiMessageFetchSurfaceSnapshot(state);
+    RefreshDedicatedSignonMessageFetchSurfaceSnapshot(state);
+    RefreshDedicatedSignonMessageCatalogSurfaceSnapshot(state);
+    RefreshDedicatedSignonStreamWindowSurfaceSnapshot(state);
+    RefreshDedicatedSignonStreamSurfaceSnapshot(state);
+    RefreshDedicatedSignonBurstSurfaceSnapshot(state);
+    RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+    RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+    RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+    RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+    RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+    RefreshDedicatedBootstrapSurfaceSnapshot(state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const DedicatedPlayerRuntimeSlot* slot_state = eof_accepted
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            state.dedicated_last_external_session_id)
+        : nullptr;
+    if (eof_accepted)
+    {
+        for (const DedicatedPlayerRuntimeSlot& candidate :
+             state.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.last_message_cursor_eof_id == request_cursor_id
+                && candidate.message_cursor_exhausted)
+            {
+                slot_state = &candidate;
+                break;
+            }
+        }
+    }
+
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const std::string eof_response =
+        eof_accepted && slot_state != nullptr
+        && current_start_message_index >= 0
+        && current_message_count > 0
+        && next_start_message_index == "<none>"
+        && remaining_message_count == 0
+        ? "signon_message_cursor_eof cursorId=" + request_cursor_id
+            + " eof=yes"
+            + " exhausted=yes"
+            + " currentStartMessageIndex="
+            + std::to_string(current_start_message_index)
+            + " currentMessageCount=" + std::to_string(current_message_count)
+            + " nextStartMessageIndex=" + next_start_message_index
+            + " remainingMessageCount=" + std::to_string(remaining_message_count)
+            + " resumePolicy=" + resume_policy
+            + " map="
+            + (state.server_state.map_name.empty() ? std::string("c0a0") : state.server_state.map_name)
+            + " name="
+            + (slot_state->player_name.empty() ? std::string("loopback_player") : slot_state->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " maxplayers=" + std::to_string(max_players)
+            + " spawned=" + std::to_string(slot_state->spawn_count > 0 ? 1 : 0)
+            + " signonReady=" + std::to_string(slot_state->signon_ready ? 1 : 0)
+            + " bootstrapDelivered=" + std::to_string(slot_state->bootstrap_delivered ? 1 : 0)
+            + " baselineReady=" + std::to_string(slot_state->baseline_ready ? 1 : 0)
+            + " bootstrapSequenceCompleted="
+            + std::to_string(slot_state->bootstrap_sequence_completed ? 1 : 0)
+            + " signonCatalogReady=" + std::to_string(slot_state->signon_catalog_ready ? 1 : 0)
+            + " bootstrapRecordsStaged="
+            + std::to_string(slot_state->bootstrap_records_staged ? 1 : 0)
+            + " signonTemplateReady=" + std::to_string(slot_state->signon_template_ready ? 1 : 0)
+            + " templateRecordsDelivered="
+            + std::to_string(slot_state->template_records_delivered ? 1 : 0)
+            + " signonTemplateCoverageComplete="
+            + std::to_string(slot_state->signon_template_coverage_complete ? 1 : 0)
+            + " remainingTemplateRecordsDelivered="
+            + std::to_string(slot_state->remaining_template_records_delivered ? 1 : 0)
+            + " signonEnvelopeReady="
+            + std::to_string(slot_state->signon_envelope_ready ? 1 : 0)
+            + " framedTemplateRecordsDelivered="
+            + std::to_string(slot_state->framed_template_records_delivered ? 1 : 0)
+            + " signonBatchReady=" + std::to_string(slot_state->signon_batch_ready ? 1 : 0)
+            + " pseudoPacketBatchDelivered="
+            + std::to_string(slot_state->pseudo_packet_batch_delivered ? 1 : 0)
+            + " signonWiremapReady="
+            + std::to_string(slot_state->signon_wiremap_ready ? 1 : 0)
+            + " wiremappedBatchDelivered="
+            + std::to_string(slot_state->wiremapped_batch_delivered ? 1 : 0)
+            + " signonBurstReady=" + std::to_string(slot_state->signon_burst_ready ? 1 : 0)
+            + " pseudoWireBurstDelivered="
+            + std::to_string(slot_state->pseudo_wire_burst_delivered ? 1 : 0)
+            + " signonStreamReady=" + std::to_string(slot_state->signon_stream_ready ? 1 : 0)
+            + " contiguousStreamDelivered="
+            + std::to_string(slot_state->contiguous_stream_delivered ? 1 : 0)
+            + " signonStreamWindowReady="
+            + std::to_string(slot_state->signon_stream_window_ready ? 1 : 0)
+            + " windowedStreamDelivered="
+            + std::to_string(slot_state->windowed_stream_delivered ? 1 : 0)
+            + " signonMessageCatalogReady="
+            + std::to_string(slot_state->signon_message_catalog_ready ? 1 : 0)
+            + " messageBoundariesCataloged="
+            + std::to_string(slot_state->message_boundaries_cataloged ? 1 : 0)
+            + " signonMessageFetchReady="
+            + std::to_string(slot_state->signon_message_fetch_ready ? 1 : 0)
+            + " targetedMessageFetchDelivered="
+            + std::to_string(slot_state->targeted_message_fetch_delivered ? 1 : 0)
+            + " signonMultiMessageFetchReady="
+            + std::to_string(slot_state->signon_multi_message_fetch_ready ? 1 : 0)
+            + " selectiveMessageSetDelivered="
+            + std::to_string(slot_state->selective_message_set_delivered ? 1 : 0)
+            + " signonMessageRangeFetchReady="
+            + std::to_string(slot_state->signon_message_range_fetch_ready ? 1 : 0)
+            + " rangeMessageSetDelivered="
+            + std::to_string(slot_state->range_message_set_delivered ? 1 : 0)
+            + " signonMessageCursorReady="
+            + std::to_string(slot_state->signon_message_cursor_ready ? 1 : 0)
+            + " messageCursorCheckpointed="
+            + std::to_string(slot_state->message_cursor_checkpointed ? 1 : 0)
+            + " signonMessageCursorAdvanceReady="
+            + std::to_string(slot_state->signon_message_cursor_advance_ready ? 1 : 0)
+            + " cursorAdvancedRangeDelivered="
+            + std::to_string(slot_state->cursor_advanced_range_delivered ? 1 : 0)
+            + " signonMessageCursorEofReady="
+            + std::to_string(slot_state->signon_message_cursor_eof_ready ? 1 : 0)
+            + " messageCursorExhausted="
+            + std::to_string(slot_state->message_cursor_exhausted ? 1 : 0)
+        : "signon_message_cursor_eof_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+    if (!SendConnectionlessText(
+            server_socket,
+            eof_client_address,
+            eof_client_address_size,
+            eof_response,
+            &probe->detail,
+            "signon message cursor eof surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_eof_response;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_eof_response,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "signon message cursor eof probe response"))
+    {
+        return false;
+    }
+
+    if (ParseSignonMessageCursorEofAcceptedResponseText(parsed_eof_response, probe))
+    {
+        ++probe->accepted;
+    }
+    else if (std::string parsed_reject_reason;
+             ParseSignonMessageCursorEofRejectResponseText(
+                 parsed_eof_response,
+                 &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail =
+            "signon message cursor eof probe could not parse response: "
+            + parsed_eof_response;
+        return false;
+    }
+
+    if (eof_accepted != expect_accept)
+    {
+        probe->detail =
+            std::string("signon message cursor eof expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_eof_response;
+        return false;
+    }
+
+    probe->detail = "loopback signon message cursor eof probe cursorId="
+        + probe->requested_cursor_id
+        + " completed on 127.0.0.1:" + std::to_string(bound_port);
+    return true;
+}
+
+bool PumpOneLoopbackSignonMessageCursorEofFlow(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view cursor_id,
+    hl::game_api::DedicatedSignonMessageCursorEofProbeSummary* probe)
+{
+    return PumpOneLoopbackSignonMessageCursorEofAttempt(
+            state,
+            server_socket,
+            bound_port,
+            cursor_id,
+            true,
+            probe)
+        && probe != nullptr
+        && probe->accepted > 0
+        && !probe->requested_cursor_id.empty()
+        && !probe->parsed_cursor_id.empty()
+        && probe->parsed_eof
+        && probe->parsed_exhausted
+        && !probe->parsed_current_range.empty()
+        && probe->parsed_next_start_message_index == "<none>"
+        && probe->parsed_remaining_message_count == 0
+        && !probe->parsed_resume_policy.empty()
+        && !probe->parsed_map.empty()
+        && !probe->parsed_name.empty()
+        && !probe->parsed_ruleset.empty()
+        && probe->parsed_spawned > 0
+        && probe->signon_stream_ready > 0
+        && probe->contiguous_stream_delivered > 0
+        && probe->signon_stream_window_ready > 0
+        && probe->windowed_stream_delivered > 0
+        && probe->signon_message_catalog_ready > 0
+        && probe->message_boundaries_cataloged > 0
+        && probe->signon_message_fetch_ready > 0
+        && probe->targeted_message_fetch_delivered > 0
+        && probe->signon_multi_message_fetch_ready > 0
+        && probe->selective_message_set_delivered > 0
+        && probe->signon_message_range_fetch_ready > 0
+        && probe->range_message_set_delivered > 0
+        && probe->signon_message_cursor_ready > 0
+        && probe->message_cursor_checkpointed > 0
+        && probe->signon_message_cursor_advance_ready > 0
+        && probe->cursor_advanced_range_delivered > 0
+        && probe->signon_message_cursor_eof_ready > 0
+        && probe->message_cursor_exhausted > 0;
+}
 #endif
 
 void PerformDedicatedQuerySurface()
@@ -62439,6 +63860,12 @@ void PerformDedicatedQuerySurface()
     hl::game_api::DedicatedSignonMessageCursorAdvanceProbeSummary&
         signon_message_cursor_advance_probe =
             state.dedicated_signon_message_cursor_advance_probe;
+    hl::game_api::DedicatedSignonMessageCursorEofSurfaceSummary&
+        signon_message_cursor_eof_surface =
+            state.dedicated_signon_message_cursor_eof_surface;
+    hl::game_api::DedicatedSignonMessageCursorEofProbeSummary&
+        signon_message_cursor_eof_probe =
+            state.dedicated_signon_message_cursor_eof_probe;
 
     if (probe.enabled)
     {
@@ -62689,6 +64116,19 @@ void PerformDedicatedQuerySurface()
         signon_message_cursor_advance_probe.compatibility =
             "loopback-pending,cursor-advance-range-real-signon-wire-pending";
     }
+    if (signon_message_cursor_eof_surface.enabled)
+    {
+        RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
+    }
+    if (signon_message_cursor_eof_probe.enabled)
+    {
+        signon_message_cursor_eof_probe.mode = "dedicated";
+        signon_message_cursor_eof_probe.probe = "loopback";
+        signon_message_cursor_eof_probe.protocol_shape =
+            "goldsrc-like-connectionless-signon-cursor-terminal-eof-descriptor";
+        signon_message_cursor_eof_probe.compatibility =
+            "loopback-pending,cursor-eof-real-signon-wire-pending";
+    }
 
 #if defined(_WIN32)
     ScopedWinsockSession winsock;
@@ -62773,6 +64213,10 @@ void PerformDedicatedQuerySurface()
         if (signon_message_cursor_advance_probe.enabled)
         {
             signon_message_cursor_advance_probe.detail = surface.detail;
+        }
+        if (signon_message_cursor_eof_probe.enabled)
+        {
+            signon_message_cursor_eof_probe.detail = surface.detail;
         }
         return;
     }
@@ -62864,6 +64308,10 @@ void PerformDedicatedQuerySurface()
         if (signon_message_cursor_advance_probe.enabled)
         {
             signon_message_cursor_advance_probe.detail = surface.detail;
+        }
+        if (signon_message_cursor_eof_probe.enabled)
+        {
+            signon_message_cursor_eof_probe.detail = surface.detail;
         }
         return;
     }
@@ -63003,6 +64451,13 @@ void PerformDedicatedQuerySurface()
             "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template/signon-template-completion/signon-envelope/signon-batch/signon-wiremap/signon-burst/signon-stream/signon-stream-window/signon-message-catalog/signon-message-fetch/signon-multi-message-fetch/signon-message-range/signon-message-cursor surfaces";
         RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
     }
+    if (signon_message_cursor_eof_surface.enabled)
+    {
+        signon_message_cursor_eof_surface.bound_port = bound_port;
+        signon_message_cursor_eof_surface.detail =
+            "sharing loopback UDP socket with dedicated query/connect/activation/bootstrap/bootstrap-sequence/signon-catalog/signon-template/signon-template-completion/signon-envelope/signon-batch/signon-wiremap/signon-burst/signon-stream/signon-stream-window/signon-message-catalog/signon-message-fetch/signon-multi-message-fetch/signon-message-range/signon-message-cursor/signon-message-cursor-advance surfaces";
+        RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
+    }
 
     bool signon_multi_message_fetch_ok = true;
     if (signon_multi_message_fetch_probe.enabled
@@ -63113,6 +64568,40 @@ void PerformDedicatedQuerySurface()
             1,
             false,
             &signon_message_cursor_advance_probe);
+        RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageCursorSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageRangeFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMultiMessageFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageCatalogSurfaceSnapshot(state);
+        RefreshDedicatedSignonStreamWindowSurfaceSnapshot(state);
+        RefreshDedicatedSignonStreamSurfaceSnapshot(state);
+        RefreshDedicatedSignonBurstSurfaceSnapshot(state);
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+        RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+    }
+
+    bool signon_message_cursor_eof_ok = true;
+    if (signon_message_cursor_eof_probe.enabled
+        && state.dedicated_signon_message_cursor_eof_probe_scenario == "gate")
+    {
+        signon_message_cursor_eof_ok = PumpOneLoopbackSignonMessageCursorEofAttempt(
+            state,
+            server_socket.Get(),
+            bound_port,
+            "invalid_signon_message_cursor_eof_cursor",
+            false,
+            &signon_message_cursor_eof_probe);
+        RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
         RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
         RefreshDedicatedSignonMessageCursorSurfaceSnapshot(state);
         RefreshDedicatedSignonMessageRangeFetchSurfaceSnapshot(state);
@@ -64855,6 +66344,87 @@ void PerformDedicatedQuerySurface()
         RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
     }
 
+    if (signon_message_cursor_eof_probe.enabled)
+    {
+        if (signon_message_cursor_eof_ok
+            && signon_message_cursor_advance_ok
+            && signon_message_cursor_ok
+            && signon_message_range_fetch_ok
+            && signon_multi_message_fetch_ok
+            && signon_message_fetch_ok
+            && signon_message_catalog_ok
+            && signon_stream_window_ok
+            && signon_stream_ok
+            && signon_burst_ok
+            && signon_wiremap_ok
+            && signon_batch_ok
+            && signon_envelope_ok
+            && signon_template_completion_ok
+            && signon_template_ok
+            && signon_catalog_ok
+            && bootstrap_sequence_ok
+            && bootstrap_ok
+            && activation_ok
+            && connect_ok)
+        {
+            signon_message_cursor_eof_ok =
+                PumpOneLoopbackSignonMessageCursorEofFlow(
+                    state,
+                    server_socket.Get(),
+                    bound_port,
+                    signon_message_cursor_probe.parsed_cursor_id,
+                    &signon_message_cursor_eof_probe);
+        }
+        if (signon_message_cursor_eof_ok
+            && state.dedicated_signon_message_cursor_eof_probe_scenario == "gate")
+        {
+            signon_message_cursor_eof_ok =
+                PumpOneLoopbackSignonMessageCursorEofAttempt(
+                    state,
+                    server_socket.Get(),
+                    bound_port,
+                    signon_message_cursor_probe.parsed_cursor_id,
+                    false,
+                    &signon_message_cursor_eof_probe);
+        }
+
+        RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageCursorAdvanceSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageCursorSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageRangeFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMultiMessageFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageFetchSurfaceSnapshot(state);
+        RefreshDedicatedSignonMessageCatalogSurfaceSnapshot(state);
+        RefreshDedicatedSignonStreamWindowSurfaceSnapshot(state);
+        RefreshDedicatedSignonStreamSurfaceSnapshot(state);
+        RefreshDedicatedSignonBurstSurfaceSnapshot(state);
+        RefreshDedicatedSignonWiremapSurfaceSnapshot(state);
+        RefreshDedicatedSignonBatchSurfaceSnapshot(state);
+        RefreshDedicatedSignonEnvelopeSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateCompletionSurfaceSnapshot(state);
+        RefreshDedicatedSignonTemplateSurfaceSnapshot(state);
+        RefreshDedicatedSignonCatalogSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSequenceSurfaceSnapshot(state);
+        RefreshDedicatedBootstrapSurfaceSnapshot(state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        signon_message_cursor_eof_probe.protocol_shape =
+            signon_message_cursor_eof_surface.protocol_shape;
+        signon_message_cursor_eof_probe.compatibility =
+            signon_message_cursor_eof_ok
+            ? "loopback-verified,cursor-eof-real-signon-wire-pending"
+            : "loopback-probe-failed,cursor-eof-real-signon-wire-pending";
+        signon_message_cursor_eof_surface.compatibility =
+            signon_message_cursor_eof_ok
+            ? "loopback-verified,cursor-eof-real-signon-wire-pending"
+            : "loopback-probe-failed,cursor-eof-real-signon-wire-pending";
+    }
+    else if (signon_message_cursor_eof_surface.enabled)
+    {
+        RefreshDedicatedSignonMessageCursorEofSurfaceSnapshot(state);
+    }
+
     if (probe.enabled)
     {
         const bool probe_ok =
@@ -65064,6 +66634,16 @@ void PerformDedicatedQuerySurface()
     {
         signon_message_cursor_advance_probe.detail = surface.detail;
         signon_message_cursor_advance_probe.compatibility = surface.compatibility;
+    }
+    if (signon_message_cursor_eof_surface.enabled)
+    {
+        signon_message_cursor_eof_surface.detail = surface.detail;
+        signon_message_cursor_eof_surface.compatibility = surface.compatibility;
+    }
+    if (signon_message_cursor_eof_probe.enabled)
+    {
+        signon_message_cursor_eof_probe.detail = surface.detail;
+        signon_message_cursor_eof_probe.compatibility = surface.compatibility;
     }
 #endif
 }
@@ -69182,6 +70762,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_signon_message_cursor_probe = {};
     summary.dedicated_signon_message_cursor_advance_surface = {};
     summary.dedicated_signon_message_cursor_advance_probe = {};
+    summary.dedicated_signon_message_cursor_eof_surface = {};
+    summary.dedicated_signon_message_cursor_eof_probe = {};
     summary.dedicated_multiplayer_readiness.clear();
 
     if (state.server_state.dedicated)
@@ -69294,6 +70876,10 @@ void PopulateBootstrapSummary(
             state.dedicated_multiplayer_foundation.signon_message_cursor_advance_ready;
         summary.dedicated_player_lifecycle_foundation.cursor_advanced_range_delivered =
             state.dedicated_multiplayer_foundation.cursor_advanced_range_delivered;
+        summary.dedicated_player_lifecycle_foundation.signon_message_cursor_eof_ready =
+            state.dedicated_multiplayer_foundation.signon_message_cursor_eof_ready;
+        summary.dedicated_player_lifecycle_foundation.message_cursor_exhausted =
+            state.dedicated_multiplayer_foundation.message_cursor_exhausted;
         summary.dedicated_player_lifecycle_foundation.deaths =
             state.dedicated_multiplayer_foundation.deaths;
         summary.dedicated_player_lifecycle_foundation.respawns =
@@ -69373,6 +70959,10 @@ void PopulateBootstrapSummary(
             state.dedicated_signon_message_cursor_advance_surface;
         summary.dedicated_signon_message_cursor_advance_probe =
             state.dedicated_signon_message_cursor_advance_probe;
+        summary.dedicated_signon_message_cursor_eof_surface =
+            state.dedicated_signon_message_cursor_eof_surface;
+        summary.dedicated_signon_message_cursor_eof_probe =
+            state.dedicated_signon_message_cursor_eof_probe;
 
         summary.dedicated_multiplayer_readiness = BuildDedicatedMultiplayerReadinessLine(
             summary.dedicated_server_foundation,
@@ -69416,7 +71006,9 @@ void PopulateBootstrapSummary(
             summary.dedicated_signon_message_cursor_surface,
             summary.dedicated_signon_message_cursor_probe,
             summary.dedicated_signon_message_cursor_advance_surface,
-            summary.dedicated_signon_message_cursor_advance_probe);
+            summary.dedicated_signon_message_cursor_advance_probe,
+            summary.dedicated_signon_message_cursor_eof_surface,
+            summary.dedicated_signon_message_cursor_eof_probe);
     }
 
     summary.ready_for_server_activation =
@@ -76336,6 +77928,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_signon_message_cursor_probe = {};
     impl_->summary.dedicated_signon_message_cursor_advance_surface = {};
     impl_->summary.dedicated_signon_message_cursor_advance_probe = {};
+    impl_->summary.dedicated_signon_message_cursor_eof_surface = {};
+    impl_->summary.dedicated_signon_message_cursor_eof_probe = {};
     impl_->summary.dedicated_multiplayer_readiness.clear();
     impl_->summary.ready_for_server_activation = false;
 
@@ -76559,6 +78153,16 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         options.signon_message_cursor_advance_probe_enabled;
     impl_->shim_state.dedicated_signon_message_cursor_advance_probe_scenario =
         options.signon_message_cursor_advance_probe_scenario == "gate" ? "gate" : "happy";
+    impl_->shim_state.dedicated_signon_message_cursor_eof_surface = {};
+    impl_->shim_state.dedicated_signon_message_cursor_eof_surface.enabled =
+        options.signon_message_cursor_eof_surface_enabled;
+    impl_->shim_state.dedicated_signon_message_cursor_eof_surface.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_signon_message_cursor_eof_probe = {};
+    impl_->shim_state.dedicated_signon_message_cursor_eof_probe.enabled =
+        options.signon_message_cursor_eof_probe_enabled;
+    impl_->shim_state.dedicated_signon_message_cursor_eof_probe_scenario =
+        options.signon_message_cursor_eof_probe_scenario == "gate" ? "gate" : "happy";
     impl_->shim_state.dedicated_last_external_session_id.clear();
     impl_->shim_state.dedicated_last_external_slot = 0;
     hl::game_api::detail::InitializeServerState(
@@ -77171,6 +78775,71 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                    .cursor_advanced_range_delivered <= 0
             || (impl_->shim_state.dedicated_signon_message_cursor_advance_probe_scenario == "gate"
                 && impl_->summary.dedicated_signon_message_cursor_advance_probe.rejected <= 0));
+    const bool dedicated_signon_message_cursor_eof_probe_failed =
+        options.signon_message_cursor_eof_probe_enabled
+        && (!impl_->summary.dedicated_signon_message_cursor_eof_probe.enabled
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe.accepted <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .requested_cursor_id.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_cursor_id.empty()
+            || !impl_->summary.dedicated_signon_message_cursor_eof_probe.parsed_eof
+            || !impl_->summary.dedicated_signon_message_cursor_eof_probe.parsed_exhausted
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_current_range.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_next_start_message_index
+                   != "<none>"
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_remaining_message_count != 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_resume_policy.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_map.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_name.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_ruleset.empty()
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .parsed_spawned <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_stream_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .contiguous_stream_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_stream_window_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .windowed_stream_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_catalog_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .message_boundaries_cataloged <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_fetch_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .targeted_message_fetch_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_multi_message_fetch_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .selective_message_set_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_range_fetch_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .range_message_set_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_cursor_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .message_cursor_checkpointed <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_cursor_advance_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .cursor_advanced_range_delivered <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .signon_message_cursor_eof_ready <= 0
+            || impl_->summary.dedicated_signon_message_cursor_eof_probe
+                   .message_cursor_exhausted <= 0
+            || (impl_->shim_state.dedicated_signon_message_cursor_eof_probe_scenario == "gate"
+                && impl_->summary.dedicated_signon_message_cursor_eof_probe.rejected <= 0));
 
     return impl_->summary.get_entity_api2_succeeded
         && (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
@@ -77198,7 +78867,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_signon_multi_message_fetch_probe_failed
         && !dedicated_signon_message_range_probe_failed
         && !dedicated_signon_message_cursor_probe_failed
-        && !dedicated_signon_message_cursor_advance_probe_failed;
+        && !dedicated_signon_message_cursor_advance_probe_failed
+        && !dedicated_signon_message_cursor_eof_probe_failed;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept
