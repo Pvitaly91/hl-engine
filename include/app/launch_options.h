@@ -90,6 +90,9 @@ struct LaunchOptions
     bool signon_message_range_fetch_surface_enabled = false;
     bool signon_message_range_fetch_probe_enabled = false;
     std::string signon_message_range_fetch_probe_scenario = "happy";
+    bool signon_message_cursor_surface_enabled = false;
+    bool signon_message_cursor_probe_enabled = false;
+    std::string signon_message_cursor_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
