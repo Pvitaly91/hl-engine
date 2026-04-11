@@ -96,6 +96,9 @@ struct LaunchOptions
     bool signon_message_cursor_advance_surface_enabled = false;
     bool signon_message_cursor_advance_probe_enabled = false;
     std::string signon_message_cursor_advance_probe_scenario = "happy";
+    bool signon_message_cursor_eof_surface_enabled = false;
+    bool signon_message_cursor_eof_probe_enabled = false;
+    std::string signon_message_cursor_eof_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
