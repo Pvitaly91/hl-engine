@@ -108,6 +108,9 @@ struct LaunchOptions
     bool signon_message_cursor_carryover_surface_enabled = false;
     bool signon_message_cursor_carryover_probe_enabled = false;
     std::string signon_message_cursor_carryover_probe_scenario = "happy";
+    bool signon_message_cursor_carried_range_surface_enabled = false;
+    bool signon_message_cursor_carried_range_probe_enabled = false;
+    std::string signon_message_cursor_carried_range_probe_scenario = "happy";
     int frame_count = 1000;
     float frame_time = 0.05f;
     int think_limit = 32;
