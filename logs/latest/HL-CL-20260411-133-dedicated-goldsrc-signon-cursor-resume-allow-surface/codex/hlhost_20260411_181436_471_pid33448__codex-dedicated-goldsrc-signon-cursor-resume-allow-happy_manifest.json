@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260411_181436",
+  "runInstanceId": "20260411_181436_471_pid33448",
+  "runLabel": "codex-dedicated-goldsrc-signon-cursor-resume-allow-happy",
+  "promptId": "HL-CL-20260411-133-dedicated-goldsrc-signon-cursor-resume-allow-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "ba6fc69332daf3acc5185a874ecb779cde80499c",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_181436_471_pid33448__codex-dedicated-goldsrc-signon-cursor-resume-allow-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_181436_471_pid33448__codex-dedicated-goldsrc-signon-cursor-resume-allow-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260411_181436_471_pid33448__codex-dedicated-goldsrc-signon-cursor-resume-allow-happy_part01.log"]
+}
