@@ -120,6 +120,9 @@ struct LaunchOptions
     bool signon_message_cursor_carried_checkpoint_surface_enabled = false;
     bool signon_message_cursor_carried_checkpoint_probe_enabled = false;
     std::string signon_message_cursor_carried_checkpoint_probe_scenario = "happy";
+    bool signon_message_cursor_carried_checkpoint_advance_surface_enabled = false;
+    bool signon_message_cursor_carried_checkpoint_advance_probe_enabled = false;
+    std::string signon_message_cursor_carried_checkpoint_advance_probe_scenario = "happy";
     bool signon_message_cursor_carried_resume_denial_surface_enabled = false;
     bool signon_message_cursor_carried_resume_denial_probe_enabled = false;
     std::string signon_message_cursor_carried_resume_denial_probe_scenario = "happy";
