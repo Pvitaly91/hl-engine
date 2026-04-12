@@ -114,6 +114,9 @@ struct LaunchOptions
     bool signon_message_cursor_carried_eof_surface_enabled = false;
     bool signon_message_cursor_carried_eof_probe_enabled = false;
     std::string signon_message_cursor_carried_eof_probe_scenario = "happy";
+    bool signon_message_cursor_carried_resume_allow_surface_enabled = false;
+    bool signon_message_cursor_carried_resume_allow_probe_enabled = false;
+    std::string signon_message_cursor_carried_resume_allow_probe_scenario = "happy";
     bool signon_message_cursor_carried_resume_denial_surface_enabled = false;
     bool signon_message_cursor_carried_resume_denial_probe_enabled = false;
     std::string signon_message_cursor_carried_resume_denial_probe_scenario = "happy";
