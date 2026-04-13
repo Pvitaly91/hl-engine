@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260413_202504",
+  "runInstanceId": "20260413_202504_668_pid24524",
+  "runLabel": "codex-dedicated-goldsrc-signon-carried-checkpoint-resume-allow-gate",
+  "promptId": "HL-CL-20260411-143-dedicated-goldsrc-signon-carried-checkpoint-resume-allow-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "310637b830a8339e39ffe365d86ec9ef948b94fa",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_202504_668_pid24524__codex-dedicated-goldsrc-signon-carried-checkpoint-resume-allow-gate_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_202504_668_pid24524__codex-dedicated-goldsrc-signon-carried-checkpoint-resume-allow-gate_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_202504_668_pid24524__codex-dedicated-goldsrc-signon-carried-checkpoint-resume-allow-gate_part01.log"]
+}
