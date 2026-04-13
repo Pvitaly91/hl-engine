@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260413_123628",
+  "runInstanceId": "20260413_123628_183_pid32492",
+  "runLabel": "codex-dedicated-goldsrc-signon-carried-checkpoint-eof-happy",
+  "promptId": "HL-CL-20260411-141-dedicated-goldsrc-signon-carried-checkpoint-eof-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "fad8e04674fd639b21960b913a3f9a9031b803f8",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_123628_183_pid32492__codex-dedicated-goldsrc-signon-carried-checkpoint-eof-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_123628_183_pid32492__codex-dedicated-goldsrc-signon-carried-checkpoint-eof-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260413_123628_183_pid32492__codex-dedicated-goldsrc-signon-carried-checkpoint-eof-happy_part01.log"]
+}
