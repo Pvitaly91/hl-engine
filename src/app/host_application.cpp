@@ -22619,6 +22619,15 @@ bool HostApplication::RunServerEngineShim(
         options.signon_message_cursor_carried_checkpoint_claimed_eof_probe_enabled;
     init_options.signon_message_cursor_carried_checkpoint_claimed_eof_probe_scenario =
         options.signon_message_cursor_carried_checkpoint_claimed_eof_probe_scenario;
+    init_options.signon_message_cursor_carried_checkpoint_claimed_resume_denial_surface_enabled =
+        options
+            .signon_message_cursor_carried_checkpoint_claimed_resume_denial_surface_enabled;
+    init_options.signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_enabled =
+        options.signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_enabled;
+    init_options
+        .signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_scenario =
+        options
+            .signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_scenario;
     init_options.signon_message_cursor_carried_checkpoint_resume_range_surface_enabled =
         options.signon_message_cursor_carried_checkpoint_resume_range_surface_enabled;
     init_options.signon_message_cursor_carried_checkpoint_resume_range_probe_enabled =
@@ -22925,6 +22934,21 @@ bool HostApplication::RunServerEngineShim(
                 : "0")
         + ", signon_message_cursor_carried_checkpoint_claimed_eof_probe_scenario="
         + init_options.signon_message_cursor_carried_checkpoint_claimed_eof_probe_scenario
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_denial_surface="
+        + std::string(
+            init_options
+                    .signon_message_cursor_carried_checkpoint_claimed_resume_denial_surface_enabled
+                ? "1"
+                : "0")
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe="
+        + std::string(
+            init_options
+                    .signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_enabled
+                ? "1"
+                : "0")
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_scenario="
+        + init_options
+              .signon_message_cursor_carried_checkpoint_claimed_resume_denial_probe_scenario
         + ", signon_message_cursor_carried_checkpoint_resume_range_surface="
         + std::string(
             init_options.signon_message_cursor_carried_checkpoint_resume_range_surface_enabled
