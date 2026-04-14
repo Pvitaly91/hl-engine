@@ -22616,6 +22616,14 @@ bool HostApplication::RunServerEngineShim(
         .signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_scenario =
         options
             .signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_scenario;
+    init_options.signon_message_cursor_carried_checkpoint_claimed_resume_range_surface_enabled =
+        options.signon_message_cursor_carried_checkpoint_claimed_resume_range_surface_enabled;
+    init_options.signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_enabled =
+        options.signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_enabled;
+    init_options
+        .signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_scenario =
+        options
+            .signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_scenario;
     init_options.signon_message_cursor_carried_checkpoint_claimed_range_surface_enabled =
         options.signon_message_cursor_carried_checkpoint_claimed_range_surface_enabled;
     init_options.signon_message_cursor_carried_checkpoint_claimed_range_probe_enabled =
@@ -22934,6 +22942,21 @@ bool HostApplication::RunServerEngineShim(
         + ", signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_scenario="
         + init_options
               .signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_scenario
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_range_surface="
+        + std::string(
+            init_options
+                    .signon_message_cursor_carried_checkpoint_claimed_resume_range_surface_enabled
+                ? "1"
+                : "0")
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_range_probe="
+        + std::string(
+            init_options
+                    .signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_enabled
+                ? "1"
+                : "0")
+        + ", signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_scenario="
+        + init_options
+              .signon_message_cursor_carried_checkpoint_claimed_resume_range_probe_scenario
         + ", signon_message_cursor_carried_checkpoint_claimed_range_surface="
         + std::string(
             init_options.signon_message_cursor_carried_checkpoint_claimed_range_surface_enabled
