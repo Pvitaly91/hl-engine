@@ -1,0 +1,5 @@
+game "Half-Life"
+startmap "c0a0"
+trainmap "c1a0"
+type "singleplayer_only"
+gamedll "dlls\\hl.dll"
