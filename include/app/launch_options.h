@@ -133,6 +133,12 @@ struct LaunchOptions
     std::string
         signon_message_cursor_carried_checkpoint_resume_token_claim_probe_scenario =
             "happy";
+    bool signon_message_cursor_carried_checkpoint_claimed_resume_allow_surface_enabled =
+        false;
+    bool signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_enabled = false;
+    std::string
+        signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_scenario =
+            "happy";
     bool signon_message_cursor_carried_checkpoint_claimed_range_surface_enabled = false;
     bool signon_message_cursor_carried_checkpoint_claimed_range_probe_enabled = false;
     std::string signon_message_cursor_carried_checkpoint_claimed_range_probe_scenario =
