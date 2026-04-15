@@ -107,6 +107,11 @@ target_include_directories(game_api
         "${HLSDK_ROOT_DIR}/public"
 )
 target_link_libraries(game_api PRIVATE common filesystem)
+set_source_files_properties(
+    src/game_api/hl_server_module.cpp
+    PROPERTIES
+        COMPILE_OPTIONS "/bigobj"
+)
 set_target_properties(game_api PROPERTIES FOLDER "host")
 
 add_executable(hlhost
