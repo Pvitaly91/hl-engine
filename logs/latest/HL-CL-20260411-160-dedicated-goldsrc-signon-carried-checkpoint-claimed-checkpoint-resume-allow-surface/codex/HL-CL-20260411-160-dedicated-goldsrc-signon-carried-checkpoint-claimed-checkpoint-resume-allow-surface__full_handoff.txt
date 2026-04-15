@@ -311,8 +311,8 @@ G:/DEV/СPP/HLengine/host/logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signo
 G:/DEV/СPP/HLengine/host/logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture/maps/c0a0.bsp
 whether logs/latest/changelevel_policy_regressions existed or was absent: absent
 whether core.longpaths was already enabled or had to be enabled: already enabled (git config --get core.longpaths => true; git config core.longpaths true re-applied)
-final git commit SHA: PENDING_MAIN_COMMIT_SHA
-push result: PENDING_MAIN_PUSH_RESULT
+final git commit SHA: 64cddb9d73d4e3f96dc19e081dbbe42ec41f053a
+push result: To https://github.com/Pvitaly91/hl-engine.git |    370f421..64cddb9  codex/HL-CL-20260401-081-target-runtime-completion-state -> codex/HL-CL-20260401-081-target-runtime-completion-state
 issues / risks / quirks noticed in logs:
 Optional pak0.pak is still missing in the prompt-scoped valve fixture, but validation succeeds and both runs complete.
 hl.dll precache warnings still report many missing valve/sound assets; these were pre-existing fixture limitations and did not block the claimant checkpoint resume-allow proofs.
