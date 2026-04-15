@@ -303,10 +303,11 @@ logs/latest/HL-CL-20260411-158-dedicated-goldsrc-signon-carried-checkpoint-claim
 logs/latest/HL-CL-20260411-158-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-eof-surface/runtime/valve-fixture/maps/c0a0.bsp
 whether logs/latest/changelevel_policy_regressions existed or was absent: absent
 whether core.longpaths was already enabled or had to be enabled: already enabled (git config --get core.longpaths returned true before the no-op set command)
-final git commit SHA: __FINAL_COMMIT__
-push result: __PUSH_RESULT__
+final git commit SHA: d1316fdf6a350c7754c412b97ce19b61b2f1ccf6
+push result: To https://github.com/Pvitaly91/hl-engine.git |    64081da..d1316fd  codex/HL-CL-20260401-081-target-runtime-completion-state -> codex/HL-CL-20260401-081-target-runtime-completion-state
 issues / risks / quirks noticed in logs: loopback-only claimant checkpoint EOF semantics is now verified but remains explicitly bounded to the claimant-local post-bridge post-advance terminal slice; run B ends with lastRejectReason=already-claimed-checkpoint-eof after the successful delivery, which is expected for the duplicate EOF gate check; real auth/session validation, real signon-byte compatibility, netchan, baselines, snapshots, gameplay transport, and replication remain intentionally out of scope.
 progress assessment: the dedicated GoldSrc-like multiplayer continuation now exposes a truthful externally probeable claimant checkpoint EOF step on top of the authoritative claimed checkpoint bridge plus claimant checkpoint advance path, and the next narrow unlocked milestone is claimant checkpoint resume-denial semantics.
 concise conclusion: claimant checkpoint EOF is now externally observable and authoritatively gated by claimant checkpoint advance completion without widening into real reconnect transport or gameplay replication.
 HL-CL-20260411-158-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-eof-surface
+
 
