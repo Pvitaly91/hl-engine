@@ -4,6 +4,8 @@
 
 The helper is intentionally pinned to the reviewed commit `148e27743e7a3dd3dc5aed12faf854405b8bbb08`. It will not silently validate the moved tip of `codex/HL-CL-20260401-081-target-runtime-completion-state`. If the current `HEAD` is not the reviewed commit, rerun with `-CheckoutReviewedCommit` or manually detach to the reviewed commit first.
 
+If you need to preserve the current tooling worktree or build the reviewed binary in an isolated checkout, point the helper at that reviewed checkout with `-RepoRoot`. The reviewed checkout still needs its own `build32/host/Debug/hlhost.exe` and prompt-scoped `logs/latest/.../runtime/valve-fixture` inputs before the helper will run.
+
 What it checks:
 
 - The repo/worktree, reviewed branch, reviewed commit, and pre-change commit all exist and line up.
@@ -27,6 +29,7 @@ Usage examples:
 ```powershell
 tools\manual_verify_resumed_denial.cmd
 powershell -ExecutionPolicy Bypass -File .\tools\manual_verify_resumed_denial.ps1 -CheckoutReviewedCommit
+powershell -ExecutionPolicy Bypass -File .\tools\manual_verify_resumed_denial.ps1 -RepoRoot C:\h148 -CheckoutReviewedCommit
 powershell -ExecutionPolicy Bypass -File .\tools\manual_verify_resumed_denial.ps1 -CheckoutReviewedCommit -SkipRecovery
 powershell -ExecutionPolicy Bypass -File .\tools\manual_verify_resumed_denial.ps1 -CheckoutReviewedCommit -NoExecute
 ```

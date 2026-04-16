@@ -691,6 +691,41 @@ function Assert-NoHardFailures {
     }
 }
 
+function Invoke-NativeProcessWithTimeout {
+    param(
+        [string]$FilePath,
+        [string[]]$Arguments,
+        [int]$TimeoutSeconds
+    )
+
+    $startInfo = New-Object System.Diagnostics.ProcessStartInfo
+    $startInfo.FileName = $FilePath
+    $startInfo.Arguments = (($Arguments | ForEach-Object { Quote-Argument $_ }) -join " ")
+    $startInfo.WorkingDirectory = (Get-Location).Path
+    $startInfo.UseShellExecute = $false
+    $startInfo.CreateNoWindow = $true
+
+    $process = New-Object System.Diagnostics.Process
+    $process.StartInfo = $startInfo
+
+    if (-not $process.Start()) {
+        throw ("Failed to start process: {0}" -f $FilePath)
+    }
+
+    if (-not $process.WaitForExit($TimeoutSeconds * 1000)) {
+        try {
+            $process.Kill()
+        }
+        catch {
+        }
+
+        throw ("Process exceeded timeout after {0} seconds: {1}" -f $TimeoutSeconds, $FilePath)
+    }
+
+    $process.WaitForExit()
+    return $process.ExitCode
+}
+
 function Invoke-HlhostRun {
     param(
         [string]$RunName,
@@ -715,16 +750,7 @@ function Invoke-HlhostRun {
     }
 
     $startedAt = Get-Date
-    $process = Start-Process -FilePath $script:ResolvedExecutablePath -ArgumentList $arguments -NoNewWindow -PassThru
-    if (-not $process.WaitForExit($script:RunTimeoutSeconds * 1000)) {
-        Stop-Process -Id $process.Id -Force -ErrorAction SilentlyContinue
-        throw ("{0} hung beyond {1} seconds and was terminated." -f $RunName, $script:RunTimeoutSeconds)
-    }
-
-    $exitCode = $process.ExitCode
-    if ($null -eq $exitCode) {
-        throw ("{0} exited unexpectedly before an exit code was available." -f $RunName)
-    }
+    $exitCode = Invoke-NativeProcessWithTimeout -FilePath $script:ResolvedExecutablePath -Arguments $arguments -TimeoutSeconds $script:RunTimeoutSeconds
     if ($exitCode -ne 0) {
         throw ("{0} exited unexpectedly with code {1}." -f $RunName, $exitCode)
     }
