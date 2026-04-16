@@ -3377,6 +3377,90 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         }
 
         if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface")
+        {
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_prefix
+                            .size()),
+                    &result.options
+                         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_enabled,
+                    &result.error_message,
+                    L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe")
+        {
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_prefix
+                            .size()),
+                    &result.options
+                         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_enabled,
+                    &result.error_message,
+                    L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
             == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-surface")
         {
             result.options
@@ -5306,6 +5390,30 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         }
 
         constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_scenario_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_scenario_prefix
+                        .size()));
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_probe_scenario_prefix =
                 L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-probe-scenario=";
         if (StartsWith(
@@ -6765,13 +6873,23 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             true;
     }
     if (result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_enabled)
+    {
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_enabled =
+            true;
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe_enabled =
+            true;
+    }
+    if (result.options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_probe_enabled)
     {
         result.options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_surface_enabled =
             true;
         result.options
-            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe_enabled =
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_enabled =
             true;
     }
     if (result.options
@@ -6982,10 +7100,17 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             true;
     }
     if (result.options
-            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_surface_enabled)
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_enabled)
     {
         result.options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_surface_enabled =
+            true;
+    }
+    if (result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_surface_enabled)
+    {
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_surface_enabled =
             true;
     }
     if (result.options
@@ -7173,6 +7298,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
            + executable_name
            + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--activation-surface] [--activation-probe] [--activation-probe-scenario <happy|gate>] [--bootstrap-surface] [--bootstrap-probe] [--bootstrap-probe-scenario <happy|gate>] [--bootstrap-sequence-surface] [--bootstrap-sequence-probe] [--bootstrap-sequence-probe-scenario <happy|gate>] [--signon-catalog-surface] [--signon-catalog-probe] [--signon-catalog-probe-scenario <happy|gate>] [--signon-template-surface] [--signon-template-probe] [--signon-template-probe-scenario <happy|gate>] [--signon-template-completion-surface] [--signon-template-completion-probe] [--signon-template-completion-probe-scenario <happy|gate>] [--signon-envelope-surface] [--signon-envelope-probe] [--signon-envelope-probe-scenario <happy|gate>] [--signon-batch-surface] [--signon-batch-probe] [--signon-batch-probe-scenario <happy|gate>] [--signon-wiremap-surface] [--signon-wiremap-probe] [--signon-wiremap-probe-scenario <happy|gate>] [--signon-burst-surface] [--signon-burst-probe] [--signon-burst-probe-scenario <happy|gate>] [--signon-stream-surface] [--signon-stream-probe] [--signon-stream-probe-scenario <happy|gate>] [--signon-stream-window-surface] [--signon-stream-window-probe] [--signon-stream-window-probe-scenario <happy|gate>] [--signon-message-catalog-surface] [--signon-message-catalog-probe] [--signon-message-catalog-probe-scenario <happy|gate>] [--signon-message-fetch-surface] [--signon-message-fetch-probe] [--signon-message-fetch-probe-scenario <happy|gate>] [--signon-multi-message-fetch-surface] [--signon-multi-message-fetch-probe] [--signon-multi-message-fetch-probe-scenario <happy|gate>] [--signon-message-range-fetch-surface] [--signon-message-range-fetch-probe] [--signon-message-range-fetch-probe-scenario <happy|gate>] [--signon-message-cursor-surface] [--signon-message-cursor-probe] [--signon-message-cursor-probe-scenario <happy|gate>] [--signon-message-cursor-advance-surface] [--signon-message-cursor-advance-probe] [--signon-message-cursor-advance-probe-scenario <happy|gate>] [--signon-message-cursor-eof-surface] [--signon-message-cursor-eof-probe] [--signon-message-cursor-eof-probe-scenario <happy|gate>] [--signon-message-cursor-resume-denial-surface] [--signon-message-cursor-resume-denial-probe] [--signon-message-cursor-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-resume-allow-surface] [--signon-message-cursor-resume-allow-probe] [--signon-message-cursor-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carryover-surface] [--signon-message-cursor-carryover-probe] [--signon-message-cursor-carryover-probe-scenario <happy|gate>] [--signon-message-cursor-carried-range-surface] [--signon-message-cursor-carried-range-probe] [--signon-message-cursor-carried-range-probe-scenario <happy|gate>] [--signon-message-cursor-carried-eof-surface] [--signon-message-cursor-carried-eof-probe] [--signon-message-cursor-carried-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-allow-surface] [--signon-message-cursor-carried-resume-allow-probe] [--signon-message-cursor-carried-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-surface] [--signon-message-cursor-carried-checkpoint-probe] [--signon-message-cursor-carried-checkpoint-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-allow-surface] [--signon-message-cursor-carried-checkpoint-resume-allow-probe] [--signon-message-cursor-carried-checkpoint-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-eof-surface] [--signon-message-cursor-carried-checkpoint-resume-eof-probe] [--signon-message-cursor-carried-checkpoint-resume-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resumed-denial-surface] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-advance-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-eof-surface] [--signon-message-cursor-carried-checkpoint-eof-probe] [--signon-message-cursor-carried-checkpoint-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-denial-surface] [--signon-message-cursor-carried-checkpoint-resume-denial-probe] [--signon-message-cursor-carried-checkpoint-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-denial-surface] [--signon-message-cursor-carried-resume-denial-probe] [--signon-message-cursor-carried-resume-denial-probe-scenario <happy|gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe-scenario <happy|gate>]\n"
+             L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-probe-scenario <happy|gate>]\n"
              L"    [--trace-scripted <0|1>] [--trace-path <0|1>] [--trace-think <0|1>] [--trace-callbacks <0|1>] [--verbose]\n"
              L"    [--log-dir <path>] [--log-to-file <0|1>] [--log-max-mb <n>] [--log-level <level>]\n"
@@ -7287,6 +7413,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-surface Enable the bounded loopback dedicated UDP claimant checkpoint positive resume-allow surface gated by claimant checkpoint-bridge materialization\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe Run a deterministic loopback claimant checkpoint positive resume-allow probe against a bridge-ready claimant admission\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow probe scenario: happy or gate (default: happy)\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface Enable the bounded loopback dedicated UDP claimant checkpoint future-claim-only resume-token issuance surface gated by claimant checkpoint positive resume-allow state\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe Run a deterministic loopback claimant checkpoint future-claim-only resume-token probe against a resume-ready claimant checkpoint admission\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token probe scenario: happy or gate (default: happy)\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-surface Enable the bounded loopback dedicated UDP claimant checkpoint positive resumed-range surface gated by claimant checkpoint positive resume-allow state\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-probe Run a deterministic loopback claimant checkpoint positive resumed-range probe against a resume-ready claimant checkpoint admission\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range probe scenario: happy or gate (default: happy)\n"
