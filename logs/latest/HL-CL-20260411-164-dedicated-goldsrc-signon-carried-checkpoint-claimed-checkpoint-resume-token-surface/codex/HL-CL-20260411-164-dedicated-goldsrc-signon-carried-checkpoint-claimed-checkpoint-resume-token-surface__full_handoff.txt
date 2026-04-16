@@ -1,0 +1,71 @@
+HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface
+exact PROMPT-ID: HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface
+exact git rev-parse --show-toplevel: G:/DEV/СPP/HLengine/host
+exact working branch name used: codex/HL-CL-20260401-081-target-runtime-completion-state
+exact git rev-parse HEAD immediately after switching and before changes: 278bf5d82cb134bfc022e10400d47cd98044a43e
+exact descendant-gate result against 164c4939bac26c71cfb55d6472e1970e775ec6cc: failure (exit code 128): ancestor-fail:128; fatal: Not a valid commit name 164c4939bac26c71cfb55d6472e1970e775ec6cc
+exact feature-gate matches for claimed-checkpoint-resumed-denial symbols:
+include/game_api/hl_server_module.h:14005:        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface;
+src/game_api/hl_server_module.cpp:1344:            dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface;
+src/game_api/hl_server_module.cpp:20571:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointResumedDeniedReady="
+src/game_api/hl_server_module.cpp:20575:        + ", claimedCheckpointBridgeResumedDenied="
+src/game_api/hl_server_module.cpp:27254:    return "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface: mode="
+src/game_api/hl_server_module.cpp:27378:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointResumedDeniedReady="
+src/game_api/hl_server_module.cpp:27382:        + ", claimedCheckpointBridgeResumedDenied="
+src/game_api/hl_server_module.cpp:27523:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointResumedDeniedReady="
+src/game_api/hl_server_module.cpp:27527:        + ", claimedCheckpointBridgeResumedDenied="
+src/game_api/hl_server_module.cpp:35148:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:35155:                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface));
+src/game_api/hl_server_module.cpp:70725:                  .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:70996:              .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:80802:                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface;
+src/game_api/hl_server_module.cpp:80820:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:80824:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:114714:                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface;
+src/game_api/hl_server_module.cpp:127684:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface =
+src/game_api/hl_server_module.cpp:128200:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface =
+src/game_api/hl_server_module.cpp:128202:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface;
+src/game_api/hl_server_module.cpp:128375:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface,
+src/game_api/hl_server_module.cpp:135394:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface =
+src/game_api/hl_server_module.cpp:135938:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface =
+src/game_api/hl_server_module.cpp:135941:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+src/game_api/hl_server_module.cpp:135946:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface
+authoritative previous full handoff file used: logs/latest/HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface/codex/HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface__full_handoff.txt
+provenance-only historical SHAs noticed in this chat: 164c4939bac26c71cfb55d6472e1970e775ec6cc, 148e27743e7a3dd3dc5aed12faf854405b8bbb08, 278bf5d82cb134bfc022e10400d47cd98044a43e
+exact files changed:
+logs/latest/codex/hlhost_20260416_113836_471_pid11476__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-happy_manifest.json (deleted by mandatory cleanup)
+logs/latest/codex/hlhost_20260416_113932_244_pid16432__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-gate_manifest.json (deleted by mandatory cleanup)
+logs/latest/runtime/hlhost_20260416_113836_471_pid11476__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-happy_part01.log (deleted by mandatory cleanup)
+logs/latest/runtime/hlhost_20260416_113836_471_pid11476__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-happy_summary.log (deleted by mandatory cleanup)
+logs/latest/runtime/hlhost_20260416_113932_244_pid16432__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-gate_part01.log (deleted by mandatory cleanup)
+logs/latest/runtime/hlhost_20260416_113932_244_pid16432__codex-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-gate_summary.log (deleted by mandatory cleanup)
+logs/latest/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface/codex/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface__full_handoff.txt
+exact narrow behavior added:
+No new source behavior was added in this session.
+This prompt stopped immediately after startup validation because the authoritative descendant gate against 164c4939bac26c71cfb55d6472e1970e775ec6cc could not be evaluated on this checkout.
+Only the mandatory stop-report handoff artifact was written, and the allowed latest-runtime/latest-codex cleanup was applied.
+proof A still passes: no (not executed; descendant gate failed before run A started)
+proof B still passes: no (not executed; descendant gate failed before run B started)
+exact A/B summary lines for every required summary prefix emitted in these runs:
+A summary lines: none (descendant gate failed before run A started)
+B summary lines: none (descendant gate failed before run B started)
+exact codex_run_identity line from A: none (run A not executed)
+exact codex_run_identity line from B: none (run B not executed)
+runInstanceId values: none
+runtime filenames: none
+summary filenames: none
+manifest filenames: none
+exact full handoff filename: logs/latest/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface/codex/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface__full_handoff.txt
+exact prompt-scoped files placed into logs/latest/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface/...:
+logs/latest/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface/codex/HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface__full_handoff.txt
+whether logs/latest/changelevel_policy_regressions existed or was absent: absent
+whether core.longpaths was already enabled or had to be enabled: already enabled (true); the mandated git config core.longpaths true command was still executed
+final git commit SHA: none
+push result: pending
+issues / risks / quirks noticed in logs:
+No prompt-164 runtime logs were produced because the authoritative descendant gate failed before any run was allowed to start.
+The local branch HEAD 278bf5d82cb134bfc022e10400d47cd98044a43e already contains the claimed-checkpoint-resumed-denial symbols, but the specific authoritative baseline commit object 164c4939bac26c71cfb55d6472e1970e775ec6cc is missing from the local repository object graph.
+Per prompt rules, that missing baseline object is a hard stop for continuation, so no code edits, no launches, and no prompt-164 manifests were produced.
+progress assessment: blocked at authoritative descendant validation; continuity is preserved only via this stop report
+concise conclusion: Prompt 164 could not continue safely on this checkout because the required baseline commit object was unavailable locally.
+HL-CL-20260411-164-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-surface
