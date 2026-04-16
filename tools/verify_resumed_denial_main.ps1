@@ -141,6 +141,12 @@ $script:GateProbeMarkers = @(
     "lastRejectReason=already-claimed-checkpoint-resumed-denied",
     "parsedResumePolicy=claimant-checkpoint-resumed-exhausted-denied"
 )
+$script:OptionalScenarioNames = @(
+    "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token"
+)
+$script:OptionalGateScenarioNames = @(
+    "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token"
+)
 $script:BenignWarningChecks = @(
     @{
         Name = "duplicate mp_defaultteam cvar registration"
@@ -634,6 +640,41 @@ function Get-ObservedBenignWarnings {
     return @($observed | Sort-Object -Unique)
 }
 
+function Initialize-OptionalScenariosFromHelp {
+    param([string]$HelpText)
+
+    foreach ($scenarioName in $script:OptionalScenarioNames) {
+        $requiredScenarioOptions = @(
+            ("--{0}-surface" -f $scenarioName),
+            ("--{0}-probe" -f $scenarioName),
+            ("--{0}-probe-scenario" -f $scenarioName)
+        )
+        $scenarioPresent = $true
+        foreach ($optionName in $requiredScenarioOptions) {
+            if ($HelpText.IndexOf($optionName, [System.StringComparison]::Ordinal) -lt 0) {
+                $scenarioPresent = $false
+                break
+            }
+        }
+
+        if (-not $scenarioPresent) {
+            continue
+        }
+
+        if ($script:ScenarioNames -notcontains $scenarioName) {
+            $script:ScenarioNames += $scenarioName
+            Write-Host ("Detected optional current-main scenario: {0}" -f $scenarioName)
+        }
+
+        if (
+            $script:OptionalGateScenarioNames -contains $scenarioName -and
+            $script:GateScenarioNames -notcontains $scenarioName
+        ) {
+            $script:GateScenarioNames += $scenarioName
+        }
+    }
+}
+
 function Assert-ExecutableSupportsRecipe {
     $helpLines = & $script:ResolvedExecutablePath --help 2>&1
     if ($LASTEXITCODE -ne 0) {
@@ -645,6 +686,8 @@ function Assert-ExecutableSupportsRecipe {
     if ($missingOptions.Count -gt 0) {
         throw ("{0} does not expose the dedicated/probe options required by the resumed-denial regression recipe: {1}. Rebuild the current-main hlhost.exe before running full verification." -f $script:ResolvedExecutablePath, ($missingOptions -join ", "))
     }
+
+    Initialize-OptionalScenariosFromHelp -HelpText $helpText
 }
 
 function Assert-NoHardFailures {
