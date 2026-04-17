@@ -181,6 +181,13 @@ struct LaunchOptions
     std::string
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_probe_scenario =
             "happy";
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_advance_surface_enabled =
+        false;
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_advance_probe_enabled =
+        false;
+    std::string
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_advance_probe_scenario =
+            "happy";
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_surface_enabled =
         false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_probe_enabled =
