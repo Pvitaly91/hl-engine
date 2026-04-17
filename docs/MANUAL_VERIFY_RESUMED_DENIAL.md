@@ -38,6 +38,7 @@ The direct current-main runner accepts these parameters:
 
 - `-RepoRoot <path>` points at the local host repo. If omitted, the current working directory is used.
 - `-OuterWorkspaceRoot <path>` overrides the default outer workspace root. If omitted, the runner uses the repo parent and requires that `<outer-workspace>\host` resolves back to `-RepoRoot`.
+- `-ProvenanceMode <auto|runtime|workspace>` selects how current-main verification proves the binary/workspace pairing. `auto` prefers runtime `codex_run_identity`, but can fall back to workspace/build provenance when runtime git identity is `<unknown>`.
 - `-NoBuild` skips the CMake build and expects an existing binary in the configured build directory.
 - `-UseExistingBinary` also skips the build and reuses the existing binary in the configured build directory.
 - `-ExePath <path>` points at an explicit `hlhost.exe` and bypasses the default build output path.
@@ -64,10 +65,13 @@ Typical usage:
 tools\verify_resumed_denial_main.cmd
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -OuterWorkspaceRoot G:\DEV\СPP\HLengine
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -OuterWorkspaceRoot G:\DEV\СPP\HLengine -ProvenanceMode auto
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -NoExecute
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -NoBuild
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -ExePath G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -ExePath G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary -ProvenanceMode workspace
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -ProvenanceMode runtime
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_main.ps1 -RepoRoot G:\DEV\СPP\HLengine\host -SkipRecovery
 ```
 
@@ -76,10 +80,27 @@ What the current-main runner does:
 - resolves the current host repo and the outer workspace CMake root
 - builds `hlhost` unless `-NoBuild`, `-UseExistingBinary`, or `-ExePath` says otherwise
 - verifies that the binary still exposes the dedicated/probe CLI surface before any real launch
+- prints the requested provenance mode, expected `HEAD`, executable path, expected build output path, and whether workspace provenance fallback is eligible
 - discovers the prompt-scoped `runtime/valve-fixture` game dir and the generated `logs/latest/runtime` summary logs
 - launches happy, gate, and optional recovery with the same dedicated recipe used during manual review
-- checks lifecycle readiness, resumed-denial surface tokens, probe tokens, and loopback port sharing
+- checks lifecycle readiness, resumed-denial surface tokens, probe tokens, loopback port sharing, and per-run provenance
 - exits `0` only if every enabled scenario passes, or exits non-zero on any failure
+
+### Current-Main Provenance Modes
+
+The historical reviewed-target verifier stays strict and still requires runtime `codex_run_identity` to name the reviewed commit. Only the current-main runner and CI wrapper support workspace/build provenance fallback.
+
+Current-main provenance modes:
+
+- `auto`: preferred for local reruns and CI. If runtime `codex_run_identity` reports the expected `gitCommit`, the runner uses `runtime` provenance. If runtime `gitCommit=<unknown>`, the runner can fall back to `workspace` provenance when the executable is the expected build output under the resolved build directory.
+- `runtime`: strict current-main mode. Runtime `codex_run_identity` must report the expected `gitCommit` or the run fails.
+- `workspace`: explicit current-main fallback mode. The runner still rejects a conflicting runtime `gitCommit`, but accepts `gitCommit=<unknown>` when the repo root, `HEAD`, build directory, and expected build output path are all known and the executable matches that expected build output.
+
+How reviewers can tell which mode was used:
+
+- before launch, the runner prints `Requested provenance mode: ...` plus `Workspace fallback eligible: yes|no`
+- after each executed run, the runner prints `provenance: runtime` or `provenance: workspace`
+- the per-run `provenance detail:` line explains whether the decision came from runtime `codex_run_identity` or from workspace/build fallback
 
 ## CI / Self-Hosted Wrapper
 
@@ -95,6 +116,7 @@ The CI wrapper accepts these parameters:
 
 - `-RepoRoot <path>` points at the local host repo. If omitted, the current working directory is used.
 - `-OuterWorkspaceRoot <path>` points at the surrounding hl-engine workspace root. If omitted, the wrapper tries, in order: `-OuterWorkspaceRoot`, `HLHOST_OUTER_WORKSPACE_ROOT`, `HLENGINE_WORKSPACE_ROOT`, and the repo parent.
+- `-ProvenanceMode <auto|runtime|workspace>` forwards the requested provenance policy to `tools/verify_resumed_denial_main.ps1`. The wrapper default is `auto`.
 - `-BuildDir <path>` overrides the build directory. Relative paths resolve from the resolved outer workspace root.
 - `-ExePath <path>` points at an explicit `hlhost.exe`. Relative paths resolve from the resolved outer workspace root.
 - `-NoBuild` skips the build and expects an existing binary in the configured build directory.
@@ -109,10 +131,11 @@ Typical usage:
 ```powershell
 tools\verify_resumed_denial_ci.cmd
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -ProvenanceMode auto
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -NoExecute
-powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -UseExistingBinary
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -UseExistingBinary -ProvenanceMode auto
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir build-main-win32-hlhost-regression
-powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -ExePath build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -ExePath build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary -ProvenanceMode workspace
 ```
 
 Required prerequisites for self-hosted execution:
@@ -128,6 +151,7 @@ What the CI wrapper does:
 
 - resolves and validates the repo root plus outer workspace root pair
 - fails early with actionable diagnostics if the outer workspace layout, fixture inputs, or requested binary path is missing
+- prints the requested provenance mode alongside the resolved repo/workspace/build inputs
 - prints the exact `powershell ... verify_resumed_denial_main.ps1 ...` command that it delegates to
 - propagates the delegated runner exit code for CI
 - emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL`
@@ -140,6 +164,7 @@ PASS means:
 - `gate` keeps the same truthful denial fields, but the surface reports `accepted=1`, `rejected=3` and the probe reports `attempts=4`, `accepted=1`, `rejected=3`, `lastRejectReason=already-claimed-checkpoint-resumed-denied`, `parsedResumePolicy=claimant-checkpoint-resumed-exhausted-denied`.
 - `recovery`, when enabled, matches the same truthful terminal-denial state as `happy`.
 - All executed runs retain `signonMessageCursorCarriedCheckpointClaimedCheckpointResumeEofReady=1`, `claimedCheckpointBridgeResumeExhausted=1`, `signonMessageCursorCarriedCheckpointClaimedCheckpointResumedDeniedReady=1`, and `claimedCheckpointBridgeResumedDenied=1`.
+- each executed run prints whether provenance came from `runtime` or `workspace`
 
 FAIL means:
 
@@ -164,5 +189,5 @@ Workflow notes:
 - it is manual-only via `workflow_dispatch`
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` and then runs `tools\verify_resumed_denial_ci.ps1`
-- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `no_build`, `use_existing_binary`, `skip_recovery`, and `no_execute`
+- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, and `no_execute`
 - it does not auto-trigger on every push because the surrounding hl-engine workspace remains runner-specific and missing prerequisites should fail clearly instead of pretending the regression is universally runnable
