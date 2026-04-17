@@ -1,11 +1,13 @@
 # Resumed-Denial Verification
 
-There are now two separate resumed-denial verification lanes:
+There are now four related verification lanes:
 
 - Historical reviewed-target verification for audit and exact reviewed-commit reproduction.
-- Current-main regression verification for repeatable local reruns and future CI wiring.
+- Current-main resumed-denial regression verification for repeatable local reruns on `main`.
+- Current-main neighboring signon-surface verification for adjacent checkpoint/token/claimed-checkpoint surfaces on `main`.
+- CI/self-hosted orchestration that can run the current-main resumed-denial lane alone or pair it with the neighboring-surface suite.
 
-Both lanes target `HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface`. Both lanes tolerate the same benign warnings as long as the PASS signatures still match:
+The resumed-denial and neighboring-surface current-main checks all target `HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface`. They tolerate the same benign warnings as long as the PASS signatures still match:
 
 - duplicate `mp_defaultteam` cvar registration
 - missing `skill.cfg`
@@ -102,6 +104,62 @@ How reviewers can tell which mode was used:
 - after each executed run, the runner prints `provenance: runtime` or `provenance: workspace`
 - the per-run `provenance detail:` line explains whether the decision came from runtime `codex_run_identity` or from workspace/build fallback
 
+## Current-Main Neighboring Surface Suite
+
+Use `tools/verify_signon_neighbor_surfaces_main.ps1` when you want a focused neighboring regression suite around the same signon-message cursor / checkpoint / token / claimed-checkpoint state machine area without folding those checks into the resumed-denial verifier.
+
+This suite intentionally reuses the current-main happy/gate execution recipe from `tools/verify_resumed_denial_main.ps1`, then checks a small set of adjacent surface and probe lines in the generated happy/gate summary logs.
+
+The neighboring-surface suite currently covers these eight surfaces:
+
+- `signon-message-cursor-carried-checkpoint-resume-token`
+- `signon-message-cursor-carried-checkpoint-resume-token-claim`
+- `signon-message-cursor-carried-checkpoint-claimed-resume-allow`
+- `signon-message-cursor-carried-checkpoint-claimed-checkpoint-bridge`
+- `signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow`
+- `signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range`
+- `signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-eof`
+- `signon-message-cursor-carried-checkpoint-claimed-checkpoint-resumed-denial`
+
+What this suite intentionally does not cover yet:
+
+- unrelated signon-message cursor surfaces outside the checkpoint/token/claimed-checkpoint neighborhood
+- a full audit of every signon surface
+- a separate recovery lane; this suite currently targets happy and gate only
+
+The neighboring-surface suite accepts these parameters:
+
+- `-RepoRoot <path>` points at the local host repo. If omitted, the current working directory is used.
+- `-OuterWorkspaceRoot <path>` points at the surrounding hl-engine workspace root.
+- `-BuildDir <path>` overrides the build directory.
+- `-ExePath <path>` points at an explicit `hlhost.exe`.
+- `-NoBuild` skips a build when the suite delegates to the current-main resumed-denial runner.
+- `-UseExistingBinary` reuses the configured or explicit binary.
+- `-NoExecute` validates the delegated happy/gate recipe but does not launch the runtime scenarios.
+- `-ProvenanceMode <auto|runtime|workspace>` forwards the current-main provenance policy.
+- `-CollectArtifacts` writes a stable suite artifact bundle.
+- `-ArtifactOutputDir <path>` overrides the suite artifact directory. If omitted with `-CollectArtifacts`, the suite uses `artifacts\signon-neighbor-surfaces`.
+
+Typical usage:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -NoExecute
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -CollectArtifacts -ArtifactOutputDir .\artifacts\signon-neighbors
+```
+
+What PASS means for this suite:
+
+- the delegated current-main happy/gate recipe itself still passes
+- each selected surface emits both its dedicated surface line and probe line
+- the selected happy/gate assertions still match the stable accepted/rejected/policy markers derived from current runtime behavior
+
+What FAIL means for this suite:
+
+- the delegated happy/gate recipe fails
+- a selected neighboring surface line or probe line is missing
+- a selected surface drifts away from the expected accepted/rejected/policy markers for happy or gate
+
 ## CI / Self-Hosted Wrapper
 
 Use `tools/verify_resumed_denial_ci.ps1` when you want a CI-friendly or automation-friendly entry point for the same current-main regression. This wrapper keeps the current-main logic in `tools/verify_resumed_denial_main.ps1`, but makes the outer workspace assumptions explicit and safe for self-hosted Windows runners.
@@ -110,7 +168,8 @@ How it differs from the other lanes:
 
 - `tools/manual_verify_resumed_denial.ps1` is the historical reviewed-target audit lane. It is pinned to the reviewed commit and branch and exists to reproduce the reviewed target exactly.
 - `tools/verify_resumed_denial_main.ps1` is the direct current-main regression lane. It performs the build, preflight, and runtime verification for the current checked-out workspace state.
-- `tools/verify_resumed_denial_ci.ps1` is the CI/self-hosted entry lane. It resolves the host repo plus outer workspace pair, fails early if the layout is wrong or incomplete, prints the exact delegated verification command, and then calls the direct current-main runner.
+- `tools/verify_signon_neighbor_surfaces_main.ps1` is the direct current-main neighboring-surface lane. It reuses the current-main happy/gate recipe, then checks adjacent checkpoint/token/claimed-checkpoint surfaces.
+- `tools/verify_resumed_denial_ci.ps1` is the CI/self-hosted entry lane. It resolves the host repo plus outer workspace pair, fails early if the layout is wrong or incomplete, prints the exact delegated verification command, and then calls the direct current-main resumed-denial runner, with an optional neighboring-surface follow-up lane.
 
 The CI wrapper accepts these parameters:
 
@@ -123,8 +182,9 @@ The CI wrapper accepts these parameters:
 - `-UseExistingBinary` also skips the build and reuses the configured build output path.
 - `-SkipRecovery` runs only happy and gate.
 - `-NoExecute` prints the delegated build and verification commands, performs binary preflight, and does not launch the runtime scenarios.
+- `-RunNeighborSurfaceSuite` keeps resumed-denial as the primary suite, then also runs `tools/verify_signon_neighbor_surfaces_main.ps1` against the same repo/workspace/build/provenance context using the already-built binary.
 - `-CollectArtifacts` enables post-run artifact bundling and summary generation.
-- `-ArtifactOutputDir <path>` overrides the artifact bundle output directory. Relative paths resolve from the resolved repo root. If omitted with `-CollectArtifacts`, the wrapper uses `artifacts\resumed-denial`.
+- `-ArtifactOutputDir <path>` overrides the artifact bundle output directory. Relative paths resolve from the resolved repo root. If omitted with `-CollectArtifacts`, the wrapper uses `artifacts\resumed-denial` for resumed-denial-only runs, or `artifacts\signon-regressions` when `-RunNeighborSurfaceSuite` is enabled.
 
 The CI wrapper refuses ambiguous layouts. The resolved outer workspace must contain `CMakeLists.txt`, and `<outer-workspace>\host` must resolve back to the requested `-RepoRoot`. That prevents automation from building one checkout while verifying another.
 
@@ -139,6 +199,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -R
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir build-main-win32-hlhost-regression
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -ExePath build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary -ProvenanceMode workspace
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -CollectArtifacts -ArtifactOutputDir .\artifacts\resumed-denial
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -CollectArtifacts -ArtifactOutputDir .\artifacts\signon-neighbors
 ```
 
 Required prerequisites for self-hosted execution:
@@ -156,13 +217,17 @@ What the CI wrapper does:
 - fails early with actionable diagnostics if the outer workspace layout, fixture inputs, or requested binary path is missing
 - prints the requested provenance mode alongside the resolved repo/workspace/build inputs
 - prints the exact `powershell ... verify_resumed_denial_main.ps1 ...` command that it delegates to
+- when `-RunNeighborSurfaceSuite` is enabled, prints the exact `powershell ... verify_signon_neighbor_surfaces_main.ps1 ...` command too and reuses the already-built or already-resolved `hlhost.exe`
 - when `-CollectArtifacts` is enabled, captures the delegated runner output, writes wrapper metadata, and calls `tools/collect_resumed_denial_artifacts.ps1`
+- when `-RunNeighborSurfaceSuite` and `-CollectArtifacts` are both enabled, keeps the resumed-denial bundle under `resumed-denial\`, keeps the neighboring-surface bundle under `neighbor-surfaces\`, and writes a root `verification_suite_summary.txt` plus `verification_suite_summary.json`
 - propagates the delegated runner exit code for CI
 - emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL` plus the collected artifact summary paths when available
 
 ## Artifact Collection
 
 Use `tools/collect_resumed_denial_artifacts.ps1` when you want to turn the newest resumed-denial logs into a stable artifact bundle and a compact txt/json summary.
+
+The resumed-denial collector stays focused on the resumed-denial lane. When `-RunNeighborSurfaceSuite` is enabled, the neighboring suite writes its own stable bundle directly and the CI wrapper adds the root `verification_suite_summary.txt/json` files that point at both bundles.
 
 The collector accepts these parameters:
 
@@ -190,6 +255,23 @@ What the collector writes:
 - matching `runtime\<scenario>\*_part*.log` files
 - matching `codex\<scenario>\manifest.json` files when requested and available
 
+What the neighboring-surface suite writes when `-CollectArtifacts` is enabled:
+
+- `signon_neighbor_surface_summary.txt`
+- `signon_neighbor_surface_summary.json`
+- `metadata\verify_signon_neighbor_surfaces_output.log`
+- `metadata\delegated_verify_resumed_denial_metadata.json`
+- `runtime\happy\summary.log` and `runtime\gate\summary.log`
+- matching `runtime\happy\*_part*.log` and `runtime\gate\*_part*.log`
+- matching `codex\happy\manifest.json` and `codex\gate\manifest.json` when they were available
+
+What the combined wrapper bundle adds when `-RunNeighborSurfaceSuite` is enabled:
+
+- `verification_suite_summary.txt`
+- `verification_suite_summary.json`
+- `resumed-denial\...` resumed-denial bundle files
+- `neighbor-surfaces\...` neighboring-surface bundle files
+
 The txt/json summaries record:
 
 - happy, gate, and recovery result states
@@ -198,6 +280,14 @@ The txt/json summaries record:
 - source and copied summary-log paths
 - whether codex-side artifacts were found
 - overall `PASS`, `FAIL`, or `NOEXECUTE`
+
+The combined wrapper summary txt/json records:
+
+- resumed-denial overall result plus happy/gate/recovery scenario results
+- neighboring-surface overall result plus the selected surface list and per-surface PASS/FAIL
+- requested provenance mode
+- repo root, outer workspace root, build dir, executable path, and artifact root
+- the per-suite artifact directories and summary file paths
 
 ## PASS / FAIL Semantics
 
@@ -223,6 +313,12 @@ FAIL means:
 - any requested build and binary preflight succeeded
 - the happy, gate, and recovery runtime scenarios were intentionally not launched
 
+For the neighboring-surface suite specifically:
+
+- PASS means the delegated happy/gate recipe still passed and all selected adjacent checkpoint/token/claimed-checkpoint assertions matched.
+- FAIL means the delegated happy/gate recipe failed or any selected adjacent surface drifted from its expected happy/gate markers.
+- `NOEXECUTE` means the suite validated the delegated happy/gate recipe shape and binary path but intentionally did not launch the runtime scenarios.
+
 ## GitHub Actions Workflow
 
 The repo now includes `.github/workflows/resumed-denial-regression.yml`.
@@ -232,6 +328,7 @@ Workflow notes:
 - it is manual-only via `workflow_dispatch`
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` and then runs `tools\verify_resumed_denial_ci.ps1`
-- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, and `no_execute`
-- it always enables `-CollectArtifacts` for the workflow run, uploads the resulting bundle with `actions/upload-artifact`, and writes a concise scenario/provenance table to `GITHUB_STEP_SUMMARY`
+- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, `no_execute`, and `run_neighbor_surface_suite`
+- it always enables `-CollectArtifacts` for the workflow run, uploads the resulting bundle with `actions/upload-artifact`, and writes either the resumed-denial summary or the combined suite summary to `GITHUB_STEP_SUMMARY`
+- when `run_neighbor_surface_suite=true`, the uploaded artifact bundle is rooted at `signon-regression-...` and includes both `resumed-denial\` and `neighbor-surfaces\` bundles plus `verification_suite_summary.txt/json`
 - it does not auto-trigger on every push because the surrounding hl-engine workspace remains runner-specific and missing prerequisites should fail clearly instead of pretending the regression is universally runnable
