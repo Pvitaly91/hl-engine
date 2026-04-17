@@ -76,7 +76,13 @@ jobs:
           Write-Host "Missing prerequisites are expected to fail the wrapper early with actionable diagnostics."
 
       - name: Run resumed-denial regression
+        id: run_regression
         run: |
+          $artifactDir = Join-Path $env:RUNNER_TEMP 'resumed-denial-regression'
+          if (Test-Path $artifactDir) {
+            Remove-Item -LiteralPath $artifactDir -Recurse -Force
+          }
+
           $arguments = @(
             '-NoLogo',
             '-NoProfile',
@@ -85,7 +91,10 @@ jobs:
             '-File',
             '.\tools\verify_resumed_denial_ci.ps1',
             '-RepoRoot',
-            (Get-Location).Path
+            (Get-Location).Path,
+            '-CollectArtifacts',
+            '-ArtifactOutputDir',
+            $artifactDir
           )
 
           if ('${{ inputs.outer_workspace_root }}' -ne '') {
@@ -131,4 +140,62 @@ jobs:
           Write-Host ('==> powershell ' + ($quotedArguments -join ' '))
 
           & powershell @arguments
-          exit $LASTEXITCODE
+          $exitCode = $LASTEXITCODE
+
+          "artifact_dir=$artifactDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+          $summaryJsonPath = Join-Path $artifactDir 'resumed_denial_summary.json'
+          if (Test-Path $summaryJsonPath) {
+            "summary_json=$summaryJsonPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+          exit 0
+
+      - name: Write step summary
+        if: always()
+        run: |
+          $artifactDir = '${{ steps.run_regression.outputs.artifact_dir }}'
+          $summaryJsonPath = '${{ steps.run_regression.outputs.summary_json }}'
+          $artifactName = 'resumed-denial-regression-${{ github.run_id }}-${{ github.run_attempt }}'
+          $summaryLines = New-Object System.Collections.Generic.List[string]
+          $summaryLines.Add('## Resumed-denial regression')
+          $summaryLines.Add('')
+
+          if (-not [string]::IsNullOrWhiteSpace($summaryJsonPath) -and (Test-Path $summaryJsonPath)) {
+            $summary = Get-Content -LiteralPath $summaryJsonPath -Raw | ConvertFrom-Json
+            $summaryLines.Add(("Overall result: `{0}`" -f $summary.overallResult))
+            $summaryLines.Add(("Requested provenance: `{0}`" -f $summary.requestedProvenanceMode))
+            $summaryLines.Add(("Observed provenance: `{0}`" -f $summary.observedProvenanceMode))
+            $summaryLines.Add(("Artifact bundle: `{0}`" -f $artifactName))
+            $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
+            $summaryLines.Add('')
+            $summaryLines.Add('| Scenario | Result | Provenance |')
+            $summaryLines.Add('| --- | --- | --- |')
+            foreach ($scenario in $summary.scenarios) {
+              $summaryLines.Add(("| {0} | {1} | {2} |" -f $scenario.name, $scenario.status, $scenario.provenanceMode))
+            }
+          }
+          else {
+            $summaryLines.Add(("Summary JSON was not created. Wrapper exit code: `{0}`" -f '${{ steps.run_regression.outputs.exit_code }}'))
+            if (-not [string]::IsNullOrWhiteSpace($artifactDir)) {
+              $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
+            }
+          }
+
+          $summaryLines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
+
+      - name: Upload resumed-denial artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: resumed-denial-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.run_regression.outputs.artifact_dir }}
+          if-no-files-found: warn
+
+      - name: Fail on verification error
+        if: always()
+        run: |
+          if ('${{ steps.run_regression.outputs.exit_code }}' -ne '0') {
+            throw ("Resumed-denial regression failed with exit code {0}." -f '${{ steps.run_regression.outputs.exit_code }}')
+          }
