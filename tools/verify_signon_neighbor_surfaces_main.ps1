@@ -9,9 +9,13 @@ param(
     [ValidateSet("auto", "runtime", "workspace")]
     [string]$ProvenanceMode = "auto",
     [string]$MatrixPath,
+    [ValidateSet("default", "checkpoint-extended", "full-expanded")]
+    [string]$Profile,
     [string[]]$Surface,
     [string[]]$Group,
     [switch]$FullMatrix,
+    [string]$RerunFromSummaryJson,
+    [string]$JUnitOutputPath,
     [switch]$ListSurfaces,
     [string]$ArtifactOutputDir,
     [switch]$CollectArtifacts
@@ -27,6 +31,7 @@ $script:PromptId = "HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoi
 $script:SuiteName = "signon-neighbor-surfaces"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
 $script:DefaultMatrixFileName = "signon_regression_matrix.psd1"
+$script:DefaultJUnitFileName = "signon_neighbor_surface_junit.xml"
 
 function Write-Heading {
     param([string]$Text)
@@ -254,6 +259,7 @@ function Import-SignonRegressionMatrix {
     }
 
     $matrixData = Import-PowerShellDataFileCompat -Path $ResolvedMatrixPath
+    $profileSource = Get-OptionalPropertyValue -Object $matrixData -Name "Profiles" -DefaultValue @{}
     $entries = @(Get-OptionalPropertyValue -Object $matrixData -Name "Entries" -DefaultValue @())
     if ($entries.Count -eq 0) {
         throw ("Signon regression matrix {0} does not define any Entries." -f $ResolvedMatrixPath)
@@ -315,8 +321,240 @@ function Import-SignonRegressionMatrix {
     return [ordered]@{
         SuiteName = [string](Get-OptionalPropertyValue -Object $matrixData -Name "SuiteName" -DefaultValue $script:SuiteName)
         MatrixPath = $ResolvedMatrixPath
+        Profiles = @(Get-NormalizedProfileDefinitions -ProfilesObject $profileSource -ResolvedMatrixPath $ResolvedMatrixPath)
         Entries = $normalizedEntries.ToArray()
         KnownGroups = @(Get-EntryGroupNames -Entries $normalizedEntries.ToArray())
+    }
+}
+
+function Get-NormalizedProfileDefinitions {
+    param(
+        [object]$ProfilesObject,
+        [string]$ResolvedMatrixPath
+    )
+
+    $requiredProfileNames = @("default", "checkpoint-extended", "full-expanded")
+    $profileNames = @()
+    if ($ProfilesObject -is [System.Collections.IDictionary]) {
+        $profileNames = @($ProfilesObject.Keys | ForEach-Object { [string]$_ })
+    }
+    elseif ($null -ne $ProfilesObject) {
+        $profileNames = @($ProfilesObject.PSObject.Properties.Name | ForEach-Object { [string]$_ })
+    }
+
+    $normalizedProfiles = New-Object System.Collections.Generic.List[object]
+    foreach ($profileName in @($profileNames | Sort-Object -Unique)) {
+        if ([string]::IsNullOrWhiteSpace($profileName)) {
+            continue
+        }
+
+        $profileDefinition = Get-OptionalPropertyValue -Object $ProfilesObject -Name $profileName -DefaultValue $null
+        if ($null -eq $profileDefinition) {
+            throw ("Signon regression matrix profile {0} could not be read from {1}." -f $profileName, $ResolvedMatrixPath)
+        }
+
+        $groups = @(Get-TrimmedUniqueValues -Values @(Get-OptionalPropertyValue -Object $profileDefinition -Name "Groups" -DefaultValue @()))
+        $surfaces = @(Get-TrimmedUniqueValues -Values @(Get-OptionalPropertyValue -Object $profileDefinition -Name "Surfaces" -DefaultValue @()))
+        $fullMatrix = [bool](Get-OptionalPropertyValue -Object $profileDefinition -Name "FullMatrix" -DefaultValue $false)
+        if ($fullMatrix -and ($groups.Count -gt 0 -or $surfaces.Count -gt 0)) {
+            throw ("Signon regression matrix profile {0} in {1} cannot combine FullMatrix with Groups or Surfaces." -f $profileName, $ResolvedMatrixPath)
+        }
+
+        $normalizedProfiles.Add([ordered]@{
+                Name = $profileName
+                Description = [string](Get-OptionalPropertyValue -Object $profileDefinition -Name "Description" -DefaultValue "")
+                Groups = $groups
+                Surfaces = $surfaces
+                FullMatrix = $fullMatrix
+            }) | Out-Null
+    }
+
+    $knownProfileNames = @($normalizedProfiles | ForEach-Object { [string]$_.Name })
+    foreach ($requiredProfileName in $requiredProfileNames) {
+        if ($knownProfileNames -notcontains $requiredProfileName) {
+            throw ("Signon regression matrix {0} is missing the required profile '{1}'." -f $ResolvedMatrixPath, $requiredProfileName)
+        }
+    }
+
+    return $normalizedProfiles.ToArray()
+}
+
+function Get-ProfileDefinition {
+    param(
+        [object[]]$Profiles,
+        [string]$ProfileName
+    )
+
+    foreach ($profileDefinition in @($Profiles)) {
+        if ([string]$profileDefinition.Name -eq $ProfileName) {
+            return $profileDefinition
+        }
+    }
+
+    $knownProfileNames = @($Profiles | ForEach-Object { [string]$_.Name })
+    throw ("Unknown -Profile value '{0}'. Known profiles: {1}" -f $ProfileName, ($knownProfileNames -join ", "))
+}
+
+function Read-JsonFileIfExists {
+    param([string]$JsonPath)
+
+    if ([string]::IsNullOrWhiteSpace($JsonPath)) {
+        return $null
+    }
+
+    $resolvedPath = [System.IO.Path]::GetFullPath($JsonPath)
+    if (-not (Test-Path -LiteralPath $resolvedPath -PathType Leaf)) {
+        return $null
+    }
+
+    return (Get-Content -LiteralPath $resolvedPath -Raw -Encoding UTF8 | ConvertFrom-Json)
+}
+
+function Resolve-RerunSummaryJsonPath {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedSummaryPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedSummaryPath)) {
+        return ""
+    }
+
+    $candidatePath = Resolve-FullPath -PathValue $RequestedSummaryPath -BasePath $ResolvedRepoRoot
+    if (Test-Path -LiteralPath $candidatePath -PathType Leaf) {
+        return [System.IO.Path]::GetFullPath($candidatePath)
+    }
+
+    if (Test-Path -LiteralPath $candidatePath -PathType Container) {
+        foreach ($relativePath in @(
+            "signon_neighbor_surface_summary.json",
+            "neighbor-surfaces\signon_neighbor_surface_summary.json",
+            "verification_suite_summary.json"
+        )) {
+            $summaryPath = Join-Path $candidatePath $relativePath
+            if (Test-Path -LiteralPath $summaryPath -PathType Leaf) {
+                return [System.IO.Path]::GetFullPath($summaryPath)
+            }
+        }
+
+        throw ("Rerun summary source directory {0} does not contain signon_neighbor_surface_summary.json or verification_suite_summary.json." -f $candidatePath)
+    }
+
+    throw ("Rerun summary source does not exist: {0}" -f $candidatePath)
+}
+
+function Get-RerunSelectionFromSummary {
+    param([string]$SummaryPath)
+
+    $summaryObject = Read-JsonFileIfExists -JsonPath $SummaryPath
+    if ($null -eq $summaryObject) {
+        throw ("Rerun summary JSON could not be read: {0}" -f $SummaryPath)
+    }
+
+    $neighborSummary = $null
+    if ($summaryObject.PSObject.Properties["neighborSurfaces"]) {
+        $neighborSummary = $summaryObject.neighborSurfaces
+    }
+    elseif ($summaryObject.PSObject.Properties["surfaces"]) {
+        $neighborSummary = $summaryObject
+    }
+    else {
+        throw ("Summary JSON {0} does not contain neighboring-surface results." -f $SummaryPath)
+    }
+
+    $failedSurfaceNames = @()
+    if ($neighborSummary.PSObject.Properties["failedSurfaces"]) {
+        $failedSurfaceNames = @($neighborSummary.failedSurfaces | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "name" -DefaultValue "") } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+    if ($failedSurfaceNames.Count -eq 0 -and $neighborSummary.PSObject.Properties["surfaces"]) {
+        $failedSurfaceNames = @($neighborSummary.surfaces | Where-Object { [string]$_.overallStatus -eq "FAIL" } | ForEach-Object { [string]$_.name } | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    }
+
+    return [pscustomobject]@{
+        SummaryPath = $SummaryPath
+        FailedSurfaceNames = @(Get-TrimmedUniqueValues -Values $failedSurfaceNames)
+        RequestedProfileName = [string](Get-OptionalPropertyValue -Object $neighborSummary -Name "requestedProfile" -DefaultValue "")
+        ResolvedProfileName = [string](Get-OptionalPropertyValue -Object $neighborSummary -Name "resolvedProfile" -DefaultValue "")
+        OverallResult = [string](Get-OptionalPropertyValue -Object $neighborSummary -Name "overallResult" -DefaultValue "")
+    }
+}
+
+function Resolve-SignonSelectionRequest {
+    param(
+        [object]$MatrixData,
+        [string]$RequestedProfileName,
+        [string[]]$RequestedSurfaceNames,
+        [string[]]$RequestedGroupNames,
+        [switch]$SelectAllEntries,
+        [string]$RerunSummarySource,
+        [string]$ResolvedRepoRoot
+    )
+
+    $selectAllRequested = [bool]$SelectAllEntries
+    $normalizedRequestedSurfaceNames = @(Get-TrimmedUniqueValues -Values $RequestedSurfaceNames)
+    $normalizedRequestedGroupNames = @(Get-TrimmedUniqueValues -Values $RequestedGroupNames)
+    $hasExplicitSelection = ($selectAllRequested -or $normalizedRequestedSurfaceNames.Count -gt 0 -or $normalizedRequestedGroupNames.Count -gt 0)
+    if (-not [string]::IsNullOrWhiteSpace($RequestedProfileName) -and $hasExplicitSelection) {
+        throw "-Profile cannot be combined with -Surface, -Group, or -FullMatrix."
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RequestedProfileName) -and -not [string]::IsNullOrWhiteSpace($RerunSummarySource)) {
+        throw "-Profile cannot be combined with -RerunFromSummaryJson."
+    }
+    if (-not [string]::IsNullOrWhiteSpace($RerunSummarySource) -and $hasExplicitSelection) {
+        throw "-RerunFromSummaryJson cannot be combined with -Surface, -Group, or -FullMatrix."
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RerunSummarySource)) {
+        $resolvedSummaryPath = Resolve-RerunSummaryJsonPath -ResolvedRepoRoot $ResolvedRepoRoot -RequestedSummaryPath $RerunSummarySource
+        $rerunSelection = Get-RerunSelectionFromSummary -SummaryPath $resolvedSummaryPath
+        if (@($rerunSelection.FailedSurfaceNames).Count -eq 0) {
+            return [pscustomobject]@{
+                RequestedSurfaceNames = @()
+                RequestedGroupNames = @()
+                SelectAllEntries = $false
+                SelectionOrigin = "rerun-failed"
+                RequestedProfileName = $rerunSelection.RequestedProfileName
+                ResolvedProfileName = $rerunSelection.ResolvedProfileName
+                RerunSourceSummaryPath = $resolvedSummaryPath
+                NoFailedSurfaces = $true
+            }
+        }
+
+        return [pscustomobject]@{
+            RequestedSurfaceNames = @($rerunSelection.FailedSurfaceNames)
+            RequestedGroupNames = @()
+            SelectAllEntries = $false
+            SelectionOrigin = "rerun-failed"
+            RequestedProfileName = $rerunSelection.RequestedProfileName
+            ResolvedProfileName = $rerunSelection.ResolvedProfileName
+            RerunSourceSummaryPath = $resolvedSummaryPath
+            NoFailedSurfaces = $false
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedProfileName)) {
+        $profileDefinition = Get-ProfileDefinition -Profiles $MatrixData.Profiles -ProfileName $RequestedProfileName
+        return [pscustomobject]@{
+            RequestedSurfaceNames = @($profileDefinition.Surfaces)
+            RequestedGroupNames = @($profileDefinition.Groups)
+            SelectAllEntries = [bool]$profileDefinition.FullMatrix
+            SelectionOrigin = "profile"
+            RequestedProfileName = $RequestedProfileName
+            ResolvedProfileName = $profileDefinition.Name
+            RerunSourceSummaryPath = ""
+            NoFailedSurfaces = $false
+        }
+    }
+
+    return [pscustomobject]@{
+        RequestedSurfaceNames = $normalizedRequestedSurfaceNames
+        RequestedGroupNames = $normalizedRequestedGroupNames
+        SelectAllEntries = $selectAllRequested
+        SelectionOrigin = $(if ($hasExplicitSelection) { "explicit" } else { "default" })
+        RequestedProfileName = ""
+        ResolvedProfileName = ""
+        RerunSourceSummaryPath = ""
+        NoFailedSurfaces = $false
     }
 }
 
@@ -328,12 +566,13 @@ function Select-SignonRegressionEntries {
         [switch]$SelectAllEntries
     )
 
+    $selectAllRequested = [bool]$SelectAllEntries
     $normalizedSurfaceNames = @(Get-TrimmedUniqueValues -Values $RequestedSurfaceNames)
     $normalizedGroupNames = @(Get-TrimmedUniqueValues -Values $RequestedGroupNames)
     $knownSurfaceNames = @($Entries | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
     $knownGroupNames = @(Get-EntryGroupNames -Entries $Entries)
 
-    if ($SelectAllEntries -and ($normalizedSurfaceNames.Count -gt 0 -or $normalizedGroupNames.Count -gt 0)) {
+    if ($selectAllRequested -and ($normalizedSurfaceNames.Count -gt 0 -or $normalizedGroupNames.Count -gt 0)) {
         throw "-FullMatrix cannot be combined with -Surface or -Group filters."
     }
 
@@ -350,7 +589,7 @@ function Select-SignonRegressionEntries {
     }
 
     $selectedEntries = New-Object System.Collections.Generic.List[object]
-    if ($SelectAllEntries) {
+    if ($selectAllRequested) {
         foreach ($entry in @($Entries)) {
             $selectedEntries.Add($entry)
         }
@@ -377,14 +616,14 @@ function Select-SignonRegressionEntries {
     }
 
     if ($selectedEntries.Count -eq 0) {
-        if (-not $SelectAllEntries -and $normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
+        if (-not $selectAllRequested -and $normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
             throw "The signon regression matrix does not contain any entries with EnabledByDefault = true."
         }
 
         throw "The requested -Surface/-Group filter combination did not select any signon regression entries."
     }
 
-    $selectionMode = if ($SelectAllEntries) {
+    $selectionMode = if ($selectAllRequested) {
         "full-matrix"
     }
     elseif ($normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
@@ -401,7 +640,7 @@ function Select-SignonRegressionEntries {
 
     return [pscustomobject]@{
         Entries = $selectedEntriesArray
-        RequestedFullMatrix = [bool]$SelectAllEntries
+        RequestedFullMatrix = $selectAllRequested
         SelectionMode = $selectionMode
         RequestedSurfaceNames = $normalizedSurfaceNames
         RequestedGroupNames = $normalizedGroupNames
@@ -418,6 +657,17 @@ function Write-SignonRegressionMatrixListing {
     Write-Host ("Matrix path: {0}" -f $MatrixData.MatrixPath)
     Write-Host ("Suite name: {0}" -f $MatrixData.SuiteName)
     Write-Host ("Entries: {0}" -f @($MatrixData.Entries).Count)
+
+    Write-Heading "Profiles"
+    foreach ($profileDefinition in @($MatrixData.Profiles | Sort-Object Name)) {
+        Write-Host ("{0}" -f $profileDefinition.Name)
+        if (-not [string]::IsNullOrWhiteSpace([string]$profileDefinition.Description)) {
+            Write-Host ("  description: {0}" -f [string]$profileDefinition.Description)
+        }
+        Write-Host ("  fullMatrix: {0}" -f $(if ($profileDefinition.FullMatrix) { "yes" } else { "no" }))
+        Write-Host ("  groups: {0}" -f $(if (@($profileDefinition.Groups).Count -gt 0) { (@($profileDefinition.Groups) -join ", ") } else { "<none>" }))
+        Write-Host ("  surfaces: {0}" -f $(if (@($profileDefinition.Surfaces).Count -gt 0) { (@($profileDefinition.Surfaces) -join ", ") } else { "<none>" }))
+    }
 
     Write-Heading "Groups"
     foreach ($groupName in @($MatrixData.KnownGroups)) {
@@ -459,6 +709,19 @@ function Resolve-ArtifactOutputDir {
     }
 
     return Resolve-FullPath -PathValue $RequestedArtifactOutputDir -BasePath $ResolvedRepoRoot
+}
+
+function Resolve-JUnitOutputPath {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedJUnitOutputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedJUnitOutputPath)) {
+        return ""
+    }
+
+    return Resolve-FullPath -PathValue $RequestedJUnitOutputPath -BasePath $ResolvedRepoRoot
 }
 
 function Get-RunLabelInfo {
@@ -814,6 +1077,173 @@ function Build-GroupResults {
     return $groupResults.ToArray()
 }
 
+function Get-SurfaceFailureReason {
+    param([object]$SurfaceResult)
+
+    $failingRunDetails = @(
+        @($SurfaceResult.runs) |
+            Where-Object { [string]$_.status -eq "FAIL" } |
+            ForEach-Object { "{0}: {1}" -f [string]$_.runName, [string]$_.reason }
+    )
+    if ($failingRunDetails.Count -gt 0) {
+        return ($failingRunDetails -join " | ")
+    }
+
+    $nonPassingRunDetails = @(
+        @($SurfaceResult.runs) |
+            Where-Object { [string]$_.status -ne "PASS" } |
+            ForEach-Object { "{0}: {1}" -f [string]$_.runName, [string]$_.reason }
+    )
+    if ($nonPassingRunDetails.Count -gt 0) {
+        return ($nonPassingRunDetails -join " | ")
+    }
+
+    return ""
+}
+
+function Get-FailedSurfaceTriageItems {
+    param(
+        [object[]]$SurfaceResults,
+        [string]$ResolvedProfileName,
+        [string]$SummaryPathHint
+    )
+
+    $failedSurfaceItems = New-Object System.Collections.Generic.List[object]
+    foreach ($surfaceResult in @($SurfaceResults | Where-Object { [string]$_.overallStatus -eq "FAIL" })) {
+        $failedSurfaceItems.Add([ordered]@{
+                name = [string]$surfaceResult.name
+                groups = @((Get-OptionalPropertyValue -Object $surfaceResult -Name "groups" -DefaultValue @()))
+                profile = $ResolvedProfileName
+                conciseReason = Get-SurfaceFailureReason -SurfaceResult $surfaceResult
+                summaryPath = $SummaryPathHint
+            }) | Out-Null
+    }
+
+    return $failedSurfaceItems.ToArray()
+}
+
+function Write-FailedSurfaceTriage {
+    param([object[]]$FailedSurfaceItems)
+
+    if (@($FailedSurfaceItems).Count -eq 0) {
+        return
+    }
+
+    Write-Heading "Failed Surface Triage"
+    foreach ($failedSurface in @($FailedSurfaceItems)) {
+        Write-Host ("- {0}" -f $failedSurface.name)
+        Write-Host ("  profile: {0}" -f $(if ([string]::IsNullOrWhiteSpace([string]$failedSurface.profile)) { "<none>" } else { [string]$failedSurface.profile }))
+        Write-Host ("  groups: {0}" -f $(if (@($failedSurface.groups).Count -gt 0) { (@($failedSurface.groups) -join ", ") } else { "<none>" }))
+        Write-Host ("  reason: {0}" -f [string]$failedSurface.conciseReason)
+        if (-not [string]::IsNullOrWhiteSpace([string]$failedSurface.summaryPath)) {
+            Write-Host ("  summary: {0}" -f [string]$failedSurface.summaryPath)
+        }
+    }
+}
+
+function Write-JUnitReport {
+    param(
+        [string]$OutputPath,
+        [object]$SummaryObject
+    )
+
+    if ([string]::IsNullOrWhiteSpace($OutputPath)) {
+        return
+    }
+
+    $outputDirectory = Split-Path -Path $OutputPath -Parent
+    if (-not [string]::IsNullOrWhiteSpace($outputDirectory)) {
+        Ensure-Directory $outputDirectory | Out-Null
+    }
+
+    $settings = New-Object System.Xml.XmlWriterSettings
+    $settings.Indent = $true
+    $settings.Encoding = [System.Text.UTF8Encoding]::new($false)
+    $writer = [System.Xml.XmlWriter]::Create($OutputPath, $settings)
+
+    try {
+        $suiteContextName = if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.resolvedProfile)) {
+            "profile.{0}" -f [string]$SummaryObject.resolvedProfile
+        }
+        else {
+            "{0}.{1}" -f [string]$SummaryObject.selectionOrigin, [string]$SummaryObject.selectionMode
+        }
+
+        $writer.WriteStartDocument()
+        $writer.WriteStartElement("testsuites")
+        $writer.WriteAttributeString("tests", [string]$SummaryObject.selectedSurfaceCount)
+        $writer.WriteAttributeString("failures", [string]$SummaryObject.failingSurfaceCount)
+        $writer.WriteAttributeString("skipped", [string]$SummaryObject.notRunSurfaceCount)
+
+        $writer.WriteStartElement("testsuite")
+        $writer.WriteAttributeString("name", [string]$SummaryObject.suiteName)
+        $writer.WriteAttributeString("tests", [string]$SummaryObject.selectedSurfaceCount)
+        $writer.WriteAttributeString("failures", [string]$SummaryObject.failingSurfaceCount)
+        $writer.WriteAttributeString("skipped", [string]$SummaryObject.notRunSurfaceCount)
+        $writer.WriteAttributeString("timestamp", [string]$SummaryObject.generatedAt)
+
+        $writer.WriteStartElement("properties")
+        foreach ($property in @(
+            @{ Name = "selectionMode"; Value = [string]$SummaryObject.selectionMode },
+            @{ Name = "selectionOrigin"; Value = [string]$SummaryObject.selectionOrigin },
+            @{ Name = "requestedProfile"; Value = [string]$SummaryObject.requestedProfile },
+            @{ Name = "resolvedProfile"; Value = [string]$SummaryObject.resolvedProfile },
+            @{ Name = "requestedFullMatrix"; Value = [string]$SummaryObject.requestedFullMatrix },
+            @{ Name = "matrixPath"; Value = [string]$SummaryObject.matrixPath },
+            @{ Name = "summaryPath"; Value = [string](Get-OptionalPropertyValue -Object $SummaryObject -Name "summaryJsonPath" -DefaultValue "") }
+        )) {
+            if ([string]::IsNullOrWhiteSpace($property.Value)) {
+                continue
+            }
+
+            $writer.WriteStartElement("property")
+            $writer.WriteAttributeString("name", $property.Name)
+            $writer.WriteAttributeString("value", $property.Value)
+            $writer.WriteEndElement()
+        }
+        $writer.WriteEndElement()
+
+        foreach ($surfaceResult in @($SummaryObject.surfaces)) {
+            $writer.WriteStartElement("testcase")
+            $writer.WriteAttributeString("name", [string]$surfaceResult.name)
+            $writer.WriteAttributeString("classname", ("{0}.{1}" -f [string]$SummaryObject.suiteName, $suiteContextName))
+            $writer.WriteAttributeString("time", "0")
+
+            $surfaceReason = Get-SurfaceFailureReason -SurfaceResult $surfaceResult
+            if ([string]$surfaceResult.overallStatus -eq "FAIL") {
+                $writer.WriteStartElement("failure")
+                $writer.WriteAttributeString("message", $(if ([string]::IsNullOrWhiteSpace($surfaceReason)) { "Surface verification failed." } else { $surfaceReason }))
+                $writer.WriteString($surfaceReason)
+                $writer.WriteEndElement()
+            }
+            elseif ([string]$surfaceResult.overallStatus -eq "NOT_RUN") {
+                $writer.WriteStartElement("skipped")
+                $writer.WriteAttributeString("message", $(if ([string]::IsNullOrWhiteSpace($surfaceReason)) { "Surface was not executed." } else { $surfaceReason }))
+                $writer.WriteString($surfaceReason)
+                $writer.WriteEndElement()
+            }
+
+            $writer.WriteStartElement("system-out")
+            $writer.WriteString(
+                ("groups={0}; overallStatus={1}; details={2}" -f
+                    $(if (@($surfaceResult.groups).Count -gt 0) { (@($surfaceResult.groups) -join ", ") } else { "<none>" }),
+                    [string]$surfaceResult.overallStatus,
+                    $(if ([string]::IsNullOrWhiteSpace($surfaceReason)) { "PASS" } else { $surfaceReason }))
+            )
+            $writer.WriteEndElement()
+
+            $writer.WriteEndElement()
+        }
+
+        $writer.WriteEndElement()
+        $writer.WriteEndElement()
+        $writer.WriteEndDocument()
+    }
+    finally {
+        $writer.Dispose()
+    }
+}
+
 function Copy-RunArtifactsToBundle {
     param(
         [object]$RunRecord,
@@ -889,13 +1319,29 @@ function Write-SuiteSummaryFiles {
     $textLines.Add(("executable: {0}" -f $SummaryObject.executablePath))
     $textLines.Add(("matrix path: {0}" -f $SummaryObject.matrixPath))
     $textLines.Add(("selection mode: {0}" -f $SummaryObject.selectionMode))
+    $textLines.Add(("selection origin: {0}" -f $SummaryObject.selectionOrigin))
     $textLines.Add(("full matrix requested: {0}" -f $(if ($SummaryObject.requestedFullMatrix) { "yes" } else { "no" })))
+    if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.requestedProfile)) {
+        $textLines.Add(("requested profile: {0}" -f [string]$SummaryObject.requestedProfile))
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.resolvedProfile)) {
+        $textLines.Add(("resolved profile: {0}" -f [string]$SummaryObject.resolvedProfile))
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.rerunSourceSummaryJson)) {
+        $textLines.Add(("rerun summary source: {0}" -f [string]$SummaryObject.rerunSourceSummaryJson))
+    }
+    if ($SummaryObject.noFailedSurfacesDetected) {
+        $textLines.Add("rerun result: no failed surfaces were found in the requested summary")
+    }
     $textLines.Add(("delegated verification command: {0}" -f $SummaryObject.delegatedVerificationCommandLine))
     if (@($SummaryObject.requestedGroupNames).Count -gt 0) {
         $textLines.Add(("requested groups: {0}" -f (@($SummaryObject.requestedGroupNames) -join ", ")))
     }
     if (@($SummaryObject.requestedSurfaceNames).Count -gt 0) {
         $textLines.Add(("requested surfaces: {0}" -f (@($SummaryObject.requestedSurfaceNames) -join ", ")))
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.junitOutputPath)) {
+        $textLines.Add(("junit output: {0}" -f [string]$SummaryObject.junitOutputPath))
     }
     $textLines.Add(("selected groups: {0}" -f (@($SummaryObject.selectedGroupNames) -join ", ")))
     $textLines.Add(("selected surface count: {0}" -f $SummaryObject.selectedSurfaceCount))
@@ -930,10 +1376,25 @@ function Write-SuiteSummaryFiles {
             $textLines.Add(("    {0}: {1} - {2}" -f $runCheck.runName, $runCheck.status, $runCheck.reason))
         }
     }
+    if (@($SummaryObject.failedSurfaces).Count -gt 0) {
+        $textLines.Add("")
+        $textLines.Add("failed surfaces:")
+        foreach ($failedSurface in @($SummaryObject.failedSurfaces)) {
+            $textLines.Add(("  {0}" -f $failedSurface.name))
+            $textLines.Add(("    profile: {0}" -f $(if ([string]::IsNullOrWhiteSpace([string]$failedSurface.profile)) { "<none>" } else { [string]$failedSurface.profile })))
+            $textLines.Add(("    groups: {0}" -f $(if (@($failedSurface.groups).Count -gt 0) { (@($failedSurface.groups) -join ", ") } else { "<none>" })))
+            $textLines.Add(("    reason: {0}" -f [string]$failedSurface.conciseReason))
+            if (-not [string]::IsNullOrWhiteSpace([string]$failedSurface.summaryPath)) {
+                $textLines.Add(("    summary: {0}" -f [string]$failedSurface.summaryPath))
+            }
+        }
+    }
 
     $textSummaryPath = Join-Path $resolvedOutputDir "signon_neighbor_surface_summary.txt"
     $jsonSummaryPath = Join-Path $resolvedOutputDir "signon_neighbor_surface_summary.json"
     $textLines | Set-Content -LiteralPath $textSummaryPath -Encoding UTF8
+    $SummaryObject.summaryTextPath = $textSummaryPath
+    $SummaryObject.summaryJsonPath = $jsonSummaryPath
     $SummaryObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $jsonSummaryPath -Encoding UTF8
 
     return [pscustomobject]@{
@@ -945,7 +1406,9 @@ function Write-SuiteSummaryFiles {
 $resolvedRepoRoot = ""
 $resolvedMatrixPath = ""
 $resolvedArtifactOutputDir = ""
+$resolvedJUnitOutputPath = ""
 $matrixData = $null
+$selectionRequest = $null
 $selectedMatrix = $null
 $delegatedOutputLogPath = ""
 $delegatedCommandLine = ""
@@ -954,6 +1417,8 @@ $verificationMetadata = $null
 $runRecords = @()
 $groupResults = @()
 $surfaceResults = @()
+$failedSurfaceItems = @()
+$summaryPaths = $null
 $resultLabel = "FAIL"
 $finalExitCode = 1
 $cleanupOutputLogPath = ""
@@ -969,21 +1434,15 @@ try {
         $finalExitCode = 0
     }
     else {
-        $selectedMatrix = Select-SignonRegressionEntries -Entries $matrixData.Entries -RequestedSurfaceNames $Surface -RequestedGroupNames $Group -SelectAllEntries:$FullMatrix
-        $selectedEntries = @($selectedMatrix.Entries)
-
-        Write-Heading "Selected Matrix Entries"
-        Write-Host ("Matrix path: {0}" -f $resolvedMatrixPath)
-        Write-Host ("Selection mode: {0}" -f $selectedMatrix.SelectionMode)
-        Write-Host ("Full matrix requested: {0}" -f $(if ($selectedMatrix.RequestedFullMatrix) { "yes" } else { "no" }))
-        if (@($selectedMatrix.RequestedGroupNames).Count -gt 0) {
-            Write-Host ("Requested groups: {0}" -f (@($selectedMatrix.RequestedGroupNames) -join ", "))
-        }
-        if (@($selectedMatrix.RequestedSurfaceNames).Count -gt 0) {
-            Write-Host ("Requested surfaces: {0}" -f (@($selectedMatrix.RequestedSurfaceNames) -join ", "))
-        }
-        Write-Host ("Selected groups: {0}" -f (@($selectedMatrix.SelectedGroupNames) -join ", "))
-        Write-Host ("Selected surfaces ({0}): {1}" -f $selectedMatrix.SelectedSurfaceCount, (@($selectedMatrix.SelectedSurfaceNames) -join ", "))
+        $selectionRequest = Resolve-SignonSelectionRequest `
+            -MatrixData $matrixData `
+            -RequestedProfileName $Profile `
+            -RequestedSurfaceNames $Surface `
+            -RequestedGroupNames $Group `
+            -SelectAllEntries:$FullMatrix `
+            -RerunSummarySource $RerunFromSummaryJson `
+            -ResolvedRepoRoot $resolvedRepoRoot
+        $resolvedJUnitOutputPath = Resolve-JUnitOutputPath -ResolvedRepoRoot $resolvedRepoRoot -RequestedJUnitOutputPath $JUnitOutputPath
 
         if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
             $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
@@ -993,6 +1452,102 @@ try {
         else {
             $cleanupOutputLogPath = [System.IO.Path]::GetTempFileName()
             $delegatedOutputLogPath = $cleanupOutputLogPath
+        }
+    }
+
+    if (-not $ListSurfaces -and $selectionRequest.NoFailedSurfaces) {
+        Write-Heading "Failed Surface Rerun"
+        Write-Host ("Source summary: {0}" -f $selectionRequest.RerunSourceSummaryPath)
+        Write-Host "No failed surfaces were found in the requested summary. Nothing to rerun."
+
+        $resultLabel = "PASS"
+        $finalExitCode = 0
+
+        $summaryObject = [ordered]@{
+            generatedAt = (Get-Date).ToString("o")
+            suiteName = $matrixData.SuiteName
+            promptId = $script:PromptId
+            overallResult = $resultLabel
+            requestedProvenanceMode = $ProvenanceMode
+            observedProvenanceMode = ""
+            repoRoot = $resolvedRepoRoot
+            outerWorkspaceRoot = ""
+            buildDir = ""
+            executablePath = ""
+            headCommit = ""
+            branch = ""
+            matrixPath = $resolvedMatrixPath
+            requestedFullMatrix = $false
+            selectionMode = "rerun-failed"
+            selectionOrigin = $selectionRequest.SelectionOrigin
+            requestedProfile = $selectionRequest.RequestedProfileName
+            resolvedProfile = $selectionRequest.ResolvedProfileName
+            rerunSourceSummaryJson = $selectionRequest.RerunSourceSummaryPath
+            noFailedSurfacesDetected = $true
+            junitOutputPath = $resolvedJUnitOutputPath
+            requestedSurfaceNames = @()
+            requestedGroupNames = @()
+            selectedSurfaceCount = 0
+            selectedSurfaceNames = @()
+            selectedGroupNames = @()
+            passingSurfaceCount = 0
+            failingSurfaceCount = 0
+            notRunSurfaceCount = 0
+            delegatedVerificationCommandLine = ""
+            runs = @()
+            groups = @()
+            surfaces = @()
+            failedSurfaces = @()
+            metadata = [ordered]@{}
+            summaryTextPath = ""
+            summaryJsonPath = ""
+        }
+
+        if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
+            $summaryPaths = Write-SuiteSummaryFiles -OutputDir $resolvedArtifactOutputDir -SummaryObject $summaryObject -DelegatedOutputLogPath $delegatedOutputLogPath -VerificationMetadata $null
+            Write-Heading "Artifact Bundle"
+            Write-Host ("Output dir: {0}" -f $resolvedArtifactOutputDir)
+            Write-Host ("Text summary: {0}" -f $summaryPaths.TextSummaryPath)
+            Write-Host ("JSON summary: {0}" -f $summaryPaths.JsonSummaryPath)
+        }
+
+        if (-not [string]::IsNullOrWhiteSpace($resolvedJUnitOutputPath)) {
+            Write-JUnitReport -OutputPath $resolvedJUnitOutputPath -SummaryObject $summaryObject
+            Write-Heading "JUnit Report"
+            Write-Host ("Path: {0}" -f $resolvedJUnitOutputPath)
+        }
+
+        Write-Heading "Verdict"
+        Write-Host "neighbor-surface suite: PASS"
+    }
+    elseif (-not $ListSurfaces) {
+        $selectedMatrix = Select-SignonRegressionEntries -Entries $matrixData.Entries -RequestedSurfaceNames $selectionRequest.RequestedSurfaceNames -RequestedGroupNames $selectionRequest.RequestedGroupNames -SelectAllEntries:$selectionRequest.SelectAllEntries
+        $selectedEntries = @($selectedMatrix.Entries)
+
+        Write-Heading "Selected Matrix Entries"
+        Write-Host ("Matrix path: {0}" -f $resolvedMatrixPath)
+        Write-Host ("Selection mode: {0}" -f $selectedMatrix.SelectionMode)
+        Write-Host ("Selection origin: {0}" -f $selectionRequest.SelectionOrigin)
+        Write-Host ("Full matrix requested: {0}" -f $(if ($selectedMatrix.RequestedFullMatrix) { "yes" } else { "no" }))
+        if (-not [string]::IsNullOrWhiteSpace($selectionRequest.RequestedProfileName)) {
+            Write-Host ("Requested profile: {0}" -f $selectionRequest.RequestedProfileName)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($selectionRequest.ResolvedProfileName)) {
+            Write-Host ("Resolved profile: {0}" -f $selectionRequest.ResolvedProfileName)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($selectionRequest.RerunSourceSummaryPath)) {
+            Write-Host ("Rerun summary source: {0}" -f $selectionRequest.RerunSourceSummaryPath)
+        }
+        if (@($selectedMatrix.RequestedGroupNames).Count -gt 0) {
+            Write-Host ("Requested groups: {0}" -f (@($selectedMatrix.RequestedGroupNames) -join ", "))
+        }
+        if (@($selectedMatrix.RequestedSurfaceNames).Count -gt 0) {
+            Write-Host ("Requested surfaces: {0}" -f (@($selectedMatrix.RequestedSurfaceNames) -join ", "))
+        }
+        Write-Host ("Selected groups: {0}" -f (@($selectedMatrix.SelectedGroupNames) -join ", "))
+        Write-Host ("Selected surfaces ({0}): {1}" -f $selectedMatrix.SelectedSurfaceCount, (@($selectedMatrix.SelectedSurfaceNames) -join ", "))
+        if (-not [string]::IsNullOrWhiteSpace($resolvedJUnitOutputPath)) {
+            Write-Host ("JUnit output: {0}" -f $resolvedJUnitOutputPath)
         }
 
         if (-not (Test-Path -LiteralPath $script:MainRunnerPath -PathType Leaf)) {
@@ -1145,9 +1700,21 @@ try {
 
         Write-Heading "Suite Summary"
         Write-Host ("selection mode: {0}" -f $selectedMatrix.SelectionMode)
+        Write-Host ("selection origin: {0}" -f $selectionRequest.SelectionOrigin)
         Write-Host ("selected surfaces: {0}" -f $selectedMatrix.SelectedSurfaceCount)
         Write-Host ("surface counts: pass={0}, fail={1}, not-run={2}" -f $passingSurfaceCount, $failingSurfaceCount, $notRunSurfaceCount)
         Write-Host ("overall suite: {0}" -f $resultLabel)
+
+        $triageSummaryPathHint = if (-not [string]::IsNullOrWhiteSpace($resolvedArtifactOutputDir)) {
+            Join-Path $resolvedArtifactOutputDir "signon_neighbor_surface_summary.json"
+        }
+        elseif ($runRecords.Count -gt 0) {
+            [string]$runRecords[0].sourceSummaryPath
+        }
+        else {
+            $delegatedOutputLogPath
+        }
+        $failedSurfaceItems = @(Get-FailedSurfaceTriageItems -SurfaceResults $surfaceResults -ResolvedProfileName $selectionRequest.ResolvedProfileName -SummaryPathHint $triageSummaryPathHint)
 
         $summaryObject = [ordered]@{
             generatedAt = (Get-Date).ToString("o")
@@ -1165,6 +1732,12 @@ try {
             matrixPath = $resolvedMatrixPath
             requestedFullMatrix = $selectedMatrix.RequestedFullMatrix
             selectionMode = $selectedMatrix.SelectionMode
+            selectionOrigin = $selectionRequest.SelectionOrigin
+            requestedProfile = $selectionRequest.RequestedProfileName
+            resolvedProfile = $selectionRequest.ResolvedProfileName
+            rerunSourceSummaryJson = $selectionRequest.RerunSourceSummaryPath
+            noFailedSurfacesDetected = $false
+            junitOutputPath = $resolvedJUnitOutputPath
             requestedSurfaceNames = @($selectedMatrix.RequestedSurfaceNames)
             requestedGroupNames = @($selectedMatrix.RequestedGroupNames)
             selectedSurfaceCount = $selectedMatrix.SelectedSurfaceCount
@@ -1177,7 +1750,10 @@ try {
             runs = @($runRecords)
             groups = @($groupResults)
             surfaces = @($surfaceResults)
+            failedSurfaces = @($failedSurfaceItems)
             metadata = [ordered]@{}
+            summaryTextPath = ""
+            summaryJsonPath = ""
         }
 
         if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
@@ -1187,6 +1763,12 @@ try {
             Write-Host ("Text summary: {0}" -f $summaryPaths.TextSummaryPath)
             Write-Host ("JSON summary: {0}" -f $summaryPaths.JsonSummaryPath)
         }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedJUnitOutputPath)) {
+            Write-JUnitReport -OutputPath $resolvedJUnitOutputPath -SummaryObject $summaryObject
+            Write-Heading "JUnit Report"
+            Write-Host ("Path: {0}" -f $resolvedJUnitOutputPath)
+        }
+        Write-FailedSurfaceTriage -FailedSurfaceItems $failedSurfaceItems
 
         Write-Heading "Verdict"
         Write-Host ("happy: {0}" -f [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN"))

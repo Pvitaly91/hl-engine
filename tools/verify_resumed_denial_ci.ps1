@@ -10,9 +10,12 @@ param(
     [switch]$NoExecute,
     [switch]$UseExistingBinary,
     [switch]$RunNeighborSurfaceSuite,
+    [ValidateSet("default", "checkpoint-extended", "full-expanded")]
+    [string]$NeighborSurfaceProfile,
     [string[]]$NeighborSurfaceGroup,
     [string[]]$NeighborSurface,
     [switch]$FullNeighborMatrix,
+    [string]$JUnitOutputPath,
     [switch]$CollectArtifacts,
     [string]$ArtifactOutputDir
 )
@@ -28,6 +31,7 @@ $script:DefaultBuildDirName = "build-main-win32-hlhost-regression"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
 $script:NeighborSuiteRunnerPath = Join-Path $PSScriptRoot "verify_signon_neighbor_surfaces_main.ps1"
 $script:ArtifactCollectorPath = Join-Path $PSScriptRoot "collect_resumed_denial_artifacts.ps1"
+$script:DefaultNeighborJUnitFileName = "signon_neighbor_surface_junit.xml"
 
 function Write-Heading {
     param([string]$Text)
@@ -273,6 +277,19 @@ function Resolve-ExecutablePath {
     }
 
     return Resolve-FullPath -PathValue $RequestedExecutablePath -BasePath $WorkspaceRoot
+}
+
+function Resolve-JUnitOutputPath {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedJUnitOutputPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedJUnitOutputPath)) {
+        return ""
+    }
+
+    return Resolve-FullPath -PathValue $RequestedJUnitOutputPath -BasePath $ResolvedRepoRoot
 }
 
 function Get-ExpectedExecutablePath {
@@ -701,6 +718,15 @@ function Write-CombinedSuiteSummaryFiles {
     if ($SummaryObject.runNeighborSurfaceSuite) {
         $textLines.Add("")
         $textLines.Add("neighbor-surfaces:")
+        if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.requestedProfile)) {
+            $textLines.Add(("  requested profile: {0}" -f [string]$SummaryObject.neighborSurfaces.requestedProfile))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.resolvedProfile)) {
+            $textLines.Add(("  resolved profile: {0}" -f [string]$SummaryObject.neighborSurfaces.resolvedProfile))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.selectionOrigin)) {
+            $textLines.Add(("  selection origin: {0}" -f [string]$SummaryObject.neighborSurfaces.selectionOrigin))
+        }
         if (@($SummaryObject.neighborSurfaces.selectedGroupNames).Count -gt 0) {
             $textLines.Add(("  selected groups: {0}" -f (@($SummaryObject.neighborSurfaces.selectedGroupNames) -join ", ")))
         }
@@ -709,11 +735,26 @@ function Write-CombinedSuiteSummaryFiles {
         }
         $textLines.Add(("  passing surfaces: {0}" -f $SummaryObject.neighborSurfaces.passingSurfaceCount))
         $textLines.Add(("  failing surfaces: {0}" -f $SummaryObject.neighborSurfaces.failingSurfaceCount))
+        if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.junitOutputPath)) {
+            $textLines.Add(("  junit output: {0}" -f [string]$SummaryObject.neighborSurfaces.junitOutputPath))
+        }
         foreach ($groupResult in @($SummaryObject.neighborSurfaces.groups)) {
             $textLines.Add(("  group {0}: {1}" -f $groupResult.name, $groupResult.overallStatus))
         }
         foreach ($surface in @($SummaryObject.neighborSurfaces.surfaces)) {
             $textLines.Add(("  {0}: {1}" -f $surface.name, $surface.overallStatus))
+        }
+        if (@($SummaryObject.neighborSurfaces.failedSurfaces).Count -gt 0) {
+            $textLines.Add("  failed surfaces:")
+            foreach ($failedSurface in @($SummaryObject.neighborSurfaces.failedSurfaces)) {
+                $textLines.Add(("    {0}" -f $failedSurface.name))
+                $textLines.Add(("      profile: {0}" -f $(if ([string]::IsNullOrWhiteSpace([string]$failedSurface.profile)) { "<none>" } else { [string]$failedSurface.profile })))
+                $textLines.Add(("      groups: {0}" -f $(if (@($failedSurface.groups).Count -gt 0) { (@($failedSurface.groups) -join ", ") } else { "<none>" })))
+                $textLines.Add(("      reason: {0}" -f [string]$failedSurface.conciseReason))
+                if (-not [string]::IsNullOrWhiteSpace([string]$failedSurface.summaryPath)) {
+                    $textLines.Add(("      summary: {0}" -f [string]$failedSurface.summaryPath))
+                }
+            }
         }
     }
 
@@ -742,8 +783,10 @@ function Write-CiSummary {
         [string]$CombinedJsonSummaryPath,
         [string]$ResumedDenialResult,
         [string]$NeighborSurfaceResult,
+        [string]$NeighborSurfaceProfile,
         [string[]]$NeighborSurfaceGroups,
         [string[]]$NeighborSurfaces,
+        [string]$NeighborJUnitOutputPath,
         [switch]$FullNeighborMatrixRequested,
         [switch]$NeighborSurfaceSuiteEnabled
     )
@@ -765,6 +808,9 @@ function Write-CiSummary {
     if (-not [string]::IsNullOrWhiteSpace($NeighborVerificationCommandLine)) {
         Write-Host ("neighbor-surface command: {0}" -f $NeighborVerificationCommandLine)
     }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
+        Write-Host ("neighbor-surface profile: {0}" -f $NeighborSurfaceProfile)
+    }
     if (@($NeighborSurfaceGroups).Count -gt 0) {
         Write-Host ("neighbor-surface groups: {0}" -f (@($NeighborSurfaceGroups) -join ", "))
     }
@@ -773,6 +819,9 @@ function Write-CiSummary {
     }
     if ($FullNeighborMatrixRequested) {
         Write-Host "neighbor-surface full matrix: yes"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborJUnitOutputPath)) {
+        Write-Host ("neighbor-surface junit: {0}" -f $NeighborJUnitOutputPath)
     }
     if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
         Write-Host ("artifact root dir: {0}" -f $ResolvedArtifactOutputDir)
@@ -807,6 +856,7 @@ $resolvedOuterWorkspaceRoot = ""
 $workspaceSource = ""
 $resolvedBuildDir = ""
 $resolvedExecutablePath = ""
+$resolvedNeighborJUnitOutputPath = ""
 $verificationCommandLine = ""
 $neighborVerificationCommandLine = ""
 $resolvedArtifactOutputDir = ""
@@ -831,12 +881,16 @@ $finalExitCode = 1
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
-    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix)) {
-        throw "Neighbor surface filters and -FullNeighborMatrix require -RunNeighborSurfaceSuite."
+    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix -or -not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile) -or -not [string]::IsNullOrWhiteSpace($JUnitOutputPath))) {
+        throw "Neighbor surface filters, -NeighborSurfaceProfile, -JUnitOutputPath, and -FullNeighborMatrix require -RunNeighborSurfaceSuite."
     }
     if ($FullNeighborMatrix -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0)) {
         throw "-FullNeighborMatrix cannot be combined with -NeighborSurfaceGroup or -NeighborSurface."
     }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile) -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix)) {
+        throw "-NeighborSurfaceProfile cannot be combined with -NeighborSurfaceGroup, -NeighborSurface, or -FullNeighborMatrix."
+    }
+    $resolvedNeighborJUnitOutputPath = Resolve-JUnitOutputPath -ResolvedRepoRoot $resolvedRepoRoot -RequestedJUnitOutputPath $JUnitOutputPath
     if ($CollectArtifacts) {
         Assert-PathExists -LiteralPath $script:ArtifactCollectorPath -Description "artifact collector helper" -ActionHint "Verify that tools\\collect_resumed_denial_artifacts.ps1 exists in this checkout"
         $artifactLayout = Resolve-ArtifactLayout `
@@ -880,6 +934,9 @@ try {
     Write-Host ("Provenance mode: {0}" -f $ProvenanceMode)
     Write-Host ("Build dir: {0}" -f $resolvedBuildDir)
     Write-Host ("Game dir: {0}" -f $gameDirPath)
+    if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
+        Write-Host ("Neighbor-surface profile: {0}" -f $NeighborSurfaceProfile)
+    }
     if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
         Write-Host ("Neighbor-surface groups: {0}" -f ($normalizedNeighborSurfaceGroups -join ", "))
     }
@@ -888,6 +945,9 @@ try {
     }
     if ($FullNeighborMatrix) {
         Write-Host "Neighbor-surface full matrix: yes"
+    }
+    if (-not [string]::IsNullOrWhiteSpace($resolvedNeighborJUnitOutputPath)) {
+        Write-Host ("Neighbor-surface JUnit: {0}" -f $resolvedNeighborJUnitOutputPath)
     }
     if (-not [string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
         Write-Host ("Executable: {0}" -f $resolvedExecutablePath)
@@ -986,6 +1046,10 @@ try {
         $neighborArguments.Add("-UseExistingBinary")
         $neighborArguments.Add("-ProvenanceMode")
         $neighborArguments.Add($ProvenanceMode)
+        if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
+            $neighborArguments.Add("-Profile")
+            $neighborArguments.Add($NeighborSurfaceProfile)
+        }
         if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
             $neighborArguments.Add("-Group")
             foreach ($groupName in $normalizedNeighborSurfaceGroups) {
@@ -1000,6 +1064,10 @@ try {
         }
         if ($FullNeighborMatrix) {
             $neighborArguments.Add("-FullMatrix")
+        }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedNeighborJUnitOutputPath)) {
+            $neighborArguments.Add("-JUnitOutputPath")
+            $neighborArguments.Add($resolvedNeighborJUnitOutputPath)
         }
         if ($NoExecute) {
             $neighborArguments.Add("-NoExecute")
@@ -1126,6 +1194,7 @@ finally {
 
                 $neighborSurfaceItems = @()
                 $neighborGroupItems = @()
+                $neighborFailedSurfaceItems = @()
                 if ($null -ne $neighborArtifactSummary) {
                     $neighborSurfaceItems = @($neighborArtifactSummary.surfaces | ForEach-Object {
                             [ordered]@{
@@ -1144,10 +1213,25 @@ finally {
                                 notRunSurfaceCount = [int](Get-OptionalPropertyValue -Object $_ -Name "notRunSurfaceCount" -DefaultValue 0)
                             }
                         })
+                    $neighborFailedSurfaceItems = @($neighborArtifactSummary.failedSurfaces | ForEach-Object {
+                            [ordered]@{
+                                name = [string]$_.name
+                                groups = @((Get-OptionalPropertyValue -Object $_ -Name "groups" -DefaultValue @()))
+                                profile = [string](Get-OptionalPropertyValue -Object $_ -Name "profile" -DefaultValue "")
+                                conciseReason = [string](Get-OptionalPropertyValue -Object $_ -Name "conciseReason" -DefaultValue "")
+                                summaryPath = [string](Get-OptionalPropertyValue -Object $_ -Name "summaryPath" -DefaultValue "")
+                            }
+                        })
                 }
 
                 $neighborSelectionMode = if ($null -ne $neighborArtifactSummary) {
                     [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionMode" -DefaultValue "")
+                }
+                elseif ($NeighborSurfaceProfile -eq "full-expanded") {
+                    "full-matrix"
+                }
+                elseif ($NeighborSurfaceProfile -eq "checkpoint-extended") {
+                    "filtered"
                 }
                 elseif ($FullNeighborMatrix) {
                     "full-matrix"
@@ -1187,6 +1271,7 @@ finally {
                             artifactOutputDir = $neighborArtifactOutputDir
                             textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
                             jsonSummaryPath = if (Test-Path -LiteralPath $neighborArtifactJsonSummaryPath -PathType Leaf) { $neighborArtifactJsonSummaryPath } else { "" }
+                            junitOutputPath = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "junitOutputPath" -DefaultValue "") } else { $resolvedNeighborJUnitOutputPath }
                         }
                     )
                     resumedDenial = [ordered]@{
@@ -1200,14 +1285,19 @@ finally {
                     neighborSurfaces = [ordered]@{
                         overallResult = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
                         observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
-                        requestedFullMatrix = if ($null -ne $neighborArtifactSummary) { [bool](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedFullMatrix" -DefaultValue $false) } else { [bool]$FullNeighborMatrix }
+                        requestedFullMatrix = if ($null -ne $neighborArtifactSummary) { [bool](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedFullMatrix" -DefaultValue $false) } else { [bool]($FullNeighborMatrix -or $NeighborSurfaceProfile -eq "full-expanded") }
                         selectionMode = $neighborSelectionMode
-                        selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { @($normalizedNeighborSurfaceGroups) }
+                        selectionOrigin = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionOrigin" -DefaultValue "") } else { $(if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) { "profile" } elseif ($FullNeighborMatrix -or $normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0) { "explicit" } else { "default" }) }
+                        requestedProfile = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedProfile" -DefaultValue "") } else { $NeighborSurfaceProfile }
+                        resolvedProfile = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "resolvedProfile" -DefaultValue "") } else { $NeighborSurfaceProfile }
+                        selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { $(if ($NeighborSurfaceProfile -eq "checkpoint-extended") { @("checkpoint-extended") } else { @($normalizedNeighborSurfaceGroups) }) }
                         selectedSurfaceNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedSurfaceNames) } else { @() }
                         passingSurfaceCount = $neighborPassingSurfaceCount
                         failingSurfaceCount = $neighborFailingSurfaceCount
                         groups = $neighborGroupItems
                         surfaces = $neighborSurfaceItems
+                        failedSurfaces = $neighborFailedSurfaceItems
+                        junitOutputPath = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "junitOutputPath" -DefaultValue "") } else { $resolvedNeighborJUnitOutputPath }
                         textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
                         jsonSummaryPath = if (Test-Path -LiteralPath $neighborArtifactJsonSummaryPath -PathType Leaf) { $neighborArtifactJsonSummaryPath } else { "" }
                     }
@@ -1249,8 +1339,10 @@ finally {
         -CombinedJsonSummaryPath $combinedJsonSummaryPath `
         -ResumedDenialResult $resumedDenialResult `
         -NeighborSurfaceResult $neighborSurfaceResult `
+        -NeighborSurfaceProfile $NeighborSurfaceProfile `
         -NeighborSurfaceGroups $normalizedNeighborSurfaceGroups `
         -NeighborSurfaces $normalizedNeighborSurfaces `
+        -NeighborJUnitOutputPath $resolvedNeighborJUnitOutputPath `
         -FullNeighborMatrixRequested:$FullNeighborMatrix `
         -NeighborSurfaceSuiteEnabled:$RunNeighborSurfaceSuite
 }

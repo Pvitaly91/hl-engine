@@ -1,5 +1,25 @@
 @{
     SuiteName = 'signon-neighbor-surfaces'
+    Profiles = @{
+        default = @{
+            Description = 'Runs the enabled-by-default neighboring-surface matrix entries.'
+            Groups = @()
+            Surfaces = @()
+            FullMatrix = $false
+        }
+        'checkpoint-extended' = @{
+            Description = 'Runs the checkpoint-extended logical neighboring-surface group.'
+            Groups = @('checkpoint-extended')
+            Surfaces = @()
+            FullMatrix = $false
+        }
+        'full-expanded' = @{
+            Description = 'Runs every declarative neighboring-surface matrix entry.'
+            Groups = @()
+            Surfaces = @()
+            FullMatrix = $true
+        }
+    }
     Entries = @(
         @{
             Name = 'signon-message-cursor-carried-checkpoint-resume-token'
