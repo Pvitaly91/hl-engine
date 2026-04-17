@@ -10,6 +10,8 @@ param(
     [switch]$NoExecute,
     [switch]$UseExistingBinary,
     [switch]$RunNeighborSurfaceSuite,
+    [string[]]$NeighborSurfaceGroup,
+    [string[]]$NeighborSurface,
     [switch]$CollectArtifacts,
     [string]$ArtifactOutputDir
 )
@@ -336,6 +338,29 @@ function Get-OptionalPropertyValue {
     }
 
     return $property.Value
+}
+
+function Get-TrimmedUniqueValues {
+    param([string[]]$Values)
+
+    $seenValues = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+    $normalizedValues = New-Object System.Collections.Generic.List[string]
+    foreach ($value in @($Values)) {
+        if ($null -eq $value) {
+            continue
+        }
+
+        $trimmedValue = $value.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmedValue)) {
+            continue
+        }
+
+        if ($seenValues.Add($trimmedValue)) {
+            $normalizedValues.Add($trimmedValue)
+        }
+    }
+
+    return $normalizedValues.ToArray()
 }
 
 function Resolve-ArtifactOutputDir {
@@ -675,8 +700,17 @@ function Write-CombinedSuiteSummaryFiles {
     if ($SummaryObject.runNeighborSurfaceSuite) {
         $textLines.Add("")
         $textLines.Add("neighbor-surfaces:")
+        if (@($SummaryObject.neighborSurfaces.selectedGroupNames).Count -gt 0) {
+            $textLines.Add(("  selected groups: {0}" -f (@($SummaryObject.neighborSurfaces.selectedGroupNames) -join ", ")))
+        }
+        if (@($SummaryObject.neighborSurfaces.selectedSurfaceNames).Count -gt 0) {
+            $textLines.Add(("  selected surfaces: {0}" -f (@($SummaryObject.neighborSurfaces.selectedSurfaceNames) -join ", ")))
+        }
         $textLines.Add(("  passing surfaces: {0}" -f $SummaryObject.neighborSurfaces.passingSurfaceCount))
         $textLines.Add(("  failing surfaces: {0}" -f $SummaryObject.neighborSurfaces.failingSurfaceCount))
+        foreach ($groupResult in @($SummaryObject.neighborSurfaces.groups)) {
+            $textLines.Add(("  group {0}: {1}" -f $groupResult.name, $groupResult.overallStatus))
+        }
         foreach ($surface in @($SummaryObject.neighborSurfaces.surfaces)) {
             $textLines.Add(("  {0}: {1}" -f $surface.name, $surface.overallStatus))
         }
@@ -707,6 +741,8 @@ function Write-CiSummary {
         [string]$CombinedJsonSummaryPath,
         [string]$ResumedDenialResult,
         [string]$NeighborSurfaceResult,
+        [string[]]$NeighborSurfaceGroups,
+        [string[]]$NeighborSurfaces,
         [switch]$NeighborSurfaceSuiteEnabled
     )
 
@@ -726,6 +762,12 @@ function Write-CiSummary {
     }
     if (-not [string]::IsNullOrWhiteSpace($NeighborVerificationCommandLine)) {
         Write-Host ("neighbor-surface command: {0}" -f $NeighborVerificationCommandLine)
+    }
+    if (@($NeighborSurfaceGroups).Count -gt 0) {
+        Write-Host ("neighbor-surface groups: {0}" -f (@($NeighborSurfaceGroups) -join ", "))
+    }
+    if (@($NeighborSurfaces).Count -gt 0) {
+        Write-Host ("neighbor-surfaces: {0}" -f (@($NeighborSurfaces) -join ", "))
     }
     if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
         Write-Host ("artifact root dir: {0}" -f $ResolvedArtifactOutputDir)
@@ -775,6 +817,8 @@ $verificationOutputLogPath = ""
 $artifactMetadataPath = ""
 $verificationOutputMetadata = $null
 $artifactLayout = $null
+$normalizedNeighborSurfaceGroups = @(Get-TrimmedUniqueValues -Values $NeighborSurfaceGroup)
+$normalizedNeighborSurfaces = @(Get-TrimmedUniqueValues -Values $NeighborSurface)
 $resumedDenialResult = "UNKNOWN"
 $neighborSurfaceResult = if ($RunNeighborSurfaceSuite) { "NOT_RUN" } else { "NOT_REQUESTED" }
 $resultLabel = "FAIL"
@@ -782,6 +826,9 @@ $finalExitCode = 1
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
+    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0)) {
+        throw "Neighbor surface filters require -RunNeighborSurfaceSuite."
+    }
     if ($CollectArtifacts) {
         Assert-PathExists -LiteralPath $script:ArtifactCollectorPath -Description "artifact collector helper" -ActionHint "Verify that tools\\collect_resumed_denial_artifacts.ps1 exists in this checkout"
         $artifactLayout = Resolve-ArtifactLayout `
@@ -825,6 +872,12 @@ try {
     Write-Host ("Provenance mode: {0}" -f $ProvenanceMode)
     Write-Host ("Build dir: {0}" -f $resolvedBuildDir)
     Write-Host ("Game dir: {0}" -f $gameDirPath)
+    if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
+        Write-Host ("Neighbor-surface groups: {0}" -f ($normalizedNeighborSurfaceGroups -join ", "))
+    }
+    if ($normalizedNeighborSurfaces.Count -gt 0) {
+        Write-Host ("Neighbor-surfaces: {0}" -f ($normalizedNeighborSurfaces -join ", "))
+    }
     if (-not [string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
         Write-Host ("Executable: {0}" -f $resolvedExecutablePath)
     }
@@ -922,6 +975,18 @@ try {
         $neighborArguments.Add("-UseExistingBinary")
         $neighborArguments.Add("-ProvenanceMode")
         $neighborArguments.Add($ProvenanceMode)
+        if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
+            $neighborArguments.Add("-Group")
+            foreach ($groupName in $normalizedNeighborSurfaceGroups) {
+                $neighborArguments.Add($groupName)
+            }
+        }
+        if ($normalizedNeighborSurfaces.Count -gt 0) {
+            $neighborArguments.Add("-Surface")
+            foreach ($surfaceName in $normalizedNeighborSurfaces) {
+                $neighborArguments.Add($surfaceName)
+            }
+        }
         if ($NoExecute) {
             $neighborArguments.Add("-NoExecute")
         }
@@ -1046,11 +1111,23 @@ finally {
                 }
 
                 $neighborSurfaceItems = @()
+                $neighborGroupItems = @()
                 if ($null -ne $neighborArtifactSummary) {
                     $neighborSurfaceItems = @($neighborArtifactSummary.surfaces | ForEach-Object {
                             [ordered]@{
                                 name = [string]$_.name
+                                groups = @((Get-OptionalPropertyValue -Object $_ -Name "groups" -DefaultValue @()))
                                 overallStatus = [string]$_.overallStatus
+                            }
+                        })
+                    $neighborGroupItems = @($neighborArtifactSummary.groups | ForEach-Object {
+                            [ordered]@{
+                                name = [string]$_.name
+                                overallStatus = [string]$_.overallStatus
+                                surfaceNames = @((Get-OptionalPropertyValue -Object $_ -Name "surfaceNames" -DefaultValue @()))
+                                passingSurfaceCount = [int](Get-OptionalPropertyValue -Object $_ -Name "passingSurfaceCount" -DefaultValue 0)
+                                failingSurfaceCount = [int](Get-OptionalPropertyValue -Object $_ -Name "failingSurfaceCount" -DefaultValue 0)
+                                notRunSurfaceCount = [int](Get-OptionalPropertyValue -Object $_ -Name "notRunSurfaceCount" -DefaultValue 0)
                             }
                         })
                 }
@@ -1094,9 +1171,11 @@ finally {
                     neighborSurfaces = [ordered]@{
                         overallResult = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
                         observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
+                        selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { @($normalizedNeighborSurfaceGroups) }
                         selectedSurfaceNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedSurfaceNames) } else { @() }
                         passingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "PASS" }).Count
                         failingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+                        groups = $neighborGroupItems
                         surfaces = $neighborSurfaceItems
                         textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
                         jsonSummaryPath = if (Test-Path -LiteralPath $neighborArtifactJsonSummaryPath -PathType Leaf) { $neighborArtifactJsonSummaryPath } else { "" }
@@ -1139,6 +1218,8 @@ finally {
         -CombinedJsonSummaryPath $combinedJsonSummaryPath `
         -ResumedDenialResult $resumedDenialResult `
         -NeighborSurfaceResult $neighborSurfaceResult `
+        -NeighborSurfaceGroups $normalizedNeighborSurfaceGroups `
+        -NeighborSurfaces $normalizedNeighborSurfaces `
         -NeighborSurfaceSuiteEnabled:$RunNeighborSurfaceSuite
 }
 

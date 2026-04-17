@@ -49,6 +49,14 @@ on:
         required: false
         default: false
         type: boolean
+      neighbor_surface_group:
+        description: Optional comma- or newline-separated neighboring-surface groups to run when run_neighbor_surface_suite is enabled.
+        required: false
+        type: string
+      neighbor_surface:
+        description: Optional comma- or newline-separated neighboring surfaces to run when run_neighbor_surface_suite is enabled.
+        required: false
+        type: string
 
 permissions:
   contents: read
@@ -138,6 +146,20 @@ jobs:
             $arguments += '-RunNeighborSurfaceSuite'
           }
 
+          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '')) {
+            throw 'neighbor_surface_group and neighbor_surface require run_neighbor_surface_suite=true.'
+          }
+
+          $neighborGroupValues = @('${{ inputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          if ($neighborGroupValues.Count -gt 0) {
+            $arguments += @('-NeighborSurfaceGroup') + $neighborGroupValues
+          }
+
+          $neighborSurfaceValues = @('${{ inputs.neighbor_surface }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          if ($neighborSurfaceValues.Count -gt 0) {
+            $arguments += @('-NeighborSurface') + $neighborSurfaceValues
+          }
+
           $quotedArguments = $arguments | ForEach-Object {
             if ($_ -match '[\s"]') {
               '"' + ($_ -replace '"', '\"') + '"'
@@ -202,8 +224,19 @@ jobs:
               if ($summary.runNeighborSurfaceSuite) {
                 $summaryLines.Add('')
                 $summaryLines.Add(("Neighbor-surface suite: `{0}`" -f $summary.neighborSurfaces.overallResult))
+                if ($summary.neighborSurfaces.selectedGroupNames) {
+                  $summaryLines.Add(("Selected groups: `{0}`" -f (($summary.neighborSurfaces.selectedGroupNames | Where-Object { $_ -ne '' }) -join ', ')))
+                }
                 $summaryLines.Add(("Passing surfaces: `{0}`" -f $summary.neighborSurfaces.passingSurfaceCount))
                 $summaryLines.Add(("Failing surfaces: `{0}`" -f $summary.neighborSurfaces.failingSurfaceCount))
+                if ($summary.neighborSurfaces.groups) {
+                  $summaryLines.Add('')
+                  $summaryLines.Add('| Neighbor group | Result | Surfaces |')
+                  $summaryLines.Add('| --- | --- | --- |')
+                  foreach ($group in $summary.neighborSurfaces.groups) {
+                    $summaryLines.Add(("| {0} | {1} | {2} |" -f $group.name, $group.overallStatus, (($group.surfaceNames | Where-Object { $_ -ne '' }) -join ', ')))
+                  }
+                }
               }
             }
             else {
