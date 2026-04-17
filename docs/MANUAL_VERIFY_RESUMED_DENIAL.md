@@ -123,6 +123,8 @@ The CI wrapper accepts these parameters:
 - `-UseExistingBinary` also skips the build and reuses the configured build output path.
 - `-SkipRecovery` runs only happy and gate.
 - `-NoExecute` prints the delegated build and verification commands, performs binary preflight, and does not launch the runtime scenarios.
+- `-CollectArtifacts` enables post-run artifact bundling and summary generation.
+- `-ArtifactOutputDir <path>` overrides the artifact bundle output directory. Relative paths resolve from the resolved repo root. If omitted with `-CollectArtifacts`, the wrapper uses `artifacts\resumed-denial`.
 
 The CI wrapper refuses ambiguous layouts. The resolved outer workspace must contain `CMakeLists.txt`, and `<outer-workspace>\host` must resolve back to the requested `-RepoRoot`. That prevents automation from building one checkout while verifying another.
 
@@ -136,6 +138,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -R
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -UseExistingBinary -ProvenanceMode auto
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir build-main-win32-hlhost-regression
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -ExePath build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary -ProvenanceMode workspace
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -CollectArtifacts -ArtifactOutputDir .\artifacts\resumed-denial
 ```
 
 Required prerequisites for self-hosted execution:
@@ -153,8 +156,48 @@ What the CI wrapper does:
 - fails early with actionable diagnostics if the outer workspace layout, fixture inputs, or requested binary path is missing
 - prints the requested provenance mode alongside the resolved repo/workspace/build inputs
 - prints the exact `powershell ... verify_resumed_denial_main.ps1 ...` command that it delegates to
+- when `-CollectArtifacts` is enabled, captures the delegated runner output, writes wrapper metadata, and calls `tools/collect_resumed_denial_artifacts.ps1`
 - propagates the delegated runner exit code for CI
-- emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL`
+- emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL` plus the collected artifact summary paths when available
+
+## Artifact Collection
+
+Use `tools/collect_resumed_denial_artifacts.ps1` when you want to turn the newest resumed-denial logs into a stable artifact bundle and a compact txt/json summary.
+
+The collector accepts these parameters:
+
+- `-RepoRoot <path>` points at the host repo whose `logs\latest` tree should be searched.
+- `-LogsRoot <path>` optionally points at the logs root to search. It can be either `logs` or `logs\latest`; if omitted, the collector uses `<RepoRoot>\logs\latest`.
+- `-OutputDir <path>` selects the bundle output directory.
+- `-RunLabelPattern <pattern>` narrows the selected run label set. The default is `verify-resumed-denial-main-*`.
+- `-IncludeCodexArtifacts` copies matching `logs\latest\codex\*_manifest.json` files into the bundle when they exist.
+- `-AllowMissingCodexArtifacts` keeps the collector from failing when the codex-side manifests are unavailable.
+
+Typical usage:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\tools\collect_resumed_denial_artifacts.ps1 -RepoRoot . -OutputDir .\artifacts\resumed-denial -AllowMissingCodexArtifacts
+powershell -ExecutionPolicy Bypass -File .\tools\collect_resumed_denial_artifacts.ps1 -RepoRoot . -OutputDir .\artifacts\resumed-denial -RunLabelPattern verify-resumed-denial-main-* -IncludeCodexArtifacts -AllowMissingCodexArtifacts
+```
+
+What the collector writes:
+
+- `resumed_denial_summary.txt`
+- `resumed_denial_summary.json`
+- `metadata\verification_metadata.json` when the CI wrapper invoked the collector
+- `metadata\verify_resumed_denial_ci_output.log` when the CI wrapper invoked the collector
+- `runtime\happy\summary.log`, `runtime\gate\summary.log`, and `runtime\recovery\summary.log` when those runs produced logs
+- matching `runtime\<scenario>\*_part*.log` files
+- matching `codex\<scenario>\manifest.json` files when requested and available
+
+The txt/json summaries record:
+
+- happy, gate, and recovery result states
+- requested and observed provenance mode when known
+- repo root, build dir, executable path, and selected run label pattern
+- source and copied summary-log paths
+- whether codex-side artifacts were found
+- overall `PASS`, `FAIL`, or `NOEXECUTE`
 
 ## PASS / FAIL Semantics
 
@@ -190,4 +233,5 @@ Workflow notes:
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` and then runs `tools\verify_resumed_denial_ci.ps1`
 - it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, and `no_execute`
+- it always enables `-CollectArtifacts` for the workflow run, uploads the resulting bundle with `actions/upload-artifact`, and writes a concise scenario/provenance table to `GITHUB_STEP_SUMMARY`
 - it does not auto-trigger on every push because the surrounding hl-engine workspace remains runner-specific and missing prerequisites should fail clearly instead of pretending the regression is universally runnable
