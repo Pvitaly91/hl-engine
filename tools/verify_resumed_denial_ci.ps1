@@ -1,6 +1,8 @@
 param(
     [string]$RepoRoot,
     [string]$OuterWorkspaceRoot,
+    [ValidateSet("auto", "runtime", "workspace")]
+    [string]$ProvenanceMode = "auto",
     [string]$BuildDir,
     [string]$ExePath,
     [switch]$NoBuild,
@@ -294,6 +296,7 @@ function Write-CiSummary {
     param(
         [string]$Result,
         [int]$ExitCode,
+        [string]$ProvenanceMode,
         [string]$ResolvedRepoRoot,
         [string]$ResolvedWorkspaceRoot,
         [string]$WorkspaceSource,
@@ -305,6 +308,7 @@ function Write-CiSummary {
     Write-Heading "CI Summary"
     Write-Host ("result: {0}" -f $Result)
     Write-Host ("exit code: {0}" -f $ExitCode)
+    Write-Host ("provenance mode: {0}" -f $ProvenanceMode)
     Write-Host ("repo root: {0}" -f $ResolvedRepoRoot)
     Write-Host ("outer workspace root: {0}" -f $ResolvedWorkspaceRoot)
     Write-Host ("outer workspace source: {0}" -f $WorkspaceSource)
@@ -351,6 +355,7 @@ try {
     Write-Host ("Repo root: {0}" -f $resolvedRepoRoot)
     Write-Host ("Outer workspace root: {0}" -f $resolvedOuterWorkspaceRoot)
     Write-Host ("Outer workspace source: {0}" -f $workspaceSource)
+    Write-Host ("Provenance mode: {0}" -f $ProvenanceMode)
     Write-Host ("Build dir: {0}" -f $resolvedBuildDir)
     Write-Host ("Game dir: {0}" -f $gameDirPath)
     if (-not [string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
@@ -372,6 +377,8 @@ try {
     $verificationArguments.Add($resolvedRepoRoot)
     $verificationArguments.Add("-OuterWorkspaceRoot")
     $verificationArguments.Add($resolvedOuterWorkspaceRoot)
+    $verificationArguments.Add("-ProvenanceMode")
+    $verificationArguments.Add($ProvenanceMode)
     $verificationArguments.Add("-BuildDir")
     $verificationArguments.Add($resolvedBuildDir)
     if (-not [string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
@@ -419,6 +426,7 @@ finally {
     Write-CiSummary `
         -Result $resultLabel `
         -ExitCode $finalExitCode `
+        -ProvenanceMode $ProvenanceMode `
         -ResolvedRepoRoot $resolvedRepoRoot `
         -ResolvedWorkspaceRoot $resolvedOuterWorkspaceRoot `
         -WorkspaceSource $workspaceSource `

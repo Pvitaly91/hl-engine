@@ -1,6 +1,8 @@
 param(
     [string]$RepoRoot,
     [string]$OuterWorkspaceRoot,
+    [ValidateSet("auto", "runtime", "workspace")]
+    [string]$ProvenanceMode = "auto",
     [switch]$NoBuild,
     [switch]$SkipRecovery,
     [switch]$NoExecute,
@@ -186,7 +188,14 @@ $script:ResolvedExecutablePath = ""
 $script:ResolvedGameDir = ""
 $script:ResolvedRuntimeLogDir = ""
 $script:ResolvedBuildDir = ""
+$script:ResolvedRepoRoot = ""
+$script:ResolvedWorkspaceRoot = ""
+$script:ResolvedExpectedExecutablePath = ""
 $script:ExpectedGitCommit = ""
+$script:ExpectedGitBranch = ""
+$script:ExecutableProvenanceSource = ""
+$script:BuildWasPerformed = $false
+$script:ProvenanceModeRequest = $ProvenanceMode
 
 function Write-Heading {
     param([string]$Text)
@@ -567,6 +576,161 @@ function Assert-LineContainsAll {
     }
 }
 
+function Get-CodexRunIdentityFieldValue {
+    param(
+        [string]$IdentityLine,
+        [string]$FieldName
+    )
+
+    $match = [regex]::Match($IdentityLine, ('\b{0}=([^,]+)' -f [regex]::Escape($FieldName)))
+    if (-not $match.Success) {
+        return "<missing>"
+    }
+
+    return $match.Groups[1].Value.Trim()
+}
+
+function Get-WorkspaceProvenanceState {
+    $reasons = New-Object System.Collections.Generic.List[string]
+    $pathMatchesExpected = $false
+
+    if ([string]::IsNullOrWhiteSpace($script:ResolvedRepoRoot)) {
+        $reasons.Add("repo root is unresolved")
+    }
+
+    if ([string]::IsNullOrWhiteSpace($script:ResolvedBuildDir)) {
+        $reasons.Add("build dir is unresolved")
+    }
+
+    if ([string]::IsNullOrWhiteSpace($script:ResolvedExecutablePath)) {
+        $reasons.Add("executable path is unresolved")
+    }
+
+    if ([string]::IsNullOrWhiteSpace($script:ResolvedExpectedExecutablePath)) {
+        $reasons.Add("expected build output path is unresolved")
+    }
+    elseif (-not [string]::IsNullOrWhiteSpace($script:ResolvedExecutablePath)) {
+        $pathMatchesExpected = $script:ResolvedExecutablePath.Equals($script:ResolvedExpectedExecutablePath, [System.StringComparison]::OrdinalIgnoreCase)
+        if (-not $pathMatchesExpected) {
+            $reasons.Add(("executable path {0} does not match expected build output {1}" -f $script:ResolvedExecutablePath, $script:ResolvedExpectedExecutablePath))
+        }
+    }
+
+    if ([string]::IsNullOrWhiteSpace($script:ExpectedGitCommit)) {
+        $reasons.Add("current HEAD commit is unresolved")
+    }
+
+    $detail = ("repoRoot={0}; workspaceRoot={1}; head={2}; branch={3}; buildDir={4}; executable={5}; expectedBuildOutput={6}; executableSource={7}" -f
+        $script:ResolvedRepoRoot,
+        $script:ResolvedWorkspaceRoot,
+        $(if ([string]::IsNullOrWhiteSpace($script:ExpectedGitCommit)) { "<unknown>" } else { $script:ExpectedGitCommit }),
+        $(if ([string]::IsNullOrWhiteSpace($script:ExpectedGitBranch)) { "<detached>" } else { $script:ExpectedGitBranch }),
+        $script:ResolvedBuildDir,
+        $script:ResolvedExecutablePath,
+        $script:ResolvedExpectedExecutablePath,
+        $(if ([string]::IsNullOrWhiteSpace($script:ExecutableProvenanceSource)) { "<unknown>" } else { $script:ExecutableProvenanceSource }))
+
+    return [pscustomobject]@{
+        Eligible = ($reasons.Count -eq 0)
+        Detail = $detail
+        FailureReason = ($reasons -join "; ")
+        PathMatchesExpected = $pathMatchesExpected
+        ExecutableSource = $script:ExecutableProvenanceSource
+    }
+}
+
+function Resolve-CodexRunProvenance {
+    param(
+        [string]$RunName,
+        [string[]]$SummaryLines,
+        [string]$RunLabel
+    )
+
+    $identityLine = Get-FirstMatchingLine -Lines $SummaryLines -Needle "codex_run_identity:" -Description ("{0} codex_run_identity" -f $RunName)
+    Assert-LineContainsAll -Line $identityLine -Description ("{0} codex_run_identity" -f $RunName) -ExpectedTokens @(
+        ("runLabel={0}" -f $RunLabel),
+        ("promptId={0}" -f $script:PromptId),
+        "stopOnChangelevelRequest=0",
+        "frames=1000",
+        "frametime=0.050000"
+    )
+
+    $runtimeGitBranch = Get-CodexRunIdentityFieldValue -IdentityLine $identityLine -FieldName "gitBranch"
+    $runtimeGitCommit = Get-CodexRunIdentityFieldValue -IdentityLine $identityLine -FieldName "gitCommit"
+    $runtimeIdentityText = ("gitBranch={0}, gitCommit={1}" -f $runtimeGitBranch, $runtimeGitCommit)
+    $runtimeCommitMatches = (
+        -not [string]::IsNullOrWhiteSpace($script:ExpectedGitCommit) -and
+        $runtimeGitCommit.Equals($script:ExpectedGitCommit, [System.StringComparison]::OrdinalIgnoreCase)
+    )
+    $runtimeCommitUnknown = ($runtimeGitCommit -eq "<unknown>")
+    $workspaceState = Get-WorkspaceProvenanceState
+
+    switch ($script:ProvenanceModeRequest) {
+        "runtime" {
+            if (-not $runtimeCommitMatches) {
+                throw ("{0} runtime provenance required: expected gitCommit {1}, but codex_run_identity reported {2}." -f $RunName, $script:ExpectedGitCommit, $runtimeIdentityText)
+            }
+
+            return [pscustomobject]@{
+                Mode = "runtime"
+                Detail = ("runtime codex_run_identity matched expected HEAD {0}; {1}" -f $script:ExpectedGitCommit, $runtimeIdentityText)
+            }
+        }
+
+        "workspace" {
+            if ($runtimeGitCommit -eq "<missing>") {
+                throw ("{0} workspace provenance requested, but codex_run_identity is missing gitCommit. Runtime identity must at least report the field before workspace provenance can take over." -f $RunName)
+            }
+
+            if ($runtimeCommitMatches) {
+                return [pscustomobject]@{
+                    Mode = "workspace"
+                    Detail = ("workspace provenance selected; runtime codex_run_identity corroborated expected HEAD {0}; {1}; {2}" -f $script:ExpectedGitCommit, $runtimeIdentityText, $workspaceState.Detail)
+                }
+            }
+
+            if (-not $runtimeCommitUnknown) {
+                throw ("{0} workspace provenance rejected because runtime codex_run_identity reported a conflicting commit. Expected gitCommit {1}; runtime reported {2}." -f $RunName, $script:ExpectedGitCommit, $runtimeIdentityText)
+            }
+
+            if (-not $workspaceState.Eligible) {
+                throw ("{0} workspace provenance fallback is unavailable: {1}." -f $RunName, $workspaceState.FailureReason)
+            }
+
+            return [pscustomobject]@{
+                Mode = "workspace"
+                Detail = ("workspace provenance fallback accepted because runtime codex_run_identity reported {0}; {1}" -f $runtimeIdentityText, $workspaceState.Detail)
+            }
+        }
+
+        default {
+            if ($runtimeCommitMatches) {
+                return [pscustomobject]@{
+                    Mode = "runtime"
+                    Detail = ("runtime codex_run_identity matched expected HEAD {0}; {1}" -f $script:ExpectedGitCommit, $runtimeIdentityText)
+                }
+            }
+
+            if ($runtimeGitCommit -eq "<missing>") {
+                throw ("{0} codex_run_identity is missing gitCommit, so auto provenance cannot validate the binary. Expected gitCommit {1}." -f $RunName, $script:ExpectedGitCommit)
+            }
+
+            if (-not $runtimeCommitUnknown) {
+                throw ("{0} runtime provenance mismatch: expected gitCommit {1}, but codex_run_identity reported {2}." -f $RunName, $script:ExpectedGitCommit, $runtimeIdentityText)
+            }
+
+            if (-not $workspaceState.Eligible) {
+                throw ("{0} runtime codex_run_identity reported {1}, and workspace provenance fallback is unavailable: {2}." -f $RunName, $runtimeIdentityText, $workspaceState.FailureReason)
+            }
+
+            return [pscustomobject]@{
+                Mode = "workspace"
+                Detail = ("workspace provenance fallback accepted because runtime codex_run_identity reported {0}; {1}" -f $runtimeIdentityText, $workspaceState.Detail)
+            }
+        }
+    }
+}
+
 function Get-BoundPortFromSummaryLine {
     param(
         [string]$Line,
@@ -802,6 +966,8 @@ function Invoke-HlhostRun {
             SummaryPath = ""
             Status = "SKIPPED"
             BenignWarnings = @()
+            ProvenanceMode = ""
+            ProvenanceDetail = ""
         }
     }
 
@@ -820,7 +986,7 @@ function Invoke-HlhostRun {
 
     Assert-NoHardFailures -RunName $RunName -RuntimeLines ($summaryLines + $runtimeLines)
     Assert-StartupConfigMatchesRecipe -RunName $RunName -RuntimeLines $runtimeLines -ScenarioModes $ScenarioModes
-    Assert-CodexRunIdentity -RunName $RunName -SummaryLines $summaryLines -RunLabel $RunLabel
+    $provenanceResult = Resolve-CodexRunProvenance -RunName $RunName -SummaryLines $summaryLines -RunLabel $RunLabel
 
     $lifecycleLine = Get-FirstMatchingLine -Lines $summaryLines -Needle "dedicated_player_lifecycle_foundation:" -Description ("{0} lifecycle summary" -f $RunName)
     Assert-LineContainsAll -Line $lifecycleLine -Description ("{0} lifecycle summary" -f $RunName) -ExpectedTokens $script:LifecycleMarkers
@@ -846,6 +1012,8 @@ function Invoke-HlhostRun {
         SummaryPath = $generatedFiles.SummaryFile.FullName
         Status = "PASS"
         BenignWarnings = $benignWarnings
+        ProvenanceMode = $provenanceResult.Mode
+        ProvenanceDetail = $provenanceResult.Detail
     }
 }
 
@@ -948,10 +1116,14 @@ try {
         $workspaceResolution = Resolve-WorkspaceRoot -ResolvedRepoRoot $resolvedRepoRoot -RequestedWorkspaceRoot $OuterWorkspaceRoot
         $workspaceRoot = $workspaceResolution.Root
         $resolvedBuildDir = Resolve-BuildDirPath -WorkspaceRoot $workspaceRoot -RequestedBuildDir $BuildDir
+        $script:ResolvedRepoRoot = $resolvedRepoRoot
+        $script:ResolvedWorkspaceRoot = $workspaceRoot
         $script:ResolvedGameDir = Resolve-GameDirPath -ResolvedRepoRoot $resolvedRepoRoot
         $script:ResolvedRuntimeLogDir = Resolve-RuntimeLogDirPath -ResolvedRepoRoot $resolvedRepoRoot
         $script:ResolvedBuildDir = $resolvedBuildDir
+        $script:ResolvedExpectedExecutablePath = Get-ExpectedExecutablePath -ResolvedBuildDir $resolvedBuildDir
         $script:ExpectedGitCommit = $checkoutState.HeadCommit
+        $script:ExpectedGitBranch = if ($checkoutState.IsDetached) { "" } else { $checkoutState.BranchName }
 
         Write-Heading "Repository"
         Write-Host ("Repo root: {0}" -f $resolvedRepoRoot)
@@ -965,26 +1137,50 @@ try {
 
         Write-Heading "Inputs"
         Write-Host ("Prompt ID: {0}" -f $script:PromptId)
+        Write-Host ("Requested provenance mode: {0}" -f $script:ProvenanceModeRequest)
         Write-Host ("Game dir: {0}" -f $script:ResolvedGameDir)
         Write-Host ("Runtime log dir: {0}" -f $script:ResolvedRuntimeLogDir)
         Write-Host ("Build dir: {0}" -f $resolvedBuildDir)
+        Write-Host ("Expected build output: {0}" -f $script:ResolvedExpectedExecutablePath)
 
         if (-not [string]::IsNullOrWhiteSpace($ExePath)) {
             Write-Heading "Binary"
             Write-Host "Using explicit -ExePath override."
             $script:ResolvedExecutablePath = Resolve-ExecutablePath -ResolvedRepoRoot $resolvedRepoRoot -ResolvedBuildDir $resolvedBuildDir -RequestedExecutablePath $ExePath
+            if ($script:ResolvedExecutablePath.Equals($script:ResolvedExpectedExecutablePath, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $script:ExecutableProvenanceSource = "explicit-expected-build-output"
+            }
+            else {
+                $script:ExecutableProvenanceSource = "explicit-nonstandard-path"
+            }
         }
         elseif ($NoBuild -or $UseExistingBinary) {
             Write-Heading "Binary"
             Write-Host "Using the existing binary in the configured build directory."
             $script:ResolvedExecutablePath = Resolve-ExecutablePath -ResolvedRepoRoot $resolvedRepoRoot -ResolvedBuildDir $resolvedBuildDir -RequestedExecutablePath ""
+            $script:ExecutableProvenanceSource = "configured-build-output"
         }
         else {
             Build-HlhostIfNeeded -WorkspaceRoot $workspaceRoot -ResolvedBuildDir $resolvedBuildDir
             $script:ResolvedExecutablePath = Resolve-ExecutablePath -ResolvedRepoRoot $resolvedRepoRoot -ResolvedBuildDir $resolvedBuildDir -RequestedExecutablePath ""
+            $script:BuildWasPerformed = $true
+            $script:ExecutableProvenanceSource = "runner-built"
         }
 
         Write-Host ("Executable: {0}" -f $script:ResolvedExecutablePath)
+        $workspaceProvenanceState = Get-WorkspaceProvenanceState
+        Write-Heading "Provenance"
+        Write-Host ("Requested mode: {0}" -f $script:ProvenanceModeRequest)
+        Write-Host ("Expected HEAD: {0}" -f $script:ExpectedGitCommit)
+        Write-Host ("Expected branch: {0}" -f $(if ([string]::IsNullOrWhiteSpace($script:ExpectedGitBranch)) { "<detached>" } else { $script:ExpectedGitBranch }))
+        Write-Host ("Executable provenance source: {0}" -f $script:ExecutableProvenanceSource)
+        Write-Host ("Workspace fallback eligible: {0}" -f $(if ($workspaceProvenanceState.Eligible) { "yes" } else { "no" }))
+        if ($workspaceProvenanceState.Eligible) {
+            Write-Host ("  detail: {0}" -f $workspaceProvenanceState.Detail)
+        }
+        else {
+            Write-Host ("  reason: {0}" -f $workspaceProvenanceState.FailureReason)
+        }
         Write-Heading "Executable Preflight"
         Assert-ExecutableSupportsRecipe
         Write-Host "Dedicated/probe runtime options: present"
@@ -1004,6 +1200,10 @@ try {
         if ($happyResult.SummaryPath) {
             Write-Host ("  summary log: {0}" -f $happyResult.SummaryPath)
         }
+        if (-not [string]::IsNullOrWhiteSpace($happyResult.ProvenanceMode)) {
+            Write-Host ("  provenance: {0}" -f $happyResult.ProvenanceMode)
+            Write-Host ("  provenance detail: {0}" -f $happyResult.ProvenanceDetail)
+        }
         if ($happyResult.BenignWarnings.Count -gt 0) {
             Write-Host ("  benign warnings: {0}" -f ($happyResult.BenignWarnings -join ", "))
         }
@@ -1014,6 +1214,10 @@ try {
         Write-Host ("gate: {0}" -f $gateResult.Status)
         if ($gateResult.SummaryPath) {
             Write-Host ("  summary log: {0}" -f $gateResult.SummaryPath)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($gateResult.ProvenanceMode)) {
+            Write-Host ("  provenance: {0}" -f $gateResult.ProvenanceMode)
+            Write-Host ("  provenance detail: {0}" -f $gateResult.ProvenanceDetail)
         }
         if ($gateResult.BenignWarnings.Count -gt 0) {
             Write-Host ("  benign warnings: {0}" -f ($gateResult.BenignWarnings -join ", "))
@@ -1026,6 +1230,10 @@ try {
             Write-Host ("recovery: {0}" -f $recoveryResult.Status)
             if ($recoveryResult.SummaryPath) {
                 Write-Host ("  summary log: {0}" -f $recoveryResult.SummaryPath)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($recoveryResult.ProvenanceMode)) {
+                Write-Host ("  provenance: {0}" -f $recoveryResult.ProvenanceMode)
+                Write-Host ("  provenance detail: {0}" -f $recoveryResult.ProvenanceDetail)
             }
             if ($recoveryResult.BenignWarnings.Count -gt 0) {
                 Write-Host ("  benign warnings: {0}" -f ($recoveryResult.BenignWarnings -join ", "))
