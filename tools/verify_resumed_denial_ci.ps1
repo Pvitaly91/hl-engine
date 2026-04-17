@@ -9,6 +9,7 @@ param(
     [switch]$SkipRecovery,
     [switch]$NoExecute,
     [switch]$UseExistingBinary,
+    [switch]$RunNeighborSurfaceSuite,
     [switch]$CollectArtifacts,
     [string]$ArtifactOutputDir
 )
@@ -22,6 +23,7 @@ if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
 $script:PromptId = "HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface"
 $script:DefaultBuildDirName = "build-main-win32-hlhost-regression"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
+$script:NeighborSuiteRunnerPath = Join-Path $PSScriptRoot "verify_signon_neighbor_surfaces_main.ps1"
 $script:ArtifactCollectorPath = Join-Path $PSScriptRoot "collect_resumed_denial_artifacts.ps1"
 
 function Write-Heading {
@@ -339,14 +341,49 @@ function Get-OptionalPropertyValue {
 function Resolve-ArtifactOutputDir {
     param(
         [string]$ResolvedRepoRoot,
-        [string]$RequestedArtifactOutputDir
+        [string]$RequestedArtifactOutputDir,
+        [switch]$IncludeNeighborSurfaceSuite
     )
 
     if ([string]::IsNullOrWhiteSpace($RequestedArtifactOutputDir)) {
-        return [System.IO.Path]::GetFullPath((Join-Path $ResolvedRepoRoot "artifacts\resumed-denial"))
+        $defaultDirectoryName = if ($IncludeNeighborSurfaceSuite) { "signon-regressions" } else { "resumed-denial" }
+        return [System.IO.Path]::GetFullPath((Join-Path $ResolvedRepoRoot ("artifacts\{0}" -f $defaultDirectoryName)))
     }
 
     return Resolve-FullPath -PathValue $RequestedArtifactOutputDir -BasePath $ResolvedRepoRoot
+}
+
+function Resolve-ArtifactLayout {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedArtifactOutputDir,
+        [switch]$IncludeNeighborSurfaceSuite
+    )
+
+    $rootOutputDir = Resolve-ArtifactOutputDir `
+        -ResolvedRepoRoot $ResolvedRepoRoot `
+        -RequestedArtifactOutputDir $RequestedArtifactOutputDir `
+        -IncludeNeighborSurfaceSuite:$IncludeNeighborSurfaceSuite
+
+    $resumedOutputDir = $rootOutputDir
+    $neighborOutputDir = ""
+    $combinedTextSummaryPath = ""
+    $combinedJsonSummaryPath = ""
+
+    if ($IncludeNeighborSurfaceSuite) {
+        $resumedOutputDir = Join-Path $rootOutputDir "resumed-denial"
+        $neighborOutputDir = Join-Path $rootOutputDir "neighbor-surfaces"
+        $combinedTextSummaryPath = Join-Path $rootOutputDir "verification_suite_summary.txt"
+        $combinedJsonSummaryPath = Join-Path $rootOutputDir "verification_suite_summary.json"
+    }
+
+    return [pscustomobject]@{
+        RootOutputDir = $rootOutputDir
+        ResumedDenialOutputDir = $resumedOutputDir
+        NeighborSurfaceOutputDir = $neighborOutputDir
+        CombinedTextSummaryPath = $combinedTextSummaryPath
+        CombinedJsonSummaryPath = $combinedJsonSummaryPath
+    }
 }
 
 function Get-RunLabelInfo {
@@ -494,6 +531,161 @@ function Write-ArtifactMetadataFile {
     $metadataObject | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $MetadataPath -Encoding UTF8
 }
 
+function Read-JsonFileIfExists {
+    param([string]$JsonPath)
+
+    if ([string]::IsNullOrWhiteSpace($JsonPath) -or -not (Test-Path -LiteralPath $JsonPath -PathType Leaf)) {
+        return $null
+    }
+
+    return (Get-Content -LiteralPath $JsonPath -Raw | ConvertFrom-Json)
+}
+
+function Get-ObservedProvenanceMode {
+    param(
+        [object]$ScenarioProvenance,
+        [string[]]$ScenarioNames = @("happy", "gate", "recovery")
+    )
+
+    $values = New-Object System.Collections.Generic.List[string]
+    foreach ($scenarioName in $ScenarioNames) {
+        $value = [string](Get-OptionalPropertyValue -Object $ScenarioProvenance -Name $scenarioName -DefaultValue "")
+        if (-not [string]::IsNullOrWhiteSpace($value)) {
+            $values.Add($value)
+        }
+    }
+
+    $uniqueValues = @($values | Sort-Object -Unique)
+    if ($uniqueValues.Count -eq 0) {
+        return ""
+    }
+    if ($uniqueValues.Count -eq 1) {
+        return $uniqueValues[0]
+    }
+
+    return "mixed"
+}
+
+function Get-CombinedResult {
+    param(
+        [string]$PrimaryResult,
+        [string]$SecondaryResult
+    )
+
+    $results = @(
+        @($PrimaryResult, $SecondaryResult) |
+            Where-Object { -not [string]::IsNullOrWhiteSpace($_) -and $_ -ne "NOT_REQUESTED" }
+    )
+
+    if ($results.Count -eq 0) {
+        return "UNKNOWN"
+    }
+    if ($results -contains "FAIL") {
+        return "FAIL"
+    }
+    if ((@($results | Where-Object { $_ -eq "NOEXECUTE" })).Count -eq $results.Count) {
+        return "NOEXECUTE"
+    }
+    if ((@($results | Where-Object { $_ -eq "PASS" })).Count -eq $results.Count) {
+        return "PASS"
+    }
+
+    return "FAIL"
+}
+
+function Get-ScenarioValueMapFromSummary {
+    param(
+        [object]$SummaryObject,
+        [string]$ValuePropertyName,
+        [hashtable]$FallbackValues
+    )
+
+    $valueMap = [ordered]@{
+        happy = [string](Get-OptionalPropertyValue -Object $FallbackValues -Name "happy" -DefaultValue "UNKNOWN")
+        gate = [string](Get-OptionalPropertyValue -Object $FallbackValues -Name "gate" -DefaultValue "UNKNOWN")
+        recovery = [string](Get-OptionalPropertyValue -Object $FallbackValues -Name "recovery" -DefaultValue "UNKNOWN")
+    }
+
+    if ($null -eq $SummaryObject -or -not $SummaryObject.PSObject.Properties["scenarios"]) {
+        return $valueMap
+    }
+
+    foreach ($scenario in @($SummaryObject.scenarios)) {
+        $scenarioName = [string](Get-OptionalPropertyValue -Object $scenario -Name "name" -DefaultValue "")
+        if ([string]::IsNullOrWhiteSpace($scenarioName) -or -not $valueMap.Contains($scenarioName)) {
+            continue
+        }
+
+        $valueMap[$scenarioName] = [string](Get-OptionalPropertyValue -Object $scenario -Name $ValuePropertyName -DefaultValue $valueMap[$scenarioName])
+    }
+
+    return $valueMap
+}
+
+function Write-CombinedSuiteSummaryFiles {
+    param(
+        [string]$TextSummaryPath,
+        [string]$JsonSummaryPath,
+        [object]$SummaryObject
+    )
+
+    $textDirectory = Split-Path -Path $TextSummaryPath -Parent
+    $jsonDirectory = Split-Path -Path $JsonSummaryPath -Parent
+    if (-not [string]::IsNullOrWhiteSpace($textDirectory)) {
+        New-Item -ItemType Directory -Path $textDirectory -Force | Out-Null
+    }
+    if (-not [string]::IsNullOrWhiteSpace($jsonDirectory)) {
+        New-Item -ItemType Directory -Path $jsonDirectory -Force | Out-Null
+    }
+
+    $textLines = New-Object System.Collections.Generic.List[string]
+    $textLines.Add(("overall: {0}" -f $SummaryObject.overallResult))
+    $textLines.Add(("requested provenance: {0}" -f $SummaryObject.requestedProvenanceMode))
+    $textLines.Add(("repo root: {0}" -f $SummaryObject.repoRoot))
+    $textLines.Add(("outer workspace root: {0}" -f $SummaryObject.outerWorkspaceRoot))
+    $textLines.Add(("build dir: {0}" -f $SummaryObject.buildDir))
+    $textLines.Add(("executable: {0}" -f $SummaryObject.executablePath))
+    $textLines.Add(("artifact root: {0}" -f $SummaryObject.artifactRoot))
+    $textLines.Add("")
+    $textLines.Add("suites:")
+    foreach ($suite in @($SummaryObject.suites)) {
+        $textLines.Add(("  {0}: {1}" -f $suite.name, $suite.result))
+        if (-not [string]::IsNullOrWhiteSpace($suite.observedProvenanceMode)) {
+            $textLines.Add(("    observed provenance: {0}" -f $suite.observedProvenanceMode))
+        }
+        if (-not [string]::IsNullOrWhiteSpace($suite.artifactOutputDir)) {
+            $textLines.Add(("    artifact dir: {0}" -f $suite.artifactOutputDir))
+        }
+        if (-not [string]::IsNullOrWhiteSpace($suite.textSummaryPath)) {
+            $textLines.Add(("    text summary: {0}" -f $suite.textSummaryPath))
+        }
+    }
+    $textLines.Add("")
+    $textLines.Add("resumed-denial scenarios:")
+    foreach ($scenarioName in @("happy", "gate", "recovery")) {
+        $scenarioStatus = [string](Get-OptionalPropertyValue -Object $SummaryObject.resumedDenial.scenarioStatuses -Name $scenarioName -DefaultValue "UNKNOWN")
+        $scenarioProvenance = [string](Get-OptionalPropertyValue -Object $SummaryObject.resumedDenial.scenarioProvenance -Name $scenarioName -DefaultValue "")
+        $line = "  {0}: {1}" -f $scenarioName, $scenarioStatus
+        if (-not [string]::IsNullOrWhiteSpace($scenarioProvenance)) {
+            $line += " (" + $scenarioProvenance + ")"
+        }
+        $textLines.Add($line)
+    }
+
+    if ($SummaryObject.runNeighborSurfaceSuite) {
+        $textLines.Add("")
+        $textLines.Add("neighbor-surfaces:")
+        $textLines.Add(("  passing surfaces: {0}" -f $SummaryObject.neighborSurfaces.passingSurfaceCount))
+        $textLines.Add(("  failing surfaces: {0}" -f $SummaryObject.neighborSurfaces.failingSurfaceCount))
+        foreach ($surface in @($SummaryObject.neighborSurfaces.surfaces)) {
+            $textLines.Add(("  {0}: {1}" -f $surface.name, $surface.overallStatus))
+        }
+    }
+
+    $textLines | Set-Content -LiteralPath $TextSummaryPath -Encoding UTF8
+    $SummaryObject | ConvertTo-Json -Depth 12 | Set-Content -LiteralPath $JsonSummaryPath -Encoding UTF8
+}
+
 function Write-CiSummary {
     param(
         [string]$Result,
@@ -505,9 +697,17 @@ function Write-CiSummary {
         [string]$ResolvedBuildDir,
         [string]$ResolvedExecutablePath,
         [string]$VerificationCommandLine,
+        [string]$NeighborVerificationCommandLine,
         [string]$ResolvedArtifactOutputDir,
         [string]$ArtifactTextSummaryPath,
-        [string]$ArtifactJsonSummaryPath
+        [string]$ArtifactJsonSummaryPath,
+        [string]$NeighborArtifactTextSummaryPath,
+        [string]$NeighborArtifactJsonSummaryPath,
+        [string]$CombinedTextSummaryPath,
+        [string]$CombinedJsonSummaryPath,
+        [string]$ResumedDenialResult,
+        [string]$NeighborSurfaceResult,
+        [switch]$NeighborSurfaceSuiteEnabled
     )
 
     Write-Heading "CI Summary"
@@ -522,16 +722,36 @@ function Write-CiSummary {
         Write-Host ("executable: {0}" -f $ResolvedExecutablePath)
     }
     if (-not [string]::IsNullOrWhiteSpace($VerificationCommandLine)) {
-        Write-Host ("verification command: {0}" -f $VerificationCommandLine)
+        Write-Host ("resumed-denial command: {0}" -f $VerificationCommandLine)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborVerificationCommandLine)) {
+        Write-Host ("neighbor-surface command: {0}" -f $NeighborVerificationCommandLine)
     }
     if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
-        Write-Host ("artifact output dir: {0}" -f $ResolvedArtifactOutputDir)
+        Write-Host ("artifact root dir: {0}" -f $ResolvedArtifactOutputDir)
     }
     if (-not [string]::IsNullOrWhiteSpace($ArtifactTextSummaryPath)) {
-        Write-Host ("artifact text summary: {0}" -f $ArtifactTextSummaryPath)
+        Write-Host ("resumed-denial text summary: {0}" -f $ArtifactTextSummaryPath)
     }
     if (-not [string]::IsNullOrWhiteSpace($ArtifactJsonSummaryPath)) {
-        Write-Host ("artifact json summary: {0}" -f $ArtifactJsonSummaryPath)
+        Write-Host ("resumed-denial json summary: {0}" -f $ArtifactJsonSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborArtifactTextSummaryPath)) {
+        Write-Host ("neighbor-surface text summary: {0}" -f $NeighborArtifactTextSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($NeighborArtifactJsonSummaryPath)) {
+        Write-Host ("neighbor-surface json summary: {0}" -f $NeighborArtifactJsonSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($CombinedTextSummaryPath)) {
+        Write-Host ("combined suite text summary: {0}" -f $CombinedTextSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($CombinedJsonSummaryPath)) {
+        Write-Host ("combined suite json summary: {0}" -f $CombinedJsonSummaryPath)
+    }
+
+    Write-Host ("resumed-denial suite: {0}" -f $ResumedDenialResult)
+    if ($NeighborSurfaceSuiteEnabled) {
+        Write-Host ("neighbor-surface suite: {0}" -f $NeighborSurfaceResult)
     }
 }
 
@@ -541,12 +761,22 @@ $workspaceSource = ""
 $resolvedBuildDir = ""
 $resolvedExecutablePath = ""
 $verificationCommandLine = ""
+$neighborVerificationCommandLine = ""
 $resolvedArtifactOutputDir = ""
+$resumedArtifactOutputDir = ""
+$neighborArtifactOutputDir = ""
 $artifactTextSummaryPath = ""
 $artifactJsonSummaryPath = ""
+$neighborArtifactTextSummaryPath = ""
+$neighborArtifactJsonSummaryPath = ""
+$combinedTextSummaryPath = ""
+$combinedJsonSummaryPath = ""
 $verificationOutputLogPath = ""
 $artifactMetadataPath = ""
 $verificationOutputMetadata = $null
+$artifactLayout = $null
+$resumedDenialResult = "UNKNOWN"
+$neighborSurfaceResult = if ($RunNeighborSurfaceSuite) { "NOT_RUN" } else { "NOT_REQUESTED" }
 $resultLabel = "FAIL"
 $finalExitCode = 1
 
@@ -554,8 +784,16 @@ try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
     if ($CollectArtifacts) {
         Assert-PathExists -LiteralPath $script:ArtifactCollectorPath -Description "artifact collector helper" -ActionHint "Verify that tools\\collect_resumed_denial_artifacts.ps1 exists in this checkout"
-        $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
-        $artifactMetadataDirectory = Join-Path $resolvedArtifactOutputDir "metadata"
+        $artifactLayout = Resolve-ArtifactLayout `
+            -ResolvedRepoRoot $resolvedRepoRoot `
+            -RequestedArtifactOutputDir $ArtifactOutputDir `
+            -IncludeNeighborSurfaceSuite:$RunNeighborSurfaceSuite
+        $resolvedArtifactOutputDir = $artifactLayout.RootOutputDir
+        $resumedArtifactOutputDir = $artifactLayout.ResumedDenialOutputDir
+        $neighborArtifactOutputDir = $artifactLayout.NeighborSurfaceOutputDir
+        $combinedTextSummaryPath = $artifactLayout.CombinedTextSummaryPath
+        $combinedJsonSummaryPath = $artifactLayout.CombinedJsonSummaryPath
+        $artifactMetadataDirectory = Join-Path $resumedArtifactOutputDir "metadata"
         New-Item -ItemType Directory -Path $artifactMetadataDirectory -Force | Out-Null
         $verificationOutputLogPath = Join-Path $artifactMetadataDirectory "verify_resumed_denial_ci_output.log"
         $artifactMetadataPath = Join-Path $artifactMetadataDirectory "verification_metadata.json"
@@ -656,6 +894,62 @@ try {
     else {
         $resultLabel = if ($NoExecute) { "NOEXECUTE" } else { "PASS" }
     }
+    $resumedDenialResult = $resultLabel
+
+    if ([string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
+        $resolvedExecutablePath = Get-ExpectedExecutablePath -ResolvedBuildDir $resolvedBuildDir
+    }
+
+    if ($RunNeighborSurfaceSuite) {
+        Assert-PathExists -LiteralPath $script:NeighborSuiteRunnerPath -Description "neighbor-surface suite runner" -ActionHint "Verify that tools\\verify_signon_neighbor_surfaces_main.ps1 exists in this checkout"
+        Assert-PathExists -LiteralPath $resolvedExecutablePath -Description "resolved hlhost.exe for the neighbor-surface suite" -ActionHint "Ensure the resumed-denial suite built or resolved the expected current-main binary before running the neighbor-surface suite"
+
+        $neighborArguments = New-Object System.Collections.Generic.List[string]
+        $neighborArguments.Add("-NoLogo")
+        $neighborArguments.Add("-NoProfile")
+        $neighborArguments.Add("-ExecutionPolicy")
+        $neighborArguments.Add("Bypass")
+        $neighborArguments.Add("-File")
+        $neighborArguments.Add($script:NeighborSuiteRunnerPath)
+        $neighborArguments.Add("-RepoRoot")
+        $neighborArguments.Add($resolvedRepoRoot)
+        $neighborArguments.Add("-OuterWorkspaceRoot")
+        $neighborArguments.Add($resolvedOuterWorkspaceRoot)
+        $neighborArguments.Add("-BuildDir")
+        $neighborArguments.Add($resolvedBuildDir)
+        $neighborArguments.Add("-ExePath")
+        $neighborArguments.Add($resolvedExecutablePath)
+        $neighborArguments.Add("-UseExistingBinary")
+        $neighborArguments.Add("-ProvenanceMode")
+        $neighborArguments.Add($ProvenanceMode)
+        if ($NoExecute) {
+            $neighborArguments.Add("-NoExecute")
+        }
+        if ($CollectArtifacts) {
+            $neighborArguments.Add("-CollectArtifacts")
+            $neighborArguments.Add("-ArtifactOutputDir")
+            $neighborArguments.Add($neighborArtifactOutputDir)
+        }
+
+        $neighborVerificationCommandLine = Format-CommandLine -ExecutablePath $hostExecutable -Arguments $neighborArguments.ToArray()
+        Write-Heading "Neighbor Surface Suite"
+        Write-Host "Running the opt-in neighboring signon surface suite."
+        Write-Host ("  {0}" -f $neighborVerificationCommandLine)
+
+        & $hostExecutable @($neighborArguments.ToArray())
+        $neighborExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+        if ($neighborExitCode -eq 0) {
+            $neighborSurfaceResult = if ($NoExecute) { "NOEXECUTE" } else { "PASS" }
+            $resultLabel = Get-CombinedResult -PrimaryResult $resumedDenialResult -SecondaryResult $neighborSurfaceResult
+        }
+        else {
+            $neighborSurfaceResult = "FAIL"
+            $resultLabel = "FAIL"
+            $finalExitCode = $neighborExitCode
+            throw ("verify_signon_neighbor_surfaces_main.ps1 failed with exit code {0}." -f $neighborExitCode)
+        }
+    }
+
     $finalExitCode = 0
 }
 catch {
@@ -690,11 +984,11 @@ finally {
                 -VerificationOutputMetadata $verificationOutputMetadata
 
             Write-Heading "Artifact Collection"
-            Write-Host ("Output dir: {0}" -f $resolvedArtifactOutputDir)
+            Write-Host ("Resumed-denial output dir: {0}" -f $resumedArtifactOutputDir)
             & $script:ArtifactCollectorPath `
                 -RepoRoot $resolvedRepoRoot `
                 -LogsRoot (Join-Path $resolvedRepoRoot "logs\latest") `
-                -OutputDir $resolvedArtifactOutputDir `
+                -OutputDir $resumedArtifactOutputDir `
                 -RunLabelPattern ([string](Get-OptionalPropertyValue -Object $verificationOutputMetadata -Name "RunLabelPattern" -DefaultValue "verify-resumed-denial-main-*")) `
                 -IncludeCodexArtifacts `
                 -AllowMissingCodexArtifacts `
@@ -705,8 +999,115 @@ finally {
                 throw ("collect_resumed_denial_artifacts.ps1 failed with exit code {0}." -f $artifactCollectorExitCode)
             }
 
-            $artifactTextSummaryPath = Join-Path $resolvedArtifactOutputDir "resumed_denial_summary.txt"
-            $artifactJsonSummaryPath = Join-Path $resolvedArtifactOutputDir "resumed_denial_summary.json"
+            $artifactTextSummaryPath = Join-Path $resumedArtifactOutputDir "resumed_denial_summary.txt"
+            $artifactJsonSummaryPath = Join-Path $resumedArtifactOutputDir "resumed_denial_summary.json"
+
+            if ($RunNeighborSurfaceSuite) {
+                $neighborArtifactTextSummaryPath = Join-Path $neighborArtifactOutputDir "signon_neighbor_surface_summary.txt"
+                $neighborArtifactJsonSummaryPath = Join-Path $neighborArtifactOutputDir "signon_neighbor_surface_summary.json"
+
+                $resumedArtifactSummary = Read-JsonFileIfExists -JsonPath $artifactJsonSummaryPath
+                $neighborArtifactSummary = Read-JsonFileIfExists -JsonPath $neighborArtifactJsonSummaryPath
+
+                $resumedScenarioStatuses = if ($null -ne $resumedArtifactSummary) {
+                    Get-ScenarioValueMapFromSummary `
+                        -SummaryObject $resumedArtifactSummary `
+                        -ValuePropertyName "status" `
+                        -FallbackValues ([ordered]@{
+                            happy = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN")
+                            gate = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "gate" -DefaultValue "UNKNOWN")
+                            recovery = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "recovery" -DefaultValue "UNKNOWN")
+                        })
+                }
+                else {
+                    [ordered]@{
+                        happy = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN")
+                        gate = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "gate" -DefaultValue "UNKNOWN")
+                        recovery = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioStatuses -Name "recovery" -DefaultValue "UNKNOWN")
+                    }
+                }
+
+                $resumedScenarioProvenance = if ($null -ne $resumedArtifactSummary) {
+                    Get-ScenarioValueMapFromSummary `
+                        -SummaryObject $resumedArtifactSummary `
+                        -ValuePropertyName "provenanceMode" `
+                        -FallbackValues ([ordered]@{
+                            happy = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "happy" -DefaultValue "")
+                            gate = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "gate" -DefaultValue "")
+                            recovery = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "recovery" -DefaultValue "")
+                        })
+                }
+                else {
+                    [ordered]@{
+                        happy = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "happy" -DefaultValue "")
+                        gate = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "gate" -DefaultValue "")
+                        recovery = [string](Get-OptionalPropertyValue -Object $verificationOutputMetadata.ScenarioProvenance -Name "recovery" -DefaultValue "")
+                    }
+                }
+
+                $neighborSurfaceItems = @()
+                if ($null -ne $neighborArtifactSummary) {
+                    $neighborSurfaceItems = @($neighborArtifactSummary.surfaces | ForEach-Object {
+                            [ordered]@{
+                                name = [string]$_.name
+                                overallStatus = [string]$_.overallStatus
+                            }
+                        })
+                }
+
+                $combinedSummaryObject = [ordered]@{
+                    generatedAt = (Get-Date).ToString("o")
+                    overallResult = $resultLabel
+                    requestedProvenanceMode = $ProvenanceMode
+                    repoRoot = $resolvedRepoRoot
+                    outerWorkspaceRoot = $resolvedOuterWorkspaceRoot
+                    buildDir = $resolvedBuildDir
+                    executablePath = $resolvedExecutablePath
+                    artifactRoot = $resolvedArtifactOutputDir
+                    runNeighborSurfaceSuite = $true
+                    suites = @(
+                        [ordered]@{
+                            name = "resumed-denial"
+                            result = if ($null -ne $resumedArtifactSummary) { [string]$resumedArtifactSummary.overallResult } else { $resumedDenialResult }
+                            observedProvenanceMode = if ($null -ne $resumedArtifactSummary) { [string]$resumedArtifactSummary.observedProvenanceMode } else { Get-ObservedProvenanceMode -ScenarioProvenance $resumedScenarioProvenance }
+                            artifactOutputDir = $resumedArtifactOutputDir
+                            textSummaryPath = $artifactTextSummaryPath
+                            jsonSummaryPath = $artifactJsonSummaryPath
+                        }
+                        [ordered]@{
+                            name = "neighbor-surfaces"
+                            result = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
+                            observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
+                            artifactOutputDir = $neighborArtifactOutputDir
+                            textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
+                            jsonSummaryPath = if (Test-Path -LiteralPath $neighborArtifactJsonSummaryPath -PathType Leaf) { $neighborArtifactJsonSummaryPath } else { "" }
+                        }
+                    )
+                    resumedDenial = [ordered]@{
+                        overallResult = if ($null -ne $resumedArtifactSummary) { [string]$resumedArtifactSummary.overallResult } else { $resumedDenialResult }
+                        observedProvenanceMode = if ($null -ne $resumedArtifactSummary) { [string]$resumedArtifactSummary.observedProvenanceMode } else { Get-ObservedProvenanceMode -ScenarioProvenance $resumedScenarioProvenance }
+                        scenarioStatuses = $resumedScenarioStatuses
+                        scenarioProvenance = $resumedScenarioProvenance
+                        textSummaryPath = $artifactTextSummaryPath
+                        jsonSummaryPath = $artifactJsonSummaryPath
+                    }
+                    neighborSurfaces = [ordered]@{
+                        overallResult = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
+                        observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
+                        selectedSurfaceNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedSurfaceNames) } else { @() }
+                        passingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "PASS" }).Count
+                        failingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+                        surfaces = $neighborSurfaceItems
+                        textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
+                        jsonSummaryPath = if (Test-Path -LiteralPath $neighborArtifactJsonSummaryPath -PathType Leaf) { $neighborArtifactJsonSummaryPath } else { "" }
+                    }
+                }
+
+                Write-CombinedSuiteSummaryFiles `
+                    -TextSummaryPath $combinedTextSummaryPath `
+                    -JsonSummaryPath $combinedJsonSummaryPath `
+                    -SummaryObject $combinedSummaryObject
+            }
         }
         catch {
             Write-Heading "Artifact Collection Failure"
@@ -728,9 +1129,17 @@ finally {
         -ResolvedBuildDir $resolvedBuildDir `
         -ResolvedExecutablePath $resolvedExecutablePath `
         -VerificationCommandLine $verificationCommandLine `
+        -NeighborVerificationCommandLine $neighborVerificationCommandLine `
         -ResolvedArtifactOutputDir $resolvedArtifactOutputDir `
         -ArtifactTextSummaryPath $artifactTextSummaryPath `
-        -ArtifactJsonSummaryPath $artifactJsonSummaryPath
+        -ArtifactJsonSummaryPath $artifactJsonSummaryPath `
+        -NeighborArtifactTextSummaryPath $neighborArtifactTextSummaryPath `
+        -NeighborArtifactJsonSummaryPath $neighborArtifactJsonSummaryPath `
+        -CombinedTextSummaryPath $combinedTextSummaryPath `
+        -CombinedJsonSummaryPath $combinedJsonSummaryPath `
+        -ResumedDenialResult $resumedDenialResult `
+        -NeighborSurfaceResult $neighborSurfaceResult `
+        -NeighborSurfaceSuiteEnabled:$RunNeighborSurfaceSuite
 }
 
 exit $finalExitCode
