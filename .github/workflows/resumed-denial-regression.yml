@@ -15,6 +15,15 @@ on:
         description: Optional explicit hlhost.exe path. Relative paths resolve from the outer workspace root.
         required: false
         type: string
+      provenance_mode:
+        description: Provenance policy for current-main verification.
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - runtime
+          - workspace
       no_build:
         description: Reuse an existing binary instead of building a fresh one.
         required: false
@@ -89,6 +98,10 @@ jobs:
 
           if ('${{ inputs.exe_path }}' -ne '') {
             $arguments += @('-ExePath', '${{ inputs.exe_path }}')
+          }
+
+          if ('${{ inputs.provenance_mode }}' -ne '') {
+            $arguments += @('-ProvenanceMode', '${{ inputs.provenance_mode }}')
           }
 
           if ('${{ inputs.no_build }}' -eq 'true') {
