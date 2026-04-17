@@ -1,0 +1,121 @@
+name: Resumed-Denial Regression Self-Hosted
+
+on:
+  workflow_dispatch:
+    inputs:
+      outer_workspace_root:
+        description: Optional HLengine outer workspace root. Leave blank to infer from the checked-out host repo parent.
+        required: false
+        type: string
+      build_dir:
+        description: Optional build directory. Relative paths resolve from the outer workspace root.
+        required: false
+        type: string
+      exe_path:
+        description: Optional explicit hlhost.exe path. Relative paths resolve from the outer workspace root.
+        required: false
+        type: string
+      no_build:
+        description: Reuse an existing binary instead of building a fresh one.
+        required: false
+        default: false
+        type: boolean
+      use_existing_binary:
+        description: Reuse the configured build output path without rebuilding.
+        required: false
+        default: false
+        type: boolean
+      skip_recovery:
+        description: Skip the recovery lane.
+        required: false
+        default: false
+        type: boolean
+      no_execute:
+        description: Print the build and verification commands without launching the happy/gate/recovery runs.
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+jobs:
+  resumed-denial-regression:
+    name: Resumed-denial regression
+    runs-on:
+      - self-hosted
+      - windows
+
+    defaults:
+      run:
+        shell: powershell
+        working-directory: host
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          path: host
+
+      - name: Show self-hosted prerequisites
+        run: |
+          Write-Host "Self-hosted prerequisites:"
+          Write-Host "  - the checkout should live at <outer-workspace>\\host, or outer_workspace_root must point at that outer workspace"
+          Write-Host "  - the outer workspace root must contain CMakeLists.txt"
+          Write-Host "  - logs/latest/HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface/runtime/valve-fixture must exist in the checked-out repo"
+          Write-Host "  - Visual Studio 2022 CMake support or cmake.exe in PATH is required when a build is requested"
+          Write-Host "Missing prerequisites are expected to fail the wrapper early with actionable diagnostics."
+
+      - name: Run resumed-denial regression
+        run: |
+          $arguments = @(
+            '-NoLogo',
+            '-NoProfile',
+            '-ExecutionPolicy',
+            'Bypass',
+            '-File',
+            '.\tools\verify_resumed_denial_ci.ps1',
+            '-RepoRoot',
+            (Get-Location).Path
+          )
+
+          if ('${{ inputs.outer_workspace_root }}' -ne '') {
+            $arguments += @('-OuterWorkspaceRoot', '${{ inputs.outer_workspace_root }}')
+          }
+
+          if ('${{ inputs.build_dir }}' -ne '') {
+            $arguments += @('-BuildDir', '${{ inputs.build_dir }}')
+          }
+
+          if ('${{ inputs.exe_path }}' -ne '') {
+            $arguments += @('-ExePath', '${{ inputs.exe_path }}')
+          }
+
+          if ('${{ inputs.no_build }}' -eq 'true') {
+            $arguments += '-NoBuild'
+          }
+
+          if ('${{ inputs.use_existing_binary }}' -eq 'true') {
+            $arguments += '-UseExistingBinary'
+          }
+
+          if ('${{ inputs.skip_recovery }}' -eq 'true') {
+            $arguments += '-SkipRecovery'
+          }
+
+          if ('${{ inputs.no_execute }}' -eq 'true') {
+            $arguments += '-NoExecute'
+          }
+
+          $quotedArguments = $arguments | ForEach-Object {
+            if ($_ -match '[\s"]') {
+              '"' + ($_ -replace '"', '\"') + '"'
+            }
+            else {
+              $_
+            }
+          }
+          Write-Host ('==> powershell ' + ($quotedArguments -join ' '))
+
+          & powershell @arguments
+          exit $LASTEXITCODE
