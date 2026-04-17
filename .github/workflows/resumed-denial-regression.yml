@@ -49,6 +49,10 @@ on:
         required: false
         default: false
         type: boolean
+      neighbor_surface_profile:
+        description: Optional neighboring-surface profile shorthand (`default`, `checkpoint-extended`, or `full-expanded`) when run_neighbor_surface_suite is enabled.
+        required: false
+        type: string
       neighbor_surface_group:
         description: Optional comma- or newline-separated neighboring-surface groups to run when run_neighbor_surface_suite is enabled.
         required: false
@@ -151,8 +155,16 @@ jobs:
             $arguments += '-RunNeighborSurfaceSuite'
           }
 
-          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true')) {
-            throw 'neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
+          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_profile }}' -ne '' -or '${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true')) {
+            throw 'neighbor_surface_profile, neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
+          }
+
+          if ('${{ inputs.neighbor_surface_profile }}' -ne '') {
+            if ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
+              throw 'neighbor_surface_profile cannot be combined with neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
+            }
+
+            $arguments += @('-NeighborSurfaceProfile', '${{ inputs.neighbor_surface_profile }}')
           }
 
           $neighborGroupValues = @('${{ inputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
@@ -173,6 +185,12 @@ jobs:
             $arguments += '-FullNeighborMatrix'
           }
 
+          $neighborJUnitPath = ''
+          if ('${{ inputs.run_neighbor_surface_suite }}' -eq 'true') {
+            $neighborJUnitPath = Join-Path $artifactDir 'neighbor-surfaces\signon_neighbor_surface_junit.xml'
+            $arguments += @('-JUnitOutputPath', $neighborJUnitPath)
+          }
+
           $quotedArguments = $arguments | ForEach-Object {
             if ($_ -match '[\s"]') {
               '"' + ($_ -replace '"', '\"') + '"'
@@ -188,6 +206,9 @@ jobs:
 
           "artifact_dir=$artifactDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if ($neighborJUnitPath -ne '') {
+            "neighbor_junit_path=$neighborJUnitPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
 
           $combinedSummaryJsonPath = Join-Path $artifactDir 'verification_suite_summary.json'
           $resumedSummaryJsonPath = Join-Path $artifactDir 'resumed_denial_summary.json'
@@ -237,6 +258,15 @@ jobs:
               if ($summary.runNeighborSurfaceSuite) {
                 $summaryLines.Add('')
                 $summaryLines.Add(("Neighbor-surface suite: `{0}`" -f $summary.neighborSurfaces.overallResult))
+                if ($summary.neighborSurfaces.requestedProfile) {
+                  $summaryLines.Add(("Requested profile: `{0}`" -f $summary.neighborSurfaces.requestedProfile))
+                }
+                if ($summary.neighborSurfaces.resolvedProfile) {
+                  $summaryLines.Add(("Resolved profile: `{0}`" -f $summary.neighborSurfaces.resolvedProfile))
+                }
+                if ($summary.neighborSurfaces.selectionOrigin) {
+                  $summaryLines.Add(("Selection origin: `{0}`" -f $summary.neighborSurfaces.selectionOrigin))
+                }
                 if ($summary.neighborSurfaces.selectionMode) {
                   $summaryLines.Add(("Selection mode: `{0}`" -f $summary.neighborSurfaces.selectionMode))
                 }
@@ -251,12 +281,29 @@ jobs:
                 }
                 $summaryLines.Add(("Passing surfaces: `{0}`" -f $summary.neighborSurfaces.passingSurfaceCount))
                 $summaryLines.Add(("Failing surfaces: `{0}`" -f $summary.neighborSurfaces.failingSurfaceCount))
+                if ($summary.neighborSurfaces.junitOutputPath) {
+                  $summaryLines.Add(("JUnit output: `{0}`" -f $summary.neighborSurfaces.junitOutputPath))
+                }
                 if ($summary.neighborSurfaces.groups) {
                   $summaryLines.Add('')
                   $summaryLines.Add('| Neighbor group | Result | Surfaces |')
                   $summaryLines.Add('| --- | --- | --- |')
                   foreach ($group in $summary.neighborSurfaces.groups) {
                     $summaryLines.Add(("| {0} | {1} | {2} |" -f $group.name, $group.overallStatus, (($group.surfaceNames | Where-Object { $_ -ne '' }) -join ', ')))
+                  }
+                }
+                if ($summary.neighborSurfaces.failedSurfaces) {
+                  $failedSurfaces = @($summary.neighborSurfaces.failedSurfaces | Where-Object { $_.name -ne '' })
+                  if ($failedSurfaces.Count -gt 0) {
+                    $summaryLines.Add('')
+                    $summaryLines.Add('| Failed surface | Profile | Groups | Reason |')
+                    $summaryLines.Add('| --- | --- | --- | --- |')
+                    foreach ($failedSurface in $failedSurfaces) {
+                      $profileLabel = if ($failedSurface.profile) { $failedSurface.profile } else { '<none>' }
+                      $groupLabel = if ($failedSurface.groups) { (($failedSurface.groups | Where-Object { $_ -ne '' }) -join ', ') } else { '<none>' }
+                      $reasonLabel = if ($failedSurface.conciseReason) { $failedSurface.conciseReason } else { 'See artifact bundle' }
+                      $summaryLines.Add(("| {0} | {1} | {2} | {3} |" -f $failedSurface.name, $profileLabel, $groupLabel, $reasonLabel))
+                    }
                   }
                 }
               }
@@ -290,6 +337,14 @@ jobs:
         with:
           name: signon-regression-${{ github.run_id }}-${{ github.run_attempt }}
           path: ${{ steps.run_regression.outputs.artifact_dir }}
+          if-no-files-found: warn
+
+      - name: Upload signon regression JUnit
+        if: always() && steps.run_regression.outputs.neighbor_junit_path != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: signon-regression-junit-${{ github.run_id }}-${{ github.run_attempt }}
+          path: ${{ steps.run_regression.outputs.neighbor_junit_path }}
           if-no-files-found: warn
 
       - name: Fail on verification error
