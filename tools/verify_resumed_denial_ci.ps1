@@ -12,6 +12,7 @@ param(
     [switch]$RunNeighborSurfaceSuite,
     [string[]]$NeighborSurfaceGroup,
     [string[]]$NeighborSurface,
+    [switch]$FullNeighborMatrix,
     [switch]$CollectArtifacts,
     [string]$ArtifactOutputDir
 )
@@ -743,6 +744,7 @@ function Write-CiSummary {
         [string]$NeighborSurfaceResult,
         [string[]]$NeighborSurfaceGroups,
         [string[]]$NeighborSurfaces,
+        [switch]$FullNeighborMatrixRequested,
         [switch]$NeighborSurfaceSuiteEnabled
     )
 
@@ -768,6 +770,9 @@ function Write-CiSummary {
     }
     if (@($NeighborSurfaces).Count -gt 0) {
         Write-Host ("neighbor-surfaces: {0}" -f (@($NeighborSurfaces) -join ", "))
+    }
+    if ($FullNeighborMatrixRequested) {
+        Write-Host "neighbor-surface full matrix: yes"
     }
     if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
         Write-Host ("artifact root dir: {0}" -f $ResolvedArtifactOutputDir)
@@ -826,8 +831,11 @@ $finalExitCode = 1
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
-    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0)) {
-        throw "Neighbor surface filters require -RunNeighborSurfaceSuite."
+    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix)) {
+        throw "Neighbor surface filters and -FullNeighborMatrix require -RunNeighborSurfaceSuite."
+    }
+    if ($FullNeighborMatrix -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0)) {
+        throw "-FullNeighborMatrix cannot be combined with -NeighborSurfaceGroup or -NeighborSurface."
     }
     if ($CollectArtifacts) {
         Assert-PathExists -LiteralPath $script:ArtifactCollectorPath -Description "artifact collector helper" -ActionHint "Verify that tools\\collect_resumed_denial_artifacts.ps1 exists in this checkout"
@@ -877,6 +885,9 @@ try {
     }
     if ($normalizedNeighborSurfaces.Count -gt 0) {
         Write-Host ("Neighbor-surfaces: {0}" -f ($normalizedNeighborSurfaces -join ", "))
+    }
+    if ($FullNeighborMatrix) {
+        Write-Host "Neighbor-surface full matrix: yes"
     }
     if (-not [string]::IsNullOrWhiteSpace($resolvedExecutablePath)) {
         Write-Host ("Executable: {0}" -f $resolvedExecutablePath)
@@ -986,6 +997,9 @@ try {
             foreach ($surfaceName in $normalizedNeighborSurfaces) {
                 $neighborArguments.Add($surfaceName)
             }
+        }
+        if ($FullNeighborMatrix) {
+            $neighborArguments.Add("-FullMatrix")
         }
         if ($NoExecute) {
             $neighborArguments.Add("-NoExecute")
@@ -1132,6 +1146,21 @@ finally {
                         })
                 }
 
+                $neighborSelectionMode = if ($null -ne $neighborArtifactSummary) {
+                    [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionMode" -DefaultValue "")
+                }
+                elseif ($FullNeighborMatrix) {
+                    "full-matrix"
+                }
+                elseif ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0) {
+                    "filtered"
+                }
+                else {
+                    "default-enabled"
+                }
+                $neighborPassingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "PASS" }).Count
+                $neighborFailingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+
                 $combinedSummaryObject = [ordered]@{
                     generatedAt = (Get-Date).ToString("o")
                     overallResult = $resultLabel
@@ -1171,10 +1200,12 @@ finally {
                     neighborSurfaces = [ordered]@{
                         overallResult = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
                         observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
+                        requestedFullMatrix = if ($null -ne $neighborArtifactSummary) { [bool](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedFullMatrix" -DefaultValue $false) } else { [bool]$FullNeighborMatrix }
+                        selectionMode = $neighborSelectionMode
                         selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { @($normalizedNeighborSurfaceGroups) }
                         selectedSurfaceNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedSurfaceNames) } else { @() }
-                        passingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "PASS" }).Count
-                        failingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+                        passingSurfaceCount = $neighborPassingSurfaceCount
+                        failingSurfaceCount = $neighborFailingSurfaceCount
                         groups = $neighborGroupItems
                         surfaces = $neighborSurfaceItems
                         textSummaryPath = if (Test-Path -LiteralPath $neighborArtifactTextSummaryPath -PathType Leaf) { $neighborArtifactTextSummaryPath } else { "" }
@@ -1220,6 +1251,7 @@ finally {
         -NeighborSurfaceResult $neighborSurfaceResult `
         -NeighborSurfaceGroups $normalizedNeighborSurfaceGroups `
         -NeighborSurfaces $normalizedNeighborSurfaces `
+        -FullNeighborMatrixRequested:$FullNeighborMatrix `
         -NeighborSurfaceSuiteEnabled:$RunNeighborSurfaceSuite
 }
 

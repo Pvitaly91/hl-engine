@@ -57,6 +57,11 @@ on:
         description: Optional comma- or newline-separated neighboring surfaces to run when run_neighbor_surface_suite is enabled.
         required: false
         type: string
+      full_neighbor_matrix:
+        description: Run the full expanded neighboring-surface matrix when run_neighbor_surface_suite is enabled.
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -146,8 +151,8 @@ jobs:
             $arguments += '-RunNeighborSurfaceSuite'
           }
 
-          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '')) {
-            throw 'neighbor_surface_group and neighbor_surface require run_neighbor_surface_suite=true.'
+          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true')) {
+            throw 'neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
           }
 
           $neighborGroupValues = @('${{ inputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
@@ -158,6 +163,14 @@ jobs:
           $neighborSurfaceValues = @('${{ inputs.neighbor_surface }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
           if ($neighborSurfaceValues.Count -gt 0) {
             $arguments += @('-NeighborSurface') + $neighborSurfaceValues
+          }
+
+          if ('${{ inputs.full_neighbor_matrix }}' -eq 'true') {
+            if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0) {
+              throw 'full_neighbor_matrix cannot be combined with neighbor_surface_group or neighbor_surface.'
+            }
+
+            $arguments += '-FullNeighborMatrix'
           }
 
           $quotedArguments = $arguments | ForEach-Object {
@@ -224,8 +237,17 @@ jobs:
               if ($summary.runNeighborSurfaceSuite) {
                 $summaryLines.Add('')
                 $summaryLines.Add(("Neighbor-surface suite: `{0}`" -f $summary.neighborSurfaces.overallResult))
+                if ($summary.neighborSurfaces.selectionMode) {
+                  $summaryLines.Add(("Selection mode: `{0}`" -f $summary.neighborSurfaces.selectionMode))
+                }
+                if ($summary.neighborSurfaces.requestedFullMatrix) {
+                  $summaryLines.Add('Full matrix requested: `yes`')
+                }
                 if ($summary.neighborSurfaces.selectedGroupNames) {
                   $summaryLines.Add(("Selected groups: `{0}`" -f (($summary.neighborSurfaces.selectedGroupNames | Where-Object { $_ -ne '' }) -join ', ')))
+                }
+                if ($summary.neighborSurfaces.selectedSurfaceNames) {
+                  $summaryLines.Add(("Selected surfaces: `{0}`" -f (($summary.neighborSurfaces.selectedSurfaceNames | Where-Object { $_ -ne '' }).Count)))
                 }
                 $summaryLines.Add(("Passing surfaces: `{0}`" -f $summary.neighborSurfaces.passingSurfaceCount))
                 $summaryLines.Add(("Failing surfaces: `{0}`" -f $summary.neighborSurfaces.failingSurfaceCount))

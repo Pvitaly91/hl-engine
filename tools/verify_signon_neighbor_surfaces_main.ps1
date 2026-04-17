@@ -11,6 +11,7 @@ param(
     [string]$MatrixPath,
     [string[]]$Surface,
     [string[]]$Group,
+    [switch]$FullMatrix,
     [switch]$ListSurfaces,
     [string]$ArtifactOutputDir,
     [switch]$CollectArtifacts
@@ -228,6 +229,23 @@ function Get-EntryGroupNames {
     return $groupNames.ToArray()
 }
 
+function Import-PowerShellDataFileCompat {
+    param([string]$Path)
+
+    $importCommand = Get-Command -Name "Import-PowerShellDataFile" -ErrorAction SilentlyContinue
+    if ($null -ne $importCommand) {
+        return Import-PowerShellDataFile -Path $Path
+    }
+
+    $rawContent = Get-Content -LiteralPath $Path -Raw -Encoding UTF8
+    $data = & ([scriptblock]::Create($rawContent))
+    if ($null -eq $data -or -not ($data -is [System.Collections.IDictionary])) {
+        throw ("PowerShell data file did not evaluate to a hashtable: {0}" -f $Path)
+    }
+
+    return $data
+}
+
 function Import-SignonRegressionMatrix {
     param([string]$ResolvedMatrixPath)
 
@@ -235,7 +253,7 @@ function Import-SignonRegressionMatrix {
         throw ("Signon regression matrix file does not exist: {0}" -f $ResolvedMatrixPath)
     }
 
-    $matrixData = Import-PowerShellDataFile -Path $ResolvedMatrixPath
+    $matrixData = Import-PowerShellDataFileCompat -Path $ResolvedMatrixPath
     $entries = @(Get-OptionalPropertyValue -Object $matrixData -Name "Entries" -DefaultValue @())
     if ($entries.Count -eq 0) {
         throw ("Signon regression matrix {0} does not define any Entries." -f $ResolvedMatrixPath)
@@ -306,13 +324,18 @@ function Select-SignonRegressionEntries {
     param(
         [object[]]$Entries,
         [string[]]$RequestedSurfaceNames,
-        [string[]]$RequestedGroupNames
+        [string[]]$RequestedGroupNames,
+        [switch]$SelectAllEntries
     )
 
     $normalizedSurfaceNames = @(Get-TrimmedUniqueValues -Values $RequestedSurfaceNames)
     $normalizedGroupNames = @(Get-TrimmedUniqueValues -Values $RequestedGroupNames)
     $knownSurfaceNames = @($Entries | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
     $knownGroupNames = @(Get-EntryGroupNames -Entries $Entries)
+
+    if ($SelectAllEntries -and ($normalizedSurfaceNames.Count -gt 0 -or $normalizedGroupNames.Count -gt 0)) {
+        throw "-FullMatrix cannot be combined with -Surface or -Group filters."
+    }
 
     foreach ($surfaceName in $normalizedSurfaceNames) {
         if ($knownSurfaceNames -notcontains $surfaceName) {
@@ -327,7 +350,13 @@ function Select-SignonRegressionEntries {
     }
 
     $selectedEntries = New-Object System.Collections.Generic.List[object]
-    foreach ($entry in @($Entries)) {
+    if ($SelectAllEntries) {
+        foreach ($entry in @($Entries)) {
+            $selectedEntries.Add($entry)
+        }
+    }
+    else {
+        foreach ($entry in @($Entries)) {
         $entryName = [string](Get-OptionalPropertyValue -Object $entry -Name "Name" -DefaultValue "")
         $entryGroups = @(Get-OptionalPropertyValue -Object $entry -Name "Groups" -DefaultValue @())
         $matchesSurface = ($normalizedSurfaceNames.Count -eq 0 -or $normalizedSurfaceNames -contains $entryName)
@@ -345,21 +374,40 @@ function Select-SignonRegressionEntries {
             $selectedEntries.Add($entry)
         }
     }
+    }
 
     if ($selectedEntries.Count -eq 0) {
-        if ($normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
+        if (-not $SelectAllEntries -and $normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
             throw "The signon regression matrix does not contain any entries with EnabledByDefault = true."
         }
 
         throw "The requested -Surface/-Group filter combination did not select any signon regression entries."
     }
 
+    $selectionMode = if ($SelectAllEntries) {
+        "full-matrix"
+    }
+    elseif ($normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
+        "default-enabled"
+    }
+    else {
+        "filtered"
+    }
+
+    $selectedEntriesArray = $selectedEntries.ToArray()
+    $selectedSurfaceNames = @($selectedEntriesArray | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
+    $selectedGroupNames = @(Get-EntryGroupNames -Entries $selectedEntriesArray)
+    $selectedSurfaceCount = $selectedEntriesArray.Count
+
     return [pscustomobject]@{
-        Entries = $selectedEntries.ToArray()
+        Entries = $selectedEntriesArray
+        RequestedFullMatrix = [bool]$SelectAllEntries
+        SelectionMode = $selectionMode
         RequestedSurfaceNames = $normalizedSurfaceNames
         RequestedGroupNames = $normalizedGroupNames
-        SelectedSurfaceNames = @($selectedEntries | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
-        SelectedGroupNames = @(Get-EntryGroupNames -Entries $selectedEntries.ToArray())
+        SelectedSurfaceNames = $selectedSurfaceNames
+        SelectedGroupNames = $selectedGroupNames
+        SelectedSurfaceCount = $selectedSurfaceCount
     }
 }
 
@@ -749,13 +797,16 @@ function Build-GroupResults {
         )
         $groupSurfaceResults = @($groupSurfaceNames | ForEach-Object { $surfaceResultsByName[$_] } | Where-Object { $null -ne $_ })
         $groupStatuses = @($groupSurfaceResults | ForEach-Object { [string]$_.overallStatus })
+        $groupPassingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "PASS" }).Count
+        $groupFailingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+        $groupNotRunSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "NOT_RUN" }).Count
         $groupResults.Add([ordered]@{
                 name = $groupName
                 overallStatus = Get-GroupedOverallStatus -Statuses $groupStatuses
                 surfaceCount = $groupSurfaceNames.Count
-                passingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "PASS" }).Count
-                failingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "FAIL" }).Count
-                notRunSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "NOT_RUN" }).Count
+                passingSurfaceCount = $groupPassingSurfaceCount
+                failingSurfaceCount = $groupFailingSurfaceCount
+                notRunSurfaceCount = $groupNotRunSurfaceCount
                 surfaceNames = $groupSurfaceNames
             }) | Out-Null
     }
@@ -837,6 +888,8 @@ function Write-SuiteSummaryFiles {
     $textLines.Add(("build dir: {0}" -f $SummaryObject.buildDir))
     $textLines.Add(("executable: {0}" -f $SummaryObject.executablePath))
     $textLines.Add(("matrix path: {0}" -f $SummaryObject.matrixPath))
+    $textLines.Add(("selection mode: {0}" -f $SummaryObject.selectionMode))
+    $textLines.Add(("full matrix requested: {0}" -f $(if ($SummaryObject.requestedFullMatrix) { "yes" } else { "no" })))
     $textLines.Add(("delegated verification command: {0}" -f $SummaryObject.delegatedVerificationCommandLine))
     if (@($SummaryObject.requestedGroupNames).Count -gt 0) {
         $textLines.Add(("requested groups: {0}" -f (@($SummaryObject.requestedGroupNames) -join ", ")))
@@ -845,7 +898,9 @@ function Write-SuiteSummaryFiles {
         $textLines.Add(("requested surfaces: {0}" -f (@($SummaryObject.requestedSurfaceNames) -join ", ")))
     }
     $textLines.Add(("selected groups: {0}" -f (@($SummaryObject.selectedGroupNames) -join ", ")))
+    $textLines.Add(("selected surface count: {0}" -f $SummaryObject.selectedSurfaceCount))
     $textLines.Add(("selected surfaces: {0}" -f (@($SummaryObject.selectedSurfaceNames) -join ", ")))
+    $textLines.Add(("surface counts: pass={0}, fail={1}, not-run={2}" -f $SummaryObject.passingSurfaceCount, $SummaryObject.failingSurfaceCount, $SummaryObject.notRunSurfaceCount))
     $textLines.Add("")
     $textLines.Add("run results:")
     foreach ($runRecord in @($SummaryObject.runs)) {
@@ -914,11 +969,13 @@ try {
         $finalExitCode = 0
     }
     else {
-        $selectedMatrix = Select-SignonRegressionEntries -Entries $matrixData.Entries -RequestedSurfaceNames $Surface -RequestedGroupNames $Group
+        $selectedMatrix = Select-SignonRegressionEntries -Entries $matrixData.Entries -RequestedSurfaceNames $Surface -RequestedGroupNames $Group -SelectAllEntries:$FullMatrix
         $selectedEntries = @($selectedMatrix.Entries)
 
         Write-Heading "Selected Matrix Entries"
         Write-Host ("Matrix path: {0}" -f $resolvedMatrixPath)
+        Write-Host ("Selection mode: {0}" -f $selectedMatrix.SelectionMode)
+        Write-Host ("Full matrix requested: {0}" -f $(if ($selectedMatrix.RequestedFullMatrix) { "yes" } else { "no" }))
         if (@($selectedMatrix.RequestedGroupNames).Count -gt 0) {
             Write-Host ("Requested groups: {0}" -f (@($selectedMatrix.RequestedGroupNames) -join ", "))
         }
@@ -926,7 +983,7 @@ try {
             Write-Host ("Requested surfaces: {0}" -f (@($selectedMatrix.RequestedSurfaceNames) -join ", "))
         }
         Write-Host ("Selected groups: {0}" -f (@($selectedMatrix.SelectedGroupNames) -join ", "))
-        Write-Host ("Selected surfaces ({0}): {1}" -f $selectedMatrix.SelectedSurfaceNames.Count, (@($selectedMatrix.SelectedSurfaceNames) -join ", "))
+        Write-Host ("Selected surfaces ({0}): {1}" -f $selectedMatrix.SelectedSurfaceCount, (@($selectedMatrix.SelectedSurfaceNames) -join ", "))
 
         if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
             $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
@@ -1076,12 +1133,21 @@ try {
         }
 
         $groupResults = @(Build-GroupResults -SelectedEntries $selectedEntries -SurfaceResults $surfaceResults)
+        $passingSurfaceCount = @($surfaceResults | Where-Object { $_.overallStatus -eq "PASS" }).Count
+        $failingSurfaceCount = @($surfaceResults | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+        $notRunSurfaceCount = @($surfaceResults | Where-Object { $_.overallStatus -eq "NOT_RUN" }).Count
         Write-Heading "Group Summary"
         foreach ($groupResult in $groupResults) {
             Write-Host ("{0}: {1}" -f $groupResult.name, $groupResult.overallStatus)
             Write-Host ("  surfaces: {0}" -f (@($groupResult.surfaceNames) -join ", "))
             Write-Host ("  counts: pass={0}, fail={1}, not-run={2}" -f $groupResult.passingSurfaceCount, $groupResult.failingSurfaceCount, $groupResult.notRunSurfaceCount)
         }
+
+        Write-Heading "Suite Summary"
+        Write-Host ("selection mode: {0}" -f $selectedMatrix.SelectionMode)
+        Write-Host ("selected surfaces: {0}" -f $selectedMatrix.SelectedSurfaceCount)
+        Write-Host ("surface counts: pass={0}, fail={1}, not-run={2}" -f $passingSurfaceCount, $failingSurfaceCount, $notRunSurfaceCount)
+        Write-Host ("overall suite: {0}" -f $resultLabel)
 
         $summaryObject = [ordered]@{
             generatedAt = (Get-Date).ToString("o")
@@ -1097,10 +1163,16 @@ try {
             headCommit = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "HeadCommit" -DefaultValue "")
             branch = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "Branch" -DefaultValue "")
             matrixPath = $resolvedMatrixPath
+            requestedFullMatrix = $selectedMatrix.RequestedFullMatrix
+            selectionMode = $selectedMatrix.SelectionMode
             requestedSurfaceNames = @($selectedMatrix.RequestedSurfaceNames)
             requestedGroupNames = @($selectedMatrix.RequestedGroupNames)
+            selectedSurfaceCount = $selectedMatrix.SelectedSurfaceCount
             selectedSurfaceNames = @($selectedMatrix.SelectedSurfaceNames)
             selectedGroupNames = @($selectedMatrix.SelectedGroupNames)
+            passingSurfaceCount = $passingSurfaceCount
+            failingSurfaceCount = $failingSurfaceCount
+            notRunSurfaceCount = $notRunSurfaceCount
             delegatedVerificationCommandLine = $delegatedCommandLine
             runs = @($runRecords)
             groups = @($groupResults)
