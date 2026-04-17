@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260417_103107",
+  "runInstanceId": "20260417_103107_354_pid42648",
+  "runLabel": "codex-dedicated-goldsrc-signon-carried-checkpoint-successor-range-repair-gate",
+  "promptId": "HL-CL-20260411-168-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-successor-range-repair-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "f470a0649f45c4249fe0d86534ce677037cb0c61",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260417_103107_354_pid42648__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-range-repair-gate_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260417_103107_354_pid42648__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-range-repair-gate_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260417_103107_354_pid42648__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-range-repair-gate_part01.log"]
+}
