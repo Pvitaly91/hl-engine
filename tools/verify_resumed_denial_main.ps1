@@ -1,5 +1,6 @@
 param(
     [string]$RepoRoot,
+    [string]$OuterWorkspaceRoot,
     [switch]$NoBuild,
     [switch]$SkipRecovery,
     [switch]$NoExecute,
@@ -240,6 +241,27 @@ function Get-RepoRootFromRequest {
     }
 }
 
+function Try-Get-GitRepoRoot {
+    param([string]$CandidateRoot)
+
+    if ([string]::IsNullOrWhiteSpace($CandidateRoot) -or -not (Test-Path -LiteralPath $CandidateRoot -PathType Container)) {
+        return ""
+    }
+
+    Push-Location $CandidateRoot
+    try {
+        $topLevel = & git rev-parse --show-toplevel 2>$null
+        if ($LASTEXITCODE -ne 0 -or $null -eq $topLevel) {
+            return ""
+        }
+
+        return [System.IO.Path]::GetFullPath(($topLevel | Select-Object -First 1).Trim())
+    }
+    finally {
+        Pop-Location
+    }
+}
+
 function Get-CheckoutState {
     $headCommit = Get-GitSingleLine @("rev-parse", "HEAD")
     $branchOutput = & git symbolic-ref --quiet --short HEAD
@@ -261,19 +283,40 @@ function Get-CheckoutState {
 }
 
 function Resolve-WorkspaceRoot {
-    param([string]$ResolvedRepoRoot)
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedWorkspaceRoot
+    )
 
-    $workspaceRoot = Split-Path -Path $ResolvedRepoRoot -Parent
-    if ([string]::IsNullOrWhiteSpace($workspaceRoot)) {
-        throw ("Unable to derive the outer workspace root from repo root: {0}" -f $ResolvedRepoRoot)
+    $workspaceSource = "repo-parent"
+    if ([string]::IsNullOrWhiteSpace($RequestedWorkspaceRoot)) {
+        $workspaceRoot = Split-Path -Path $ResolvedRepoRoot -Parent
+        if ([string]::IsNullOrWhiteSpace($workspaceRoot)) {
+            throw ("Unable to derive the outer workspace root from repo root: {0}" -f $ResolvedRepoRoot)
+        }
+    }
+    else {
+        $workspaceRoot = Resolve-FullPath -PathValue $RequestedWorkspaceRoot -BasePath $ResolvedRepoRoot
+        $workspaceSource = "explicit"
     }
 
-    $cmakeListsPath = Join-Path $workspaceRoot "CMakeLists.txt"
+    $resolvedWorkspaceRoot = [System.IO.Path]::GetFullPath($workspaceRoot)
+    $cmakeListsPath = Join-Path $resolvedWorkspaceRoot "CMakeLists.txt"
     if (-not (Test-Path -LiteralPath $cmakeListsPath -PathType Leaf)) {
-        throw ("The outer workspace CMake entry point was not found at {0}. This regression runner expects the host repo to live under the canonical hl-engine workspace layout." -f $cmakeListsPath)
+        throw ("The outer workspace CMake entry point was not found at {0}. This regression runner expects the host repo to live under an hl-engine workspace root." -f $cmakeListsPath)
     }
 
-    return [System.IO.Path]::GetFullPath($workspaceRoot)
+    $expectedRepoRoot = [System.IO.Path]::GetFullPath((Join-Path $resolvedWorkspaceRoot "host"))
+    $canonicalExpectedRepoRoot = Try-Get-GitRepoRoot -CandidateRoot $expectedRepoRoot
+    $expectedComparisonRoot = if ([string]::IsNullOrWhiteSpace($canonicalExpectedRepoRoot)) { $expectedRepoRoot } else { $canonicalExpectedRepoRoot }
+    if (-not $expectedComparisonRoot.Equals($ResolvedRepoRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw ("Repo root {0} does not match the host checkout expected under outer workspace root {1}. Expected host path {2} (canonical repo root {3}). Use a matching -RepoRoot/-OuterWorkspaceRoot pair." -f $ResolvedRepoRoot, $resolvedWorkspaceRoot, $expectedRepoRoot, $(if ([string]::IsNullOrWhiteSpace($canonicalExpectedRepoRoot)) { "<unresolved>" } else { $canonicalExpectedRepoRoot }))
+    }
+
+    return [pscustomobject]@{
+        Root = $resolvedWorkspaceRoot
+        Source = $workspaceSource
+    }
 }
 
 function Resolve-BuildDirPath {
@@ -902,7 +945,8 @@ try {
     Push-Location $resolvedRepoRoot
     try {
         $checkoutState = Get-CheckoutState
-        $workspaceRoot = Resolve-WorkspaceRoot -ResolvedRepoRoot $resolvedRepoRoot
+        $workspaceResolution = Resolve-WorkspaceRoot -ResolvedRepoRoot $resolvedRepoRoot -RequestedWorkspaceRoot $OuterWorkspaceRoot
+        $workspaceRoot = $workspaceResolution.Root
         $resolvedBuildDir = Resolve-BuildDirPath -WorkspaceRoot $workspaceRoot -RequestedBuildDir $BuildDir
         $script:ResolvedGameDir = Resolve-GameDirPath -ResolvedRepoRoot $resolvedRepoRoot
         $script:ResolvedRuntimeLogDir = Resolve-RuntimeLogDirPath -ResolvedRepoRoot $resolvedRepoRoot
@@ -912,6 +956,7 @@ try {
         Write-Heading "Repository"
         Write-Host ("Repo root: {0}" -f $resolvedRepoRoot)
         Write-Host ("Workspace root: {0}" -f $workspaceRoot)
+        Write-Host ("Workspace root source: {0}" -f $workspaceResolution.Source)
         Write-Host ("Branch: {0}" -f $(if ($checkoutState.IsDetached) { "detached" } else { $checkoutState.BranchName }))
         Write-Host ("HEAD: {0}" -f $checkoutState.HeadCommit)
         if (-not $checkoutState.IsDetached -and $checkoutState.BranchName -ne "main") {
