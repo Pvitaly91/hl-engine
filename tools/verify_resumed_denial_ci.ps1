@@ -8,7 +8,9 @@ param(
     [switch]$NoBuild,
     [switch]$SkipRecovery,
     [switch]$NoExecute,
-    [switch]$UseExistingBinary
+    [switch]$UseExistingBinary,
+    [switch]$CollectArtifacts,
+    [string]$ArtifactOutputDir
 )
 
 Set-StrictMode -Version Latest
@@ -20,6 +22,7 @@ if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
 $script:PromptId = "HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface"
 $script:DefaultBuildDirName = "build-main-win32-hlhost-regression"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
+$script:ArtifactCollectorPath = Join-Path $PSScriptRoot "collect_resumed_denial_artifacts.ps1"
 
 function Write-Heading {
     param([string]$Text)
@@ -292,6 +295,205 @@ function Assert-PathExists {
     throw $message
 }
 
+function Get-NormalizedScenarioStatus {
+    param([string]$Value)
+
+    if ([string]::IsNullOrWhiteSpace($Value)) {
+        return "UNKNOWN"
+    }
+
+    $normalized = $Value.Trim().ToUpperInvariant()
+    switch ($normalized) {
+        "PENDING" { return "NOT_RUN" }
+        default { return $normalized }
+    }
+}
+
+function Get-OptionalPropertyValue {
+    param(
+        [object]$Object,
+        [string]$Name,
+        $DefaultValue = $null
+    )
+
+    if ($null -eq $Object) {
+        return $DefaultValue
+    }
+
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) {
+            return $Object[$Name]
+        }
+
+        return $DefaultValue
+    }
+
+    $property = $Object.PSObject.Properties[$Name]
+    if ($null -eq $property) {
+        return $DefaultValue
+    }
+
+    return $property.Value
+}
+
+function Resolve-ArtifactOutputDir {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedArtifactOutputDir
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedArtifactOutputDir)) {
+        return [System.IO.Path]::GetFullPath((Join-Path $ResolvedRepoRoot "artifacts\resumed-denial"))
+    }
+
+    return Resolve-FullPath -PathValue $RequestedArtifactOutputDir -BasePath $ResolvedRepoRoot
+}
+
+function Get-RunLabelInfo {
+    param([string]$RunLabel)
+
+    $match = [regex]::Match($RunLabel, '^(.*)-(happy|gate|recovery)$')
+    if (-not $match.Success) {
+        return $null
+    }
+
+    return [pscustomobject]@{
+        BaseLabel = $match.Groups[1].Value
+        Scenario = $match.Groups[2].Value
+    }
+}
+
+function Get-VerificationOutputMetadata {
+    param(
+        [string]$OutputLogPath,
+        [switch]$NoExecuteRequested,
+        [switch]$SkipRecoveryRequested
+    )
+
+    $scenarioStatuses = [ordered]@{
+        happy = "UNKNOWN"
+        gate = "UNKNOWN"
+        recovery = if ($SkipRecoveryRequested) { "SKIPPED" } else { "UNKNOWN" }
+    }
+    $runLabels = [ordered]@{}
+    $scenarioProvenance = [ordered]@{
+        happy = ""
+        gate = ""
+        recovery = ""
+    }
+    $currentScenario = ""
+    $overallResult = if ($NoExecuteRequested) { "NOEXECUTE" } else { "UNKNOWN" }
+
+    if ([string]::IsNullOrWhiteSpace($OutputLogPath) -or -not (Test-Path -LiteralPath $OutputLogPath -PathType Leaf)) {
+        return [pscustomobject]@{
+            ScenarioStatuses = $scenarioStatuses
+            RunLabels = $runLabels
+            ScenarioProvenance = $scenarioProvenance
+            OverallResult = $overallResult
+        }
+    }
+
+    foreach ($line in @(Get-Content -LiteralPath $OutputLogPath)) {
+        $trimmedLine = $line.Trim()
+
+        if ($trimmedLine -match '^(happy|gate|recovery) command:$') {
+            $currentScenario = $matches[1]
+            continue
+        }
+
+        if ($line -match '--run-label\s+([^\s"]+)') {
+            $runLabel = $matches[1]
+            $runLabelInfo = Get-RunLabelInfo -RunLabel $runLabel
+            if ($null -ne $runLabelInfo) {
+                $runLabels[$runLabelInfo.Scenario] = $runLabel
+            }
+        }
+
+        if ($trimmedLine -match '^(happy|gate|recovery):\s+(PASS|FAIL|SKIPPED|PENDING)$') {
+            $scenarioStatuses[$matches[1]] = Get-NormalizedScenarioStatus -Value $matches[2]
+            continue
+        }
+
+        if ($trimmedLine -match '^provenance:\s+([A-Za-z0-9_,.-]+)$' -and -not [string]::IsNullOrWhiteSpace($currentScenario)) {
+            $scenarioProvenance[$currentScenario] = $matches[1]
+            continue
+        }
+
+        if ($trimmedLine -match '^Final overall verdict:\s+([A-Za-z]+)$') {
+            $overallResult = Get-NormalizedScenarioStatus -Value $matches[1]
+        }
+    }
+
+    return [pscustomobject]@{
+        ScenarioStatuses = $scenarioStatuses
+        RunLabels = $runLabels
+        ScenarioProvenance = $scenarioProvenance
+        OverallResult = $overallResult
+    }
+}
+
+function Write-ArtifactMetadataFile {
+    param(
+        [string]$MetadataPath,
+        [string]$ResultLabel,
+        [string]$ResolvedRepoRoot,
+        [string]$ResolvedWorkspaceRoot,
+        [string]$ResolvedBuildDir,
+        [string]$ResolvedExecutablePath,
+        [string]$RequestedProvenanceMode,
+        [string]$VerificationCommandLine,
+        [string]$VerificationOutputLogPath,
+        [object]$VerificationOutputMetadata
+    )
+
+    $metadataDirectory = Split-Path -Path $MetadataPath -Parent
+    if (-not [string]::IsNullOrWhiteSpace($metadataDirectory)) {
+        New-Item -ItemType Directory -Path $metadataDirectory -Force | Out-Null
+    }
+
+    $runLabels = [ordered]@{
+        happy = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.RunLabels -Name "happy" -DefaultValue "")
+        gate = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.RunLabels -Name "gate" -DefaultValue "")
+        recovery = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.RunLabels -Name "recovery" -DefaultValue "")
+    }
+
+    $runLabelPattern = "verify-resumed-denial-main-*"
+    foreach ($runLabel in $runLabels.Values) {
+        $runLabelInfo = Get-RunLabelInfo -RunLabel $runLabel
+        if ($null -ne $runLabelInfo) {
+            $runLabelPattern = ("{0}-*" -f $runLabelInfo.BaseLabel)
+            break
+        }
+    }
+
+    $metadataObject = [ordered]@{
+        generatedAt = (Get-Date).ToString("o")
+        promptId = $script:PromptId
+        repoRoot = $ResolvedRepoRoot
+        outerWorkspaceRoot = $ResolvedWorkspaceRoot
+        buildDir = $ResolvedBuildDir
+        executablePath = $ResolvedExecutablePath
+        requestedProvenanceMode = $RequestedProvenanceMode
+        overallResult = $ResultLabel
+        verificationCommandLine = $VerificationCommandLine
+        verificationOutputLog = $VerificationOutputLogPath
+        runLabelPattern = $runLabelPattern
+        runLabels = $runLabels
+        scenarioStatuses = [ordered]@{
+            happy = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN")
+            gate = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioStatuses -Name "gate" -DefaultValue "UNKNOWN")
+            recovery = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioStatuses -Name "recovery" -DefaultValue "UNKNOWN")
+        }
+        scenarioProvenance = [ordered]@{
+            happy = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "happy" -DefaultValue "")
+            gate = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "gate" -DefaultValue "")
+            recovery = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "recovery" -DefaultValue "")
+        }
+    }
+
+    $metadataObject | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $MetadataPath -Encoding UTF8
+}
+
 function Write-CiSummary {
     param(
         [string]$Result,
@@ -302,7 +504,10 @@ function Write-CiSummary {
         [string]$WorkspaceSource,
         [string]$ResolvedBuildDir,
         [string]$ResolvedExecutablePath,
-        [string]$VerificationCommandLine
+        [string]$VerificationCommandLine,
+        [string]$ResolvedArtifactOutputDir,
+        [string]$ArtifactTextSummaryPath,
+        [string]$ArtifactJsonSummaryPath
     )
 
     Write-Heading "CI Summary"
@@ -319,6 +524,15 @@ function Write-CiSummary {
     if (-not [string]::IsNullOrWhiteSpace($VerificationCommandLine)) {
         Write-Host ("verification command: {0}" -f $VerificationCommandLine)
     }
+    if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
+        Write-Host ("artifact output dir: {0}" -f $ResolvedArtifactOutputDir)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ArtifactTextSummaryPath)) {
+        Write-Host ("artifact text summary: {0}" -f $ArtifactTextSummaryPath)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ArtifactJsonSummaryPath)) {
+        Write-Host ("artifact json summary: {0}" -f $ArtifactJsonSummaryPath)
+    }
 }
 
 $resolvedRepoRoot = ""
@@ -327,11 +541,26 @@ $workspaceSource = ""
 $resolvedBuildDir = ""
 $resolvedExecutablePath = ""
 $verificationCommandLine = ""
+$resolvedArtifactOutputDir = ""
+$artifactTextSummaryPath = ""
+$artifactJsonSummaryPath = ""
+$verificationOutputLogPath = ""
+$artifactMetadataPath = ""
+$verificationOutputMetadata = $null
 $resultLabel = "FAIL"
 $finalExitCode = 1
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
+    if ($CollectArtifacts) {
+        Assert-PathExists -LiteralPath $script:ArtifactCollectorPath -Description "artifact collector helper" -ActionHint "Verify that tools\\collect_resumed_denial_artifacts.ps1 exists in this checkout"
+        $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
+        $artifactMetadataDirectory = Join-Path $resolvedArtifactOutputDir "metadata"
+        New-Item -ItemType Directory -Path $artifactMetadataDirectory -Force | Out-Null
+        $verificationOutputLogPath = Join-Path $artifactMetadataDirectory "verify_resumed_denial_ci_output.log"
+        $artifactMetadataPath = Join-Path $artifactMetadataDirectory "verification_metadata.json"
+    }
+
     $workspaceResolution = Resolve-OuterWorkspaceRoot -ResolvedRepoRoot $resolvedRepoRoot -RequestedWorkspaceRoot $OuterWorkspaceRoot
     $resolvedOuterWorkspaceRoot = $workspaceResolution.Root
     $workspaceSource = $workspaceResolution.Source
@@ -404,13 +633,29 @@ try {
     Write-Host "Delegating to the current-main regression runner."
     Write-Host ("  {0}" -f $verificationCommandLine)
 
-    & $hostExecutable @($verificationArguments.ToArray())
-    $finalExitCode = $LASTEXITCODE
+    if ($CollectArtifacts) {
+        & $hostExecutable @($verificationArguments.ToArray()) 2>&1 | Tee-Object -FilePath $verificationOutputLogPath
+        $finalExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+        $verificationOutputMetadata = Get-VerificationOutputMetadata `
+            -OutputLogPath $verificationOutputLogPath `
+            -NoExecuteRequested:$NoExecute `
+            -SkipRecoveryRequested:$SkipRecovery
+    }
+    else {
+        & $hostExecutable @($verificationArguments.ToArray())
+        $finalExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+    }
+
     if ($finalExitCode -ne 0) {
         throw ("verify_resumed_denial_main.ps1 failed with exit code {0}." -f $finalExitCode)
     }
 
-    $resultLabel = if ($NoExecute) { "NOEXECUTE" } else { "PASS" }
+    if ($CollectArtifacts -and $null -ne $verificationOutputMetadata -and $verificationOutputMetadata.OverallResult -ne "UNKNOWN") {
+        $resultLabel = $verificationOutputMetadata.OverallResult
+    }
+    else {
+        $resultLabel = if ($NoExecute) { "NOEXECUTE" } else { "PASS" }
+    }
     $finalExitCode = 0
 }
 catch {
@@ -423,6 +668,56 @@ catch {
     $resultLabel = "FAIL"
 }
 finally {
+    if ($CollectArtifacts -and -not [string]::IsNullOrWhiteSpace($resolvedRepoRoot) -and -not [string]::IsNullOrWhiteSpace($resolvedArtifactOutputDir)) {
+        try {
+            if ($null -eq $verificationOutputMetadata) {
+                $verificationOutputMetadata = Get-VerificationOutputMetadata `
+                    -OutputLogPath $verificationOutputLogPath `
+                    -NoExecuteRequested:$NoExecute `
+                    -SkipRecoveryRequested:$SkipRecovery
+            }
+
+            Write-ArtifactMetadataFile `
+                -MetadataPath $artifactMetadataPath `
+                -ResultLabel $resultLabel `
+                -ResolvedRepoRoot $resolvedRepoRoot `
+                -ResolvedWorkspaceRoot $resolvedOuterWorkspaceRoot `
+                -ResolvedBuildDir $resolvedBuildDir `
+                -ResolvedExecutablePath $resolvedExecutablePath `
+                -RequestedProvenanceMode $ProvenanceMode `
+                -VerificationCommandLine $verificationCommandLine `
+                -VerificationOutputLogPath $verificationOutputLogPath `
+                -VerificationOutputMetadata $verificationOutputMetadata
+
+            Write-Heading "Artifact Collection"
+            Write-Host ("Output dir: {0}" -f $resolvedArtifactOutputDir)
+            & $script:ArtifactCollectorPath `
+                -RepoRoot $resolvedRepoRoot `
+                -LogsRoot (Join-Path $resolvedRepoRoot "logs\latest") `
+                -OutputDir $resolvedArtifactOutputDir `
+                -RunLabelPattern ([string](Get-OptionalPropertyValue -Object $verificationOutputMetadata -Name "RunLabelPattern" -DefaultValue "verify-resumed-denial-main-*")) `
+                -IncludeCodexArtifacts `
+                -AllowMissingCodexArtifacts `
+                -VerificationMetadataPath $artifactMetadataPath
+
+            $artifactCollectorExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+            if ($artifactCollectorExitCode -ne 0) {
+                throw ("collect_resumed_denial_artifacts.ps1 failed with exit code {0}." -f $artifactCollectorExitCode)
+            }
+
+            $artifactTextSummaryPath = Join-Path $resolvedArtifactOutputDir "resumed_denial_summary.txt"
+            $artifactJsonSummaryPath = Join-Path $resolvedArtifactOutputDir "resumed_denial_summary.json"
+        }
+        catch {
+            Write-Heading "Artifact Collection Failure"
+            Write-Host $_.Exception.Message
+            if ($finalExitCode -eq 0) {
+                $finalExitCode = 1
+                $resultLabel = "FAIL"
+            }
+        }
+    }
+
     Write-CiSummary `
         -Result $resultLabel `
         -ExitCode $finalExitCode `
@@ -432,7 +727,10 @@ finally {
         -WorkspaceSource $workspaceSource `
         -ResolvedBuildDir $resolvedBuildDir `
         -ResolvedExecutablePath $resolvedExecutablePath `
-        -VerificationCommandLine $verificationCommandLine
+        -VerificationCommandLine $verificationCommandLine `
+        -ResolvedArtifactOutputDir $resolvedArtifactOutputDir `
+        -ArtifactTextSummaryPath $artifactTextSummaryPath `
+        -ArtifactJsonSummaryPath $artifactJsonSummaryPath
 }
 
 exit $finalExitCode
