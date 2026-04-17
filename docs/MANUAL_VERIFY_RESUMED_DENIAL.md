@@ -176,24 +176,43 @@ The neighboring-surface suite accepts these parameters:
 - `-ProvenanceMode <auto|runtime|workspace>` forwards the current-main provenance policy.
 - `-MatrixPath <path>` overrides the declarative matrix file. Relative paths resolve from the repo root.
 - `-ListSurfaces` prints the known matrix entries, enabled-by-default state, and group membership without running verification.
+- `-Profile <default|checkpoint-extended|full-expanded>` applies a first-class named selection preset without changing the existing matrix semantics.
 - `-Group <name> [<name> ...]` limits the suite to entries in the requested logical groups.
 - `-Surface <name> [<name> ...]` limits the suite to the requested matrix entries by exact name.
 - `-FullMatrix` runs every matrix entry, including all non-default expanded coverage.
+- `-RerunFromSummaryJson <path>` reads a prior `signon_neighbor_surface_summary.json` file and reruns only the surfaces that were recorded as failing there.
+- `-JUnitOutputPath <path>` emits a JUnit-style XML report for the selected neighboring-surface run without replacing the existing txt/json summaries.
 - `-CollectArtifacts` writes a stable suite artifact bundle.
 - `-ArtifactOutputDir <path>` overrides the suite artifact directory. If omitted with `-CollectArtifacts`, the suite uses `artifacts\signon-neighbor-surfaces`.
 
 Filter behavior:
 
 - with no `-Group`, `-Surface`, or `-FullMatrix`, the suite runs the matrix entries whose `EnabledByDefault` flag is `true`
+- `-Profile default` is explicit shorthand for the current default-enabled matrix behavior
+- `-Profile checkpoint-extended` is explicit shorthand for `-Group checkpoint-extended`
+- `-Profile full-expanded` is explicit shorthand for `-FullMatrix`
+- `-Profile` preserves backward compatibility and cannot be combined with `-Group`, `-Surface`, or `-FullMatrix`
 - `-FullMatrix` selects every declarative matrix entry and cannot be combined with `-Group` or `-Surface`
 - `-Group` narrows the run to entries that belong to one or more named groups
 - `-Surface` narrows the run to one or more exact surface names
 - when both `-Group` and `-Surface` are provided, an entry must match both filters
+- `-RerunFromSummaryJson` resolves the failed surface list from a prior summary JSON file and reruns only those surfaces
+- if `-RerunFromSummaryJson` finds no failed surfaces, the runner prints that clearly, exits success, and can still emit summary/JUnit outputs for the no-op rerun result
+
+Named profile shorthands:
+
+- `default`: the original 8 enabled-by-default neighboring surfaces
+- `checkpoint-extended`: the 24-entry `checkpoint-extended` logical group
+- `full-expanded`: all 27 declarative matrix entries
 
 Typical usage:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -ListSurfaces
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -Profile default
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -Profile checkpoint-extended -JUnitOutputPath .\artifacts\checkpoint-extended\junit.xml
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -Profile full-expanded -CollectArtifacts -ArtifactOutputDir .\artifacts\full-expanded
+powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -RerunFromSummaryJson .\artifacts\full-expanded\signon_neighbor_surface_summary.json
 powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto
 powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -Group checkpoint-extended
 powershell -ExecutionPolicy Bypass -File .\tools\verify_signon_neighbor_surfaces_main.ps1 -RepoRoot . -Group carryover-chain
@@ -243,9 +262,11 @@ The CI wrapper accepts these parameters:
 - `-SkipRecovery` runs only happy and gate.
 - `-NoExecute` prints the delegated build and verification commands, performs binary preflight, and does not launch the runtime scenarios.
 - `-RunNeighborSurfaceSuite` keeps resumed-denial as the primary suite, then also runs `tools/verify_signon_neighbor_surfaces_main.ps1` against the same repo/workspace/build/provenance context using the already-built binary.
+- `-NeighborSurfaceProfile <default|checkpoint-extended|full-expanded>` forwards a named neighboring-surface profile preset into the matrix-backed runner. It requires `-RunNeighborSurfaceSuite`.
 - `-NeighborSurfaceGroup <name> [<name> ...]` forwards neighboring-surface group filters to the matrix-backed runner. These filters require `-RunNeighborSurfaceSuite`.
 - `-NeighborSurface <name> [<name> ...]` forwards exact neighboring-surface names to the matrix-backed runner. These filters require `-RunNeighborSurfaceSuite`.
 - `-FullNeighborMatrix` forwards `-FullMatrix` to the matrix-backed neighboring runner. It requires `-RunNeighborSurfaceSuite` and cannot be combined with `-NeighborSurfaceGroup` or `-NeighborSurface`.
+- `-JUnitOutputPath <path>` requests JUnit XML emission for the neighboring-surface suite when `-RunNeighborSurfaceSuite` is enabled.
 - `-CollectArtifacts` enables post-run artifact bundling and summary generation.
 - `-ArtifactOutputDir <path>` overrides the artifact bundle output directory. Relative paths resolve from the resolved repo root. If omitted with `-CollectArtifacts`, the wrapper uses `artifacts\resumed-denial` for resumed-denial-only runs, or `artifacts\signon-regressions` when `-RunNeighborSurfaceSuite` is enabled.
 
@@ -263,6 +284,7 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -R
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -ExePath build-main-win32-hlhost-regression\host\Debug\hlhost.exe -UseExistingBinary -ProvenanceMode workspace
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -CollectArtifacts -ArtifactOutputDir .\artifacts\resumed-denial
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -CollectArtifacts -ArtifactOutputDir .\artifacts\signon-neighbors
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceProfile checkpoint-extended -JUnitOutputPath .\artifacts\checkpoint-extended\signon_neighbor_surface_junit.xml -CollectArtifacts -ArtifactOutputDir .\artifacts\checkpoint-extended
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceGroup checkpoint-extended -CollectArtifacts -ArtifactOutputDir .\artifacts\checkpoint-extended
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -FullNeighborMatrix -CollectArtifacts -ArtifactOutputDir .\artifacts\full-neighbor-matrix
 ```
@@ -283,10 +305,13 @@ What the CI wrapper does:
 - prints the requested provenance mode alongside the resolved repo/workspace/build inputs
 - prints the exact `powershell ... verify_resumed_denial_main.ps1 ...` command that it delegates to
 - when `-RunNeighborSurfaceSuite` is enabled, prints the exact `powershell ... verify_signon_neighbor_surfaces_main.ps1 ...` command too and reuses the already-built or already-resolved `hlhost.exe`
+- when `-NeighborSurfaceProfile` is supplied, forwards that named preset into the matrix-backed neighboring runner without changing the underlying PASS/FAIL semantics
 - when neighboring-surface filters are supplied, forwards the selected groups and/or surface names into the matrix-backed runner
 - when `-FullNeighborMatrix` is supplied, runs the full expanded neighboring-surface matrix without changing resumed-denial semantics
+- when `-JUnitOutputPath` is supplied, asks the neighboring-surface runner to emit JUnit XML alongside the existing txt/json summaries
 - when `-CollectArtifacts` is enabled, captures the delegated runner output, writes wrapper metadata, and calls `tools/collect_resumed_denial_artifacts.ps1`
 - when `-RunNeighborSurfaceSuite` and `-CollectArtifacts` are both enabled, keeps the resumed-denial bundle under `resumed-denial\`, keeps the neighboring-surface bundle under `neighbor-surfaces\`, and writes a root `verification_suite_summary.txt` plus `verification_suite_summary.json`
+- when neighboring surfaces fail, carries the compact failed-surface triage list into the combined wrapper summary
 - propagates the delegated runner exit code for CI
 - emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL` plus the collected artifact summary paths when available
 
@@ -326,14 +351,16 @@ What the neighboring-surface suite writes when `-CollectArtifacts` is enabled:
 
 - `signon_neighbor_surface_summary.txt`
 - `signon_neighbor_surface_summary.json`
+- `signon_neighbor_surface_junit.xml` when `-JUnitOutputPath` points inside the artifact bundle
 - `metadata\verify_signon_neighbor_surfaces_output.log`
 - `metadata\delegated_verify_resumed_denial_metadata.json`
 - `runtime\happy\summary.log` and `runtime\gate\summary.log`
 - matching `runtime\happy\*_part*.log` and `runtime\gate\*_part*.log`
 - matching `codex\happy\manifest.json` and `codex\gate\manifest.json` when they were available
-- selection mode plus whether the full matrix was requested
+- selection mode, selection origin, requested/resolved profile, and whether the full matrix was requested
 - selected group names plus per-group PASS/FAIL counts inside `signon_neighbor_surface_summary.txt/json`
 - selected surface count plus per-surface PASS/FAIL results inside `signon_neighbor_surface_summary.txt/json`
+- compact failed-surface triage entries inside `signon_neighbor_surface_summary.txt/json`
 
 What the combined wrapper bundle adds when `-RunNeighborSurfaceSuite` is enabled:
 
@@ -355,7 +382,9 @@ The combined wrapper summary txt/json records:
 
 - resumed-denial overall result plus happy/gate/recovery scenario results
 - neighboring-surface overall result plus the selected group list, per-group PASS/FAIL, and per-surface PASS/FAIL
-- neighboring-surface selection mode plus whether the full matrix was requested
+- neighboring-surface selection mode, selection origin, requested/resolved profile, and whether the full matrix was requested
+- neighboring-surface JUnit output path when requested
+- neighboring-surface failed-surface triage entries when present
 - requested provenance mode
 - repo root, outer workspace root, build dir, executable path, and artifact root
 - the per-suite artifact directories and summary file paths
@@ -399,9 +428,11 @@ Workflow notes:
 - it is manual-only via `workflow_dispatch`
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` and then runs `tools\verify_resumed_denial_ci.ps1`
-- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, `no_execute`, `run_neighbor_surface_suite`, `neighbor_surface_group`, `neighbor_surface`, and `full_neighbor_matrix`
-- it always enables `-CollectArtifacts` for the workflow run, uploads the resulting bundle with `actions/upload-artifact`, and writes either the resumed-denial summary or the combined suite summary to `GITHUB_STEP_SUMMARY`
+- it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, `no_execute`, `run_neighbor_surface_suite`, `neighbor_surface_profile`, `neighbor_surface_group`, `neighbor_surface`, and `full_neighbor_matrix`
+- it always enables `-CollectArtifacts` for the workflow run, emits neighboring-surface JUnit XML when that suite is enabled, uploads the resulting bundle with `actions/upload-artifact`, and writes either the resumed-denial summary or the combined suite summary to `GITHUB_STEP_SUMMARY`
 - when `run_neighbor_surface_suite=true`, the uploaded artifact bundle is rooted at `signon-regression-...` and includes both `resumed-denial\` and `neighbor-surfaces\` bundles plus `verification_suite_summary.txt/json`
+- when `neighbor_surface_profile` is supplied, the workflow forwards that profile directly to the matrix-backed neighboring runner
 - when `neighbor_surface_group` or `neighbor_surface` is supplied, those comma- or newline-separated filters are forwarded to the matrix-backed neighboring-surface runner
 - when `full_neighbor_matrix=true`, the workflow requests the full expanded neighboring-surface matrix and refuses mixed group/surface filters in the dispatcher step
+- when neighboring surfaces fail, the workflow step summary includes a compact failed-surface table and the JUnit file is uploaded as a separate artifact as well as inside the main artifact bundle
 - it does not auto-trigger on every push because the surrounding hl-engine workspace remains runner-specific and missing prerequisites should fail clearly instead of pretending the regression is universally runnable
