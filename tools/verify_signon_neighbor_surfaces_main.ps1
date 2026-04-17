@@ -8,6 +8,10 @@ param(
     [switch]$UseExistingBinary,
     [ValidateSet("auto", "runtime", "workspace")]
     [string]$ProvenanceMode = "auto",
+    [string]$MatrixPath,
+    [string[]]$Surface,
+    [string[]]$Group,
+    [switch]$ListSurfaces,
     [string]$ArtifactOutputDir,
     [switch]$CollectArtifacts
 )
@@ -21,417 +25,7 @@ if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
 $script:PromptId = "HL-CL-20260411-163-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resumed-denial-surface"
 $script:SuiteName = "signon-neighbor-surfaces"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
-$script:SelectedSurfaceChecks = @(
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-resume-token"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_resume_token_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_resume_token_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "tokenPurpose=future-resume-claim-only",
-                    "claimValidationImplemented=no",
-                    "carriedCheckpointResumeTokenIssued=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedTokenState=issued-not-claimed",
-                    "parsedClaimValidationImplemented=no"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedTokenState=issued-not-claimed"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=5",
-                    "tokenPurpose=future-resume-claim-only",
-                    "claimValidationImplemented=no",
-                    "carriedCheckpointResumeTokenIssued=1"
-                )
-                Probe = @(
-                    "attempts=6",
-                    "accepted=1",
-                    "rejected=5",
-                    "lastRejectReason=already-token-issued",
-                    "parsedTokenState=issued-not-claimed"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=5",
-                    "lastRejectReason=already-token-issued"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-resume-token-claim"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_resume_token_claim_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_resume_token_claim_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "claimValidation=deterministic-loopback-only",
-                    "carriedCheckpointResumeTokenClaimed=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedClaimStatus=accepted",
-                    "parsedClaimValidation=deterministic-loopback-only"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedClaimStatus=accepted"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=4",
-                    "claimValidation=deterministic-loopback-only",
-                    "carriedCheckpointResumeTokenClaimed=1"
-                )
-                Probe = @(
-                    "attempts=5",
-                    "accepted=1",
-                    "rejected=4",
-                    "lastRejectReason=already-claimed",
-                    "parsedClaimStatus=accepted"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=4",
-                    "lastRejectReason=already-claimed"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-resume-allow"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_resume_allow_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "resumeAllowed=yes",
-                    "denialReason=none",
-                    "remainingMessageCount=1",
-                    "nonExhaustedClaimedCheckpointResumeAllowed=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumeAllowed=yes",
-                    "parsedResumePolicy=claimed-checkpoint-non-exhausted-resume-allowed"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumePolicy=claimed-checkpoint-non-exhausted-resume-allowed"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=1",
-                    "resumeAllowed=yes",
-                    "denialReason=none",
-                    "remainingMessageCount=1",
-                    "nonExhaustedClaimedCheckpointResumeAllowed=1"
-                )
-                Probe = @(
-                    "attempts=2",
-                    "accepted=1",
-                    "rejected=1",
-                    "lastRejectReason=invalid-claimed-resume-allow-request",
-                    "parsedResumePolicy=claimed-checkpoint-non-exhausted-resume-allowed"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=1",
-                    "lastRejectReason=invalid-claimed-resume-allow-request"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-checkpoint-bridge"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "bridgePolicy=claimed-cursor-materialized-into-claimant-checkpoint",
-                    "currentMessageCount=2",
-                    "remainingMessageCount=0",
-                    "claimedCheckpointBridgeMaterialized=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedBridgePolicy=claimed-cursor-materialized-into-claimant-checkpoint",
-                    "parsedRemainingMessageCount=1"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedBridgePolicy=claimed-cursor-materialized-into-claimant-checkpoint"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=2",
-                    "bridgePolicy=claimed-cursor-materialized-into-claimant-checkpoint",
-                    "currentMessageCount=2",
-                    "remainingMessageCount=0",
-                    "claimedCheckpointBridgeMaterialized=1"
-                )
-                Probe = @(
-                    "attempts=3",
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-bridged",
-                    "parsedBridgePolicy=claimed-cursor-materialized-into-claimant-checkpoint"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-bridged"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "resumeAllowed=yes",
-                    "denialReason=none",
-                    "currentMessageCount=2",
-                    "remainingMessageCount=0",
-                    "signonMessageCursorCarriedCheckpointClaimedCheckpointResumeReady=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumeAllowed=yes",
-                    "parsedResumePolicy=claimant-checkpoint-non-exhausted-resume-allowed"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumePolicy=claimant-checkpoint-non-exhausted-resume-allowed"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=1",
-                    "resumeAllowed=yes",
-                    "denialReason=none",
-                    "currentMessageCount=2",
-                    "remainingMessageCount=0",
-                    "signonMessageCursorCarriedCheckpointClaimedCheckpointResumeReady=1"
-                )
-                Probe = @(
-                    "attempts=2",
-                    "accepted=1",
-                    "rejected=1",
-                    "lastRejectReason=invalid-claimed-checkpoint-resume-allow-request",
-                    "parsedResumePolicy=claimant-checkpoint-non-exhausted-resume-allowed"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=1",
-                    "lastRejectReason=invalid-claimed-checkpoint-resume-allow-request"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_range_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "requestedMessageCount=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "lastFetchedMessageIndices=3",
-                    "remainingMessageCountAfterResumeFetch=0",
-                    "claimedCheckpointBridgeResumeRangeDelivered=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedFetchedMessageIndices=3",
-                    "parsedSemanticTags=completion-staged-records-ready-content",
-                    "parsedResumePolicy=claimant-checkpoint-positive-resume-range-complete"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumePolicy=claimant-checkpoint-positive-resume-range-complete"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "requestedMessageCount=1",
-                    "accepted=1",
-                    "rejected=2",
-                    "lastFetchedMessageIndices=3",
-                    "remainingMessageCountAfterResumeFetch=0",
-                    "claimedCheckpointBridgeResumeRangeDelivered=1"
-                )
-                Probe = @(
-                    "attempts=3",
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-resume-ranged",
-                    "parsedResumePolicy=claimant-checkpoint-positive-resume-range-complete"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-resume-ranged"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-eof"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_eof_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_eof_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "eof=yes",
-                    "exhausted=yes",
-                    "remainingMessageCount=0",
-                    "claimedCheckpointBridgeResumeExhausted=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedEof=yes",
-                    "parsedExhausted=yes",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-terminal-eof"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-terminal-eof"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=2",
-                    "eof=yes",
-                    "exhausted=yes",
-                    "remainingMessageCount=0",
-                    "claimedCheckpointBridgeResumeExhausted=1"
-                )
-                Probe = @(
-                    "attempts=3",
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-resume-eof",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-terminal-eof"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=2",
-                    "lastRejectReason=already-claimed-checkpoint-resume-eof"
-                )
-            }
-        }
-    }
-    [ordered]@{
-        Name = "signon-message-cursor-carried-checkpoint-claimed-checkpoint-resumed-denial"
-        SurfaceNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_surface:"
-        ProbeNeedle = "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_resumed_denial_probe:"
-        Runs = @{
-            happy = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "resumeAllowed=no",
-                    "denialReason=claimant-checkpoint-resumed-exhausted",
-                    "eof=yes",
-                    "exhausted=yes",
-                    "claimedCheckpointBridgeResumedDenied=1"
-                )
-                Probe = @(
-                    "attempts=1",
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumeAllowed=no",
-                    "parsedDenialReason=claimant-checkpoint-resumed-exhausted",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-exhausted-denied"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=0",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-exhausted-denied"
-                )
-            }
-            gate = @{
-                Surface = @(
-                    "accepted=1",
-                    "rejected=3",
-                    "resumeAllowed=no",
-                    "denialReason=claimant-checkpoint-resumed-exhausted",
-                    "eof=yes",
-                    "exhausted=yes",
-                    "claimedCheckpointBridgeResumedDenied=1"
-                )
-                Probe = @(
-                    "attempts=4",
-                    "accepted=1",
-                    "rejected=3",
-                    "lastRejectReason=already-claimed-checkpoint-resumed-denied",
-                    "parsedResumePolicy=claimant-checkpoint-resumed-exhausted-denied"
-                )
-                Key = @(
-                    "accepted=1",
-                    "rejected=3",
-                    "lastRejectReason=already-claimed-checkpoint-resumed-denied"
-                )
-            }
-        }
-    }
-)
+$script:DefaultMatrixFileName = "signon_regression_matrix.psd1"
 
 function Write-Heading {
     param([string]$Text)
@@ -575,6 +169,235 @@ function Get-OptionalPropertyValue {
     }
 
     return $property.Value
+}
+
+function Get-TrimmedUniqueValues {
+    param([string[]]$Values)
+
+    $seenValues = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+    $normalizedValues = New-Object System.Collections.Generic.List[string]
+    foreach ($value in @($Values)) {
+        if ($null -eq $value) {
+            continue
+        }
+
+        $trimmedValue = $value.Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmedValue)) {
+            continue
+        }
+
+        if ($seenValues.Add($trimmedValue)) {
+            $normalizedValues.Add($trimmedValue)
+        }
+    }
+
+    return $normalizedValues.ToArray()
+}
+
+function Resolve-MatrixPath {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedMatrixPath
+    )
+
+    if ([string]::IsNullOrWhiteSpace($RequestedMatrixPath)) {
+        return [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot $script:DefaultMatrixFileName))
+    }
+
+    $basePath = if ([string]::IsNullOrWhiteSpace($ResolvedRepoRoot)) { $PSScriptRoot } else { $ResolvedRepoRoot }
+    return Resolve-FullPath -PathValue $RequestedMatrixPath -BasePath $basePath
+}
+
+function Get-EntryGroupNames {
+    param([object[]]$Entries)
+
+    $groupNames = New-Object System.Collections.Generic.List[string]
+    $seenGroups = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+    foreach ($entry in @($Entries)) {
+        foreach ($groupName in @(Get-OptionalPropertyValue -Object $entry -Name "Groups" -DefaultValue @())) {
+            if ([string]::IsNullOrWhiteSpace($groupName)) {
+                continue
+            }
+
+            if ($seenGroups.Add($groupName)) {
+                $groupNames.Add($groupName)
+            }
+        }
+    }
+
+    return $groupNames.ToArray()
+}
+
+function Import-SignonRegressionMatrix {
+    param([string]$ResolvedMatrixPath)
+
+    if (-not (Test-Path -LiteralPath $ResolvedMatrixPath -PathType Leaf)) {
+        throw ("Signon regression matrix file does not exist: {0}" -f $ResolvedMatrixPath)
+    }
+
+    $matrixData = Import-PowerShellDataFile -Path $ResolvedMatrixPath
+    $entries = @(Get-OptionalPropertyValue -Object $matrixData -Name "Entries" -DefaultValue @())
+    if ($entries.Count -eq 0) {
+        throw ("Signon regression matrix {0} does not define any Entries." -f $ResolvedMatrixPath)
+    }
+
+    $seenNames = New-Object System.Collections.Generic.HashSet[string]([System.StringComparer]::OrdinalIgnoreCase)
+    $normalizedEntries = New-Object System.Collections.Generic.List[object]
+    foreach ($entry in $entries) {
+        $name = [string](Get-OptionalPropertyValue -Object $entry -Name "Name" -DefaultValue "")
+        if ([string]::IsNullOrWhiteSpace($name)) {
+            throw ("Signon regression matrix {0} contains an entry with a blank Name." -f $ResolvedMatrixPath)
+        }
+        if (-not $seenNames.Add($name)) {
+            throw ("Signon regression matrix {0} contains a duplicate entry name: {1}" -f $ResolvedMatrixPath, $name)
+        }
+
+        $groups = @(Get-TrimmedUniqueValues -Values @(Get-OptionalPropertyValue -Object $entry -Name "Groups" -DefaultValue @()))
+        if ($groups.Count -eq 0) {
+            throw ("Signon regression matrix entry {0} must declare at least one group." -f $name)
+        }
+
+        $surfaceNeedle = [string](Get-OptionalPropertyValue -Object $entry -Name "SurfaceNeedle" -DefaultValue "")
+        $probeNeedle = [string](Get-OptionalPropertyValue -Object $entry -Name "ProbeNeedle" -DefaultValue "")
+        if ([string]::IsNullOrWhiteSpace($surfaceNeedle) -or [string]::IsNullOrWhiteSpace($probeNeedle)) {
+            throw ("Signon regression matrix entry {0} must define both SurfaceNeedle and ProbeNeedle." -f $name)
+        }
+
+        $runs = Get-OptionalPropertyValue -Object $entry -Name "Runs" -DefaultValue $null
+        if ($null -eq $runs) {
+            throw ("Signon regression matrix entry {0} is missing Runs metadata." -f $name)
+        }
+
+        foreach ($runName in @("happy", "gate")) {
+            $runExpectation = Get-OptionalPropertyValue -Object $runs -Name $runName -DefaultValue $null
+            if ($null -eq $runExpectation) {
+                throw ("Signon regression matrix entry {0} is missing the {1} run definition." -f $name, $runName)
+            }
+
+            foreach ($tokenProperty in @("Surface", "Probe", "Key")) {
+                $tokenValues = @(Get-OptionalPropertyValue -Object $runExpectation -Name $tokenProperty -DefaultValue @())
+                if ($tokenValues.Count -eq 0) {
+                    throw ("Signon regression matrix entry {0} run {1} is missing {2} tokens." -f $name, $runName, $tokenProperty)
+                }
+            }
+        }
+
+        $normalizedEntries.Add([ordered]@{
+                Name = $name
+                Groups = $groups
+                EnabledByDefault = [bool](Get-OptionalPropertyValue -Object $entry -Name "EnabledByDefault" -DefaultValue $false)
+                Mode = [string](Get-OptionalPropertyValue -Object $entry -Name "Mode" -DefaultValue "")
+                Notes = [string](Get-OptionalPropertyValue -Object $entry -Name "Notes" -DefaultValue "")
+                SurfaceNeedle = $surfaceNeedle
+                ProbeNeedle = $probeNeedle
+                Runs = $runs
+            })
+    }
+
+    return [ordered]@{
+        SuiteName = [string](Get-OptionalPropertyValue -Object $matrixData -Name "SuiteName" -DefaultValue $script:SuiteName)
+        MatrixPath = $ResolvedMatrixPath
+        Entries = $normalizedEntries.ToArray()
+        KnownGroups = @(Get-EntryGroupNames -Entries $normalizedEntries.ToArray())
+    }
+}
+
+function Select-SignonRegressionEntries {
+    param(
+        [object[]]$Entries,
+        [string[]]$RequestedSurfaceNames,
+        [string[]]$RequestedGroupNames
+    )
+
+    $normalizedSurfaceNames = @(Get-TrimmedUniqueValues -Values $RequestedSurfaceNames)
+    $normalizedGroupNames = @(Get-TrimmedUniqueValues -Values $RequestedGroupNames)
+    $knownSurfaceNames = @($Entries | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
+    $knownGroupNames = @(Get-EntryGroupNames -Entries $Entries)
+
+    foreach ($surfaceName in $normalizedSurfaceNames) {
+        if ($knownSurfaceNames -notcontains $surfaceName) {
+            throw ("Unknown -Surface value '{0}'. Known surfaces: {1}" -f $surfaceName, ($knownSurfaceNames -join ", "))
+        }
+    }
+
+    foreach ($groupName in $normalizedGroupNames) {
+        if ($knownGroupNames -notcontains $groupName) {
+            throw ("Unknown -Group value '{0}'. Known groups: {1}" -f $groupName, ($knownGroupNames -join ", "))
+        }
+    }
+
+    $selectedEntries = New-Object System.Collections.Generic.List[object]
+    foreach ($entry in @($Entries)) {
+        $entryName = [string](Get-OptionalPropertyValue -Object $entry -Name "Name" -DefaultValue "")
+        $entryGroups = @(Get-OptionalPropertyValue -Object $entry -Name "Groups" -DefaultValue @())
+        $matchesSurface = ($normalizedSurfaceNames.Count -eq 0 -or $normalizedSurfaceNames -contains $entryName)
+        $matchesGroup = ($normalizedGroupNames.Count -eq 0 -or @($entryGroups | Where-Object { $normalizedGroupNames -contains $_ }).Count -gt 0)
+        $enabledByDefault = [bool](Get-OptionalPropertyValue -Object $entry -Name "EnabledByDefault" -DefaultValue $false)
+
+        if ($normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
+            if ($enabledByDefault) {
+                $selectedEntries.Add($entry)
+            }
+            continue
+        }
+
+        if ($matchesSurface -and $matchesGroup) {
+            $selectedEntries.Add($entry)
+        }
+    }
+
+    if ($selectedEntries.Count -eq 0) {
+        if ($normalizedSurfaceNames.Count -eq 0 -and $normalizedGroupNames.Count -eq 0) {
+            throw "The signon regression matrix does not contain any entries with EnabledByDefault = true."
+        }
+
+        throw "The requested -Surface/-Group filter combination did not select any signon regression entries."
+    }
+
+    return [pscustomobject]@{
+        Entries = $selectedEntries.ToArray()
+        RequestedSurfaceNames = $normalizedSurfaceNames
+        RequestedGroupNames = $normalizedGroupNames
+        SelectedSurfaceNames = @($selectedEntries | ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") })
+        SelectedGroupNames = @(Get-EntryGroupNames -Entries $selectedEntries.ToArray())
+    }
+}
+
+function Write-SignonRegressionMatrixListing {
+    param([object]$MatrixData)
+
+    Write-Heading "Signon Regression Matrix"
+    Write-Host ("Matrix path: {0}" -f $MatrixData.MatrixPath)
+    Write-Host ("Suite name: {0}" -f $MatrixData.SuiteName)
+    Write-Host ("Entries: {0}" -f @($MatrixData.Entries).Count)
+
+    Write-Heading "Groups"
+    foreach ($groupName in @($MatrixData.KnownGroups)) {
+        $matchingNames = @(
+            $MatrixData.Entries |
+                Where-Object { @(Get-OptionalPropertyValue -Object $_ -Name "Groups" -DefaultValue @()) -contains $groupName } |
+                ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") }
+        )
+        Write-Host ("{0}: {1}" -f $groupName, ($matchingNames -join ", "))
+    }
+
+    Write-Heading "Surfaces"
+    foreach ($entry in @($MatrixData.Entries)) {
+        $entryName = [string](Get-OptionalPropertyValue -Object $entry -Name "Name" -DefaultValue "")
+        $enabledByDefault = [bool](Get-OptionalPropertyValue -Object $entry -Name "EnabledByDefault" -DefaultValue $false)
+        $groupNames = @(Get-OptionalPropertyValue -Object $entry -Name "Groups" -DefaultValue @())
+        $mode = [string](Get-OptionalPropertyValue -Object $entry -Name "Mode" -DefaultValue "")
+        $notes = [string](Get-OptionalPropertyValue -Object $entry -Name "Notes" -DefaultValue "")
+        Write-Host ("{0}" -f $entryName)
+        Write-Host ("  enabledByDefault: {0}" -f $(if ($enabledByDefault) { "yes" } else { "no" }))
+        Write-Host ("  groups: {0}" -f ($groupNames -join ", "))
+        if (-not [string]::IsNullOrWhiteSpace($mode)) {
+            Write-Host ("  mode: {0}" -f $mode)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($notes)) {
+            Write-Host ("  notes: {0}" -f $notes)
+        }
+    }
 }
 
 function Resolve-ArtifactOutputDir {
@@ -810,7 +633,7 @@ function Get-TokenMatchReport {
 
 function Test-SurfaceCheckForRun {
     param(
-        [hashtable]$Definition,
+        [object]$Definition,
         [string]$RunName,
         [string[]]$SummaryLines
     )
@@ -882,6 +705,62 @@ function Get-ObservedProvenanceMode {
     }
 
     return "mixed"
+}
+
+function Get-GroupedOverallStatus {
+    param([string[]]$Statuses)
+
+    if (@($Statuses).Count -eq 0) {
+        return "NOT_SELECTED"
+    }
+    if (@($Statuses | Where-Object { $_ -eq "FAIL" }).Count -gt 0) {
+        return "FAIL"
+    }
+    if (@($Statuses | Where-Object { $_ -eq "PASS" }).Count -eq @($Statuses).Count) {
+        return "PASS"
+    }
+    if (@($Statuses | Where-Object { $_ -eq "NOT_RUN" }).Count -eq @($Statuses).Count) {
+        return "NOT_RUN"
+    }
+    if (@($Statuses | Where-Object { $_ -eq "SKIPPED" }).Count -eq @($Statuses).Count) {
+        return "SKIPPED"
+    }
+
+    return "MIXED"
+}
+
+function Build-GroupResults {
+    param(
+        [object[]]$SelectedEntries,
+        [object[]]$SurfaceResults
+    )
+
+    $surfaceResultsByName = @{}
+    foreach ($surfaceResult in @($SurfaceResults)) {
+        $surfaceResultsByName[[string]$surfaceResult.name] = $surfaceResult
+    }
+
+    $groupResults = New-Object System.Collections.Generic.List[object]
+    foreach ($groupName in @(Get-EntryGroupNames -Entries $SelectedEntries)) {
+        $groupSurfaceNames = @(
+            $SelectedEntries |
+                Where-Object { @(Get-OptionalPropertyValue -Object $_ -Name "Groups" -DefaultValue @()) -contains $groupName } |
+                ForEach-Object { [string](Get-OptionalPropertyValue -Object $_ -Name "Name" -DefaultValue "") }
+        )
+        $groupSurfaceResults = @($groupSurfaceNames | ForEach-Object { $surfaceResultsByName[$_] } | Where-Object { $null -ne $_ })
+        $groupStatuses = @($groupSurfaceResults | ForEach-Object { [string]$_.overallStatus })
+        $groupResults.Add([ordered]@{
+                name = $groupName
+                overallStatus = Get-GroupedOverallStatus -Statuses $groupStatuses
+                surfaceCount = $groupSurfaceNames.Count
+                passingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "PASS" }).Count
+                failingSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+                notRunSurfaceCount = @($groupSurfaceResults | Where-Object { $_.overallStatus -eq "NOT_RUN" }).Count
+                surfaceNames = $groupSurfaceNames
+            }) | Out-Null
+    }
+
+    return $groupResults.ToArray()
 }
 
 function Copy-RunArtifactsToBundle {
@@ -957,7 +836,16 @@ function Write-SuiteSummaryFiles {
     $textLines.Add(("outer workspace root: {0}" -f $SummaryObject.outerWorkspaceRoot))
     $textLines.Add(("build dir: {0}" -f $SummaryObject.buildDir))
     $textLines.Add(("executable: {0}" -f $SummaryObject.executablePath))
+    $textLines.Add(("matrix path: {0}" -f $SummaryObject.matrixPath))
     $textLines.Add(("delegated verification command: {0}" -f $SummaryObject.delegatedVerificationCommandLine))
+    if (@($SummaryObject.requestedGroupNames).Count -gt 0) {
+        $textLines.Add(("requested groups: {0}" -f (@($SummaryObject.requestedGroupNames) -join ", ")))
+    }
+    if (@($SummaryObject.requestedSurfaceNames).Count -gt 0) {
+        $textLines.Add(("requested surfaces: {0}" -f (@($SummaryObject.requestedSurfaceNames) -join ", ")))
+    }
+    $textLines.Add(("selected groups: {0}" -f (@($SummaryObject.selectedGroupNames) -join ", ")))
+    $textLines.Add(("selected surfaces: {0}" -f (@($SummaryObject.selectedSurfaceNames) -join ", ")))
     $textLines.Add("")
     $textLines.Add("run results:")
     foreach ($runRecord in @($SummaryObject.runs)) {
@@ -970,9 +858,19 @@ function Write-SuiteSummaryFiles {
         }
     }
     $textLines.Add("")
+    $textLines.Add("group results:")
+    foreach ($groupResult in @($SummaryObject.groups)) {
+        $textLines.Add(("  {0}: {1}" -f $groupResult.name, $groupResult.overallStatus))
+        $textLines.Add(("    surfaces: {0}" -f ($groupResult.surfaceNames -join ", ")))
+        $textLines.Add(("    counts: pass={0}, fail={1}, not-run={2}" -f $groupResult.passingSurfaceCount, $groupResult.failingSurfaceCount, $groupResult.notRunSurfaceCount))
+    }
+    $textLines.Add("")
     $textLines.Add("surface results:")
     foreach ($surfaceResult in @($SummaryObject.surfaces)) {
         $textLines.Add(("  {0}: {1}" -f $surfaceResult.name, $surfaceResult.overallStatus))
+        if (@($surfaceResult.groups).Count -gt 0) {
+            $textLines.Add(("    groups: {0}" -f (@($surfaceResult.groups) -join ", ")))
+        }
         foreach ($runCheck in @($surfaceResult.runs)) {
             $textLines.Add(("    {0}: {1} - {2}" -f $runCheck.runName, $runCheck.status, $runCheck.reason))
         }
@@ -990,12 +888,16 @@ function Write-SuiteSummaryFiles {
 }
 
 $resolvedRepoRoot = ""
+$resolvedMatrixPath = ""
 $resolvedArtifactOutputDir = ""
+$matrixData = $null
+$selectedMatrix = $null
 $delegatedOutputLogPath = ""
 $delegatedCommandLine = ""
 $delegatedRunnerContext = [pscustomobject]@{}
 $verificationMetadata = $null
 $runRecords = @()
+$groupResults = @()
 $surfaceResults = @()
 $resultLabel = "FAIL"
 $finalExitCode = 1
@@ -1003,182 +905,222 @@ $cleanupOutputLogPath = ""
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
-    if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
-        $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
-        $metadataDirectory = Ensure-Directory (Join-Path $resolvedArtifactOutputDir "metadata")
-        $delegatedOutputLogPath = Join-Path $metadataDirectory "verify_signon_neighbor_surfaces_output.log"
-    }
-    else {
-        $cleanupOutputLogPath = [System.IO.Path]::GetTempFileName()
-        $delegatedOutputLogPath = $cleanupOutputLogPath
-    }
+    $resolvedMatrixPath = Resolve-MatrixPath -ResolvedRepoRoot $resolvedRepoRoot -RequestedMatrixPath $MatrixPath
+    $matrixData = Import-SignonRegressionMatrix -ResolvedMatrixPath $resolvedMatrixPath
 
-    if (-not (Test-Path -LiteralPath $script:MainRunnerPath -PathType Leaf)) {
-        throw ("Current-main resumed-denial runner is missing: {0}" -f $script:MainRunnerPath)
-    }
-
-    $hostExecutable = Get-CurrentHostExecutable
-    $delegatedArguments = New-Object System.Collections.Generic.List[string]
-    $delegatedArguments.Add("-NoLogo")
-    $delegatedArguments.Add("-NoProfile")
-    $delegatedArguments.Add("-ExecutionPolicy")
-    $delegatedArguments.Add("Bypass")
-    $delegatedArguments.Add("-File")
-    $delegatedArguments.Add($script:MainRunnerPath)
-    $delegatedArguments.Add("-RepoRoot")
-    $delegatedArguments.Add($resolvedRepoRoot)
-    if (-not [string]::IsNullOrWhiteSpace($OuterWorkspaceRoot)) {
-        $delegatedArguments.Add("-OuterWorkspaceRoot")
-        $delegatedArguments.Add($OuterWorkspaceRoot)
-    }
-    if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
-        $delegatedArguments.Add("-BuildDir")
-        $delegatedArguments.Add($BuildDir)
-    }
-    if (-not [string]::IsNullOrWhiteSpace($ExePath)) {
-        $delegatedArguments.Add("-ExePath")
-        $delegatedArguments.Add($ExePath)
-    }
-    if ($NoBuild) {
-        $delegatedArguments.Add("-NoBuild")
-    }
-    if ($NoExecute) {
-        $delegatedArguments.Add("-NoExecute")
-    }
-    if ($UseExistingBinary) {
-        $delegatedArguments.Add("-UseExistingBinary")
-    }
-    $delegatedArguments.Add("-ProvenanceMode")
-    $delegatedArguments.Add($ProvenanceMode)
-    $delegatedArguments.Add("-SkipRecovery")
-
-    $delegatedCommandLine = Format-CommandLine -ExecutablePath $hostExecutable -Arguments $delegatedArguments.ToArray()
-    Write-Heading "Delegated Verification"
-    Write-Host "Reusing tools\\verify_resumed_denial_main.ps1 for the current-main happy/gate execution recipe."
-    Write-Host ("  {0}" -f $delegatedCommandLine)
-
-    & $hostExecutable @($delegatedArguments.ToArray()) 2>&1 | Tee-Object -FilePath $delegatedOutputLogPath
-    $delegatedExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
-    $verificationMetadata = Get-VerificationOutputMetadata -OutputLogPath $delegatedOutputLogPath -NoExecuteRequested:$NoExecute
-    $delegatedRunnerContext = Get-DelegatedRunnerContext -OutputLogPath $delegatedOutputLogPath
-
-    if ($delegatedExitCode -ne 0) {
-        throw ("verify_resumed_denial_main.ps1 failed with exit code {0}." -f $delegatedExitCode)
-    }
-
-    Write-Heading "Delegated Run Status"
-    Write-Host ("happy: {0}" -f $verificationMetadata.ScenarioStatuses.happy)
-    Write-Host ("gate: {0}" -f $verificationMetadata.ScenarioStatuses.gate)
-
-    if ($NoExecute -or $verificationMetadata.OverallResult -eq "NOEXECUTE") {
-        foreach ($definition in $script:SelectedSurfaceChecks) {
-            $surfaceResults += [pscustomobject]@{
-                name = $definition.Name
-                overallStatus = "NOT_RUN"
-                runs = @(
-                    [pscustomobject]@{ runName = "happy"; status = "NOT_RUN"; reason = "NoExecute requested; delegated runner validated the recipe but did not launch happy." }
-                    [pscustomobject]@{ runName = "gate"; status = "NOT_RUN"; reason = "NoExecute requested; delegated runner validated the recipe but did not launch gate." }
-                )
-            }
-        }
-
-        $resultLabel = "NOEXECUTE"
+    if ($ListSurfaces) {
+        Write-SignonRegressionMatrixListing -MatrixData $matrixData
+        $resultLabel = "LISTED"
         $finalExitCode = 0
     }
     else {
-        foreach ($scenarioName in @("happy", "gate")) {
-            $scenarioStatus = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name $scenarioName -DefaultValue "UNKNOWN")
-            if ($scenarioStatus -ne "PASS") {
-                throw ("Delegated resumed-denial recipe did not leave {0} in PASS state; found {1}." -f $scenarioName, $scenarioStatus)
-            }
+        $selectedMatrix = Select-SignonRegressionEntries -Entries $matrixData.Entries -RequestedSurfaceNames $Surface -RequestedGroupNames $Group
+        $selectedEntries = @($selectedMatrix.Entries)
+
+        Write-Heading "Selected Matrix Entries"
+        Write-Host ("Matrix path: {0}" -f $resolvedMatrixPath)
+        if (@($selectedMatrix.RequestedGroupNames).Count -gt 0) {
+            Write-Host ("Requested groups: {0}" -f (@($selectedMatrix.RequestedGroupNames) -join ", "))
+        }
+        if (@($selectedMatrix.RequestedSurfaceNames).Count -gt 0) {
+            Write-Host ("Requested surfaces: {0}" -f (@($selectedMatrix.RequestedSurfaceNames) -join ", "))
+        }
+        Write-Host ("Selected groups: {0}" -f (@($selectedMatrix.SelectedGroupNames) -join ", "))
+        Write-Host ("Selected surfaces ({0}): {1}" -f $selectedMatrix.SelectedSurfaceNames.Count, (@($selectedMatrix.SelectedSurfaceNames) -join ", "))
+
+        if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
+            $resolvedArtifactOutputDir = Resolve-ArtifactOutputDir -ResolvedRepoRoot $resolvedRepoRoot -RequestedArtifactOutputDir $ArtifactOutputDir
+            $metadataDirectory = Ensure-Directory (Join-Path $resolvedArtifactOutputDir "metadata")
+            $delegatedOutputLogPath = Join-Path $metadataDirectory "verify_signon_neighbor_surfaces_output.log"
+        }
+        else {
+            $cleanupOutputLogPath = [System.IO.Path]::GetTempFileName()
+            $delegatedOutputLogPath = $cleanupOutputLogPath
         }
 
-        $runtimeRoot = Join-Path $resolvedRepoRoot "logs\\latest\\runtime"
-        $codexRoot = Join-Path $resolvedRepoRoot "logs\\latest\\codex"
-        foreach ($scenarioName in @("happy", "gate")) {
-            $runLabel = [string](Get-OptionalPropertyValue -Object $verificationMetadata.RunLabels -Name $scenarioName -DefaultValue "")
-            if ([string]::IsNullOrWhiteSpace($runLabel)) {
-                throw ("Delegated runner did not emit a run label for {0}." -f $scenarioName)
-            }
-
-            $runArtifacts = Get-RunArtifacts -RuntimeRoot $runtimeRoot -CodexRoot $codexRoot -RunLabel $runLabel
-            $runRecords += [pscustomobject]@{
-                name = $scenarioName
-                status = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name $scenarioName -DefaultValue "UNKNOWN")
-                runLabel = $runLabel
-                provenanceMode = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioProvenance -Name $scenarioName -DefaultValue "")
-                sourceSummaryPath = $runArtifacts.SummaryFile.FullName
-                sourceRuntimePaths = @($runArtifacts.RuntimeFiles | ForEach-Object { $_.FullName })
-                sourceCodexManifestPath = if ($null -eq $runArtifacts.CodexManifest) { "" } else { $runArtifacts.CodexManifest.FullName }
-                artifactSummaryPath = ""
-                artifactRuntimePaths = @()
-                artifactCodexManifestPath = ""
-            }
+        if (-not (Test-Path -LiteralPath $script:MainRunnerPath -PathType Leaf)) {
+            throw ("Current-main resumed-denial runner is missing: {0}" -f $script:MainRunnerPath)
         }
 
-        $runSummaryLines = @{}
-        foreach ($runRecord in $runRecords) {
-            $runSummaryLines[$runRecord.name] = @(Get-Content -LiteralPath $runRecord.sourceSummaryPath)
+        $hostExecutable = Get-CurrentHostExecutable
+        $delegatedArguments = New-Object System.Collections.Generic.List[string]
+        $delegatedArguments.Add("-NoLogo")
+        $delegatedArguments.Add("-NoProfile")
+        $delegatedArguments.Add("-ExecutionPolicy")
+        $delegatedArguments.Add("Bypass")
+        $delegatedArguments.Add("-File")
+        $delegatedArguments.Add($script:MainRunnerPath)
+        $delegatedArguments.Add("-RepoRoot")
+        $delegatedArguments.Add($resolvedRepoRoot)
+        if (-not [string]::IsNullOrWhiteSpace($OuterWorkspaceRoot)) {
+            $delegatedArguments.Add("-OuterWorkspaceRoot")
+            $delegatedArguments.Add($OuterWorkspaceRoot)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($BuildDir)) {
+            $delegatedArguments.Add("-BuildDir")
+            $delegatedArguments.Add($BuildDir)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($ExePath)) {
+            $delegatedArguments.Add("-ExePath")
+            $delegatedArguments.Add($ExePath)
+        }
+        if ($NoBuild) {
+            $delegatedArguments.Add("-NoBuild")
+        }
+        if ($NoExecute) {
+            $delegatedArguments.Add("-NoExecute")
+        }
+        if ($UseExistingBinary) {
+            $delegatedArguments.Add("-UseExistingBinary")
+        }
+        $delegatedArguments.Add("-ProvenanceMode")
+        $delegatedArguments.Add($ProvenanceMode)
+        $delegatedArguments.Add("-SkipRecovery")
+
+        $delegatedCommandLine = Format-CommandLine -ExecutablePath $hostExecutable -Arguments $delegatedArguments.ToArray()
+        Write-Heading "Delegated Verification"
+        Write-Host "Reusing tools\\verify_resumed_denial_main.ps1 for the current-main happy/gate execution recipe."
+        Write-Host ("  {0}" -f $delegatedCommandLine)
+
+        & $hostExecutable @($delegatedArguments.ToArray()) 2>&1 | Tee-Object -FilePath $delegatedOutputLogPath
+        $delegatedExitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
+        $verificationMetadata = Get-VerificationOutputMetadata -OutputLogPath $delegatedOutputLogPath -NoExecuteRequested:$NoExecute
+        $delegatedRunnerContext = Get-DelegatedRunnerContext -OutputLogPath $delegatedOutputLogPath
+
+        if ($delegatedExitCode -ne 0) {
+            throw ("verify_resumed_denial_main.ps1 failed with exit code {0}." -f $delegatedExitCode)
         }
 
-        Write-Heading "Neighbor Surface Checks"
-        $suiteFailed = $false
-        foreach ($definition in $script:SelectedSurfaceChecks) {
-            $happyCheck = Test-SurfaceCheckForRun -Definition $definition -RunName "happy" -SummaryLines $runSummaryLines["happy"]
-            $gateCheck = Test-SurfaceCheckForRun -Definition $definition -RunName "gate" -SummaryLines $runSummaryLines["gate"]
-            $overallStatus = if ($happyCheck.status -eq "PASS" -and $gateCheck.status -eq "PASS") { "PASS" } else { "FAIL" }
-            if ($overallStatus -ne "PASS") {
-                $suiteFailed = $true
+        Write-Heading "Delegated Run Status"
+        Write-Host ("happy: {0}" -f $verificationMetadata.ScenarioStatuses.happy)
+        Write-Host ("gate: {0}" -f $verificationMetadata.ScenarioStatuses.gate)
+
+        if ($NoExecute -or $verificationMetadata.OverallResult -eq "NOEXECUTE") {
+            foreach ($definition in $selectedEntries) {
+                $surfaceResults += [pscustomobject]@{
+                    name = $definition.Name
+                    groups = @($definition.Groups)
+                    overallStatus = "NOT_RUN"
+                    runs = @(
+                        [pscustomobject]@{ runName = "happy"; status = "NOT_RUN"; reason = "NoExecute requested; delegated runner validated the recipe but did not launch happy." }
+                        [pscustomobject]@{ runName = "gate"; status = "NOT_RUN"; reason = "NoExecute requested; delegated runner validated the recipe but did not launch gate." }
+                    )
+                }
             }
 
-            $surfaceResult = [pscustomobject]@{
-                name = $definition.Name
-                overallStatus = $overallStatus
-                runs = @($happyCheck, $gateCheck)
+            $resultLabel = "NOEXECUTE"
+            $finalExitCode = 0
+        }
+        else {
+            foreach ($scenarioName in @("happy", "gate")) {
+                $scenarioStatus = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name $scenarioName -DefaultValue "UNKNOWN")
+                if ($scenarioStatus -ne "PASS") {
+                    throw ("Delegated resumed-denial recipe did not leave {0} in PASS state; found {1}." -f $scenarioName, $scenarioStatus)
+                }
             }
-            $surfaceResults += $surfaceResult
 
-            Write-Host ("{0}: {1}" -f $definition.Name, $overallStatus)
-            Write-Host ("  happy: {0}" -f $happyCheck.reason)
-            Write-Host ("  gate: {0}" -f $gateCheck.reason)
+            $runtimeRoot = Join-Path $resolvedRepoRoot "logs\\latest\\runtime"
+            $codexRoot = Join-Path $resolvedRepoRoot "logs\\latest\\codex"
+            foreach ($scenarioName in @("happy", "gate")) {
+                $runLabel = [string](Get-OptionalPropertyValue -Object $verificationMetadata.RunLabels -Name $scenarioName -DefaultValue "")
+                if ([string]::IsNullOrWhiteSpace($runLabel)) {
+                    throw ("Delegated runner did not emit a run label for {0}." -f $scenarioName)
+                }
+
+                $runArtifacts = Get-RunArtifacts -RuntimeRoot $runtimeRoot -CodexRoot $codexRoot -RunLabel $runLabel
+                $runRecords += [pscustomobject]@{
+                    name = $scenarioName
+                    status = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name $scenarioName -DefaultValue "UNKNOWN")
+                    runLabel = $runLabel
+                    provenanceMode = [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioProvenance -Name $scenarioName -DefaultValue "")
+                    sourceSummaryPath = $runArtifacts.SummaryFile.FullName
+                    sourceRuntimePaths = @($runArtifacts.RuntimeFiles | ForEach-Object { $_.FullName })
+                    sourceCodexManifestPath = if ($null -eq $runArtifacts.CodexManifest) { "" } else { $runArtifacts.CodexManifest.FullName }
+                    artifactSummaryPath = ""
+                    artifactRuntimePaths = @()
+                    artifactCodexManifestPath = ""
+                }
+            }
+
+            $runSummaryLines = @{}
+            foreach ($runRecord in $runRecords) {
+                $runSummaryLines[$runRecord.name] = @(Get-Content -LiteralPath $runRecord.sourceSummaryPath)
+            }
+
+            Write-Heading "Neighbor Surface Checks"
+            $suiteFailed = $false
+            foreach ($definition in $selectedEntries) {
+                $happyCheck = Test-SurfaceCheckForRun -Definition $definition -RunName "happy" -SummaryLines $runSummaryLines["happy"]
+                $gateCheck = Test-SurfaceCheckForRun -Definition $definition -RunName "gate" -SummaryLines $runSummaryLines["gate"]
+                $overallStatus = if ($happyCheck.status -eq "PASS" -and $gateCheck.status -eq "PASS") { "PASS" } else { "FAIL" }
+                if ($overallStatus -ne "PASS") {
+                    $suiteFailed = $true
+                }
+
+                $surfaceResult = [pscustomobject]@{
+                    name = $definition.Name
+                    groups = @($definition.Groups)
+                    overallStatus = $overallStatus
+                    runs = @($happyCheck, $gateCheck)
+                }
+                $surfaceResults += $surfaceResult
+
+                Write-Host ("{0}: {1}" -f $definition.Name, $overallStatus)
+                Write-Host ("  groups: {0}" -f (@($definition.Groups) -join ", "))
+                Write-Host ("  happy: {0}" -f $happyCheck.reason)
+                Write-Host ("  gate: {0}" -f $gateCheck.reason)
+            }
+
+            $resultLabel = if ($suiteFailed) { "FAIL" } else { "PASS" }
+            $finalExitCode = if ($suiteFailed) { 1 } else { 0 }
         }
 
-        $resultLabel = if ($suiteFailed) { "FAIL" } else { "PASS" }
-        $finalExitCode = if ($suiteFailed) { 1 } else { 0 }
+        $groupResults = @(Build-GroupResults -SelectedEntries $selectedEntries -SurfaceResults $surfaceResults)
+        Write-Heading "Group Summary"
+        foreach ($groupResult in $groupResults) {
+            Write-Host ("{0}: {1}" -f $groupResult.name, $groupResult.overallStatus)
+            Write-Host ("  surfaces: {0}" -f (@($groupResult.surfaceNames) -join ", "))
+            Write-Host ("  counts: pass={0}, fail={1}, not-run={2}" -f $groupResult.passingSurfaceCount, $groupResult.failingSurfaceCount, $groupResult.notRunSurfaceCount)
+        }
+
+        $summaryObject = [ordered]@{
+            generatedAt = (Get-Date).ToString("o")
+            suiteName = $matrixData.SuiteName
+            promptId = $script:PromptId
+            overallResult = $resultLabel
+            requestedProvenanceMode = $ProvenanceMode
+            observedProvenanceMode = Get-ObservedProvenanceMode -VerificationMetadata $verificationMetadata
+            repoRoot = $resolvedRepoRoot
+            outerWorkspaceRoot = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "WorkspaceRoot" -DefaultValue "")
+            buildDir = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "BuildDir" -DefaultValue $BuildDir)
+            executablePath = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "ExecutablePath" -DefaultValue $ExePath)
+            headCommit = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "HeadCommit" -DefaultValue "")
+            branch = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "Branch" -DefaultValue "")
+            matrixPath = $resolvedMatrixPath
+            requestedSurfaceNames = @($selectedMatrix.RequestedSurfaceNames)
+            requestedGroupNames = @($selectedMatrix.RequestedGroupNames)
+            selectedSurfaceNames = @($selectedMatrix.SelectedSurfaceNames)
+            selectedGroupNames = @($selectedMatrix.SelectedGroupNames)
+            delegatedVerificationCommandLine = $delegatedCommandLine
+            runs = @($runRecords)
+            groups = @($groupResults)
+            surfaces = @($surfaceResults)
+            metadata = [ordered]@{}
+        }
+
+        if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
+            $summaryPaths = Write-SuiteSummaryFiles -OutputDir $resolvedArtifactOutputDir -SummaryObject $summaryObject -DelegatedOutputLogPath $delegatedOutputLogPath -VerificationMetadata $verificationMetadata
+            Write-Heading "Artifact Bundle"
+            Write-Host ("Output dir: {0}" -f $resolvedArtifactOutputDir)
+            Write-Host ("Text summary: {0}" -f $summaryPaths.TextSummaryPath)
+            Write-Host ("JSON summary: {0}" -f $summaryPaths.JsonSummaryPath)
+        }
+
+        Write-Heading "Verdict"
+        Write-Host ("happy: {0}" -f [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN"))
+        Write-Host ("gate: {0}" -f [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name "gate" -DefaultValue "UNKNOWN"))
+        Write-Host ("neighbor-surface suite: {0}" -f $resultLabel)
     }
-
-    $summaryObject = [ordered]@{
-        generatedAt = (Get-Date).ToString("o")
-        suiteName = $script:SuiteName
-        promptId = $script:PromptId
-        overallResult = $resultLabel
-        requestedProvenanceMode = $ProvenanceMode
-        observedProvenanceMode = Get-ObservedProvenanceMode -VerificationMetadata $verificationMetadata
-        repoRoot = $resolvedRepoRoot
-        outerWorkspaceRoot = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "WorkspaceRoot" -DefaultValue "")
-        buildDir = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "BuildDir" -DefaultValue $BuildDir)
-        executablePath = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "ExecutablePath" -DefaultValue $ExePath)
-        headCommit = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "HeadCommit" -DefaultValue "")
-        branch = [string](Get-OptionalPropertyValue -Object $delegatedRunnerContext -Name "Branch" -DefaultValue "")
-        delegatedVerificationCommandLine = $delegatedCommandLine
-        selectedSurfaceNames = @($script:SelectedSurfaceChecks | ForEach-Object { $_.Name })
-        runs = @($runRecords)
-        surfaces = @($surfaceResults)
-        metadata = [ordered]@{}
-    }
-
-    if ($CollectArtifacts -or -not [string]::IsNullOrWhiteSpace($ArtifactOutputDir)) {
-        $summaryPaths = Write-SuiteSummaryFiles -OutputDir $resolvedArtifactOutputDir -SummaryObject $summaryObject -DelegatedOutputLogPath $delegatedOutputLogPath -VerificationMetadata $verificationMetadata
-        Write-Heading "Artifact Bundle"
-        Write-Host ("Output dir: {0}" -f $resolvedArtifactOutputDir)
-        Write-Host ("Text summary: {0}" -f $summaryPaths.TextSummaryPath)
-        Write-Host ("JSON summary: {0}" -f $summaryPaths.JsonSummaryPath)
-    }
-
-    Write-Heading "Verdict"
-    Write-Host ("happy: {0}" -f [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name "happy" -DefaultValue "UNKNOWN"))
-    Write-Host ("gate: {0}" -f [string](Get-OptionalPropertyValue -Object $verificationMetadata.ScenarioStatuses -Name "gate" -DefaultValue "UNKNOWN"))
-    Write-Host ("neighbor-surface suite: {0}" -f $resultLabel)
 }
 catch {
     Write-Heading "Failure"
