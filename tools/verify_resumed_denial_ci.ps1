@@ -10,11 +10,14 @@ param(
     [switch]$NoExecute,
     [switch]$UseExistingBinary,
     [switch]$RunNeighborSurfaceSuite,
-    [ValidateSet("default", "checkpoint-extended", "full-expanded")]
+    [ValidateSet("auto", "default", "checkpoint-extended", "full-expanded")]
     [string]$NeighborSurfaceProfile,
     [string[]]$NeighborSurfaceGroup,
     [string[]]$NeighborSurface,
     [switch]$FullNeighborMatrix,
+    [string]$DiffBase,
+    [string]$DiffHead,
+    [string[]]$ChangedPath,
     [string]$JUnitOutputPath,
     [switch]$CollectArtifacts,
     [string]$ArtifactOutputDir
@@ -31,6 +34,7 @@ $script:DefaultBuildDirName = "build-main-win32-hlhost-regression"
 $script:MainRunnerPath = Join-Path $PSScriptRoot "verify_resumed_denial_main.ps1"
 $script:NeighborSuiteRunnerPath = Join-Path $PSScriptRoot "verify_signon_neighbor_surfaces_main.ps1"
 $script:ArtifactCollectorPath = Join-Path $PSScriptRoot "collect_resumed_denial_artifacts.ps1"
+$script:ProfileResolverPath = Join-Path $PSScriptRoot "resolve_signon_regression_profile.ps1"
 $script:DefaultNeighborJUnitFileName = "signon_neighbor_surface_junit.xml"
 
 function Write-Heading {
@@ -381,6 +385,105 @@ function Get-TrimmedUniqueValues {
     return $normalizedValues.ToArray()
 }
 
+function Resolve-NeighborProfileSelectionContext {
+    param(
+        [string]$ResolvedRepoRoot,
+        [string]$RequestedProfile,
+        [string[]]$NormalizedNeighborSurfaceGroups,
+        [string[]]$NormalizedNeighborSurfaces,
+        [switch]$FullNeighborMatrixRequested,
+        [string]$DiffBase,
+        [string]$DiffHead,
+        [string[]]$ChangedPaths
+    )
+
+    if ($RequestedProfile -eq "auto") {
+        Assert-PathExists -LiteralPath $script:ProfileResolverPath -Description "neighbor profile resolver" -ActionHint "Verify that tools\\resolve_signon_regression_profile.ps1 exists in this checkout"
+        $resolverResult = & {
+            param(
+                [string]$ScriptPath,
+                [string]$ResolvedRepoRoot,
+                [string]$DiffBase,
+                [string]$DiffHead,
+                [string[]]$ChangedPaths
+            )
+
+            . $ScriptPath
+            $resolution = Resolve-SignonRegressionProfile `
+                -RepoRoot $ResolvedRepoRoot `
+                -DiffBase $DiffBase `
+                -DiffHead $DiffHead `
+                -ChangedPath $ChangedPaths
+            Write-SignonRegressionProfileReport -Resolution $resolution -PrintChangedFiles
+            return $resolution
+        } $script:ProfileResolverPath $ResolvedRepoRoot $DiffBase $DiffHead $ChangedPaths
+
+        return [pscustomobject]@{
+            RequestedProfileMode = "auto"
+            RequestedProfile = "auto"
+            RunnerProfile = [string]$resolverResult.resolvedProfile
+            ResolvedProfile = [string]$resolverResult.resolvedProfile
+            SelectionOrigin = "auto-profile"
+            SelectionReason = [string]$resolverResult.reason
+            MatchedRuleIds = @($resolverResult.matchedRuleIds)
+            MatchedRules = @($resolverResult.matchedRules)
+            DiffBase = [string]$resolverResult.diffBase
+            DiffHead = [string]$resolverResult.diffHead
+            ChangedPaths = @($resolverResult.changedPaths)
+            ChangedPathSource = [string]$resolverResult.changedPathSource
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($RequestedProfile)) {
+        return [pscustomobject]@{
+            RequestedProfileMode = "explicit"
+            RequestedProfile = $RequestedProfile
+            RunnerProfile = $RequestedProfile
+            ResolvedProfile = $RequestedProfile
+            SelectionOrigin = "profile"
+            SelectionReason = ("Explicit neighboring-surface profile override requested: {0}." -f $RequestedProfile)
+            MatchedRuleIds = @()
+            MatchedRules = @()
+            DiffBase = ""
+            DiffHead = ""
+            ChangedPaths = @()
+            ChangedPathSource = ""
+        }
+    }
+
+    if ($FullNeighborMatrixRequested -or $NormalizedNeighborSurfaceGroups.Count -gt 0 -or $NormalizedNeighborSurfaces.Count -gt 0) {
+        return [pscustomobject]@{
+            RequestedProfileMode = "explicit"
+            RequestedProfile = ""
+            RunnerProfile = ""
+            ResolvedProfile = ""
+            SelectionOrigin = "explicit"
+            SelectionReason = "Explicit neighboring-surface groups, surfaces, or full-matrix selection requested; auto profile selection was not used."
+            MatchedRuleIds = @()
+            MatchedRules = @()
+            DiffBase = ""
+            DiffHead = ""
+            ChangedPaths = @()
+            ChangedPathSource = ""
+        }
+    }
+
+    return [pscustomobject]@{
+        RequestedProfileMode = "implicit-default"
+        RequestedProfile = ""
+        RunnerProfile = ""
+        ResolvedProfile = ""
+        SelectionOrigin = "default"
+        SelectionReason = "No neighboring-surface profile or filters were requested; preserving the existing default-enabled matrix semantics."
+        MatchedRuleIds = @()
+        MatchedRules = @()
+        DiffBase = ""
+        DiffHead = ""
+        ChangedPaths = @()
+        ChangedPathSource = ""
+    }
+}
+
 function Resolve-ArtifactOutputDir {
     param(
         [string]$ResolvedRepoRoot,
@@ -523,7 +626,8 @@ function Write-ArtifactMetadataFile {
         [string]$RequestedProvenanceMode,
         [string]$VerificationCommandLine,
         [string]$VerificationOutputLogPath,
-        [object]$VerificationOutputMetadata
+        [object]$VerificationOutputMetadata,
+        [object]$NeighborSurfaceSelection
     )
 
     $metadataDirectory = Split-Path -Path $MetadataPath -Parent
@@ -568,6 +672,22 @@ function Write-ArtifactMetadataFile {
             happy = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "happy" -DefaultValue "")
             gate = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "gate" -DefaultValue "")
             recovery = [string](Get-OptionalPropertyValue -Object $VerificationOutputMetadata.ScenarioProvenance -Name "recovery" -DefaultValue "")
+        }
+    }
+
+    if ($null -ne $NeighborSurfaceSelection) {
+        $metadataObject.neighborSurfaceSelection = [ordered]@{
+            requestedProfileMode = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "RequestedProfileMode" -DefaultValue "")
+            requestedProfile = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "RequestedProfile" -DefaultValue "")
+            resolvedProfile = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "ResolvedProfile" -DefaultValue "")
+            selectionOrigin = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "SelectionOrigin" -DefaultValue "")
+            selectionReason = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "SelectionReason" -DefaultValue "")
+            matchedRuleIds = @((Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "MatchedRuleIds" -DefaultValue @()))
+            matchedRules = @((Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "MatchedRules" -DefaultValue @()))
+            diffBase = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "DiffBase" -DefaultValue "")
+            diffHead = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "DiffHead" -DefaultValue "")
+            changedPathSource = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "ChangedPathSource" -DefaultValue "")
+            changedPaths = @((Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "ChangedPaths" -DefaultValue @()))
         }
     }
 
@@ -718,6 +838,9 @@ function Write-CombinedSuiteSummaryFiles {
     if ($SummaryObject.runNeighborSurfaceSuite) {
         $textLines.Add("")
         $textLines.Add("neighbor-surfaces:")
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "requestedProfileMode" -DefaultValue ""))) {
+            $textLines.Add(("  requested profile mode: {0}" -f [string]$SummaryObject.neighborSurfaces.requestedProfileMode))
+        }
         if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.requestedProfile)) {
             $textLines.Add(("  requested profile: {0}" -f [string]$SummaryObject.neighborSurfaces.requestedProfile))
         }
@@ -726,6 +849,24 @@ function Write-CombinedSuiteSummaryFiles {
         }
         if (-not [string]::IsNullOrWhiteSpace([string]$SummaryObject.neighborSurfaces.selectionOrigin)) {
             $textLines.Add(("  selection origin: {0}" -f [string]$SummaryObject.neighborSurfaces.selectionOrigin))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionReason" -DefaultValue ""))) {
+            $textLines.Add(("  profile selection reason: {0}" -f [string]$SummaryObject.neighborSurfaces.profileSelectionReason))
+        }
+        if (@((Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionRuleIds" -DefaultValue @())).Count -gt 0) {
+            $textLines.Add(("  matched profile rules: {0}" -f (@($SummaryObject.neighborSurfaces.profileSelectionRuleIds) -join ", ")))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionDiffBase" -DefaultValue ""))) {
+            $textLines.Add(("  diff base: {0}" -f [string]$SummaryObject.neighborSurfaces.profileSelectionDiffBase))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionDiffHead" -DefaultValue ""))) {
+            $textLines.Add(("  diff head: {0}" -f [string]$SummaryObject.neighborSurfaces.profileSelectionDiffHead))
+        }
+        if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionChangedPathSource" -DefaultValue ""))) {
+            $textLines.Add(("  changed path source: {0}" -f [string]$SummaryObject.neighborSurfaces.profileSelectionChangedPathSource))
+        }
+        if (@((Get-OptionalPropertyValue -Object $SummaryObject.neighborSurfaces -Name "profileSelectionChangedPaths" -DefaultValue @())).Count -gt 0) {
+            $textLines.Add(("  changed paths: {0}" -f (@($SummaryObject.neighborSurfaces.profileSelectionChangedPaths) -join ", ")))
         }
         if (@($SummaryObject.neighborSurfaces.selectedGroupNames).Count -gt 0) {
             $textLines.Add(("  selected groups: {0}" -f (@($SummaryObject.neighborSurfaces.selectedGroupNames) -join ", ")))
@@ -784,6 +925,7 @@ function Write-CiSummary {
         [string]$ResumedDenialResult,
         [string]$NeighborSurfaceResult,
         [string]$NeighborSurfaceProfile,
+        [object]$NeighborSurfaceSelection,
         [string[]]$NeighborSurfaceGroups,
         [string[]]$NeighborSurfaces,
         [string]$NeighborJUnitOutputPath,
@@ -808,20 +950,57 @@ function Write-CiSummary {
     if (-not [string]::IsNullOrWhiteSpace($NeighborVerificationCommandLine)) {
         Write-Host ("neighbor-surface command: {0}" -f $NeighborVerificationCommandLine)
     }
-    if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
-        Write-Host ("neighbor-surface profile: {0}" -f $NeighborSurfaceProfile)
-    }
-    if (@($NeighborSurfaceGroups).Count -gt 0) {
-        Write-Host ("neighbor-surface groups: {0}" -f (@($NeighborSurfaceGroups) -join ", "))
-    }
-    if (@($NeighborSurfaces).Count -gt 0) {
-        Write-Host ("neighbor-surfaces: {0}" -f (@($NeighborSurfaces) -join ", "))
-    }
-    if ($FullNeighborMatrixRequested) {
-        Write-Host "neighbor-surface full matrix: yes"
-    }
-    if (-not [string]::IsNullOrWhiteSpace($NeighborJUnitOutputPath)) {
-        Write-Host ("neighbor-surface junit: {0}" -f $NeighborJUnitOutputPath)
+    if ($NeighborSurfaceSuiteEnabled) {
+        if ($null -ne $NeighborSurfaceSelection) {
+            $requestedProfileMode = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "RequestedProfileMode" -DefaultValue "")
+            $requestedProfile = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "RequestedProfile" -DefaultValue "")
+            $resolvedProfile = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "ResolvedProfile" -DefaultValue "")
+            $selectionReason = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "SelectionReason" -DefaultValue "")
+            $matchedRuleIds = @((Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "MatchedRuleIds" -DefaultValue @()))
+            $selectionDiffBase = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "DiffBase" -DefaultValue "")
+            $selectionDiffHead = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "DiffHead" -DefaultValue "")
+            $changedPathSource = [string](Get-OptionalPropertyValue -Object $NeighborSurfaceSelection -Name "ChangedPathSource" -DefaultValue "")
+
+            if (-not [string]::IsNullOrWhiteSpace($requestedProfileMode)) {
+                Write-Host ("neighbor-surface profile mode: {0}" -f $requestedProfileMode)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($requestedProfile)) {
+                Write-Host ("neighbor-surface requested profile: {0}" -f $requestedProfile)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($resolvedProfile)) {
+                Write-Host ("neighbor-surface resolved profile: {0}" -f $resolvedProfile)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($selectionReason)) {
+                Write-Host ("neighbor-surface selection reason: {0}" -f $selectionReason)
+            }
+            if ($matchedRuleIds.Count -gt 0) {
+                Write-Host ("neighbor-surface matched rules: {0}" -f ($matchedRuleIds -join ", "))
+            }
+            if (-not [string]::IsNullOrWhiteSpace($selectionDiffBase)) {
+                Write-Host ("neighbor-surface diff base: {0}" -f $selectionDiffBase)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($selectionDiffHead)) {
+                Write-Host ("neighbor-surface diff head: {0}" -f $selectionDiffHead)
+            }
+            if (-not [string]::IsNullOrWhiteSpace($changedPathSource)) {
+                Write-Host ("neighbor-surface changed path source: {0}" -f $changedPathSource)
+            }
+        }
+        if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
+            Write-Host ("neighbor-surface profile: {0}" -f $NeighborSurfaceProfile)
+        }
+        if (@($NeighborSurfaceGroups).Count -gt 0) {
+            Write-Host ("neighbor-surface groups: {0}" -f (@($NeighborSurfaceGroups) -join ", "))
+        }
+        if (@($NeighborSurfaces).Count -gt 0) {
+            Write-Host ("neighbor-surfaces: {0}" -f (@($NeighborSurfaces) -join ", "))
+        }
+        if ($FullNeighborMatrixRequested) {
+            Write-Host "neighbor-surface full matrix: yes"
+        }
+        if (-not [string]::IsNullOrWhiteSpace($NeighborJUnitOutputPath)) {
+            Write-Host ("neighbor-surface junit: {0}" -f $NeighborJUnitOutputPath)
+        }
     }
     if (-not [string]::IsNullOrWhiteSpace($ResolvedArtifactOutputDir)) {
         Write-Host ("artifact root dir: {0}" -f $ResolvedArtifactOutputDir)
@@ -874,6 +1053,9 @@ $verificationOutputMetadata = $null
 $artifactLayout = $null
 $normalizedNeighborSurfaceGroups = @(Get-TrimmedUniqueValues -Values $NeighborSurfaceGroup)
 $normalizedNeighborSurfaces = @(Get-TrimmedUniqueValues -Values $NeighborSurface)
+$normalizedChangedPaths = @(Get-TrimmedUniqueValues -Values $ChangedPath)
+$neighborSurfaceSelection = $null
+$effectiveNeighborSurfaceProfile = $NeighborSurfaceProfile
 $resumedDenialResult = "UNKNOWN"
 $neighborSurfaceResult = if ($RunNeighborSurfaceSuite) { "NOT_RUN" } else { "NOT_REQUESTED" }
 $resultLabel = "FAIL"
@@ -881,14 +1063,26 @@ $finalExitCode = 1
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
-    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix -or -not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile) -or -not [string]::IsNullOrWhiteSpace($JUnitOutputPath))) {
-        throw "Neighbor surface filters, -NeighborSurfaceProfile, -JUnitOutputPath, and -FullNeighborMatrix require -RunNeighborSurfaceSuite."
+    if (-not $RunNeighborSurfaceSuite -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix -or -not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile) -or -not [string]::IsNullOrWhiteSpace($DiffBase) -or -not [string]::IsNullOrWhiteSpace($DiffHead) -or $normalizedChangedPaths.Count -gt 0 -or -not [string]::IsNullOrWhiteSpace($JUnitOutputPath))) {
+        throw "Neighbor surface filters, -NeighborSurfaceProfile, -DiffBase, -DiffHead, -ChangedPath, -JUnitOutputPath, and -FullNeighborMatrix require -RunNeighborSurfaceSuite."
     }
     if ($FullNeighborMatrix -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0)) {
         throw "-FullNeighborMatrix cannot be combined with -NeighborSurfaceGroup or -NeighborSurface."
     }
     if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile) -and ($normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0 -or $FullNeighborMatrix)) {
         throw "-NeighborSurfaceProfile cannot be combined with -NeighborSurfaceGroup, -NeighborSurface, or -FullNeighborMatrix."
+    }
+    if ($RunNeighborSurfaceSuite) {
+        $neighborSurfaceSelection = Resolve-NeighborProfileSelectionContext `
+            -ResolvedRepoRoot $resolvedRepoRoot `
+            -RequestedProfile $NeighborSurfaceProfile `
+            -NormalizedNeighborSurfaceGroups $normalizedNeighborSurfaceGroups `
+            -NormalizedNeighborSurfaces $normalizedNeighborSurfaces `
+            -FullNeighborMatrixRequested:$FullNeighborMatrix `
+            -DiffBase $DiffBase `
+            -DiffHead $DiffHead `
+            -ChangedPaths $normalizedChangedPaths
+        $effectiveNeighborSurfaceProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RunnerProfile" -DefaultValue "")
     }
     $resolvedNeighborJUnitOutputPath = Resolve-JUnitOutputPath -ResolvedRepoRoot $resolvedRepoRoot -RequestedJUnitOutputPath $JUnitOutputPath
     if ($CollectArtifacts) {
@@ -934,8 +1128,39 @@ try {
     Write-Host ("Provenance mode: {0}" -f $ProvenanceMode)
     Write-Host ("Build dir: {0}" -f $resolvedBuildDir)
     Write-Host ("Game dir: {0}" -f $gameDirPath)
-    if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
-        Write-Host ("Neighbor-surface profile: {0}" -f $NeighborSurfaceProfile)
+    if ($RunNeighborSurfaceSuite -and $null -ne $neighborSurfaceSelection) {
+        $requestedProfileMode = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RequestedProfileMode" -DefaultValue "")
+        $requestedProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RequestedProfile" -DefaultValue "")
+        $resolvedProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "ResolvedProfile" -DefaultValue "")
+        $selectionReason = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "SelectionReason" -DefaultValue "")
+        $matchedRuleIds = @((Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "MatchedRuleIds" -DefaultValue @()))
+        $selectionDiffBase = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "DiffBase" -DefaultValue "")
+        $selectionDiffHead = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "DiffHead" -DefaultValue "")
+
+        if (-not [string]::IsNullOrWhiteSpace($requestedProfileMode)) {
+            Write-Host ("Neighbor-surface profile mode: {0}" -f $requestedProfileMode)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($requestedProfile)) {
+            Write-Host ("Neighbor-surface requested profile: {0}" -f $requestedProfile)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($resolvedProfile)) {
+            Write-Host ("Neighbor-surface resolved profile: {0}" -f $resolvedProfile)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($selectionReason)) {
+            Write-Host ("Neighbor-surface selection reason: {0}" -f $selectionReason)
+        }
+        if ($matchedRuleIds.Count -gt 0) {
+            Write-Host ("Neighbor-surface matched rules: {0}" -f ($matchedRuleIds -join ", "))
+        }
+        if (-not [string]::IsNullOrWhiteSpace($selectionDiffBase)) {
+            Write-Host ("Neighbor-surface diff base: {0}" -f $selectionDiffBase)
+        }
+        if (-not [string]::IsNullOrWhiteSpace($selectionDiffHead)) {
+            Write-Host ("Neighbor-surface diff head: {0}" -f $selectionDiffHead)
+        }
+    }
+    if (-not [string]::IsNullOrWhiteSpace($effectiveNeighborSurfaceProfile)) {
+        Write-Host ("Neighbor-surface profile: {0}" -f $effectiveNeighborSurfaceProfile)
     }
     if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
         Write-Host ("Neighbor-surface groups: {0}" -f ($normalizedNeighborSurfaceGroups -join ", "))
@@ -1046,9 +1271,9 @@ try {
         $neighborArguments.Add("-UseExistingBinary")
         $neighborArguments.Add("-ProvenanceMode")
         $neighborArguments.Add($ProvenanceMode)
-        if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) {
+        if (-not [string]::IsNullOrWhiteSpace($effectiveNeighborSurfaceProfile)) {
             $neighborArguments.Add("-Profile")
-            $neighborArguments.Add($NeighborSurfaceProfile)
+            $neighborArguments.Add($effectiveNeighborSurfaceProfile)
         }
         if ($normalizedNeighborSurfaceGroups.Count -gt 0) {
             $neighborArguments.Add("-Group")
@@ -1128,7 +1353,8 @@ finally {
                 -RequestedProvenanceMode $ProvenanceMode `
                 -VerificationCommandLine $verificationCommandLine `
                 -VerificationOutputLogPath $verificationOutputLogPath `
-                -VerificationOutputMetadata $verificationOutputMetadata
+                -VerificationOutputMetadata $verificationOutputMetadata `
+                -NeighborSurfaceSelection $neighborSurfaceSelection
 
             Write-Heading "Artifact Collection"
             Write-Host ("Resumed-denial output dir: {0}" -f $resumedArtifactOutputDir)
@@ -1227,10 +1453,10 @@ finally {
                 $neighborSelectionMode = if ($null -ne $neighborArtifactSummary) {
                     [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionMode" -DefaultValue "")
                 }
-                elseif ($NeighborSurfaceProfile -eq "full-expanded") {
+                elseif ($effectiveNeighborSurfaceProfile -eq "full-expanded") {
                     "full-matrix"
                 }
-                elseif ($NeighborSurfaceProfile -eq "checkpoint-extended") {
+                elseif ($effectiveNeighborSurfaceProfile -eq "checkpoint-extended") {
                     "filtered"
                 }
                 elseif ($FullNeighborMatrix) {
@@ -1244,6 +1470,20 @@ finally {
                 }
                 $neighborPassingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "PASS" }).Count
                 $neighborFailingSurfaceCount = @($neighborSurfaceItems | Where-Object { $_.overallStatus -eq "FAIL" }).Count
+                $neighborRequestedProfileMode = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RequestedProfileMode" -DefaultValue "")
+                $neighborRequestedProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RequestedProfile" -DefaultValue "")
+                $neighborResolvedProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "ResolvedProfile" -DefaultValue "")
+                $neighborSelectionOrigin = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "SelectionOrigin" -DefaultValue "")
+                if ([string]::IsNullOrWhiteSpace($neighborSelectionOrigin)) {
+                    $neighborSelectionOrigin = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionOrigin" -DefaultValue "") } else { $(if (-not [string]::IsNullOrWhiteSpace($effectiveNeighborSurfaceProfile)) { "profile" } elseif ($FullNeighborMatrix -or $normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0) { "explicit" } else { "default" }) }
+                }
+                $neighborSelectionReason = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "SelectionReason" -DefaultValue "")
+                $neighborProfileSelectionRuleIds = @((Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "MatchedRuleIds" -DefaultValue @()))
+                $neighborProfileSelectionRules = @((Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "MatchedRules" -DefaultValue @()))
+                $neighborProfileSelectionDiffBase = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "DiffBase" -DefaultValue "")
+                $neighborProfileSelectionDiffHead = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "DiffHead" -DefaultValue "")
+                $neighborProfileSelectionChangedPathSource = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "ChangedPathSource" -DefaultValue "")
+                $neighborProfileSelectionChangedPaths = @((Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "ChangedPaths" -DefaultValue @()))
 
                 $combinedSummaryObject = [ordered]@{
                     generatedAt = (Get-Date).ToString("o")
@@ -1285,12 +1525,20 @@ finally {
                     neighborSurfaces = [ordered]@{
                         overallResult = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.overallResult } else { $neighborSurfaceResult }
                         observedProvenanceMode = if ($null -ne $neighborArtifactSummary) { [string]$neighborArtifactSummary.observedProvenanceMode } else { "" }
-                        requestedFullMatrix = if ($null -ne $neighborArtifactSummary) { [bool](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedFullMatrix" -DefaultValue $false) } else { [bool]($FullNeighborMatrix -or $NeighborSurfaceProfile -eq "full-expanded") }
+                        requestedFullMatrix = if ($null -ne $neighborArtifactSummary) { [bool](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedFullMatrix" -DefaultValue $false) } else { [bool]($FullNeighborMatrix -or $effectiveNeighborSurfaceProfile -eq "full-expanded") }
                         selectionMode = $neighborSelectionMode
-                        selectionOrigin = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "selectionOrigin" -DefaultValue "") } else { $(if (-not [string]::IsNullOrWhiteSpace($NeighborSurfaceProfile)) { "profile" } elseif ($FullNeighborMatrix -or $normalizedNeighborSurfaceGroups.Count -gt 0 -or $normalizedNeighborSurfaces.Count -gt 0) { "explicit" } else { "default" }) }
-                        requestedProfile = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "requestedProfile" -DefaultValue "") } else { $NeighborSurfaceProfile }
-                        resolvedProfile = if ($null -ne $neighborArtifactSummary) { [string](Get-OptionalPropertyValue -Object $neighborArtifactSummary -Name "resolvedProfile" -DefaultValue "") } else { $NeighborSurfaceProfile }
-                        selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { $(if ($NeighborSurfaceProfile -eq "checkpoint-extended") { @("checkpoint-extended") } else { @($normalizedNeighborSurfaceGroups) }) }
+                        selectionOrigin = $neighborSelectionOrigin
+                        requestedProfileMode = $neighborRequestedProfileMode
+                        requestedProfile = $neighborRequestedProfile
+                        resolvedProfile = $neighborResolvedProfile
+                        profileSelectionReason = $neighborSelectionReason
+                        profileSelectionRuleIds = $neighborProfileSelectionRuleIds
+                        profileSelectionRules = $neighborProfileSelectionRules
+                        profileSelectionDiffBase = $neighborProfileSelectionDiffBase
+                        profileSelectionDiffHead = $neighborProfileSelectionDiffHead
+                        profileSelectionChangedPathSource = $neighborProfileSelectionChangedPathSource
+                        profileSelectionChangedPaths = $neighborProfileSelectionChangedPaths
+                        selectedGroupNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedGroupNames) } else { $(if ($effectiveNeighborSurfaceProfile -eq "checkpoint-extended") { @("checkpoint-extended") } else { @($normalizedNeighborSurfaceGroups) }) }
                         selectedSurfaceNames = if ($null -ne $neighborArtifactSummary) { @($neighborArtifactSummary.selectedSurfaceNames) } else { @() }
                         passingSurfaceCount = $neighborPassingSurfaceCount
                         failingSurfaceCount = $neighborFailingSurfaceCount
@@ -1339,7 +1587,8 @@ finally {
         -CombinedJsonSummaryPath $combinedJsonSummaryPath `
         -ResumedDenialResult $resumedDenialResult `
         -NeighborSurfaceResult $neighborSurfaceResult `
-        -NeighborSurfaceProfile $NeighborSurfaceProfile `
+        -NeighborSurfaceProfile $effectiveNeighborSurfaceProfile `
+        -NeighborSurfaceSelection $neighborSurfaceSelection `
         -NeighborSurfaceGroups $normalizedNeighborSurfaceGroups `
         -NeighborSurfaces $normalizedNeighborSurfaces `
         -NeighborJUnitOutputPath $resolvedNeighborJUnitOutputPath `

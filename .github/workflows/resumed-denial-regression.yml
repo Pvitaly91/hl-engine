@@ -49,8 +49,26 @@ on:
         required: false
         default: false
         type: boolean
+      profile_mode:
+        description: Neighboring-surface profile selection mode when run_neighbor_surface_suite is enabled.
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - explicit
+      diff_base:
+        description: Diff base used when profile_mode=auto. Leave blank to let the wrapper fall back to origin/main.
+        required: false
+        default: origin/main
+        type: string
+      diff_head:
+        description: Diff head used when profile_mode=auto. Leave blank to let the wrapper fall back to HEAD.
+        required: false
+        default: HEAD
+        type: string
       neighbor_surface_profile:
-        description: Optional neighboring-surface profile shorthand (`default`, `checkpoint-extended`, or `full-expanded`) when run_neighbor_surface_suite is enabled.
+        description: Optional explicit neighboring-surface profile shorthand (`default`, `checkpoint-extended`, or `full-expanded`) when run_neighbor_surface_suite is enabled and profile_mode=explicit.
         required: false
         type: string
       neighbor_surface_group:
@@ -86,6 +104,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
+          fetch-depth: 0
           path: host
 
       - name: Show self-hosted prerequisites
@@ -159,30 +178,48 @@ jobs:
             throw 'neighbor_surface_profile, neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
           }
 
-          if ('${{ inputs.neighbor_surface_profile }}' -ne '') {
-            if ('${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
-              throw 'neighbor_surface_profile cannot be combined with neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
-            }
-
-            $arguments += @('-NeighborSurfaceProfile', '${{ inputs.neighbor_surface_profile }}')
-          }
-
           $neighborGroupValues = @('${{ inputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-          if ($neighborGroupValues.Count -gt 0) {
-            $arguments += @('-NeighborSurfaceGroup') + $neighborGroupValues
-          }
-
           $neighborSurfaceValues = @('${{ inputs.neighbor_surface }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-          if ($neighborSurfaceValues.Count -gt 0) {
-            $arguments += @('-NeighborSurface') + $neighborSurfaceValues
-          }
+          if ('${{ inputs.run_neighbor_surface_suite }}' -eq 'true') {
+            $profileMode = '${{ inputs.profile_mode }}'
+            if ($profileMode -eq 'auto') {
+              if ('${{ inputs.neighbor_surface_profile }}' -ne '' -or $neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
+                throw 'profile_mode=auto cannot be combined with neighbor_surface_profile, neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
+              }
 
-          if ('${{ inputs.full_neighbor_matrix }}' -eq 'true') {
-            if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0) {
-              throw 'full_neighbor_matrix cannot be combined with neighbor_surface_group or neighbor_surface.'
+              $arguments += @('-NeighborSurfaceProfile', 'auto')
+              if ('${{ inputs.diff_base }}' -ne '') {
+                $arguments += @('-DiffBase', '${{ inputs.diff_base }}')
+              }
+              if ('${{ inputs.diff_head }}' -ne '') {
+                $arguments += @('-DiffHead', '${{ inputs.diff_head }}')
+              }
             }
+            else {
+              if ('${{ inputs.neighbor_surface_profile }}' -ne '') {
+                if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
+                  throw 'neighbor_surface_profile cannot be combined with neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
+                }
 
-            $arguments += '-FullNeighborMatrix'
+                $arguments += @('-NeighborSurfaceProfile', '${{ inputs.neighbor_surface_profile }}')
+              }
+
+              if ($neighborGroupValues.Count -gt 0) {
+                $arguments += @('-NeighborSurfaceGroup') + $neighborGroupValues
+              }
+
+              if ($neighborSurfaceValues.Count -gt 0) {
+                $arguments += @('-NeighborSurface') + $neighborSurfaceValues
+              }
+
+              if ('${{ inputs.full_neighbor_matrix }}' -eq 'true') {
+                if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0) {
+                  throw 'full_neighbor_matrix cannot be combined with neighbor_surface_group or neighbor_surface.'
+                }
+
+                $arguments += '-FullNeighborMatrix'
+              }
+            }
           }
 
           $neighborJUnitPath = ''
@@ -258,6 +295,9 @@ jobs:
               if ($summary.runNeighborSurfaceSuite) {
                 $summaryLines.Add('')
                 $summaryLines.Add(("Neighbor-surface suite: `{0}`" -f $summary.neighborSurfaces.overallResult))
+                if ($summary.neighborSurfaces.requestedProfileMode) {
+                  $summaryLines.Add(("Profile mode: `{0}`" -f $summary.neighborSurfaces.requestedProfileMode))
+                }
                 if ($summary.neighborSurfaces.requestedProfile) {
                   $summaryLines.Add(("Requested profile: `{0}`" -f $summary.neighborSurfaces.requestedProfile))
                 }
@@ -266,6 +306,18 @@ jobs:
                 }
                 if ($summary.neighborSurfaces.selectionOrigin) {
                   $summaryLines.Add(("Selection origin: `{0}`" -f $summary.neighborSurfaces.selectionOrigin))
+                }
+                if ($summary.neighborSurfaces.profileSelectionReason) {
+                  $summaryLines.Add(("Profile selection reason: `{0}`" -f $summary.neighborSurfaces.profileSelectionReason))
+                }
+                if ($summary.neighborSurfaces.profileSelectionRuleIds) {
+                  $summaryLines.Add(("Matched profile rules: `{0}`" -f (($summary.neighborSurfaces.profileSelectionRuleIds | Where-Object { $_ -ne '' }) -join ', ')))
+                }
+                if ($summary.neighborSurfaces.profileSelectionDiffBase) {
+                  $summaryLines.Add(("Diff base: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffBase))
+                }
+                if ($summary.neighborSurfaces.profileSelectionDiffHead) {
+                  $summaryLines.Add(("Diff head: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffHead))
                 }
                 if ($summary.neighborSurfaces.selectionMode) {
                   $summaryLines.Add(("Selection mode: `{0}`" -f $summary.neighborSurfaces.selectionMode))
