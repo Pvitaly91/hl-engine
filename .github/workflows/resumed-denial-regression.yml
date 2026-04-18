@@ -121,6 +121,9 @@ on:
       - tools/signon_regression_matrix.psd1
       - docs/MANUAL_VERIFY_RESUMED_DENIAL.md
       - .github/workflows/resumed-denial-regression.yml
+  schedule:
+    # Weekday nightly broad coverage at 03:15 UTC.
+    - cron: '15 3 * * 1-5'
 
 permissions:
   contents: read
@@ -192,7 +195,9 @@ jobs:
           }
 
           $eventName = '${{ github.event_name }}'
-          $isAutomaticEvent = $eventName -eq 'pull_request' -or $eventName -eq 'push'
+          $isDiffAwareAutomaticEvent = $eventName -eq 'pull_request' -or $eventName -eq 'push'
+          $isScheduledEvent = $eventName -eq 'schedule'
+          $isAutomaticEvent = $isDiffAwareAutomaticEvent -or $isScheduledEvent
 
           $manualOuterWorkspaceRoot = '${{ github.event_name == 'workflow_dispatch' && inputs.outer_workspace_root || '' }}'
           $manualBuildDir = '${{ github.event_name == 'workflow_dispatch' && inputs.build_dir || '' }}'
@@ -218,7 +223,10 @@ jobs:
 
           $runNeighborSurfaceSuite = if ($isAutomaticEvent) { $true } else { $manualRunNeighborSurfaceSuite -eq 'true' }
           $requestedProfileMode = if ($runNeighborSurfaceSuite) {
-            if ($isAutomaticEvent) {
+            if ($isScheduledEvent) {
+              'explicit'
+            }
+            elseif ($isDiffAwareAutomaticEvent) {
               'auto'
             }
             elseif ([string]::IsNullOrWhiteSpace($manualProfileMode)) {
@@ -230,6 +238,42 @@ jobs:
           }
           else {
             'not-requested'
+          }
+
+          $resolvedNeighborSurfaceProfile = if ($isScheduledEvent) {
+            'full-expanded'
+          }
+          elseif ([string]::IsNullOrWhiteSpace($manualNeighborSurfaceProfile)) {
+            ''
+          }
+          else {
+            $manualNeighborSurfaceProfile.Trim()
+          }
+
+          $selectionMode = if (-not $runNeighborSurfaceSuite) {
+            'not-requested'
+          }
+          elseif ($isScheduledEvent) {
+            'scheduled-full'
+          }
+          elseif ($requestedProfileMode -eq 'auto') {
+            'auto-diff'
+          }
+          else {
+            'explicit-manual'
+          }
+
+          $selectionModeReason = switch ($selectionMode) {
+            'scheduled-full' { 'Scheduled trigger selects the broad full-expanded neighboring-surface profile for periodic coverage, independent of diffs.' }
+            'auto-diff' { 'Diff-aware neighboring-surface profile selection is active for this run.' }
+            'explicit-manual' { 'Manual workflow_dispatch run requested explicit neighboring-surface selection controls.' }
+            default { 'Neighbor-surface suite was not requested for this run.' }
+          }
+
+          $artifactModeSlug = ('{0}-{1}' -f $eventName, $selectionMode) -replace '[^A-Za-z0-9._-]+', '-'
+          $artifactModeSlug = $artifactModeSlug.Trim('-')
+          if ([string]::IsNullOrWhiteSpace($artifactModeSlug)) {
+            $artifactModeSlug = $eventName
           }
 
           $resolvedDiffBase = ''
@@ -290,7 +334,9 @@ jobs:
           Write-Host ("Event: {0}" -f $eventName)
           Write-Host ("Automatic trigger: {0}" -f $(if ($isAutomaticEvent) { 'yes' } else { 'no' }))
           Write-Host ("Run neighbor-surface suite: {0}" -f $(if ($runNeighborSurfaceSuite) { 'yes' } else { 'no' }))
-          Write-Host ("Requested profile mode: {0}" -f $requestedProfileMode)
+          Write-Host ("Wrapper profile mode: {0}" -f $requestedProfileMode)
+          Write-Host ("Profile selection mode: {0}" -f $selectionMode)
+          Write-Host ("Profile selection reason: {0}" -f $selectionModeReason)
           if (-not [string]::IsNullOrWhiteSpace($diffRefSource)) {
             Write-Host ("Diff ref source: {0}" -f $diffRefSource)
           }
@@ -313,10 +359,13 @@ jobs:
           Set-StepOutput -Name no_execute -Value $(if ($manualNoExecute -eq 'true') { 'true' } else { 'false' })
           Set-StepOutput -Name run_neighbor_surface_suite -Value $(if ($runNeighborSurfaceSuite) { 'true' } else { 'false' })
           Set-StepOutput -Name profile_mode -Value $requestedProfileMode
+          Set-StepOutput -Name selection_mode -Value $selectionMode
+          Set-StepOutput -Name selection_mode_reason -Value $selectionModeReason
+          Set-StepOutput -Name artifact_mode_slug -Value $artifactModeSlug
           Set-StepOutput -Name diff_ref_source -Value $diffRefSource
           Set-StepOutput -Name diff_base -Value $resolvedDiffBase
           Set-StepOutput -Name diff_head -Value $resolvedDiffHead
-          Set-StepOutput -Name neighbor_surface_profile -Value $manualNeighborSurfaceProfile
+          Set-StepOutput -Name neighbor_surface_profile -Value $resolvedNeighborSurfaceProfile
           Set-StepOutputMultiline -Name neighbor_surface_group -Value $manualNeighborSurfaceGroup
           Set-StepOutputMultiline -Name neighbor_surface -Value $manualNeighborSurface
           Set-StepOutput -Name full_neighbor_matrix -Value $(if ($manualFullNeighborMatrix -eq 'true') { 'true' } else { 'false' })
@@ -329,8 +378,12 @@ jobs:
             Remove-Item -LiteralPath $artifactDir -Recurse -Force
           }
 
-          $artifactName = 'signon-regression-${{ github.run_id }}-${{ github.run_attempt }}'
-          $junitArtifactName = 'signon-regression-junit-${{ github.run_id }}-${{ github.run_attempt }}'
+          $artifactModeSlug = '${{ steps.resolve_request.outputs.artifact_mode_slug }}'
+          if ([string]::IsNullOrWhiteSpace($artifactModeSlug)) {
+            $artifactModeSlug = '${{ github.event_name }}'
+          }
+          $artifactName = "signon-regression-$artifactModeSlug-${{ github.run_id }}-${{ github.run_attempt }}"
+          $junitArtifactName = "signon-regression-junit-$artifactModeSlug-${{ github.run_id }}-${{ github.run_attempt }}"
           $runNeighborSurfaceSuite = '${{ steps.resolve_request.outputs.run_neighbor_surface_suite }}' -eq 'true'
           $profileMode = '${{ steps.resolve_request.outputs.profile_mode }}'
 
@@ -362,6 +415,14 @@ jobs:
 
           if ('${{ steps.resolve_request.outputs.provenance_mode }}' -ne '') {
             $arguments += @('-ProvenanceMode', '${{ steps.resolve_request.outputs.provenance_mode }}')
+          }
+
+          if ('${{ steps.resolve_request.outputs.selection_mode }}' -ne '') {
+            $arguments += @('-ExecutionMode', '${{ steps.resolve_request.outputs.selection_mode }}')
+          }
+
+          if ('${{ steps.resolve_request.outputs.selection_mode_reason }}' -ne '') {
+            $arguments += @('-ExecutionModeReason', '${{ steps.resolve_request.outputs.selection_mode_reason }}')
           }
 
           if ('${{ steps.resolve_request.outputs.no_build }}' -eq 'true') {
@@ -458,6 +519,8 @@ jobs:
           $junitArtifactName = '${{ steps.run_regression.outputs.junit_artifact_name }}'
           $eventName = '${{ steps.resolve_request.outputs.event_name }}'
           $profileMode = '${{ steps.resolve_request.outputs.profile_mode }}'
+          $selectionMode = '${{ steps.resolve_request.outputs.selection_mode }}'
+          $selectionModeReason = '${{ steps.resolve_request.outputs.selection_mode_reason }}'
           $diffRefSource = '${{ steps.resolve_request.outputs.diff_ref_source }}'
           $diffBase = '${{ steps.resolve_request.outputs.diff_base }}'
           $diffHead = '${{ steps.resolve_request.outputs.diff_head }}'
@@ -466,7 +529,11 @@ jobs:
           $summaryLines.Add('## Signon regression suites')
           $summaryLines.Add('')
           $summaryLines.Add(("Event: `{0}`" -f $eventName))
-          $summaryLines.Add(("Requested profile mode: `{0}`" -f $profileMode))
+          $summaryLines.Add(("Profile selection mode: `{0}`" -f $selectionMode))
+          $summaryLines.Add(("Wrapper profile mode: `{0}`" -f $profileMode))
+          if (-not [string]::IsNullOrWhiteSpace($selectionModeReason)) {
+            $summaryLines.Add(("Profile selection reason: `{0}`" -f $selectionModeReason))
+          }
           if ($runNeighborSurfaceSuite) {
             $summaryLines.Add('Neighbor-surface suite: `enabled`')
           }

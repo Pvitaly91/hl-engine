@@ -281,6 +281,8 @@ The CI wrapper accepts these parameters:
 - `-JUnitOutputPath <path>` requests JUnit XML emission for the neighboring-surface suite when `-RunNeighborSurfaceSuite` is enabled.
 - `-CollectArtifacts` enables post-run artifact bundling and summary generation.
 - `-ArtifactOutputDir <path>` overrides the artifact bundle output directory. Relative paths resolve from the resolved repo root. If omitted with `-CollectArtifacts`, the wrapper uses `artifacts\resumed-denial` for resumed-denial-only runs, or `artifacts\signon-regressions` when `-RunNeighborSurfaceSuite` is enabled.
+- `-ExecutionMode <auto-diff|explicit-manual|scheduled-full|not-requested>` optionally tags the wrapper's CI and artifact summaries with the intended orchestration mode. The GitHub workflow uses this so scheduled full runs are distinguishable from manual explicit full runs.
+- `-ExecutionModeReason <text>` optionally records the corresponding orchestration rationale alongside `-ExecutionMode`.
 
 The CI wrapper refuses ambiguous layouts. The resolved outer workspace must contain `CMakeLists.txt`, and `<outer-workspace>\host` must resolve back to the requested `-RepoRoot`. That prevents automation from building one checkout while verifying another.
 
@@ -307,7 +309,8 @@ powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -R
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceProfile checkpoint-extended -JUnitOutputPath .\artifacts\checkpoint-extended\signon_neighbor_surface_junit.xml -CollectArtifacts -ArtifactOutputDir .\artifacts\checkpoint-extended
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceGroup checkpoint-extended -CollectArtifacts -ArtifactOutputDir .\artifacts\checkpoint-extended
 powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -FullNeighborMatrix -CollectArtifacts -ArtifactOutputDir .\artifacts\full-neighbor-matrix
-powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceProfile full-expanded -CollectArtifacts -ArtifactOutputDir .\artifacts\forced-full
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceProfile full-expanded -ExecutionMode explicit-manual -ExecutionModeReason "Manual explicit neighboring-surface override requested." -CollectArtifacts -ArtifactOutputDir .\artifacts\forced-full
+powershell -ExecutionPolicy Bypass -File .\tools\verify_resumed_denial_ci.ps1 -RepoRoot . -OuterWorkspaceRoot G:\DEV\СPP\HLengine -BuildDir G:\DEV\СPP\HLengine\build-main-win32-hlhost-regression -UseExistingBinary -ProvenanceMode auto -RunNeighborSurfaceSuite -NeighborSurfaceProfile full-expanded -ExecutionMode scheduled-full -ExecutionModeReason "Scheduled broad neighboring-surface coverage requested the full-expanded profile." -CollectArtifacts -ArtifactOutputDir .\artifacts\scheduled-full
 ```
 
 Required prerequisites for self-hosted execution:
@@ -332,7 +335,7 @@ What the CI wrapper does:
 - when `-FullNeighborMatrix` is supplied, runs the full expanded neighboring-surface matrix without changing resumed-denial semantics
 - when `-JUnitOutputPath` is supplied, asks the neighboring-surface runner to emit JUnit XML alongside the existing txt/json summaries
 - when `-CollectArtifacts` is enabled, captures the delegated runner output, writes wrapper metadata, and calls `tools/collect_resumed_denial_artifacts.ps1`
-- when `-RunNeighborSurfaceSuite` and `-CollectArtifacts` are both enabled, keeps the resumed-denial bundle under `resumed-denial\`, keeps the neighboring-surface bundle under `neighbor-surfaces\`, and writes a root `verification_suite_summary.txt` plus `verification_suite_summary.json` that records profile mode, resolved profile, selection reason, matched rules, and diff refs when auto mode is used
+- when `-RunNeighborSurfaceSuite` and `-CollectArtifacts` are both enabled, keeps the resumed-denial bundle under `resumed-denial\`, keeps the neighboring-surface bundle under `neighbor-surfaces\`, and writes a root `verification_suite_summary.txt` plus `verification_suite_summary.json` that records execution mode, profile mode, resolved profile, selection reason, matched rules, and diff refs when auto mode is used
 - when neighboring surfaces fail, carries the compact failed-surface triage list into the combined wrapper summary
 - propagates the delegated runner exit code for CI
 - emits a concise `CI Summary` block with `PASS`, `NOEXECUTE`, or `FAIL` plus the collected artifact summary paths when available
@@ -402,6 +405,7 @@ The txt/json summaries record:
 
 The combined wrapper summary txt/json records:
 
+- the execution mode plus the orchestration reason when provided
 - resumed-denial overall result plus happy/gate/recovery scenario results
 - neighboring-surface overall result plus the selected group list, per-group PASS/FAIL, and per-surface PASS/FAIL
 - neighboring-surface selection mode, selection origin, requested profile mode, requested/resolved profile, and whether the full matrix was requested
@@ -448,24 +452,26 @@ The repo now includes `.github/workflows/resumed-denial-regression.yml`.
 
 Workflow notes:
 
-- it supports both manual `workflow_dispatch` and safe automatic CI on relevant `pull_request` and `push` events
+- it supports manual `workflow_dispatch`, safe automatic CI on relevant `pull_request` and `push` events, and a weekday scheduled broad-coverage run
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` with full history (`fetch-depth: 0`) and then runs `tools\verify_resumed_denial_ci.ps1`
 - automatic triggers are limited to a conservative path filter: `include/app/**`, `src/app/**`, `include/game_api/**`, `src/game_api/**`, `tools\resolve_signon_regression_profile.ps1`, `tools\verify_resumed_denial_main.ps1`, `tools\verify_signon_neighbor_surfaces_main.ps1`, `tools\verify_resumed_denial_ci.ps1`, `tools\collect_resumed_denial_artifacts.ps1`, `tools\signon_regression_matrix.psd1`, `docs\MANUAL_VERIFY_RESUMED_DENIAL.md`, and `.github/workflows/resumed-denial-regression.yml`
 - automatic `pull_request` runs target `main` and derive `diff_base` / `diff_head` from `pull_request.base.sha` and `pull_request.head.sha`
 - automatic `push` runs target `main` and derive `diff_base` / `diff_head` from `github.event.before` and `github.sha`, with a `HEAD^` fallback if the push payload does not provide a usable `before` commit
 - automatic `pull_request` and `push` runs always enable `run_neighbor_surface_suite=true` and request `profile_mode=auto`, so the wrapper resolves the smallest safe neighboring-surface profile from the current diff by default
+- scheduled runs use `schedule: '15 3 * * 1-5'` (03:15 UTC on weekdays), always enable `run_neighbor_surface_suite=true`, and deliberately request the broad `full-expanded` neighboring-surface profile instead of diff-aware minimization
 - it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, `no_execute`, `run_neighbor_surface_suite`, `profile_mode`, `diff_base`, `diff_head`, `neighbor_surface_profile`, `neighbor_surface_group`, `neighbor_surface`, and `full_neighbor_matrix`
 - manual `workflow_dispatch` keeps the existing power-user controls: `profile_mode=auto|explicit`, explicit named profile overrides, explicit group/surface filters, and full-matrix requests
 - on manual `workflow_dispatch`, `profile_mode=auto` still forwards `diff_base` / `diff_head` into the wrapper and falls back to `origin/main` / `HEAD` when those inputs are left blank
 - it always enables `-CollectArtifacts` for the workflow run, emits neighboring-surface JUnit XML when that suite is enabled, uploads the resulting bundle with `actions/upload-artifact`, and writes either the resumed-denial summary or the combined suite summary to `GITHUB_STEP_SUMMARY`
-- when `run_neighbor_surface_suite=true`, the uploaded artifact bundle is rooted at `signon-regression-...` and includes both `resumed-denial\` and `neighbor-surfaces\` bundles plus `verification_suite_summary.txt/json`
+- when `run_neighbor_surface_suite=true`, the uploaded artifact bundle is rooted at `signon-regression-<event>-<selection-mode>-...` and includes both `resumed-denial\` and `neighbor-surfaces\` bundles plus `verification_suite_summary.txt/json`
 - when `profile_mode=explicit`, the workflow keeps the existing explicit profile/group/surface/full-matrix controls
 - when `neighbor_surface_group` or `neighbor_surface` is supplied, those comma- or newline-separated filters are forwarded to the matrix-backed neighboring-surface runner
 - when `full_neighbor_matrix=true`, the workflow requests the full expanded neighboring-surface matrix and refuses mixed group/surface filters in the dispatcher step
-- when the neighboring-surface suite runs, the workflow step summary includes the event type, diff ref source/base/head, requested profile mode, resolved profile, selection reason, matched auto-selection rules, resumed-denial happy/gate/recovery status, neighboring-surface result, and uploaded artifact names
+- when the neighboring-surface suite runs, the workflow step summary includes the event type, profile selection mode (`auto-diff`, `explicit-manual`, or `scheduled-full`), diff ref source/base/head when applicable, wrapper profile mode, resolved profile, selection reason, resumed-denial happy/gate/recovery status, neighboring-surface result, and uploaded artifact names
 - when neighboring surfaces fail, the workflow step summary includes a compact failed-surface table and the JUnit file is uploaded as a separate artifact as well as inside the main artifact bundle
 - the job now uses workflow-level concurrency so superseded runs on the same PR or branch are cancelled before the newer run finishes
+- scheduled `full-expanded` coverage is intentionally broader than diff-aware PR/push runs and is expected to take longer than the default or checkpoint-extended auto selections
 
 Automatic behavior examples:
 
@@ -477,3 +483,8 @@ Manual `workflow_dispatch` examples:
 
 - explicit full-expanded neighboring suite: set `run_neighbor_surface_suite=true`, `profile_mode=explicit`, and `neighbor_surface_profile=full-expanded`
 - explicit checkpoint-extended neighboring suite: set `run_neighbor_surface_suite=true`, `profile_mode=explicit`, and `neighbor_surface_profile=checkpoint-extended`
+- manual diff-aware neighboring suite: set `run_neighbor_surface_suite=true`, leave `profile_mode=auto`, and optionally override `diff_base` / `diff_head`
+
+Scheduled behavior example:
+
+- weekday schedule: the workflow runs at `03:15 UTC` on weekdays, forces `run_neighbor_surface_suite=true`, records selection mode `scheduled-full`, and requests the broad `full-expanded` neighboring-surface profile without consulting the current diff

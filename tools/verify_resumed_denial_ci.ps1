@@ -20,7 +20,9 @@ param(
     [string[]]$ChangedPath,
     [string]$JUnitOutputPath,
     [switch]$CollectArtifacts,
-    [string]$ArtifactOutputDir
+    [string]$ArtifactOutputDir,
+    [string]$ExecutionMode,
+    [string]$ExecutionModeReason
 )
 
 Set-StrictMode -Version Latest
@@ -627,7 +629,9 @@ function Write-ArtifactMetadataFile {
         [string]$VerificationCommandLine,
         [string]$VerificationOutputLogPath,
         [object]$VerificationOutputMetadata,
-        [object]$NeighborSurfaceSelection
+        [object]$NeighborSurfaceSelection,
+        [string]$ExecutionMode,
+        [string]$ExecutionModeReason
     )
 
     $metadataDirectory = Split-Path -Path $MetadataPath -Parent
@@ -658,6 +662,8 @@ function Write-ArtifactMetadataFile {
         buildDir = $ResolvedBuildDir
         executablePath = $ResolvedExecutablePath
         requestedProvenanceMode = $RequestedProvenanceMode
+        executionMode = $ExecutionMode
+        executionModeReason = $ExecutionModeReason
         overallResult = $ResultLabel
         verificationCommandLine = $VerificationCommandLine
         verificationOutputLog = $VerificationOutputLogPath
@@ -804,6 +810,12 @@ function Write-CombinedSuiteSummaryFiles {
     $textLines = New-Object System.Collections.Generic.List[string]
     $textLines.Add(("overall: {0}" -f $SummaryObject.overallResult))
     $textLines.Add(("requested provenance: {0}" -f $SummaryObject.requestedProvenanceMode))
+    if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject -Name "executionMode" -DefaultValue ""))) {
+        $textLines.Add(("execution mode: {0}" -f [string]$SummaryObject.executionMode))
+    }
+    if (-not [string]::IsNullOrWhiteSpace([string](Get-OptionalPropertyValue -Object $SummaryObject -Name "executionModeReason" -DefaultValue ""))) {
+        $textLines.Add(("execution mode reason: {0}" -f [string]$SummaryObject.executionModeReason))
+    }
     $textLines.Add(("repo root: {0}" -f $SummaryObject.repoRoot))
     $textLines.Add(("outer workspace root: {0}" -f $SummaryObject.outerWorkspaceRoot))
     $textLines.Add(("build dir: {0}" -f $SummaryObject.buildDir))
@@ -908,6 +920,8 @@ function Write-CiSummary {
         [string]$Result,
         [int]$ExitCode,
         [string]$ProvenanceMode,
+        [string]$ExecutionMode,
+        [string]$ExecutionModeReason,
         [string]$ResolvedRepoRoot,
         [string]$ResolvedWorkspaceRoot,
         [string]$WorkspaceSource,
@@ -937,6 +951,12 @@ function Write-CiSummary {
     Write-Host ("result: {0}" -f $Result)
     Write-Host ("exit code: {0}" -f $ExitCode)
     Write-Host ("provenance mode: {0}" -f $ProvenanceMode)
+    if (-not [string]::IsNullOrWhiteSpace($ExecutionMode)) {
+        Write-Host ("execution mode: {0}" -f $ExecutionMode)
+    }
+    if (-not [string]::IsNullOrWhiteSpace($ExecutionModeReason)) {
+        Write-Host ("execution mode reason: {0}" -f $ExecutionModeReason)
+    }
     Write-Host ("repo root: {0}" -f $ResolvedRepoRoot)
     Write-Host ("outer workspace root: {0}" -f $ResolvedWorkspaceRoot)
     Write-Host ("outer workspace source: {0}" -f $WorkspaceSource)
@@ -1054,12 +1074,24 @@ $artifactLayout = $null
 $normalizedNeighborSurfaceGroups = @(Get-TrimmedUniqueValues -Values $NeighborSurfaceGroup)
 $normalizedNeighborSurfaces = @(Get-TrimmedUniqueValues -Values $NeighborSurface)
 $normalizedChangedPaths = @(Get-TrimmedUniqueValues -Values $ChangedPath)
+$normalizedExecutionMode = if ([string]::IsNullOrWhiteSpace($ExecutionMode)) { "" } else { $ExecutionMode.Trim() }
+$normalizedExecutionModeReason = if ([string]::IsNullOrWhiteSpace($ExecutionModeReason)) { "" } else { $ExecutionModeReason.Trim() }
 $neighborSurfaceSelection = $null
 $effectiveNeighborSurfaceProfile = $NeighborSurfaceProfile
 $resumedDenialResult = "UNKNOWN"
 $neighborSurfaceResult = if ($RunNeighborSurfaceSuite) { "NOT_RUN" } else { "NOT_REQUESTED" }
 $resultLabel = "FAIL"
 $finalExitCode = 1
+
+$validExecutionModes = @(
+    "auto-diff",
+    "explicit-manual",
+    "scheduled-full",
+    "not-requested"
+)
+if (-not [string]::IsNullOrWhiteSpace($normalizedExecutionMode) -and $validExecutionModes -notcontains $normalizedExecutionMode) {
+    throw ("Unsupported -ExecutionMode '{0}'. Expected one of: {1}" -f $normalizedExecutionMode, ($validExecutionModes -join ", "))
+}
 
 try {
     $resolvedRepoRoot = Get-RepoRootFromRequest -RequestedRoot $RepoRoot
@@ -1083,6 +1115,36 @@ try {
             -DiffHead $DiffHead `
             -ChangedPaths $normalizedChangedPaths
         $effectiveNeighborSurfaceProfile = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RunnerProfile" -DefaultValue "")
+    }
+    if ([string]::IsNullOrWhiteSpace($normalizedExecutionMode)) {
+        if (-not $RunNeighborSurfaceSuite) {
+            $normalizedExecutionMode = "not-requested"
+        }
+        elseif ($null -ne $neighborSurfaceSelection) {
+            $requestedProfileMode = [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "RequestedProfileMode" -DefaultValue "")
+            if ($requestedProfileMode -eq "auto") {
+                $normalizedExecutionMode = "auto-diff"
+            }
+            elseif ($requestedProfileMode -eq "explicit") {
+                $normalizedExecutionMode = "explicit-manual"
+            }
+        }
+    }
+    if ([string]::IsNullOrWhiteSpace($normalizedExecutionModeReason)) {
+        $normalizedExecutionModeReason = switch ($normalizedExecutionMode) {
+            "auto-diff" {
+                [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "SelectionReason" -DefaultValue "Diff-aware neighboring-surface profile selection was requested.")
+            }
+            "explicit-manual" {
+                [string](Get-OptionalPropertyValue -Object $neighborSurfaceSelection -Name "SelectionReason" -DefaultValue "Explicit neighboring-surface selection was requested.")
+            }
+            "scheduled-full" {
+                "Scheduled broad neighboring-surface coverage requested the full-expanded profile."
+            }
+            default {
+                "Neighbor-surface suite was not requested."
+            }
+        }
     }
     $resolvedNeighborJUnitOutputPath = Resolve-JUnitOutputPath -ResolvedRepoRoot $resolvedRepoRoot -RequestedJUnitOutputPath $JUnitOutputPath
     if ($CollectArtifacts) {
@@ -1354,7 +1416,9 @@ finally {
                 -VerificationCommandLine $verificationCommandLine `
                 -VerificationOutputLogPath $verificationOutputLogPath `
                 -VerificationOutputMetadata $verificationOutputMetadata `
-                -NeighborSurfaceSelection $neighborSurfaceSelection
+                -NeighborSurfaceSelection $neighborSurfaceSelection `
+                -ExecutionMode $normalizedExecutionMode `
+                -ExecutionModeReason $normalizedExecutionModeReason
 
             Write-Heading "Artifact Collection"
             Write-Host ("Resumed-denial output dir: {0}" -f $resumedArtifactOutputDir)
@@ -1489,6 +1553,8 @@ finally {
                     generatedAt = (Get-Date).ToString("o")
                     overallResult = $resultLabel
                     requestedProvenanceMode = $ProvenanceMode
+                    executionMode = $normalizedExecutionMode
+                    executionModeReason = $normalizedExecutionModeReason
                     repoRoot = $resolvedRepoRoot
                     outerWorkspaceRoot = $resolvedOuterWorkspaceRoot
                     buildDir = $resolvedBuildDir
@@ -1571,6 +1637,8 @@ finally {
         -Result $resultLabel `
         -ExitCode $finalExitCode `
         -ProvenanceMode $ProvenanceMode `
+        -ExecutionMode $normalizedExecutionMode `
+        -ExecutionModeReason $normalizedExecutionModeReason `
         -ResolvedRepoRoot $resolvedRepoRoot `
         -ResolvedWorkspaceRoot $resolvedOuterWorkspaceRoot `
         -WorkspaceSource $workspaceSource `
