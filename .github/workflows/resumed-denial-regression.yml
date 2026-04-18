@@ -45,12 +45,12 @@ on:
         default: false
         type: boolean
       run_neighbor_surface_suite:
-        description: Also run the opt-in neighboring checkpoint/token/claimed-checkpoint surface suite.
+        description: Also run the opt-in neighboring checkpoint/token/claimed-checkpoint surface suite for manual workflow_dispatch runs.
         required: false
         default: false
         type: boolean
       profile_mode:
-        description: Neighboring-surface profile selection mode when run_neighbor_surface_suite is enabled.
+        description: Neighboring-surface profile selection mode for manual workflow_dispatch runs when run_neighbor_surface_suite is enabled.
         required: false
         default: auto
         type: choice
@@ -58,12 +58,12 @@ on:
           - auto
           - explicit
       diff_base:
-        description: Diff base used when profile_mode=auto. Leave blank to let the wrapper fall back to origin/main.
+        description: Diff base used when profile_mode=auto for manual workflow_dispatch runs. Leave blank to use origin/main.
         required: false
         default: origin/main
         type: string
       diff_head:
-        description: Diff head used when profile_mode=auto. Leave blank to let the wrapper fall back to HEAD.
+        description: Diff head used when profile_mode=auto for manual workflow_dispatch runs. Leave blank to use HEAD.
         required: false
         default: HEAD
         type: string
@@ -84,9 +84,50 @@ on:
         required: false
         default: false
         type: boolean
+  pull_request:
+    branches:
+      - main
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - ready_for_review
+    paths:
+      - include/app/**
+      - src/app/**
+      - include/game_api/**
+      - src/game_api/**
+      - tools/resolve_signon_regression_profile.ps1
+      - tools/verify_resumed_denial_main.ps1
+      - tools/verify_signon_neighbor_surfaces_main.ps1
+      - tools/verify_resumed_denial_ci.ps1
+      - tools/collect_resumed_denial_artifacts.ps1
+      - tools/signon_regression_matrix.psd1
+      - docs/MANUAL_VERIFY_RESUMED_DENIAL.md
+      - .github/workflows/resumed-denial-regression.yml
+  push:
+    branches:
+      - main
+    paths:
+      - include/app/**
+      - src/app/**
+      - include/game_api/**
+      - src/game_api/**
+      - tools/resolve_signon_regression_profile.ps1
+      - tools/verify_resumed_denial_main.ps1
+      - tools/verify_signon_neighbor_surfaces_main.ps1
+      - tools/verify_resumed_denial_ci.ps1
+      - tools/collect_resumed_denial_artifacts.ps1
+      - tools/signon_regression_matrix.psd1
+      - docs/MANUAL_VERIFY_RESUMED_DENIAL.md
+      - .github/workflows/resumed-denial-regression.yml
 
 permissions:
   contents: read
+
+concurrency:
+  group: resumed-denial-regression-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   resumed-denial-regression:
@@ -116,13 +157,182 @@ jobs:
           Write-Host "  - Visual Studio 2022 CMake support or cmake.exe in PATH is required when a build is requested"
           Write-Host "Missing prerequisites are expected to fail the wrapper early with actionable diagnostics."
 
-      - name: Run signon regression suites
+      - name: Resolve workflow request
+        id: resolve_request
+        run: |
+          function Set-StepOutput {
+            param(
+              [string]$Name,
+              [string]$Value
+            )
+
+            if ($null -eq $Value) {
+              $Value = ''
+            }
+
+            "{0}={1}" -f $Name, $Value | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+          function Set-StepOutputMultiline {
+            param(
+              [string]$Name,
+              [string]$Value
+            )
+
+            if ($null -eq $Value) {
+              $Value = ''
+            }
+
+            $delimiter = "EOF_{0}" -f ([guid]::NewGuid().ToString("N"))
+            @(
+              "{0}<<{1}" -f $Name, $delimiter
+              $Value
+              $delimiter
+            ) | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          }
+
+          $eventName = '${{ github.event_name }}'
+          $isAutomaticEvent = $eventName -eq 'pull_request' -or $eventName -eq 'push'
+
+          $manualOuterWorkspaceRoot = '${{ github.event_name == 'workflow_dispatch' && inputs.outer_workspace_root || '' }}'
+          $manualBuildDir = '${{ github.event_name == 'workflow_dispatch' && inputs.build_dir || '' }}'
+          $manualExePath = '${{ github.event_name == 'workflow_dispatch' && inputs.exe_path || '' }}'
+          $manualProvenanceMode = '${{ github.event_name == 'workflow_dispatch' && inputs.provenance_mode || 'auto' }}'
+          $manualNoBuild = '${{ github.event_name == 'workflow_dispatch' && inputs.no_build || 'false' }}'
+          $manualUseExistingBinary = '${{ github.event_name == 'workflow_dispatch' && inputs.use_existing_binary || 'false' }}'
+          $manualSkipRecovery = '${{ github.event_name == 'workflow_dispatch' && inputs.skip_recovery || 'false' }}'
+          $manualNoExecute = '${{ github.event_name == 'workflow_dispatch' && inputs.no_execute || 'false' }}'
+          $manualRunNeighborSurfaceSuite = '${{ github.event_name == 'workflow_dispatch' && inputs.run_neighbor_surface_suite || 'false' }}'
+          $manualProfileMode = '${{ github.event_name == 'workflow_dispatch' && inputs.profile_mode || 'auto' }}'
+          $manualDiffBase = '${{ github.event_name == 'workflow_dispatch' && inputs.diff_base || '' }}'
+          $manualDiffHead = '${{ github.event_name == 'workflow_dispatch' && inputs.diff_head || '' }}'
+          $manualNeighborSurfaceProfile = '${{ github.event_name == 'workflow_dispatch' && inputs.neighbor_surface_profile || '' }}'
+          $manualNeighborSurfaceGroup = '${{ github.event_name == 'workflow_dispatch' && inputs.neighbor_surface_group || '' }}'
+          $manualNeighborSurface = '${{ github.event_name == 'workflow_dispatch' && inputs.neighbor_surface || '' }}'
+          $manualFullNeighborMatrix = '${{ github.event_name == 'workflow_dispatch' && inputs.full_neighbor_matrix || 'false' }}'
+
+          $pullRequestBaseSha = '${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || '' }}'
+          $pullRequestHeadSha = '${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || '' }}'
+          $pushBeforeSha = '${{ github.event_name == 'push' && github.event.before || '' }}'
+          $pushHeadSha = '${{ github.sha }}'
+
+          $runNeighborSurfaceSuite = if ($isAutomaticEvent) { $true } else { $manualRunNeighborSurfaceSuite -eq 'true' }
+          $requestedProfileMode = if ($runNeighborSurfaceSuite) {
+            if ($isAutomaticEvent) {
+              'auto'
+            }
+            elseif ([string]::IsNullOrWhiteSpace($manualProfileMode)) {
+              'auto'
+            }
+            else {
+              $manualProfileMode
+            }
+          }
+          else {
+            'not-requested'
+          }
+
+          $resolvedDiffBase = ''
+          $resolvedDiffHead = ''
+          $diffRefSource = ''
+          if ($runNeighborSurfaceSuite -and $requestedProfileMode -eq 'auto') {
+            if ($eventName -eq 'pull_request') {
+              $resolvedDiffBase = $pullRequestBaseSha
+              $resolvedDiffHead = $pullRequestHeadSha
+              $diffRefSource = 'pull_request base.sha/head.sha'
+            }
+            elseif ($eventName -eq 'push') {
+              $resolvedDiffBase = $pushBeforeSha
+              $resolvedDiffHead = $pushHeadSha
+              $diffRefSource = 'push before/after sha'
+              if ([string]::IsNullOrWhiteSpace($resolvedDiffBase) -or $resolvedDiffBase -match '^0+$') {
+                $resolvedDiffBase = (& git rev-parse HEAD^).Trim()
+                if ($LASTEXITCODE -ne 0 -or [string]::IsNullOrWhiteSpace($resolvedDiffBase)) {
+                  throw 'Unable to resolve the push diff base from github.event.before or HEAD^.'
+                }
+
+                $diffRefSource = 'push HEAD^ fallback and github.sha'
+              }
+            }
+            else {
+              $resolvedDiffBase = if ([string]::IsNullOrWhiteSpace($manualDiffBase)) { 'origin/main' } else { $manualDiffBase.Trim() }
+              $resolvedDiffHead = if ([string]::IsNullOrWhiteSpace($manualDiffHead)) { 'HEAD' } else { $manualDiffHead.Trim() }
+              $diffRefSource = 'workflow_dispatch input/default'
+            }
+
+            if ([string]::IsNullOrWhiteSpace($resolvedDiffBase) -or [string]::IsNullOrWhiteSpace($resolvedDiffHead)) {
+              throw 'Auto profile mode requires both diff_base and diff_head to resolve.'
+            }
+          }
+
+          $neighborGroupValues = @($manualNeighborSurfaceGroup -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          $neighborSurfaceValues = @($manualNeighborSurface -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          $manualHasExplicitNeighborSelection = -not [string]::IsNullOrWhiteSpace($manualNeighborSurfaceProfile) -or $neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or $manualFullNeighborMatrix -eq 'true'
+
+          if (-not $runNeighborSurfaceSuite -and $manualHasExplicitNeighborSelection) {
+            throw 'neighbor_surface_profile, neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
+          }
+
+          if ($runNeighborSurfaceSuite -and $requestedProfileMode -eq 'auto' -and $manualHasExplicitNeighborSelection) {
+            throw 'profile_mode=auto cannot be combined with neighbor_surface_profile, neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
+          }
+
+          if ($runNeighborSurfaceSuite -and $requestedProfileMode -eq 'explicit') {
+            if (-not [string]::IsNullOrWhiteSpace($manualNeighborSurfaceProfile) -and ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or $manualFullNeighborMatrix -eq 'true')) {
+              throw 'neighbor_surface_profile cannot be combined with neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
+            }
+
+            if ($manualFullNeighborMatrix -eq 'true' -and ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0)) {
+              throw 'full_neighbor_matrix cannot be combined with neighbor_surface_group or neighbor_surface.'
+            }
+          }
+
+          Write-Host ("Event: {0}" -f $eventName)
+          Write-Host ("Automatic trigger: {0}" -f $(if ($isAutomaticEvent) { 'yes' } else { 'no' }))
+          Write-Host ("Run neighbor-surface suite: {0}" -f $(if ($runNeighborSurfaceSuite) { 'yes' } else { 'no' }))
+          Write-Host ("Requested profile mode: {0}" -f $requestedProfileMode)
+          if (-not [string]::IsNullOrWhiteSpace($diffRefSource)) {
+            Write-Host ("Diff ref source: {0}" -f $diffRefSource)
+          }
+          if (-not [string]::IsNullOrWhiteSpace($resolvedDiffBase)) {
+            Write-Host ("Diff base: {0}" -f $resolvedDiffBase)
+          }
+          if (-not [string]::IsNullOrWhiteSpace($resolvedDiffHead)) {
+            Write-Host ("Diff head: {0}" -f $resolvedDiffHead)
+          }
+
+          Set-StepOutput -Name event_name -Value $eventName
+          Set-StepOutput -Name automatic_event -Value $(if ($isAutomaticEvent) { 'true' } else { 'false' })
+          Set-StepOutput -Name outer_workspace_root -Value $manualOuterWorkspaceRoot
+          Set-StepOutput -Name build_dir -Value $manualBuildDir
+          Set-StepOutput -Name exe_path -Value $manualExePath
+          Set-StepOutput -Name provenance_mode -Value $manualProvenanceMode
+          Set-StepOutput -Name no_build -Value $(if ($manualNoBuild -eq 'true') { 'true' } else { 'false' })
+          Set-StepOutput -Name use_existing_binary -Value $(if ($manualUseExistingBinary -eq 'true') { 'true' } else { 'false' })
+          Set-StepOutput -Name skip_recovery -Value $(if ($manualSkipRecovery -eq 'true') { 'true' } else { 'false' })
+          Set-StepOutput -Name no_execute -Value $(if ($manualNoExecute -eq 'true') { 'true' } else { 'false' })
+          Set-StepOutput -Name run_neighbor_surface_suite -Value $(if ($runNeighborSurfaceSuite) { 'true' } else { 'false' })
+          Set-StepOutput -Name profile_mode -Value $requestedProfileMode
+          Set-StepOutput -Name diff_ref_source -Value $diffRefSource
+          Set-StepOutput -Name diff_base -Value $resolvedDiffBase
+          Set-StepOutput -Name diff_head -Value $resolvedDiffHead
+          Set-StepOutput -Name neighbor_surface_profile -Value $manualNeighborSurfaceProfile
+          Set-StepOutputMultiline -Name neighbor_surface_group -Value $manualNeighborSurfaceGroup
+          Set-StepOutputMultiline -Name neighbor_surface -Value $manualNeighborSurface
+          Set-StepOutput -Name full_neighbor_matrix -Value $(if ($manualFullNeighborMatrix -eq 'true') { 'true' } else { 'false' })
+
+      - name: Run signon regression wrapper
         id: run_regression
         run: |
           $artifactDir = Join-Path $env:RUNNER_TEMP 'signon-regression'
           if (Test-Path $artifactDir) {
             Remove-Item -LiteralPath $artifactDir -Recurse -Force
           }
+
+          $artifactName = 'signon-regression-${{ github.run_id }}-${{ github.run_attempt }}'
+          $junitArtifactName = 'signon-regression-junit-${{ github.run_id }}-${{ github.run_attempt }}'
+          $runNeighborSurfaceSuite = '${{ steps.resolve_request.outputs.run_neighbor_surface_suite }}' -eq 'true'
+          $profileMode = '${{ steps.resolve_request.outputs.profile_mode }}'
 
           $arguments = @(
             '-NoLogo',
@@ -138,70 +348,50 @@ jobs:
             $artifactDir
           )
 
-          if ('${{ inputs.outer_workspace_root }}' -ne '') {
-            $arguments += @('-OuterWorkspaceRoot', '${{ inputs.outer_workspace_root }}')
+          if ('${{ steps.resolve_request.outputs.outer_workspace_root }}' -ne '') {
+            $arguments += @('-OuterWorkspaceRoot', '${{ steps.resolve_request.outputs.outer_workspace_root }}')
           }
 
-          if ('${{ inputs.build_dir }}' -ne '') {
-            $arguments += @('-BuildDir', '${{ inputs.build_dir }}')
+          if ('${{ steps.resolve_request.outputs.build_dir }}' -ne '') {
+            $arguments += @('-BuildDir', '${{ steps.resolve_request.outputs.build_dir }}')
           }
 
-          if ('${{ inputs.exe_path }}' -ne '') {
-            $arguments += @('-ExePath', '${{ inputs.exe_path }}')
+          if ('${{ steps.resolve_request.outputs.exe_path }}' -ne '') {
+            $arguments += @('-ExePath', '${{ steps.resolve_request.outputs.exe_path }}')
           }
 
-          if ('${{ inputs.provenance_mode }}' -ne '') {
-            $arguments += @('-ProvenanceMode', '${{ inputs.provenance_mode }}')
+          if ('${{ steps.resolve_request.outputs.provenance_mode }}' -ne '') {
+            $arguments += @('-ProvenanceMode', '${{ steps.resolve_request.outputs.provenance_mode }}')
           }
 
-          if ('${{ inputs.no_build }}' -eq 'true') {
+          if ('${{ steps.resolve_request.outputs.no_build }}' -eq 'true') {
             $arguments += '-NoBuild'
           }
 
-          if ('${{ inputs.use_existing_binary }}' -eq 'true') {
+          if ('${{ steps.resolve_request.outputs.use_existing_binary }}' -eq 'true') {
             $arguments += '-UseExistingBinary'
           }
 
-          if ('${{ inputs.skip_recovery }}' -eq 'true') {
+          if ('${{ steps.resolve_request.outputs.skip_recovery }}' -eq 'true') {
             $arguments += '-SkipRecovery'
           }
 
-          if ('${{ inputs.no_execute }}' -eq 'true') {
+          if ('${{ steps.resolve_request.outputs.no_execute }}' -eq 'true') {
             $arguments += '-NoExecute'
           }
 
-          if ('${{ inputs.run_neighbor_surface_suite }}' -eq 'true') {
+          $neighborGroupValues = @('${{ steps.resolve_request.outputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          $neighborSurfaceValues = @('${{ steps.resolve_request.outputs.neighbor_surface }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
+          if ($runNeighborSurfaceSuite) {
             $arguments += '-RunNeighborSurfaceSuite'
-          }
-
-          if ('${{ inputs.run_neighbor_surface_suite }}' -ne 'true' -and ('${{ inputs.neighbor_surface_profile }}' -ne '' -or '${{ inputs.neighbor_surface_group }}' -ne '' -or '${{ inputs.neighbor_surface }}' -ne '' -or '${{ inputs.full_neighbor_matrix }}' -eq 'true')) {
-            throw 'neighbor_surface_profile, neighbor_surface_group, neighbor_surface, and full_neighbor_matrix require run_neighbor_surface_suite=true.'
-          }
-
-          $neighborGroupValues = @('${{ inputs.neighbor_surface_group }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-          $neighborSurfaceValues = @('${{ inputs.neighbor_surface }}' -split '[,\r\n]+' | ForEach-Object { $_.Trim() } | Where-Object { $_ -ne '' })
-          if ('${{ inputs.run_neighbor_surface_suite }}' -eq 'true') {
-            $profileMode = '${{ inputs.profile_mode }}'
             if ($profileMode -eq 'auto') {
-              if ('${{ inputs.neighbor_surface_profile }}' -ne '' -or $neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
-                throw 'profile_mode=auto cannot be combined with neighbor_surface_profile, neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
-              }
-
               $arguments += @('-NeighborSurfaceProfile', 'auto')
-              if ('${{ inputs.diff_base }}' -ne '') {
-                $arguments += @('-DiffBase', '${{ inputs.diff_base }}')
-              }
-              if ('${{ inputs.diff_head }}' -ne '') {
-                $arguments += @('-DiffHead', '${{ inputs.diff_head }}')
-              }
+              $arguments += @('-DiffBase', '${{ steps.resolve_request.outputs.diff_base }}')
+              $arguments += @('-DiffHead', '${{ steps.resolve_request.outputs.diff_head }}')
             }
             else {
-              if ('${{ inputs.neighbor_surface_profile }}' -ne '') {
-                if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0 -or '${{ inputs.full_neighbor_matrix }}' -eq 'true') {
-                  throw 'neighbor_surface_profile cannot be combined with neighbor_surface_group, neighbor_surface, or full_neighbor_matrix.'
-                }
-
-                $arguments += @('-NeighborSurfaceProfile', '${{ inputs.neighbor_surface_profile }}')
+              if ('${{ steps.resolve_request.outputs.neighbor_surface_profile }}' -ne '') {
+                $arguments += @('-NeighborSurfaceProfile', '${{ steps.resolve_request.outputs.neighbor_surface_profile }}')
               }
 
               if ($neighborGroupValues.Count -gt 0) {
@@ -212,18 +402,14 @@ jobs:
                 $arguments += @('-NeighborSurface') + $neighborSurfaceValues
               }
 
-              if ('${{ inputs.full_neighbor_matrix }}' -eq 'true') {
-                if ($neighborGroupValues.Count -gt 0 -or $neighborSurfaceValues.Count -gt 0) {
-                  throw 'full_neighbor_matrix cannot be combined with neighbor_surface_group or neighbor_surface.'
-                }
-
+              if ('${{ steps.resolve_request.outputs.full_neighbor_matrix }}' -eq 'true') {
                 $arguments += '-FullNeighborMatrix'
               }
             }
           }
 
           $neighborJUnitPath = ''
-          if ('${{ inputs.run_neighbor_surface_suite }}' -eq 'true') {
+          if ($runNeighborSurfaceSuite) {
             $neighborJUnitPath = Join-Path $artifactDir 'neighbor-surfaces\signon_neighbor_surface_junit.xml'
             $arguments += @('-JUnitOutputPath', $neighborJUnitPath)
           }
@@ -239,12 +425,14 @@ jobs:
           Write-Host ('==> powershell ' + ($quotedArguments -join ' '))
 
           & powershell @arguments
-          $exitCode = $LASTEXITCODE
+          $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { $LASTEXITCODE }
 
           "artifact_dir=$artifactDir" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "artifact_name=$artifactName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           "exit_code=$exitCode" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           if ($neighborJUnitPath -ne '') {
             "neighbor_junit_path=$neighborJUnitPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+            "junit_artifact_name=$junitArtifactName" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           }
 
           $combinedSummaryJsonPath = Join-Path $artifactDir 'verification_suite_summary.json'
@@ -261,14 +449,48 @@ jobs:
 
           exit 0
 
-      - name: Write step summary
+      - name: Write workflow step summary
         if: always()
         run: |
           $artifactDir = '${{ steps.run_regression.outputs.artifact_dir }}'
           $summaryJsonPath = '${{ steps.run_regression.outputs.summary_json }}'
-          $artifactName = 'signon-regression-${{ github.run_id }}-${{ github.run_attempt }}'
+          $artifactName = '${{ steps.run_regression.outputs.artifact_name }}'
+          $junitArtifactName = '${{ steps.run_regression.outputs.junit_artifact_name }}'
+          $eventName = '${{ steps.resolve_request.outputs.event_name }}'
+          $profileMode = '${{ steps.resolve_request.outputs.profile_mode }}'
+          $diffRefSource = '${{ steps.resolve_request.outputs.diff_ref_source }}'
+          $diffBase = '${{ steps.resolve_request.outputs.diff_base }}'
+          $diffHead = '${{ steps.resolve_request.outputs.diff_head }}'
+          $runNeighborSurfaceSuite = '${{ steps.resolve_request.outputs.run_neighbor_surface_suite }}' -eq 'true'
           $summaryLines = New-Object System.Collections.Generic.List[string]
           $summaryLines.Add('## Signon regression suites')
+          $summaryLines.Add('')
+          $summaryLines.Add(("Event: `{0}`" -f $eventName))
+          $summaryLines.Add(("Requested profile mode: `{0}`" -f $profileMode))
+          if ($runNeighborSurfaceSuite) {
+            $summaryLines.Add('Neighbor-surface suite: `enabled`')
+          }
+          else {
+            $summaryLines.Add('Neighbor-surface suite: `disabled`')
+          }
+          if (-not [string]::IsNullOrWhiteSpace($diffRefSource)) {
+            $summaryLines.Add(("Diff ref source: `{0}`" -f $diffRefSource))
+          }
+          if (-not [string]::IsNullOrWhiteSpace($diffBase)) {
+            $summaryLines.Add(("Diff base: `{0}`" -f $diffBase))
+          }
+          if (-not [string]::IsNullOrWhiteSpace($diffHead)) {
+            $summaryLines.Add(("Diff head: `{0}`" -f $diffHead))
+          }
+          if (-not [string]::IsNullOrWhiteSpace($artifactName)) {
+            $summaryLines.Add(("Artifact bundle: `{0}`" -f $artifactName))
+          }
+          if (-not [string]::IsNullOrWhiteSpace($junitArtifactName)) {
+            $summaryLines.Add(("JUnit artifact: `{0}`" -f $junitArtifactName))
+          }
+          if (-not [string]::IsNullOrWhiteSpace($artifactDir)) {
+            $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
+          }
           $summaryLines.Add('')
 
           if (-not [string]::IsNullOrWhiteSpace($summaryJsonPath) -and (Test-Path $summaryJsonPath)) {
@@ -276,8 +498,6 @@ jobs:
             if ($summary.PSObject.Properties['suites']) {
               $summaryLines.Add(("Overall result: `{0}`" -f $summary.overallResult))
               $summaryLines.Add(("Requested provenance: `{0}`" -f $summary.requestedProvenanceMode))
-              $summaryLines.Add(("Artifact bundle: `{0}`" -f $artifactName))
-              $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
               $summaryLines.Add('')
               $summaryLines.Add('| Suite | Result | Observed provenance |')
               $summaryLines.Add('| --- | --- | --- |')
@@ -294,9 +514,9 @@ jobs:
               }
               if ($summary.runNeighborSurfaceSuite) {
                 $summaryLines.Add('')
-                $summaryLines.Add(("Neighbor-surface suite: `{0}`" -f $summary.neighborSurfaces.overallResult))
+                $summaryLines.Add(("Neighbor-surface suite result: `{0}`" -f $summary.neighborSurfaces.overallResult))
                 if ($summary.neighborSurfaces.requestedProfileMode) {
-                  $summaryLines.Add(("Profile mode: `{0}`" -f $summary.neighborSurfaces.requestedProfileMode))
+                  $summaryLines.Add(("Resolved requested profile mode: `{0}`" -f $summary.neighborSurfaces.requestedProfileMode))
                 }
                 if ($summary.neighborSurfaces.requestedProfile) {
                   $summaryLines.Add(("Requested profile: `{0}`" -f $summary.neighborSurfaces.requestedProfile))
@@ -314,10 +534,10 @@ jobs:
                   $summaryLines.Add(("Matched profile rules: `{0}`" -f (($summary.neighborSurfaces.profileSelectionRuleIds | Where-Object { $_ -ne '' }) -join ', ')))
                 }
                 if ($summary.neighborSurfaces.profileSelectionDiffBase) {
-                  $summaryLines.Add(("Diff base: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffBase))
+                  $summaryLines.Add(("Resolved diff base: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffBase))
                 }
                 if ($summary.neighborSurfaces.profileSelectionDiffHead) {
-                  $summaryLines.Add(("Diff head: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffHead))
+                  $summaryLines.Add(("Resolved diff head: `{0}`" -f $summary.neighborSurfaces.profileSelectionDiffHead))
                 }
                 if ($summary.neighborSurfaces.selectionMode) {
                   $summaryLines.Add(("Selection mode: `{0}`" -f $summary.neighborSurfaces.selectionMode))
@@ -364,8 +584,6 @@ jobs:
               $summaryLines.Add(("Overall result: `{0}`" -f $summary.overallResult))
               $summaryLines.Add(("Requested provenance: `{0}`" -f $summary.requestedProvenanceMode))
               $summaryLines.Add(("Observed provenance: `{0}`" -f $summary.observedProvenanceMode))
-              $summaryLines.Add(("Artifact bundle: `{0}`" -f $artifactName))
-              $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
               $summaryLines.Add('')
               $summaryLines.Add('| Scenario | Result | Provenance |')
               $summaryLines.Add('| --- | --- | --- |')
@@ -376,18 +594,15 @@ jobs:
           }
           else {
             $summaryLines.Add(("Summary JSON was not created. Wrapper exit code: `{0}`" -f '${{ steps.run_regression.outputs.exit_code }}'))
-            if (-not [string]::IsNullOrWhiteSpace($artifactDir)) {
-              $summaryLines.Add(("Runner artifact dir: `{0}`" -f $artifactDir))
-            }
           }
 
           $summaryLines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Encoding utf8 -Append
 
       - name: Upload signon regression artifacts
-        if: always()
+        if: always() && steps.run_regression.outputs.artifact_dir != ''
         uses: actions/upload-artifact@v4
         with:
-          name: signon-regression-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ steps.run_regression.outputs.artifact_name }}
           path: ${{ steps.run_regression.outputs.artifact_dir }}
           if-no-files-found: warn
 
@@ -395,11 +610,11 @@ jobs:
         if: always() && steps.run_regression.outputs.neighbor_junit_path != ''
         uses: actions/upload-artifact@v4
         with:
-          name: signon-regression-junit-${{ github.run_id }}-${{ github.run_attempt }}
+          name: ${{ steps.run_regression.outputs.junit_artifact_name }}
           path: ${{ steps.run_regression.outputs.neighbor_junit_path }}
           if-no-files-found: warn
 
-      - name: Fail on verification error
+      - name: Fail on regression error
         if: always()
         run: |
           if ('${{ steps.run_regression.outputs.exit_code }}' -ne '0') {

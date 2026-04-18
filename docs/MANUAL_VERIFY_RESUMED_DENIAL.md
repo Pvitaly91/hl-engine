@@ -448,16 +448,32 @@ The repo now includes `.github/workflows/resumed-denial-regression.yml`.
 
 Workflow notes:
 
-- it is manual-only via `workflow_dispatch`
+- it supports both manual `workflow_dispatch` and safe automatic CI on relevant `pull_request` and `push` events
 - it targets self-hosted Windows runners with `self-hosted` and `windows` labels
 - it checks out the repo to `host/` with full history (`fetch-depth: 0`) and then runs `tools\verify_resumed_denial_ci.ps1`
+- automatic triggers are limited to a conservative path filter: `include/app/**`, `src/app/**`, `include/game_api/**`, `src/game_api/**`, `tools\resolve_signon_regression_profile.ps1`, `tools\verify_resumed_denial_main.ps1`, `tools\verify_signon_neighbor_surfaces_main.ps1`, `tools\verify_resumed_denial_ci.ps1`, `tools\collect_resumed_denial_artifacts.ps1`, `tools\signon_regression_matrix.psd1`, `docs\MANUAL_VERIFY_RESUMED_DENIAL.md`, and `.github/workflows/resumed-denial-regression.yml`
+- automatic `pull_request` runs target `main` and derive `diff_base` / `diff_head` from `pull_request.base.sha` and `pull_request.head.sha`
+- automatic `push` runs target `main` and derive `diff_base` / `diff_head` from `github.event.before` and `github.sha`, with a `HEAD^` fallback if the push payload does not provide a usable `before` commit
+- automatic `pull_request` and `push` runs always enable `run_neighbor_surface_suite=true` and request `profile_mode=auto`, so the wrapper resolves the smallest safe neighboring-surface profile from the current diff by default
 - it exposes optional workflow inputs for `outer_workspace_root`, `build_dir`, `exe_path`, `provenance_mode`, `no_build`, `use_existing_binary`, `skip_recovery`, `no_execute`, `run_neighbor_surface_suite`, `profile_mode`, `diff_base`, `diff_head`, `neighbor_surface_profile`, `neighbor_surface_group`, `neighbor_surface`, and `full_neighbor_matrix`
+- manual `workflow_dispatch` keeps the existing power-user controls: `profile_mode=auto|explicit`, explicit named profile overrides, explicit group/surface filters, and full-matrix requests
+- on manual `workflow_dispatch`, `profile_mode=auto` still forwards `diff_base` / `diff_head` into the wrapper and falls back to `origin/main` / `HEAD` when those inputs are left blank
 - it always enables `-CollectArtifacts` for the workflow run, emits neighboring-surface JUnit XML when that suite is enabled, uploads the resulting bundle with `actions/upload-artifact`, and writes either the resumed-denial summary or the combined suite summary to `GITHUB_STEP_SUMMARY`
 - when `run_neighbor_surface_suite=true`, the uploaded artifact bundle is rooted at `signon-regression-...` and includes both `resumed-denial\` and `neighbor-surfaces\` bundles plus `verification_suite_summary.txt/json`
-- when `profile_mode=auto`, the workflow requests `-NeighborSurfaceProfile auto` and forwards `diff_base` / `diff_head` into the wrapper
 - when `profile_mode=explicit`, the workflow keeps the existing explicit profile/group/surface/full-matrix controls
 - when `neighbor_surface_group` or `neighbor_surface` is supplied, those comma- or newline-separated filters are forwarded to the matrix-backed neighboring-surface runner
 - when `full_neighbor_matrix=true`, the workflow requests the full expanded neighboring-surface matrix and refuses mixed group/surface filters in the dispatcher step
-- when the neighboring-surface suite runs, the workflow step summary now includes the requested profile mode, resolved profile, selection reason, and matched auto-selection rules from the combined wrapper summary
+- when the neighboring-surface suite runs, the workflow step summary includes the event type, diff ref source/base/head, requested profile mode, resolved profile, selection reason, matched auto-selection rules, resumed-denial happy/gate/recovery status, neighboring-surface result, and uploaded artifact names
 - when neighboring surfaces fail, the workflow step summary includes a compact failed-surface table and the JUnit file is uploaded as a separate artifact as well as inside the main artifact bundle
-- it does not auto-trigger on every push because the surrounding hl-engine workspace remains runner-specific and missing prerequisites should fail clearly instead of pretending the regression is universally runnable
+- the job now uses workflow-level concurrency so superseded runs on the same PR or branch are cancelled before the newer run finishes
+
+Automatic behavior examples:
+
+- automatic `pull_request` to `main` touching only `docs\MANUAL_VERIFY_RESUMED_DENIAL.md` still triggers the workflow, keeps resumed-denial enabled, and lets auto profile selection stay on the smallest safe profile (`default`)
+- automatic `pull_request` or `push` touching `.github/workflows/resumed-denial-regression.yml` or the signon orchestration scripts triggers the workflow and escalates auto profile selection to `checkpoint-extended`
+- automatic `pull_request` or `push` touching runtime-adjacent files under `include\` or `src\` triggers the workflow and escalates auto profile selection to `full-expanded`
+
+Manual `workflow_dispatch` examples:
+
+- explicit full-expanded neighboring suite: set `run_neighbor_surface_suite=true`, `profile_mode=explicit`, and `neighbor_surface_profile=full-expanded`
+- explicit checkpoint-extended neighboring suite: set `run_neighbor_surface_suite=true`, `profile_mode=explicit`, and `neighbor_surface_profile=checkpoint-extended`
