@@ -6088,6 +6088,10 @@ struct DedicatedPlayerSlotSummary
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_ready =
             false;
     bool claimed_checkpoint_successor_bridge_exhausted = false;
+    bool
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denied_ready =
+            false;
+    bool claimed_checkpoint_successor_bridge_resume_denied = false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_ready =
         false;
     bool claimed_checkpoint_successor_resume_range_delivered = false;
@@ -6267,6 +6271,9 @@ struct DedicatedPlayerLifecycleFoundationSummary
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_ready =
         0;
     int claimed_checkpoint_successor_bridge_exhausted = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denied_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_resume_denied = 0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_ready = 0;
     int claimed_checkpoint_successor_resume_range_delivered = 0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_eof_ready =
@@ -12271,6 +12278,96 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string detail;
 };
 
+struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeDenialSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    std::string protocol_shape = "disabled";
+    bool successor_checkpoint_resume_denial_enabled = false;
+    bool requires_claimed_checkpoint_successor_checkpoint_eof_ready_session = true;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_source_session;
+    std::string last_issuer_target_session;
+    std::string last_claimant_session;
+    std::string last_successor_claimant_session;
+    std::string last_denied_cursor_id;
+    bool resume_allowed = false;
+    std::string denial_reason;
+    bool eof = false;
+    bool exhausted = false;
+    int current_start_message_index = -1;
+    int current_message_count = 0;
+    std::string next_start_message_index = "<unset>";
+    int remaining_message_count = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_materialized = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_advance_ready =
+        0;
+    int claimed_checkpoint_successor_advanced_range_delivered = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_exhausted = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denied_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_resume_denied = 0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeDenialProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string requested_successor_claimant_session;
+    std::string requested_cursor_id;
+    std::string parsed_source_session;
+    std::string parsed_issuer_target_session;
+    std::string parsed_claimant_session;
+    std::string parsed_successor_claimant_session;
+    std::string parsed_cursor_id;
+    bool parsed_resume_allowed = false;
+    std::string parsed_denial_reason;
+    bool parsed_eof = false;
+    bool parsed_exhausted = false;
+    std::string parsed_current_range;
+    std::string parsed_next_start_message_index = "<unset>";
+    int parsed_remaining_message_count = 0;
+    std::string parsed_resume_policy;
+    int parsed_target_activated = 0;
+    std::string parsed_map;
+    std::string parsed_name;
+    std::string parsed_ruleset;
+    int parsed_spawned = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_materialized = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_advance_ready =
+        0;
+    int claimed_checkpoint_successor_advanced_range_delivered = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_exhausted = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denied_ready =
+        0;
+    int claimed_checkpoint_successor_bridge_resume_denied = 0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorResumeRangeSurfaceSummary
 {
     bool enabled = false;
@@ -15290,6 +15387,13 @@ struct HlServerModuleInitOptions
     std::string
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_probe_scenario =
             "happy";
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denial_surface_enabled =
+        false;
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denial_probe_enabled =
+        false;
+    std::string
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denial_probe_scenario =
+            "happy";
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_surface_enabled =
         false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_probe_enabled =
@@ -15600,6 +15704,10 @@ struct HlServerModuleSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointEofProbeSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_eof_probe;
+    DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeDenialSurfaceSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denial_surface;
+    DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeDenialProbeSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denial_probe;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorResumeRangeSurfaceSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorResumeRangeProbeSummary
