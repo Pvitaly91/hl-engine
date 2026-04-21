@@ -277,6 +277,8 @@ enum class DedicatedPlayerLifecycleState
     kClaimedCheckpointSuccessorResumeTokenClaimAdvancedRangeDelivered,
     kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofReady,
     kClaimedCheckpointSuccessorResumeTokenClaimBridgeExhausted,
+    kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady,
+    kClaimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied,
     kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimRangeReady,
     kClaimedCheckpointSuccessorResumeTokenClaimRangeDelivered,
     kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimEofReady,
@@ -478,6 +480,10 @@ struct DedicatedPlayerRuntimeSlot
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
         false;
     bool claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+        false;
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+        false;
+    bool claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
         false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_ready =
         false;
@@ -987,6 +993,29 @@ struct DedicatedPlayerRuntimeSlot
         last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_resume_policy;
     bool
         last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_target_activated =
+            false;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_source_session;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_issuer_target_session;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_claimant_session;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_successor_claimant_session;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reason;
+    int last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_next_start_message_index =
+        -1;
+    int last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_remaining_message_count =
+        0;
+    std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_resume_policy;
+    bool
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_target_activated =
             false;
     std::string
         last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_range_source_session;
@@ -1779,6 +1808,9 @@ struct DedicatedMultiplayerFoundationRuntime
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
         0;
     int claimed_checkpoint_successor_resume_token_claim_bridge_exhausted = 0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied = 0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_ready =
         0;
     int claimed_checkpoint_successor_checkpoint_resume_range_delivered = 0;
@@ -2367,6 +2399,13 @@ struct EngineShimState
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe;
     std::string
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe_scenario =
+            "happy";
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface;
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe;
+    std::string
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario =
             "happy";
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface;
@@ -3209,6 +3248,10 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_surface,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofProbeSummary&
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe,
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface,
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSummary&
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeProbeSummary&
@@ -22035,6 +22078,22 @@ std::string BuildDedicatedPlayerLifecycleFoundationLine(
         + std::to_string(
             summary
                 .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeExhausted="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied)
         + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimRangeReady="
         + std::to_string(
             summary
@@ -31721,6 +31780,173 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + ", compatibility=" + summary.compatibility;
 }
 
+std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceLine(
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary&
+        summary)
+{
+    return "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface: mode="
+        + summary.mode
+        + ", bind=" + summary.bind
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", successorCheckpointResumeTokenClaimCheckpointResumeDenialEnabled="
+        + BoolToYesNo(
+            summary
+                .successor_checkpoint_resume_token_claim_checkpoint_resume_denial_enabled)
+        + ", requiresClaimedSuccessorCheckpointResumeTokenClaimCheckpointEofReadySession="
+        + BoolToYesNo(
+            summary
+                .requires_claimed_successor_checkpoint_resume_token_claim_checkpoint_eof_ready_session)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastSourceSession="
+        + (summary.last_source_session.empty() ? std::string("<none>")
+                                              : summary.last_source_session)
+        + ", lastIssuerTargetSession="
+        + (summary.last_issuer_target_session.empty()
+               ? std::string("<none>")
+               : summary.last_issuer_target_session)
+        + ", lastClaimantSession="
+        + (summary.last_claimant_session.empty() ? std::string("<none>")
+                                                 : summary.last_claimant_session)
+        + ", lastSuccessorClaimantSession="
+        + (summary.last_successor_claimant_session.empty()
+               ? std::string("<none>")
+               : summary.last_successor_claimant_session)
+        + ", lastTertiarySuccessorClaimantSession="
+        + (summary.last_tertiary_successor_claimant_session.empty()
+               ? std::string("<none>")
+               : summary.last_tertiary_successor_claimant_session)
+        + ", lastDeniedCursorId="
+        + (summary.last_denied_cursor_id.empty()
+               ? std::string("<none>")
+               : summary.last_denied_cursor_id)
+        + ", resumeAllowed=" + BoolToYesNo(summary.resume_allowed)
+        + ", denialReason="
+        + (summary.denial_reason.empty() ? std::string("<unset>")
+                                         : summary.denial_reason)
+        + ", eof=" + BoolToYesNo(summary.eof)
+        + ", exhausted=" + BoolToYesNo(summary.exhausted)
+        + ", nextStartMessageIndex=" + summary.next_start_message_index
+        + ", remainingMessageCount="
+        + std::to_string(summary.remaining_message_count)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplayTransport=" + summary.gameplay_transport
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointBridgeReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeMaterialized="
+        + std::to_string(
+            summary.claimed_checkpoint_successor_resume_token_claim_bridge_materialized)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointAdvanceReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimAdvancedRangeDelivered="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeExhausted="
+        + std::to_string(
+            summary.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied)
+        + ", compatibility=" + summary.compatibility;
+}
+
+std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeLine(
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary&
+        summary)
+{
+    return "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe: mode="
+        + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                              : summary.last_reject_reason)
+        + ", parsedSourceSession="
+        + (summary.parsed_source_session.empty() ? std::string("<unset>")
+                                                 : summary.parsed_source_session)
+        + ", parsedIssuerTargetSession="
+        + (summary.parsed_issuer_target_session.empty()
+               ? std::string("<unset>")
+               : summary.parsed_issuer_target_session)
+        + ", parsedClaimantSession="
+        + (summary.parsed_claimant_session.empty() ? std::string("<unset>")
+                                                   : summary.parsed_claimant_session)
+        + ", parsedSuccessorClaimantSession="
+        + (summary.parsed_successor_claimant_session.empty()
+               ? std::string("<unset>")
+               : summary.parsed_successor_claimant_session)
+        + ", parsedTertiarySuccessorClaimantSession="
+        + (summary.parsed_tertiary_successor_claimant_session.empty()
+               ? std::string("<unset>")
+               : summary.parsed_tertiary_successor_claimant_session)
+        + ", parsedCursorId="
+        + (summary.parsed_cursor_id.empty() ? std::string("<unset>")
+                                            : summary.parsed_cursor_id)
+        + ", parsedResumeAllowed=" + BoolToYesNo(summary.parsed_resume_allowed)
+        + ", parsedDenialReason="
+        + (summary.parsed_denial_reason.empty() ? std::string("<unset>")
+                                                : summary.parsed_denial_reason)
+        + ", parsedEof=" + BoolToYesNo(summary.parsed_eof)
+        + ", parsedExhausted=" + BoolToYesNo(summary.parsed_exhausted)
+        + ", parsedNextStartMessageIndex="
+        + summary.parsed_next_start_message_index
+        + ", parsedRemainingMessageCount="
+        + std::to_string(summary.parsed_remaining_message_count)
+        + ", parsedResumePolicy="
+        + (summary.parsed_resume_policy.empty() ? std::string("<unset>")
+                                                : summary.parsed_resume_policy)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointBridgeReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeMaterialized="
+        + std::to_string(
+            summary.claimed_checkpoint_successor_resume_token_claim_bridge_materialized)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointAdvanceReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimAdvancedRangeDelivered="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeExhausted="
+        + std::to_string(
+            summary.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted)
+        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady="
+        + std::to_string(
+            summary
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready)
+        + ", claimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied="
+        + std::to_string(
+            summary
+                .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility;
+}
+
 std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceLine(
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSummary&
         summary)
@@ -38350,6 +38576,10 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_surface,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofProbeSummary&
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe,
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface,
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSummary&
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface,
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeProbeSummary&
@@ -40950,6 +41180,82 @@ std::string BuildDedicatedMultiplayerReadinessLine(
                    .claimed_checkpoint_successor_bridge_resume_denied
                    > 0;
     const bool
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_ready =
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+                .enabled
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+                   .bound_port > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .enabled
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .accepted > 0
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_source_session.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_issuer_target_session.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_claimant_session.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_successor_claimant_session.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_tertiary_successor_claimant_session.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_cursor_id.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_denial_reason.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_resume_allowed
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_denial_reason
+                   == "successor-checkpoint-bridge-exhausted"
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_eof
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_exhausted
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_next_start_message_index
+                   == "<none>"
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_remaining_message_count
+                   == 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_resume_policy
+                   == "tertiary-successor-checkpoint-bridge-exhausted-denied"
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_target_activated > 0
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_map.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_name.empty()
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                    .parsed_ruleset.empty()
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .parsed_spawned > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .claimed_checkpoint_successor_resume_token_claim_bridge_materialized
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready
+                   > 0
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                   .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied
+                   > 0;
+    const bool
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_probe_ready =
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_surface
                 .enabled
@@ -42648,9 +42954,48 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resumed_denial_probe_ready
         && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_ready
         && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe_ready
-        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe_ready)
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe_ready
+        && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_ready)
     {
         return "dedicated_multiplayer_readiness: dedicated foundation remains implemented; loopback query/discovery remains implemented; loopback challenge/connect admission preauth remains implemented; loopback post-connect activation to put_in_server/spawned remains implemented; loopback bootstrap descriptor state remains implemented; loopback ordered bootstrap-sequence descriptor state remains implemented; loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state remains implemented; loopback first and remaining signon-template delivery remains implemented; loopback signon-envelope/record-framing delivery remains implemented; loopback signon pseudo-packet batch delivery remains implemented; loopback wire-shaped header/body mapping remains implemented; loopback signon pseudo-wire burst delivery remains implemented; loopback contiguous signon-record stream delivery remains implemented; loopback stream windowing plus bounded replay remains implemented; loopback pseudo signon message-boundary catalog remains implemented; loopback single-message fetch, selective multi-message fetch, contiguous range fetch, message-cursor checkpoint, cursor-advance range fetch, terminal EOF, exhausted resume-denial, non-exhausted resume-allow, checkpoint-cursor carry-over, carried-cursor target range-fetch, carried-cursor target EOF, carried-cursor target resume-denial, carried-cursor target positive resume-allow, carried-cursor target checkpoint bridge, carried-checkpoint advance/range, carried-checkpoint EOF, carried-checkpoint target resume-denial, carried-checkpoint target positive resume-allow, carried-checkpoint target resumed-range, carried-checkpoint target resumed-EOF, carried-checkpoint target resumed-denial, carried-checkpoint resume-token issuance, carried-checkpoint resume-token claim, claimed-range, claimed-EOF, claimed-resume-denial, claimed-resume-allow, claimed-resume-range, claimed-resume-EOF, claimed-resumed-denial, claimant checkpoint-bridge, claimant checkpoint-advance/range, claimant checkpoint-EOF, claimant checkpoint-resume-denial, claimant checkpoint positive resume-allow, claimant checkpoint positive resumed-range, claimant checkpoint positive resumed-EOF, claimant checkpoint positive resumed-denial, claimant checkpoint token issuance, claimant checkpoint token claim, successor claimant checkpoint-range, successor claimant checkpoint-EOF, successor claimant checkpoint-resume-denial, successor claimant checkpoint positive resume-allow, successor claimant checkpoint positive resumed-range, successor claimant checkpoint positive resumed-EOF, successor claimant checkpoint positive resumed-denial, successor claimant checkpoint-bridge, successor claimant checkpoint-advance/range, successor claimant checkpoint-EOF, successor claimant checkpoint-resume-denial, successor claimant checkpoint positive resume-allow, successor claimant checkpoint positive resumed-range, successor claimant checkpoint positive resumed-EOF, and successor claimant checkpoint positive resumed-denial remain implemented; successor-checkpoint token claim resumed-range/eof/resumed-denial remains implemented; first tertiary successor claimant checkpoint EOF on the bridged local checkpoint is now implemented; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; exact next step unlocked by this prompt is tertiary successor claimant checkpoint resume-denial on the bridged local checkpoint";
+    }
+
+    if (query_probe_ready && connect_probe_ready && activation_probe_ready
+        && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+        && signon_catalog_probe_ready && signon_template_probe_ready
+        && signon_template_completion_probe_ready && signon_envelope_probe_ready
+        && signon_batch_probe_ready && signon_wiremap_probe_ready
+        && signon_burst_probe_ready && signon_stream_probe_ready
+        && signon_stream_window_probe_ready && signon_message_catalog_probe_ready
+        && signon_message_fetch_probe_ready && signon_multi_message_fetch_probe_ready
+        && signon_message_range_fetch_probe_ready && signon_message_cursor_probe_ready
+        && signon_message_cursor_resume_allow_probe_ready
+        && signon_message_cursor_carryover_probe_ready
+        && signon_message_cursor_carried_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_range_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_eof_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resumed_denial_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_ready)
+    {
+        return "dedicated_multiplayer_readiness: dedicated foundation remains implemented; loopback query/discovery remains implemented; loopback challenge/connect admission preauth remains implemented; loopback post-connect activation to put_in_server/spawned remains implemented; loopback bootstrap descriptor state remains implemented; loopback ordered bootstrap-sequence descriptor state remains implemented; loopback pre-snapshot signon-catalog/staged bootstrap-record descriptor state remains implemented; loopback first and remaining signon-template delivery remains implemented; loopback signon-envelope/record-framing delivery remains implemented; loopback signon pseudo-packet batch delivery remains implemented; loopback wire-shaped header/body mapping remains implemented; loopback signon pseudo-wire burst delivery remains implemented; loopback contiguous signon-record stream delivery remains implemented; loopback stream windowing plus bounded replay remains implemented; loopback pseudo signon message-boundary catalog remains implemented; loopback single-message fetch, selective multi-message fetch, contiguous range fetch, message-cursor checkpoint, cursor-advance range fetch, terminal EOF, exhausted resume-denial, non-exhausted resume-allow, checkpoint-cursor carry-over, carried-cursor target range-fetch, carried-cursor target EOF, carried-cursor target resume-denial, carried-cursor target positive resume-allow, carried-cursor target checkpoint bridge, carried-checkpoint advance/range, carried-checkpoint EOF, carried-checkpoint target resume-denial, carried-checkpoint target positive resume-allow, carried-checkpoint target resumed-range, carried-checkpoint target resumed-EOF, carried-checkpoint target resumed-denial, carried-checkpoint resume-token issuance, carried-checkpoint resume-token claim, claimed-range, claimed-EOF, claimed-resume-denial, claimed-resume-allow, claimed-resume-range, claimed-resume-EOF, claimed-resumed-denial, claimant checkpoint-bridge, claimant checkpoint-advance/range, claimant checkpoint-EOF, claimant checkpoint-resume-denial, claimant checkpoint positive resume-allow, claimant checkpoint positive resumed-range, claimant checkpoint positive resumed-EOF, claimant checkpoint positive resumed-denial, claimant checkpoint token issuance, claimant checkpoint token claim, successor claimant checkpoint-range, successor claimant checkpoint-EOF, successor claimant checkpoint-resume-denial, successor claimant checkpoint positive resume-allow, successor claimant checkpoint positive resumed-range, successor claimant checkpoint positive resumed-EOF, and successor claimant checkpoint positive resumed-denial remain implemented; successor-checkpoint token claim resumed-range/eof/resumed-denial and local checkpoint bridge/advance/eof remain implemented; first tertiary successor claimant checkpoint resume-denial on the bridged local checkpoint is now implemented; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; exact next step unlocked by this prompt is tertiary successor claimant checkpoint positive resume-allow on the bridged local checkpoint";
     }
 
     if (query_probe_ready && connect_probe_ready && activation_probe_ready
@@ -44045,6 +44390,26 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofProbeLine(
                     summary
                         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe));
+        }
+        if (summary
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceLine(
+                    summary
+                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface));
+        }
+        if (summary
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeLine(
+                    summary
+                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe));
         }
         if (summary
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface
@@ -68985,6 +69350,12 @@ std::string DedicatedPlayerLifecycleStateName(DedicatedPlayerLifecycleState stat
         kClaimedCheckpointSuccessorResumeTokenClaimBridgeExhausted:
         return "claimed_checkpoint_successor_resume_token_claim_bridge_exhausted";
     case DedicatedPlayerLifecycleState::
+        kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady:
+        return "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready";
+    case DedicatedPlayerLifecycleState::
+        kClaimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied:
+        return "claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied";
+    case DedicatedPlayerLifecycleState::
         kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimRangeReady:
         return "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_range_ready";
     case DedicatedPlayerLifecycleState::kClaimedCheckpointSuccessorResumeTokenClaimRangeDelivered:
@@ -71165,6 +71536,91 @@ void RecordDedicatedLifecycleTransition(
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
             true;
         slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+            true;
+        break;
+    case DedicatedPlayerLifecycleState::
+        kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady:
+        ++runtime
+              .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.alive = true;
+        if (slot_state.spawn_count <= 0)
+        {
+            slot_state.spawn_count = std::max(slot_state.spawn_count, 1);
+        }
+        slot_state.external_loopback_admission = true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claimed = true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_ready =
+            true;
+        slot_state
+            .non_exhausted_claimed_checkpoint_successor_resume_token_claim_resume_allowed =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_materialized =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready =
+            true;
+        slot_state
+            .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+            true;
+        break;
+    case DedicatedPlayerLifecycleState::
+        kClaimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied:
+        ++runtime.claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied;
+        slot_state.connected = true;
+        slot_state.put_in_server = true;
+        slot_state.alive = true;
+        if (slot_state.spawn_count <= 0)
+        {
+            slot_state.spawn_count = std::max(slot_state.spawn_count, 1);
+        }
+        slot_state.external_loopback_admission = true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claimed = true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_ready =
+            true;
+        slot_state
+            .non_exhausted_claimed_checkpoint_successor_resume_token_claim_resume_allowed =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_materialized =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready =
+            true;
+        slot_state
+            .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+            true;
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+            true;
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
             true;
         break;
     case DedicatedPlayerLifecycleState::
@@ -73410,6 +73866,17 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_denied_ready;
     summary.claimed_checkpoint_successor_bridge_resume_denied =
         slot_state.claimed_checkpoint_successor_bridge_resume_denied;
+    summary.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready;
+    summary.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+        slot_state.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
+    summary.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+        slot_state
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready;
+    summary.claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
+        slot_state
+            .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied;
     summary.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_ready =
         slot_state
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_ready;
@@ -95532,6 +95999,186 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
         : "loopback-bind-pending,tertiary-successor-claimant-checkpoint-eof-on-bridged-claimed-successor-token-only";
 }
 
+void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSnapshot(
+    EngineShimState& state)
+{
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary&
+        surface =
+            state
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface;
+    if (!surface.enabled)
+    {
+        return;
+    }
+
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofSurfaceSnapshot(
+        state);
+    const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofSurfaceSummary&
+        eof_surface =
+            state
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_surface;
+
+    surface.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    surface.bind = "loopback";
+    surface.requested_port = state.dedicated_query_surface.requested_port;
+    surface.bound_port = state.dedicated_query_surface.bound_port;
+    surface.protocol_shape =
+        "goldsrc-like-connectionless-signon-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-denial";
+    surface.successor_checkpoint_resume_token_claim_checkpoint_resume_denial_enabled =
+        true;
+    surface.requires_claimed_successor_checkpoint_resume_token_claim_checkpoint_eof_ready_session =
+        true;
+    surface.accepted =
+        state
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+            .accepted;
+    surface.rejected =
+        state
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+            .rejected;
+    surface.last_source_session = eof_surface.last_source_session;
+    surface.last_issuer_target_session = eof_surface.last_issuer_target_session;
+    surface.last_claimant_session = eof_surface.last_claimant_session;
+    surface.last_successor_claimant_session = eof_surface.last_successor_claimant_session;
+    surface.last_tertiary_successor_claimant_session =
+        eof_surface.last_tertiary_successor_claimant_session;
+    surface.last_denied_cursor_id = eof_surface.last_checkpoint_cursor_id;
+    surface.resume_allowed = false;
+    surface.denial_reason = surface.accepted > 0
+        ? std::string("successor-checkpoint-bridge-exhausted")
+        : std::string("<none>");
+    surface.eof = false;
+    surface.exhausted = false;
+    surface.next_start_message_index = eof_surface.next_start_message_index;
+    surface.remaining_message_count = eof_surface.remaining_message_count;
+    surface.auth =
+        "none-loopback-post-successor-checkpoint-token-claim-checkpoint-eof-only";
+    surface.signon =
+        "carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-denial-only";
+    surface.gameplay_transport = "no";
+
+    for (const DedicatedPlayerRuntimeSlot& slot_state :
+         state.dedicated_multiplayer_foundation.slots)
+    {
+        if (slot_state
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready
+            || slot_state
+                   .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied
+            || !slot_state
+                    .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                    .empty())
+        {
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_source_session
+                     .empty())
+            {
+                surface.last_source_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_source_session;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_issuer_target_session
+                     .empty())
+            {
+                surface.last_issuer_target_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_issuer_target_session;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_claimant_session
+                     .empty())
+            {
+                surface.last_claimant_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_claimant_session;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_successor_claimant_session
+                     .empty())
+            {
+                surface.last_successor_claimant_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_successor_claimant_session;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session
+                     .empty())
+            {
+                surface.last_tertiary_successor_claimant_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session;
+            }
+            else if (!slot_state.session_id.empty())
+            {
+                surface.last_tertiary_successor_claimant_session = slot_state.session_id;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                     .empty())
+            {
+                surface.last_denied_cursor_id =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reason
+                     .empty())
+            {
+                surface.denial_reason =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reason;
+            }
+            surface.next_start_message_index =
+                slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_next_start_message_index
+                    < 0
+                ? std::string("<none>")
+                : std::to_string(
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_next_start_message_index);
+            surface.remaining_message_count =
+                slot_state
+                    .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_remaining_message_count;
+            surface.eof =
+                slot_state
+                    .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready;
+            surface.exhausted =
+                slot_state
+                    .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
+        }
+    }
+
+    surface.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+        state.dedicated_multiplayer_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready;
+    surface.claimed_checkpoint_successor_resume_token_claim_bridge_materialized =
+        state.dedicated_multiplayer_foundation
+            .claimed_checkpoint_successor_resume_token_claim_bridge_materialized;
+    surface.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready =
+        state.dedicated_multiplayer_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready;
+    surface.claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered =
+        state.dedicated_multiplayer_foundation
+            .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered;
+    surface.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+        state.dedicated_multiplayer_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready;
+    surface.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+        state.dedicated_multiplayer_foundation
+            .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
+    surface.signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+        state.dedicated_multiplayer_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready;
+    surface.claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
+        state.dedicated_multiplayer_foundation
+            .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied;
+    surface.compatibility = surface.bound_port > 0
+        ? (surface.accepted > 0
+            ? "loopback-verified,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only"
+            : "loopback-ready,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only")
+        : "loopback-bind-pending,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only";
+}
+
 void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSnapshot(
     EngineShimState& state)
 {
@@ -111846,6 +112493,38 @@ void PopulateSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheck
         runtime.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
 }
 
+void PopulateSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeLifecycle(
+    const DedicatedMultiplayerFoundationRuntime& runtime,
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary*
+        probe)
+{
+    if (probe == nullptr)
+    {
+        return;
+    }
+
+    probe->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+        runtime
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready;
+    probe->claimed_checkpoint_successor_resume_token_claim_bridge_materialized =
+        runtime.claimed_checkpoint_successor_resume_token_claim_bridge_materialized;
+    probe->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready =
+        runtime
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready;
+    probe->claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered =
+        runtime.claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered;
+    probe->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+        runtime
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready;
+    probe->claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+        runtime.claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
+    probe->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+        runtime
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready;
+    probe->claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
+        runtime.claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied;
+}
+
 void PopulateSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointAdvanceProbeLifecycle(
     const DedicatedMultiplayerFoundationRuntime& runtime,
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointAdvanceProbeSummary*
@@ -116788,6 +117467,137 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
 {
     static constexpr std::string_view kPrefix =
         "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_reject reason=";
+    if (!StartsWithText(text, kPrefix))
+    {
+        return false;
+    }
+
+    const std::size_t players_marker = text.find(" players=");
+    if (players_marker == std::string_view::npos || players_marker <= kPrefix.size())
+    {
+        return false;
+    }
+
+    if (reason != nullptr)
+    {
+        *reason = std::string(text.substr(kPrefix.size(), players_marker - kPrefix.size()));
+    }
+    return true;
+}
+
+bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAcceptedResponseText(
+    std::string_view text,
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary*
+        probe)
+{
+    if (probe == nullptr
+        || !StartsWithText(
+            text,
+            "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial "))
+    {
+        return false;
+    }
+
+    const std::string source_session = ExtractTokenValue(text, "sourceSession=");
+    const std::string issuer_target_session =
+        ExtractTokenValue(text, "issuerTargetSession=");
+    const std::string claimant_session = ExtractTokenValue(text, "claimantSession=");
+    const std::string successor_claimant_session =
+        ExtractTokenValue(text, "successorClaimantSession=");
+    const std::string tertiary_successor_claimant_session =
+        ExtractTokenValue(text, "tertiarySuccessorClaimantSession=");
+    const std::string cursor_id = ExtractTokenValue(text, "cursorId=");
+    const std::string resume_allowed = ExtractTokenValue(text, "resumeAllowed=");
+    const std::string denial_reason = ExtractTokenValue(text, "denialReason=");
+    const std::string eof = ExtractTokenValue(text, "eof=");
+    const std::string exhausted = ExtractTokenValue(text, "exhausted=");
+    const std::string next_start_message_index =
+        ExtractTokenValue(text, "nextStartMessageIndex=");
+    const std::string remaining_message_count =
+        ExtractTokenValue(text, "remainingMessageCount=");
+    const std::string resume_policy = ExtractTokenValue(text, "resumePolicy=");
+    const std::string target_activated = ExtractTokenValue(text, "targetActivated=");
+    const std::string map = ExtractTokenValue(text, "map=");
+    const std::string name = ExtractTokenValue(text, "name=");
+    const std::string ruleset = ExtractTokenValue(text, "ruleset=");
+    const std::string spawned = ExtractTokenValue(text, "spawned=");
+    if (source_session.empty()
+        || issuer_target_session.empty()
+        || claimant_session.empty()
+        || successor_claimant_session.empty()
+        || tertiary_successor_claimant_session.empty()
+        || cursor_id.empty()
+        || resume_allowed.empty()
+        || denial_reason.empty()
+        || eof.empty()
+        || exhausted.empty()
+        || next_start_message_index.empty()
+        || remaining_message_count.empty()
+        || resume_policy.empty()
+        || target_activated.empty()
+        || map.empty()
+        || name.empty()
+        || ruleset.empty()
+        || spawned.empty())
+    {
+        return false;
+    }
+
+    const int parsed_remaining_message_count = std::atoi(remaining_message_count.c_str());
+    if (parsed_remaining_message_count < 0)
+    {
+        return false;
+    }
+
+    probe->requested_tertiary_successor_claimant_session =
+        tertiary_successor_claimant_session;
+    probe->requested_cursor_id = cursor_id;
+    probe->parsed_source_session = source_session;
+    probe->parsed_issuer_target_session = issuer_target_session;
+    probe->parsed_claimant_session = claimant_session;
+    probe->parsed_successor_claimant_session = successor_claimant_session;
+    probe->parsed_tertiary_successor_claimant_session =
+        tertiary_successor_claimant_session;
+    probe->parsed_cursor_id = cursor_id;
+    probe->parsed_resume_allowed = EqualsIgnoreCase(resume_allowed, "yes");
+    probe->parsed_denial_reason = denial_reason;
+    probe->parsed_eof = EqualsIgnoreCase(eof, "yes");
+    probe->parsed_exhausted = EqualsIgnoreCase(exhausted, "yes");
+    probe->parsed_next_start_message_index = next_start_message_index;
+    probe->parsed_remaining_message_count = parsed_remaining_message_count;
+    probe->parsed_resume_policy = resume_policy;
+    probe->parsed_target_activated = std::atoi(target_activated.c_str());
+    probe->parsed_map = map;
+    probe->parsed_name = name;
+    probe->parsed_ruleset = ruleset;
+    probe->parsed_spawned = std::atoi(spawned.c_str());
+
+    return !probe->parsed_source_session.empty()
+        && !probe->parsed_issuer_target_session.empty()
+        && !probe->parsed_claimant_session.empty()
+        && !probe->parsed_successor_claimant_session.empty()
+        && !probe->parsed_tertiary_successor_claimant_session.empty()
+        && !probe->parsed_cursor_id.empty()
+        && !probe->parsed_denial_reason.empty()
+        && !probe->parsed_resume_allowed
+        && probe->parsed_eof
+        && probe->parsed_exhausted
+        && !probe->parsed_next_start_message_index.empty()
+        && probe->parsed_remaining_message_count >= 0
+        && !probe->parsed_resume_policy.empty()
+        && probe->parsed_target_activated > 0
+        && !probe->parsed_map.empty()
+        && !probe->parsed_name.empty()
+        && !probe->parsed_ruleset.empty()
+        && probe->parsed_spawned > 0;
+}
+
+bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialRejectResponseText(
+    std::string_view text,
+    std::string* reason)
+{
+    static constexpr std::string_view kPrefix =
+        "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reject reason=";
     if (!StartsWithText(text, kPrefix))
     {
         return false;
@@ -141648,6 +142458,743 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
         && probe->claimed_checkpoint_successor_resume_token_claim_bridge_exhausted > 0;
 }
 
+bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenial(
+    EngineShimState& state,
+    std::string_view tertiary_successor_claimant_session_id,
+    std::string_view checkpoint_cursor_id,
+    bool count_surface_result,
+    std::string* source_session,
+    std::string* issuer_target_session,
+    std::string* claimant_session,
+    std::string* resolved_successor_claimant_session,
+    std::string* resolved_tertiary_successor_claimant_session,
+    std::string* next_start_message_index,
+    int* remaining_message_count,
+    std::string* resume_policy,
+    std::string* denial_reason,
+    bool* target_activated,
+    std::string* reject_reason)
+{
+    if (source_session != nullptr)
+    {
+        source_session->clear();
+    }
+    if (issuer_target_session != nullptr)
+    {
+        issuer_target_session->clear();
+    }
+    if (claimant_session != nullptr)
+    {
+        claimant_session->clear();
+    }
+    if (resolved_successor_claimant_session != nullptr)
+    {
+        resolved_successor_claimant_session->clear();
+    }
+    if (resolved_tertiary_successor_claimant_session != nullptr)
+    {
+        resolved_tertiary_successor_claimant_session->clear();
+    }
+    if (next_start_message_index != nullptr)
+    {
+        *next_start_message_index = "<unset>";
+    }
+    if (remaining_message_count != nullptr)
+    {
+        *remaining_message_count = 0;
+    }
+    if (resume_policy != nullptr)
+    {
+        resume_policy->clear();
+    }
+    if (denial_reason != nullptr)
+    {
+        denial_reason->clear();
+    }
+    if (target_activated != nullptr)
+    {
+        *target_activated = false;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    const auto reject = [&](std::string reason) -> bool
+    {
+        if (count_surface_result)
+        {
+            ++state
+                  .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+                  .rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(reason);
+        }
+        return false;
+    };
+
+    if (tertiary_successor_claimant_session_id.empty())
+    {
+        return reject("unknown-tertiary-successor-claimant-session");
+    }
+    if (checkpoint_cursor_id.empty())
+    {
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-denial-request");
+    }
+
+    DedicatedPlayerRuntimeSlot* tertiary_slot = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        tertiary_successor_claimant_session_id);
+    if (tertiary_slot == nullptr)
+    {
+        return reject("unknown-tertiary-successor-claimant-session");
+    }
+    if (!tertiary_slot->external_loopback_admission)
+    {
+        return reject("tertiary-successor-claimant-not-external-admission");
+    }
+    if (!tertiary_slot->connected
+        || !tertiary_slot->put_in_server
+        || !tertiary_slot->alive
+        || tertiary_slot->spawn_count <= 0)
+    {
+        return reject("tertiary-successor-claimant-not-activated");
+    }
+    if (!tertiary_slot
+             ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_ready
+        || !tertiary_slot->claimed_checkpoint_successor_resume_token_claimed)
+    {
+        return reject("tertiary-successor-claimant-prerequisite-claim-not-ready");
+    }
+    if (!tertiary_slot
+             ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready
+        || !tertiary_slot->claimed_checkpoint_successor_resume_token_claim_bridge_materialized
+        || tertiary_slot
+               ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_tertiary_successor_checkpoint_cursor_id
+               .empty())
+    {
+        return reject("tertiary-successor-claimant-checkpoint-bridge-not-ready");
+    }
+    if (!tertiary_slot
+             ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready
+        || !tertiary_slot
+                ->claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered
+        || tertiary_slot
+               ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_cursor_id
+               .empty())
+    {
+        return reject("tertiary-successor-claimant-checkpoint-advance-not-ready");
+    }
+    if (!tertiary_slot
+             ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready
+        || !tertiary_slot->claimed_checkpoint_successor_resume_token_claim_bridge_exhausted
+        || tertiary_slot
+               ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_cursor_id
+               .empty())
+    {
+        return reject("tertiary-successor-claimant-checkpoint-eof-not-ready");
+    }
+    if (tertiary_slot
+            ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready
+        || tertiary_slot
+               ->claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied
+        || !tertiary_slot
+                ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                .empty())
+    {
+        return reject("already-successor-checkpoint-resume-token-claim-checkpoint-resume-denied");
+    }
+
+    const bool known_eof_cursor =
+        EqualsIgnoreCase(
+            tertiary_slot
+                ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_cursor_id,
+            checkpoint_cursor_id);
+    const bool known_last_cursor =
+        !tertiary_slot->last_message_cursor_id.empty()
+        && EqualsIgnoreCase(tertiary_slot->last_message_cursor_id, checkpoint_cursor_id);
+    if (!known_eof_cursor && !known_last_cursor)
+    {
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-denial-request");
+    }
+
+    const std::string source_session_id =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_source_session;
+    const std::string issuer_target_session_id =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_issuer_target_session;
+    const std::string claimant_session_id =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_claimant_session;
+    const std::string successor_claimant_session_id =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_successor_claimant_session;
+    if (source_session_id.empty())
+    {
+        return reject("unknown-source-session");
+    }
+    if (issuer_target_session_id.empty())
+    {
+        return reject("unknown-issuer-target-session");
+    }
+    if (claimant_session_id.empty())
+    {
+        return reject("unknown-claimant-session");
+    }
+    if (successor_claimant_session_id.empty())
+    {
+        return reject("unknown-successor-claimant-session");
+    }
+
+    DedicatedPlayerRuntimeSlot* source_slot = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        source_session_id);
+    if (source_slot == nullptr)
+    {
+        return reject("unknown-source-session");
+    }
+    if (!source_slot->external_loopback_admission)
+    {
+        return reject("source-not-external-admission");
+    }
+    if (!source_slot->connected
+        || !source_slot->put_in_server
+        || !source_slot->alive
+        || source_slot->spawn_count <= 0)
+    {
+        return reject("source-not-activated");
+    }
+    if (!source_slot->signon_message_cursor_resume_ready
+        || !source_slot->non_exhausted_cursor_resume_allowed
+        || !source_slot->last_message_cursor_resume_allowed)
+    {
+        return reject("source-not-resume-allowed");
+    }
+
+    DedicatedPlayerRuntimeSlot* issuer_target_slot = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        issuer_target_session_id);
+    if (issuer_target_slot == nullptr)
+    {
+        return reject("unknown-issuer-target-session");
+    }
+    if (!issuer_target_slot->external_loopback_admission
+        || !issuer_target_slot->connected
+        || !issuer_target_slot->put_in_server
+        || !issuer_target_slot->alive
+        || issuer_target_slot->spawn_count <= 0)
+    {
+        return reject("issuer-target-not-activated");
+    }
+
+    DedicatedPlayerRuntimeSlot* claimant_slot = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        claimant_session_id);
+    if (claimant_slot == nullptr)
+    {
+        return reject("unknown-claimant-session");
+    }
+    if (!claimant_slot->external_loopback_admission
+        || !claimant_slot->connected
+        || !claimant_slot->put_in_server
+        || !claimant_slot->alive
+        || claimant_slot->spawn_count <= 0)
+    {
+        return reject("claimant-not-activated");
+    }
+
+    DedicatedPlayerRuntimeSlot* successor_slot = FindDedicatedPlayerRuntimeSlotBySession(
+        state.dedicated_multiplayer_foundation,
+        successor_claimant_session_id);
+    if (successor_slot == nullptr)
+    {
+        return reject("unknown-successor-claimant-session");
+    }
+    if (!successor_slot->external_loopback_admission
+        || !successor_slot->connected
+        || !successor_slot->put_in_server
+        || !successor_slot->alive
+        || successor_slot->spawn_count <= 0)
+    {
+        return reject("successor-claimant-not-activated");
+    }
+
+    const int next_start_after_eof =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_next_start_message_index;
+    const int remaining_after_eof =
+        tertiary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_remaining_message_count;
+    if (remaining_after_eof != 0)
+    {
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-denial-state");
+    }
+
+    const std::string local_next_start_message_index =
+        next_start_after_eof >= 0 ? std::to_string(next_start_after_eof) : "<none>";
+    const std::string local_resume_policy =
+        "tertiary-successor-checkpoint-bridge-exhausted-denied";
+    const std::string local_denial_reason =
+        "successor-checkpoint-bridge-exhausted";
+    const std::string local_current_range =
+        !tertiary_slot->last_checkpointed_range.empty()
+        ? tertiary_slot->last_checkpointed_range
+        : std::string("start=3,count=1");
+
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *tertiary_slot,
+        DedicatedPlayerLifecycleState::
+            kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDeniedReady,
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume denial marked tertiary successor claimant session signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready sourceSession="
+            + source_session_id
+            + " issuerTargetSession=" + issuer_target_session_id
+            + " claimantSession=" + claimant_session_id
+            + " successorClaimantSession=" + successor_claimant_session_id
+            + " tertiarySuccessorClaimantSession=" + tertiary_slot->session_id
+            + " cursorId=" + std::string(checkpoint_cursor_id));
+    RecordDedicatedLifecycleTransition(
+        state.dedicated_multiplayer_foundation,
+        *tertiary_slot,
+        DedicatedPlayerLifecycleState::
+            kClaimedCheckpointSuccessorResumeTokenClaimBridgeResumeDenied,
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume denial delivered truthful bounded tertiary successor bridged checkpoint denial descriptor sourceSession="
+            + source_session_id
+            + " issuerTargetSession=" + issuer_target_session_id
+            + " claimantSession=" + claimant_session_id
+            + " successorClaimantSession=" + successor_claimant_session_id
+            + " tertiarySuccessorClaimantSession=" + tertiary_slot->session_id
+            + " cursorId=" + std::string(checkpoint_cursor_id)
+            + " currentRange=" + local_current_range
+            + " nextStartMessageIndex=" + local_next_start_message_index
+            + " remainingMessageCount=0"
+            + " resumePolicy=" + local_resume_policy
+            + " denialReason=" + local_denial_reason
+            + "; real tertiary successor checkpoint positive resume-allow intentionally pending");
+
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_source_session =
+        source_session_id;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_issuer_target_session =
+        issuer_target_session_id;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_claimant_session =
+        claimant_session_id;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_successor_claimant_session =
+        successor_claimant_session_id;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session =
+        tertiary_slot->session_id;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id =
+        std::string(checkpoint_cursor_id);
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reason =
+        local_denial_reason;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_next_start_message_index =
+        next_start_after_eof;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_remaining_message_count =
+        0;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_resume_policy =
+        local_resume_policy;
+    tertiary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_target_activated =
+        true;
+
+    tertiary_slot->last_message_cursor_id = std::string(checkpoint_cursor_id);
+    tertiary_slot->last_message_cursor_source =
+        "carriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenial";
+    tertiary_slot->last_checkpointed_range = local_current_range;
+    tertiary_slot->last_message_cursor_next_start_message_index = next_start_after_eof;
+    tertiary_slot->last_message_cursor_remaining_message_count = 0;
+    tertiary_slot->last_message_cursor_resume_policy = local_resume_policy;
+
+    if (count_surface_result)
+    {
+        ++state
+              .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+              .accepted;
+    }
+    if (source_session != nullptr)
+    {
+        *source_session = source_session_id;
+    }
+    if (issuer_target_session != nullptr)
+    {
+        *issuer_target_session = issuer_target_session_id;
+    }
+    if (claimant_session != nullptr)
+    {
+        *claimant_session = claimant_session_id;
+    }
+    if (resolved_successor_claimant_session != nullptr)
+    {
+        *resolved_successor_claimant_session = successor_claimant_session_id;
+    }
+    if (resolved_tertiary_successor_claimant_session != nullptr)
+    {
+        *resolved_tertiary_successor_claimant_session = tertiary_slot->session_id;
+    }
+    if (next_start_message_index != nullptr)
+    {
+        *next_start_message_index = local_next_start_message_index;
+    }
+    if (remaining_message_count != nullptr)
+    {
+        *remaining_message_count = 0;
+    }
+    if (resume_policy != nullptr)
+    {
+        *resume_policy = local_resume_policy;
+    }
+    if (denial_reason != nullptr)
+    {
+        *denial_reason = local_denial_reason;
+    }
+    if (target_activated != nullptr)
+    {
+        *target_activated = true;
+    }
+    return true;
+}
+
+bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAttempt(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view tertiary_successor_claimant_session_id,
+    std::string_view cursor_id,
+    bool expect_accept,
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary*
+        probe)
+{
+    if (probe == nullptr)
+    {
+        return false;
+    }
+
+    ++probe->attempts;
+    probe->requested_tertiary_successor_claimant_session =
+        std::string(tertiary_successor_claimant_session_id);
+    probe->requested_cursor_id = std::string(cursor_id);
+
+    ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
+    if (!probe_socket.Valid())
+    {
+        probe->detail =
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial probe socket() failed WSA="
+            + std::to_string(WSAGetLastError());
+        return false;
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
+    const std::string requested_tertiary_successor_claimant_session =
+        tertiary_successor_claimant_session_id.empty()
+        ? std::string(
+            "invalid_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary")
+        : std::string(tertiary_successor_claimant_session_id);
+    const std::string requested_cursor = cursor_id.empty()
+        ? std::string(
+            "invalid_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor")
+        : std::string(cursor_id);
+    if (!SendConnectionlessText(
+            probe_socket.Get(),
+            server_address,
+            sizeof(server_address),
+            "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial tertiarySuccessorClaimantSession="
+                + requested_tertiary_successor_claimant_session + " cursorId="
+                + requested_cursor,
+            &probe->detail,
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial probe request"))
+    {
+        return false;
+    }
+
+    sockaddr_in client_address{};
+    int client_address_size = sizeof(client_address);
+    std::string request_text;
+    if (!ReceiveConnectionlessText(
+            server_socket,
+            &request_text,
+            &client_address,
+            &client_address_size,
+            &probe->detail,
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial surface receiver"))
+    {
+        return false;
+    }
+
+    if (!StartsWithText(
+            request_text,
+            "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial "))
+    {
+        probe->detail =
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial surface received unexpected request: "
+            + request_text;
+        return false;
+    }
+
+    const std::string request_tertiary_successor_claimant_session_id =
+        ExtractTokenValue(request_text, "tertiarySuccessorClaimantSession=");
+    const std::string request_cursor_id = ExtractTokenValue(request_text, "cursorId=");
+    std::string resolved_source_session;
+    std::string resolved_issuer_target_session;
+    std::string resolved_claimant_session;
+    std::string resolved_successor_claimant_session;
+    std::string resolved_tertiary_successor_claimant_session;
+    std::string local_next_start_message_index = "<unset>";
+    int local_remaining_message_count = 0;
+    std::string local_resume_policy;
+    std::string local_denial_reason;
+    bool local_target_activated = false;
+    std::string reject_reason;
+    const bool accepted =
+        ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenial(
+            state,
+            request_tertiary_successor_claimant_session_id,
+            request_cursor_id,
+            true,
+            &resolved_source_session,
+            &resolved_issuer_target_session,
+            &resolved_claimant_session,
+            &resolved_successor_claimant_session,
+            &resolved_tertiary_successor_claimant_session,
+            &local_next_start_message_index,
+            &local_remaining_message_count,
+            &local_resume_policy,
+            &local_denial_reason,
+            &local_target_activated,
+            &reject_reason);
+
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointAdvanceSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointBridgeSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumedDenialSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeEofSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeRangeSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeAllowSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeDenialSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimEofSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimRangeSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeAllowSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointBridgeSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorResumeAllowSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeTokenClaimSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeTokenSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeAllowSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointBridgeSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedResumeAllowSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointResumeTokenClaimSurfaceSnapshot(
+        state);
+    RefreshDedicatedSignonMessageCursorCarriedCheckpointResumeTokenSurfaceSnapshot(
+        state);
+    RefreshDedicatedActivationSurfaceSnapshot(state);
+    RefreshDedicatedConnectSurfaceSnapshot(state);
+    RefreshDedicatedQuerySurfaceSnapshot(state);
+
+    const int players = CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation);
+    const int max_players = state.server_state.maxclients;
+    const DedicatedPlayerRuntimeSlot* tertiary_slot =
+        accepted
+        ? FindDedicatedPlayerRuntimeSlotBySession(
+            state.dedicated_multiplayer_foundation,
+            resolved_tertiary_successor_claimant_session)
+        : nullptr;
+    const std::string response_text =
+        accepted && tertiary_slot != nullptr
+        ? "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial sourceSession="
+            + resolved_source_session
+            + " issuerTargetSession=" + resolved_issuer_target_session
+            + " claimantSession=" + resolved_claimant_session
+            + " successorClaimantSession=" + resolved_successor_claimant_session
+            + " tertiarySuccessorClaimantSession="
+            + resolved_tertiary_successor_claimant_session
+            + " cursorId=" + request_cursor_id
+            + " resumeAllowed=no denialReason=" + local_denial_reason
+            + " eof=yes exhausted=yes"
+            + " nextStartMessageIndex=" + local_next_start_message_index
+            + " remainingMessageCount=" + std::to_string(local_remaining_message_count)
+            + " resumePolicy=" + local_resume_policy
+            + " targetActivated=" + std::to_string(local_target_activated ? 1 : 0)
+            + " map="
+            + (state.server_state.map_name.empty()
+                   ? std::string("c0a0")
+                   : state.server_state.map_name)
+            + " name="
+            + (tertiary_slot->player_name.empty()
+                   ? std::string("loopback_player")
+                   : tertiary_slot->player_name)
+            + " ruleset=" + DedicatedRulesetName(state.server_state)
+            + " spawned="
+            + std::to_string(tertiary_slot->spawn_count > 0 ? 1 : 0)
+        : "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_reject reason="
+            + (reject_reason.empty() ? std::string("rejected") : reject_reason)
+            + " players=" + std::to_string(players)
+            + " max=" + std::to_string(max_players);
+
+    if (!SendConnectionlessText(
+            server_socket,
+            client_address,
+            client_address_size,
+            response_text,
+            &probe->detail,
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial surface response"))
+    {
+        return false;
+    }
+
+    std::string parsed_response_text;
+    if (!ReceiveConnectionlessText(
+            probe_socket.Get(),
+            &parsed_response_text,
+            nullptr,
+            nullptr,
+            &probe->detail,
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial probe response"))
+    {
+        return false;
+    }
+
+    if (ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAcceptedResponseText(
+            parsed_response_text,
+            probe))
+    {
+        ++probe->accepted;
+    }
+    else if (
+        std::string parsed_reject_reason;
+        ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialRejectResponseText(
+            parsed_response_text,
+            &parsed_reject_reason))
+    {
+        ++probe->rejected;
+        probe->last_reject_reason = parsed_reject_reason;
+    }
+    else
+    {
+        probe->detail =
+            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial probe could not parse response: "
+            + parsed_response_text;
+        return false;
+    }
+
+    PopulateSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeLifecycle(
+        state.dedicated_multiplayer_foundation,
+        probe);
+
+    if (accepted != expect_accept)
+    {
+        probe->detail = std::string(
+                            "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial expectation mismatch expected=")
+            + (expect_accept ? "accept" : "reject")
+            + " response=" + parsed_response_text;
+        return false;
+    }
+
+    probe->detail =
+        "loopback signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume denial probe tertiarySuccessorClaimantSession="
+        + probe->requested_tertiary_successor_claimant_session
+        + " cursorId=" + probe->requested_cursor_id
+        + " completed on 127.0.0.1:" + std::to_string(bound_port);
+    return true;
+}
+
+bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialFlow(
+    EngineShimState& state,
+    SOCKET server_socket,
+    int bound_port,
+    std::string_view tertiary_successor_claimant_session_id,
+    std::string_view cursor_id,
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary*
+        probe)
+{
+    return PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAttempt(
+               state,
+               server_socket,
+               bound_port,
+               tertiary_successor_claimant_session_id,
+               cursor_id,
+               true,
+               probe)
+        && probe != nullptr
+        && probe->accepted > 0
+        && !probe->parsed_source_session.empty()
+        && !probe->parsed_issuer_target_session.empty()
+        && !probe->parsed_claimant_session.empty()
+        && !probe->parsed_successor_claimant_session.empty()
+        && !probe->parsed_tertiary_successor_claimant_session.empty()
+        && !probe->parsed_cursor_id.empty()
+        && !probe->parsed_resume_allowed
+        && probe->parsed_denial_reason == "successor-checkpoint-bridge-exhausted"
+        && probe->parsed_eof && probe->parsed_exhausted
+        && probe->parsed_next_start_message_index == "<none>"
+        && probe->parsed_remaining_message_count == 0
+        && probe->parsed_resume_policy
+               == "tertiary-successor-checkpoint-bridge-exhausted-denied"
+        && probe->parsed_target_activated > 0
+        && !probe->parsed_map.empty()
+        && !probe->parsed_name.empty()
+        && !probe->parsed_ruleset.empty()
+        && probe->parsed_spawned > 0
+        && probe
+               ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready
+           > 0
+        && probe->claimed_checkpoint_successor_resume_token_claim_bridge_materialized
+               > 0
+        && probe
+               ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready
+           > 0
+        && probe
+               ->claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered
+           > 0
+        && probe
+               ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready
+           > 0
+        && probe->claimed_checkpoint_successor_resume_token_claim_bridge_exhausted
+               > 0
+        && probe
+               ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready
+           > 0
+        && probe->claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied
+               > 0;
+}
+
 bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeFetch(
     EngineShimState& state,
     std::string_view successor_claimant_session_id,
@@ -155516,6 +157063,14 @@ void PerformDedicatedQuerySurface()
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe =
             state
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe;
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface =
+            state
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface;
+    hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialProbeSummary&
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe =
+            state
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe;
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeRangeSurfaceSummary&
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface =
             state
@@ -157587,6 +159142,8 @@ void PerformDedicatedQuerySurface()
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ok =
         true;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ok =
+        true;
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok =
         true;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_range_ok =
         true;
@@ -163828,6 +165385,272 @@ void PerformDedicatedQuerySurface()
             .enabled)
     {
         RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofSurfaceSnapshot(
+            state);
+    }
+
+    if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+            .enabled)
+    {
+        const bool
+            carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_prerequisites =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_allow_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_allow_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_allow_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_allow_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_allow_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_allow_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_claim_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_claim_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_ok
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_claimed_resume_allow_ok
+                && signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_resume_token_claim_ok
+                && signon_message_cursor_carried_checkpoint_resume_token_claim_probe
+                       .accepted > 0
+                && signon_message_cursor_carried_checkpoint_resume_token_ok
+                && signon_message_cursor_carried_checkpoint_resume_token_probe.accepted > 0;
+
+        std::string
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe
+                    .parsed_tertiary_successor_claimant_session;
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                .empty())
+        {
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe
+                    .parsed_tertiary_successor_claimant_session;
+        }
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                .empty())
+        {
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe
+                    .parsed_tertiary_successor_claimant_session;
+        }
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                .empty())
+        {
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_allow_probe
+                    .parsed_tertiary_successor_claimant_session;
+        }
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                .empty())
+        {
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_probe
+                    .parsed_tertiary_successor_claimant_session;
+        }
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                .empty())
+        {
+            successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id =
+                state.dedicated_last_external_session_id;
+        }
+
+        std::string successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id =
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe
+                .parsed_cursor_id;
+        if (successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                .empty()
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                    .empty())
+        {
+            if (const DedicatedPlayerRuntimeSlot* tertiary_slot =
+                    FindDedicatedPlayerRuntimeSlotBySession(
+                        state.dedicated_multiplayer_foundation,
+                        successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id);
+                tertiary_slot != nullptr)
+            {
+                successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id =
+                    !tertiary_slot
+                         ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_cursor_id
+                         .empty()
+                    ? tertiary_slot
+                          ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_cursor_id
+                    : !tertiary_slot
+                           ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_cursor_id
+                           .empty()
+                    ? tertiary_slot
+                          ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_cursor_id
+                    : tertiary_slot->last_message_cursor_id;
+            }
+        }
+
+        if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok
+            && carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_prerequisites
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                    .empty()
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                    .empty()
+            && state
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario
+                   == "gate")
+        {
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok =
+                PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAttempt(
+                    state,
+                    server_socket.Get(),
+                    bound_port,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                        + "-invalid",
+                    false,
+                    &signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe);
+        }
+
+        if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok
+            && carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_prerequisites
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                    .empty()
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                    .empty())
+        {
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok =
+                PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialFlow(
+                    state,
+                    server_socket.Get(),
+                    bound_port,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id,
+                    &signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe);
+        }
+
+        if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok
+            && carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_prerequisites
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id
+                    .empty()
+            && !successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id
+                    .empty()
+            && state
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario
+                   == "gate")
+        {
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok =
+                PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialAttempt(
+                    state,
+                    server_socket.Get(),
+                    bound_port,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_tertiary_successor_claimant_session_id,
+                    successor_checkpoint_resume_token_claim_checkpoint_resume_denial_cursor_id,
+                    false,
+                    &signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe);
+        }
+
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointEofSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointAdvanceSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointBridgeSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumedDenialSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeEofSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeRangeSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeAllowSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimResumeDenialSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimEofSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimRangeSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeAllowSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointBridgeSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorResumeAllowSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeTokenClaimSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeTokenSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointResumeAllowSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointBridgeSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedResumeAllowSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointResumeTokenClaimSurfaceSnapshot(
+            state);
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointResumeTokenSurfaceSnapshot(
+            state);
+        RefreshDedicatedActivationSurfaceSnapshot(state);
+        RefreshDedicatedConnectSurfaceSnapshot(state);
+        RefreshDedicatedQuerySurfaceSnapshot(state);
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+            .mode = state.server_state.dedicated ? "dedicated" : "listen";
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+            .probe = "loopback";
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+            .protocol_shape =
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+                .protocol_shape;
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+            .compatibility =
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok
+            ? "loopback-verified,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only"
+            : "loopback-probe-failed,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only";
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+            .compatibility =
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok
+            ? "loopback-verified,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only"
+            : "loopback-probe-failed,tertiary-successor-claimant-checkpoint-resume-denial-on-bridged-local-checkpoint-only";
+        if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_ok)
+        {
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe
+                .compatibility =
+                "loopback-verified,tertiary-successor-claimant-checkpoint-resume-denial-implemented";
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_surface
+                .compatibility =
+                "loopback-verified,tertiary-successor-claimant-checkpoint-resume-denial-implemented";
+        }
+    }
+    else if (
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+            .enabled)
+    {
+        RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeDenialSurfaceSnapshot(
             state);
     }
 
@@ -175013,6 +176836,12 @@ void PopulateBootstrapSummary(
         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe =
         {};
     summary
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface =
+        {};
+    summary
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe =
+        {};
+    summary
         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_surface =
         {};
     summary
@@ -175444,6 +177273,22 @@ void PopulateBootstrapSummary(
             .claimed_checkpoint_successor_bridge_resume_denied =
             state.dedicated_multiplayer_foundation
                 .claimed_checkpoint_successor_bridge_resume_denied;
+        summary.dedicated_player_lifecycle_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready =
+            state.dedicated_multiplayer_foundation
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready;
+        summary.dedicated_player_lifecycle_foundation
+            .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted =
+            state.dedicated_multiplayer_foundation
+                .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted;
+        summary.dedicated_player_lifecycle_foundation
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready =
+            state.dedicated_multiplayer_foundation
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready;
+        summary.dedicated_player_lifecycle_foundation
+            .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied =
+            state.dedicated_multiplayer_foundation
+                .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied;
         summary.dedicated_player_lifecycle_foundation
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_range_ready =
             state.dedicated_multiplayer_foundation
@@ -175913,6 +177758,14 @@ void PopulateBootstrapSummary(
                 state
                     .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe;
         summary
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface =
+                state
+                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface;
+        summary
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe =
+                state
+                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe;
+        summary
             .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface =
                 state
                     .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface;
@@ -176259,6 +178112,10 @@ void PopulateBootstrapSummary(
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_surface,
             summary
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe,
+            summary
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface,
+            summary
+                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe,
             summary
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface,
             summary
@@ -184281,6 +186138,32 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         ? "gate"
         : "happy";
     impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface =
+        {};
+    impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+        .enabled =
+        options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface_enabled;
+    impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_surface
+        .requested_port = impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe =
+        {};
+    impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+        .enabled =
+        options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_enabled;
+    impl_->shim_state
+        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario =
+        options
+                    .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario
+                == "gate"
+        ? "gate"
+        : "happy";
+    impl_->shim_state
         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_surface =
         {};
     impl_->shim_state
@@ -188438,6 +190321,116 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                                .rejected
                            <= 0));
     const bool
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_failed =
+            options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_enabled
+            && (!impl_->summary
+                     .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                     .enabled
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .accepted
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_source_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_issuer_target_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_claimant_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_successor_claimant_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_tertiary_successor_claimant_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_cursor_id.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_resume_allowed
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_denial_reason
+                   != "successor-checkpoint-bridge-exhausted"
+                || !impl_->summary
+                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                        .parsed_eof
+                || !impl_->summary
+                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                        .parsed_exhausted
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_next_start_message_index
+                   != "<none>"
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_remaining_message_count
+                   != 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_resume_policy
+                   != "tertiary-successor-checkpoint-bridge-exhausted-denied"
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_target_activated
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_map.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_name.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_ruleset.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .parsed_spawned
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_ready
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .claimed_checkpoint_successor_resume_token_claim_bridge_materialized
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_ready
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .claimed_checkpoint_successor_resume_token_claim_advanced_range_delivered
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_ready
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .claimed_checkpoint_successor_resume_token_claim_bridge_exhausted
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denied_ready
+                   <= 0
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                       .claimed_checkpoint_successor_resume_token_claim_bridge_resume_denied
+                   <= 0
+                || (impl_->shim_state
+                            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_scenario
+                        == "gate"
+                    && impl_->summary
+                               .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe
+                               .rejected
+                           <= 0));
+    const bool
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_probe_failed =
             options
                 .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_probe_enabled
@@ -191781,6 +193774,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_eof_probe_failed
+        && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_denial_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_eof_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resumed_denial_probe_failed
