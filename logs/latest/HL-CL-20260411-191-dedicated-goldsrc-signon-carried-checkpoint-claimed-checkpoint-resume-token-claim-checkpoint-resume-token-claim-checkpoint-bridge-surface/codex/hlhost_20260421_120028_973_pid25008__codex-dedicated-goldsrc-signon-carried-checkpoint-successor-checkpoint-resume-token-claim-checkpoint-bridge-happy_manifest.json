@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260421_120028",
+  "runInstanceId": "20260421_120028_973_pid25008",
+  "runLabel": "codex-dedicated-goldsrc-signon-carried-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-bridge-happy",
+  "promptId": "HL-CL-20260411-191-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-bridge-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "16ded17b6f37e1005e524d55c48e97fc3b4a3c5f",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260421_120028_973_pid25008__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-bridge-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260421_120028_973_pid25008__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-bridge-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260421_120028_973_pid25008__codex-dedicated-goldsrc-signon-carried-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-bridge-happy_part01.log"]
+}
