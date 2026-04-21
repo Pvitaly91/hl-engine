@@ -5087,6 +5087,96 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         }
 
         if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-surface")
+        {
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-surface=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_prefix
+                            .size()),
+                    &result.options
+                         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_enabled,
+                    &result.error_message,
+                    L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-probe")
+        {
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-probe=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_prefix
+                            .size()),
+                    &result.options
+                         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_enabled,
+                    &result.error_message,
+                    L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_scenario_prefix =
+                L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-probe-scenario=";
+        if (StartsWith(
+                argument,
+                signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_scenario_prefix))
+        {
+            const std::wstring value(
+                argument.substr(
+                    signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_scenario_prefix
+                        .size()));
+            std::wstring normalized = value;
+            std::transform(
+                normalized.begin(),
+                normalized.end(),
+                normalized.begin(),
+                [](wchar_t ch) { return static_cast<wchar_t>(std::towlower(ch)); });
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-allow-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
             == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-range-surface")
         {
             result.options
@@ -10007,6 +10097,16 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             true;
     }
     if (result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_enabled)
+    {
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_enabled =
+            true;
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_enabled =
+            true;
+    }
+    if (result.options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_advance_probe_enabled)
     {
         result.options
@@ -10150,6 +10250,13 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_resume_allow_surface_enabled =
+            true;
+    }
+    if (result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_surface_enabled)
+    {
+        result.options
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_surface_enabled =
             true;
     }
     if (result.options
