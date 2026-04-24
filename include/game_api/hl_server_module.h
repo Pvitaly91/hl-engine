@@ -13345,6 +13345,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     bool successor_checkpoint_resume_token_claim_enabled = false;
     bool requires_issued_resume_token = true;
     bool requires_quaternary_claimant_activated_session = true;
+    std::string claimant_depth = "quinary";
     std::string claim_purpose = "disabled";
     std::string claim_payload = "disabled";
     int accepted = 0;
@@ -13355,6 +13356,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string last_successor_claimant_session;
     std::string last_tertiary_successor_claimant_session;
     std::string last_quaternary_claimant_session;
+    std::string last_quinary_claimant_session;
     std::string last_issued_token;
     std::string claim_validation = "disabled";
     std::string auth = "disabled";
@@ -13389,9 +13391,11 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string parsed_successor_claimant_session;
     std::string parsed_tertiary_successor_claimant_session;
     std::string parsed_quaternary_claimant_session;
+    std::string parsed_quinary_claimant_session;
     std::string parsed_resume_token;
     std::string parsed_claim_status;
     std::string parsed_claim_validation;
+    std::string parsed_claimant_depth;
     std::string parsed_current_range;
     std::string parsed_next_start_message_index = "<unset>";
     int parsed_remaining_message_count = 0;
