@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260424_131100",
+  "runInstanceId": "20260424_131100_533_pid15464",
+  "runLabel": "codex-dedicated-goldsrc-signon-quaternary-checkpoint-eof-happy",
+  "promptId": "HL-CL-20260411-211-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-eof-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "a7dc07f53fe3d3e47e52dd618e150482fdb3d0ac",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260424_131100_533_pid15464__codex-dedicated-goldsrc-signon-quaternary-checkpoint-eof-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260424_131100_533_pid15464__codex-dedicated-goldsrc-signon-quaternary-checkpoint-eof-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260424_131100_533_pid15464__codex-dedicated-goldsrc-signon-quaternary-checkpoint-eof-happy_part01.log"]
+}
