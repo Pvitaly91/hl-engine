@@ -32277,9 +32277,9 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + ", bind=" + summary.bind
         + ", boundPort=" + std::to_string(summary.bound_port)
         + ", protocolShape=" + summary.protocol_shape
-        + ", successorCheckpointResumeTokenEnabled="
+        + ", successorCheckpointResumeTokenClaimCheckpointResumeTokenEnabled="
         + BoolToYesNo(summary.successor_checkpoint_resume_token_enabled)
-        + ", requiresClaimedSuccessorCheckpointResumeReadySession="
+        + ", requiresClaimedSuccessorCheckpointResumeTokenClaimCheckpointResumeReadySession="
         + BoolToYesNo(
             summary.requires_claimed_successor_checkpoint_resume_ready_session)
         + ", tokenPurpose=" + summary.token_purpose
@@ -32301,6 +32301,10 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
                ? std::string("<none>")
                : summary.last_successor_claimant_session)
         + ", lastTertiarySuccessorClaimantSession="
+        + (summary.last_tertiary_successor_claimant_session.empty()
+               ? std::string("<none>")
+               : summary.last_tertiary_successor_claimant_session)
+        + ", lastQuaternaryClaimantSession="
         + (summary.last_tertiary_successor_claimant_session.empty()
                ? std::string("<none>")
                : summary.last_tertiary_successor_claimant_session)
@@ -32361,6 +32365,10 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
                ? std::string("<unset>")
                : summary.parsed_successor_claimant_session)
         + ", parsedTertiarySuccessorClaimantSession="
+        + (summary.parsed_tertiary_successor_claimant_session.empty()
+               ? std::string("<unset>")
+               : summary.parsed_tertiary_successor_claimant_session)
+        + ", parsedQuaternaryClaimantSession="
         + (summary.parsed_tertiary_successor_claimant_session.empty()
                ? std::string("<unset>")
                : summary.parsed_tertiary_successor_claimant_session)
@@ -43107,7 +43115,7 @@ std::string BuildDedicatedMultiplayerReadinessLine(
                     .parsed_resume_token.empty()
             && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe
                    .parsed_token_purpose
-                == "future-quaternary-claim-only"
+                == "future-quinary-claim-only"
             && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe
                    .parsed_token_state
                 == "issued-not-claimed"
@@ -45715,6 +45723,38 @@ std::string BuildDedicatedMultiplayerReadinessLine(
                .signon_message_cursor_carried_resume_denied_ready > 0
         && signon_message_cursor_carried_resume_denial_probe.carried_cursor_resume_denied > 0;
 
+    if (query_probe_ready && connect_probe_ready && activation_probe_ready
+        && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+        && signon_catalog_probe_ready && signon_template_probe_ready
+        && signon_template_completion_probe_ready && signon_envelope_probe_ready
+        && signon_batch_probe_ready && signon_wiremap_probe_ready
+        && signon_burst_probe_ready && signon_stream_probe_ready
+        && signon_stream_window_probe_ready && signon_message_catalog_probe_ready
+        && signon_message_fetch_probe_ready && signon_multi_message_fetch_probe_ready
+        && signon_message_range_fetch_probe_ready && signon_message_cursor_probe_ready
+        && signon_message_cursor_resume_allow_probe_ready
+        && signon_message_cursor_carryover_probe_ready
+        && signon_message_cursor_carried_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe_ready)
+    {
+        return "dedicated_multiplayer_readiness: all quaternary local checkpoint range/eof/resume-denial/resume-allow/resume-range/resume-eof/resumed-denial surfaces remain implemented; quaternary local checkpoint future-claim-only resume-token issuance is explicitly repaired for future-quinary-claim-only; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; exact next step unlocked by this prompt is quinary claimant token claim from the repaired quaternary local checkpoint token";
+    }
     if (query_probe_ready && connect_probe_ready && activation_probe_ready
         && bootstrap_probe_ready && bootstrap_sequence_probe_ready
         && signon_catalog_probe_ready && signon_template_probe_ready
@@ -99909,9 +99949,9 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
         "goldsrc-like-connectionless-signon-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token";
     surface.successor_checkpoint_resume_token_enabled = true;
     surface.requires_claimed_successor_checkpoint_resume_ready_session = true;
-    surface.token_purpose = "future-quaternary-claim-only";
+    surface.token_purpose = "future-quinary-claim-only";
     surface.token_payload =
-        "opaque-future-quaternary-claim-token(current-range+next-start+remaining+claim=no)";
+        "tokenPurpose=future-quinary-claim-only,opaque-future-quinary-claim-token(current-range+next-start+remaining+claim=no)";
     surface.accepted =
         state
             .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_surface
@@ -100027,9 +100067,9 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
             .claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_issued;
     surface.compatibility = surface.bound_port > 0
         ? (surface.accepted > 0
-            ? "loopback-verified,tertiary-successor-claimant-bridged-local-checkpoint-future-claim-token-only"
-            : "loopback-ready,tertiary-successor-claimant-bridged-local-checkpoint-future-claim-token-only")
-        : "loopback-bind-pending,tertiary-successor-claimant-bridged-local-checkpoint-future-claim-token-only";
+            ? "loopback-verified,quaternary-local-checkpoint-future-quinary-claim-token-only"
+            : "loopback-ready,quaternary-local-checkpoint-future-quinary-claim-token-only")
+        : "loopback-bind-pending,quaternary-local-checkpoint-future-quinary-claim-token-only";
 }
 
 void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimSurfaceSnapshot(
@@ -110266,7 +110306,7 @@ std::string BuildDedicatedOpaqueSuccessorCheckpointResumeClaimCheckpointResumeTo
         + "|" + std::to_string(current_message_count)
         + "|" + std::to_string(next_start_message_index)
         + "|" + std::to_string(remaining_message_count)
-        + "|future-quaternary-claim-only";
+        + "|future-quinary-claim-only";
 
     std::uint64_t hash = 14695981039346656037ull;
     for (const unsigned char ch : material)
@@ -151159,7 +151199,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
             "successor-checkpoint-resume-token-claim-checkpoint-resume-token-window-closed");
     }
 
-    const std::string local_token_purpose = "future-quaternary-claim-only";
+    const std::string local_token_purpose = "future-quinary-claim-only";
     const std::string local_token_state = "issued-not-claimed";
     const std::string local_current_range = BuildDedicatedSignonMessageRangeToken(
         local_current_start_message_index,
@@ -151182,7 +151222,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         *tertiary_slot,
         DedicatedPlayerLifecycleState::
             kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenReady,
-        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint bridged local checkpoint future-claim-only token marked tertiary successor claimant session signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_ready sourceSession="
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint bridged local checkpoint future-quinary-claim-only token marked tertiary successor claimant session signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_ready sourceSession="
             + source_session_id
             + " issuerTargetSession=" + issuer_target_session_id
             + " claimantSession=" + claimant_session_id
@@ -151194,7 +151234,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         *tertiary_slot,
         DedicatedPlayerLifecycleState::
             kClaimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenIssued,
-        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint bridged local checkpoint future-claim-only token issued truthful bounded tertiary successor local checkpoint descriptor sourceSession="
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint bridged local checkpoint future-quinary-claim-only token issued truthful bounded tertiary successor local checkpoint descriptor sourceSession="
             + source_session_id
             + " issuerTargetSession=" + issuer_target_session_id
             + " claimantSession=" + claimant_session_id
@@ -151203,6 +151243,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
             + " cursorId=" + std::string(checkpoint_cursor_id)
             + " resumeToken=" + local_issued_token
             + " tokenPurpose=" + local_token_purpose
+            + " parsedTokenPurpose=future-quinary-claim-only"
             + " tokenState=" + local_token_state
             + " currentRange=" + local_current_range
             + " nextStartMessageIndex=" + std::to_string(local_next_start_message_index)
@@ -151264,7 +151305,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     tertiary_slot->last_message_cursor_remaining_message_count =
         local_remaining_message_count;
     tertiary_slot->last_message_cursor_resume_policy =
-        "tertiary-successor-checkpoint-future-claim-token-issued";
+        "quaternary-local-checkpoint-future-quinary-claim-token-issued";
 
     if (count_surface_result)
     {
@@ -151614,7 +151655,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
         && !probe->parsed_tertiary_successor_claimant_session.empty()
         && !probe->parsed_cursor_id.empty()
         && !probe->parsed_resume_token.empty()
-        && probe->parsed_token_purpose == "future-quaternary-claim-only"
+        && probe->parsed_token_purpose == "future-quinary-claim-only"
         && probe->parsed_token_state == "issued-not-claimed"
         && probe->parsed_current_range == "start=1,count=2"
         && probe->parsed_next_start_message_index == "3"
@@ -210549,7 +210590,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 || impl_->summary
                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe
                        .parsed_token_purpose
-                   != "future-quaternary-claim-only"
+                   != "future-quinary-claim-only"
                 || impl_->summary
                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe
                        .parsed_token_state
