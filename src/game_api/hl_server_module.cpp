@@ -1165,6 +1165,8 @@ struct DedicatedPlayerRuntimeSlot
     std::string
         last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quaternary_claimant_session;
     std::string
+        last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quinary_claimant_session;
+    std::string
         last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_cursor_id;
     int last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_current_start_message_index =
         -1;
@@ -32589,6 +32591,7 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + BoolToYesNo(
             summary
                 .requires_claimed_successor_checkpoint_resume_token_claim_ready_session)
+        + ", claimantDepth=" + summary.claimant_depth
         + ", accepted=" + std::to_string(summary.accepted)
         + ", rejected=" + std::to_string(summary.rejected)
         + ", lastSourceSession="
@@ -32613,6 +32616,10 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + (summary.last_quaternary_claimant_session.empty()
                ? std::string("<none>")
                : summary.last_quaternary_claimant_session)
+        + ", lastQuinaryClaimantSession="
+        + (summary.last_quinary_claimant_session.empty()
+               ? std::string("<none>")
+               : summary.last_quinary_claimant_session)
         + ", lastAllowedCursorId="
         + (summary.last_allowed_cursor_id.empty()
                ? std::string("<none>")
@@ -32683,6 +32690,11 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + (summary.parsed_quaternary_claimant_session.empty()
                ? std::string("<unset>")
                : summary.parsed_quaternary_claimant_session)
+        + ", parsedQuinaryClaimantSession="
+        + (summary.parsed_quinary_claimant_session.empty()
+               ? std::string("<unset>")
+               : summary.parsed_quinary_claimant_session)
+        + ", parsedClaimantDepth=" + summary.parsed_claimant_depth
         + ", parsedCursorId="
         + (summary.parsed_cursor_id.empty() ? std::string("<unset>")
                                             : summary.parsed_cursor_id)
@@ -43279,6 +43291,11 @@ std::string BuildDedicatedMultiplayerReadinessLine(
             && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                     .parsed_quaternary_claimant_session.empty()
             && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                    .parsed_quinary_claimant_session.empty()
+            && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                   .parsed_claimant_depth
+                == "quinary"
+            && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                     .parsed_cursor_id.empty()
             && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                    .parsed_resume_allowed
@@ -45800,6 +45817,44 @@ std::string BuildDedicatedMultiplayerReadinessLine(
         && signon_message_cursor_carried_resume_denial_probe
                .signon_message_cursor_carried_resume_denied_ready > 0
         && signon_message_cursor_carried_resume_denial_probe.carried_cursor_resume_denied > 0;
+
+    if (query_probe_ready && connect_probe_ready && activation_probe_ready
+        && bootstrap_probe_ready && bootstrap_sequence_probe_ready
+        && signon_catalog_probe_ready && signon_template_probe_ready
+        && signon_template_completion_probe_ready && signon_envelope_probe_ready
+        && signon_batch_probe_ready && signon_wiremap_probe_ready
+        && signon_burst_probe_ready && signon_stream_probe_ready
+        && signon_stream_window_probe_ready && signon_message_catalog_probe_ready
+        && signon_message_fetch_probe_ready && signon_multi_message_fetch_probe_ready
+        && signon_message_range_fetch_probe_ready && signon_message_cursor_probe_ready
+        && signon_message_cursor_resume_allow_probe_ready
+        && signon_message_cursor_carryover_probe_ready
+        && signon_message_cursor_carried_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_bridge_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_allow_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_range_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_probe_ready
+        && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe_ready)
+    {
+        return "dedicated_multiplayer_readiness: repaired quaternary local checkpoint future-quinary token issuance, quinary token claim, quinary checkpoint-range, quinary checkpoint-EOF, and quinary checkpoint resume-denial remain implemented; first quinary claimant positive resume-allow from the claimed quaternary-local checkpoint token is now implemented; real auth/session validation/real signon bytes compatibility/netchan/real baselines/snapshots/gameplay transport/replication remain out of scope; exact next step unlocked by this prompt is quinary claimant positive resumed-range from the claimed quaternary-local checkpoint token";
+    }
 
     if (query_probe_ready && connect_probe_ready && activation_probe_ready
         && bootstrap_probe_ready && bootstrap_sequence_probe_ready
@@ -100547,6 +100602,7 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
     surface.successor_checkpoint_resume_token_claim_resume_allow_enabled = true;
     surface.requires_claimed_successor_checkpoint_resume_token_claim_ready_session =
         true;
+    surface.claimant_depth = "quinary";
     surface.accepted =
         state
             .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface
@@ -100564,6 +100620,8 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
         claim_surface.last_tertiary_successor_claimant_session;
     surface.last_quaternary_claimant_session =
         claim_surface.last_quaternary_claimant_session;
+    surface.last_quinary_claimant_session =
+        claim_surface.last_quinary_claimant_session;
     surface.last_allowed_cursor_id.clear();
     surface.resume_allowed = false;
     surface.denial_reason = "<none>";
@@ -100644,7 +100702,15 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
             }
             else if (!slot_state.session_id.empty())
             {
-                surface.last_quaternary_claimant_session = slot_state.session_id;
+                surface.last_quinary_claimant_session = slot_state.session_id;
+            }
+            if (!slot_state
+                     .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quinary_claimant_session
+                     .empty())
+            {
+                surface.last_quinary_claimant_session =
+                    slot_state
+                        .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quinary_claimant_session;
             }
             if (!slot_state
                      .last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_cursor_id
@@ -100698,9 +100764,9 @@ void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSucces
             .non_exhausted_claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_resume_allowed;
     surface.compatibility = surface.bound_port > 0
         ? (surface.accepted > 0
-            ? "loopback-verified,quaternary-claimant-claimed-bridged-local-checkpoint-resume-allow-only"
-            : "loopback-ready,quaternary-claimant-claimed-bridged-local-checkpoint-resume-allow-only")
-        : "loopback-bind-pending,quaternary-claimant-claimed-bridged-local-checkpoint-resume-allow-only";
+            ? "loopback-verified,quinary-claimant-claimed-quaternary-local-checkpoint-resume-allow-only"
+            : "loopback-ready,quinary-claimant-claimed-quaternary-local-checkpoint-resume-allow-only")
+        : "loopback-bind-pending,quinary-claimant-claimed-quaternary-local-checkpoint-resume-allow-only";
 }
 
 void RefreshDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeRangeSurfaceSnapshot(
@@ -152960,6 +153026,9 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
         ExtractTokenValue(text, "tertiarySuccessorClaimantSession=");
     const std::string quaternary_claimant_session =
         ExtractTokenValue(text, "quaternaryClaimantSession=");
+    const std::string quinary_claimant_session =
+        ExtractTokenValue(text, "quinaryClaimantSession=");
+    const std::string claimant_depth = ExtractTokenValue(text, "claimantDepth=");
     const std::string cursor_id = ExtractTokenValue(text, "cursorId=");
     const std::string resume_allowed = ExtractTokenValue(text, "resumeAllowed=");
     const std::string denial_reason = ExtractTokenValue(text, "denialReason=");
@@ -152977,7 +153046,10 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
     if (source_session.empty() || issuer_target_session.empty() || claimant_session.empty()
         || successor_claimant_session.empty()
         || tertiary_successor_claimant_session.empty()
-        || quaternary_claimant_session.empty() || cursor_id.empty()
+        || quaternary_claimant_session.empty()
+        || quinary_claimant_session.empty()
+        || claimant_depth.empty()
+        || cursor_id.empty()
         || resume_allowed.empty() || denial_reason.empty() || eof.empty()
         || exhausted.empty() || current_start_message_index.empty()
         || current_message_count.empty() || next_start_message_index.empty()
@@ -153000,6 +153072,7 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
     }
 
     probe->requested_quaternary_claimant_session = quaternary_claimant_session;
+    probe->requested_quinary_claimant_session = quinary_claimant_session;
     probe->requested_cursor_id = cursor_id;
     probe->parsed_source_session = source_session;
     probe->parsed_issuer_target_session = issuer_target_session;
@@ -153008,6 +153081,8 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
     probe->parsed_tertiary_successor_claimant_session =
         tertiary_successor_claimant_session;
     probe->parsed_quaternary_claimant_session = quaternary_claimant_session;
+    probe->parsed_quinary_claimant_session = quinary_claimant_session;
+    probe->parsed_claimant_depth = claimant_depth;
     probe->parsed_cursor_id = cursor_id;
     probe->parsed_resume_allowed = EqualsIgnoreCase(resume_allowed, "yes");
     probe->parsed_denial_reason = denial_reason;
@@ -153026,6 +153101,8 @@ bool ParseSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpoi
         && !probe->parsed_successor_claimant_session.empty()
         && !probe->parsed_tertiary_successor_claimant_session.empty()
         && !probe->parsed_quaternary_claimant_session.empty()
+        && !probe->parsed_quinary_claimant_session.empty()
+        && probe->parsed_claimant_depth == "quinary"
         && !probe->parsed_cursor_id.empty()
         && probe->parsed_resume_allowed
         && !probe->parsed_denial_reason.empty()
@@ -153070,6 +153147,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     std::string* resolved_successor_claimant_session,
     std::string* resolved_tertiary_successor_claimant_session,
     std::string* resolved_quaternary_claimant_session,
+    std::string* resolved_quinary_claimant_session,
     int* current_start_message_index,
     int* current_message_count,
     std::string* next_start_message_index,
@@ -153101,6 +153179,10 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     if (resolved_quaternary_claimant_session != nullptr)
     {
         resolved_quaternary_claimant_session->clear();
+    }
+    if (resolved_quinary_claimant_session != nullptr)
+    {
+        resolved_quinary_claimant_session->clear();
     }
     if (current_start_message_index != nullptr)
     {
@@ -153148,11 +153230,12 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
 
     if (quaternary_claimant_session_id.empty())
     {
-        return reject("unknown-quaternary-claimant-session");
+        return reject("unknown-quinary-claimant-session");
     }
     if (checkpoint_cursor_id.empty())
     {
-        return reject("invalid-quaternary-claim-resume-allow-cursor");
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allow-request");
     }
 
     DedicatedPlayerRuntimeSlot* quaternary_slot = FindDedicatedPlayerRuntimeSlotBySession(
@@ -153160,18 +153243,18 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         quaternary_claimant_session_id);
     if (quaternary_slot == nullptr)
     {
-        return reject("unknown-quaternary-claimant-session");
+        return reject("unknown-quinary-claimant-session");
     }
     if (!quaternary_slot->external_loopback_admission)
     {
-        return reject("quaternary-claimant-not-external-admission");
+        return reject("quinary-claimant-not-external-admission");
     }
     if (!quaternary_slot->connected
         || !quaternary_slot->put_in_server
         || !quaternary_slot->alive
         || quaternary_slot->spawn_count <= 0)
     {
-        return reject("quaternary-claimant-not-activated");
+        return reject("quinary-claimant-not-activated");
     }
     if (!quaternary_slot
              ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_ready
@@ -153180,7 +153263,7 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         || !quaternary_slot
                 ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_target_activated)
     {
-        return reject("quaternary-claim-resume-allow-not-ready");
+        return reject("quinary-claimant-token-claim-not-ready");
     }
     if (quaternary_slot
             ->signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_ready
@@ -153190,7 +153273,8 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
                 ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_cursor_id
                 .empty())
     {
-        return reject("already-quaternary-claim-resume-allow-delivered");
+        return reject(
+            "already-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allowed");
     }
 
     const std::string authoritative_cursor_id =
@@ -153198,12 +153282,13 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
             ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_cursor_id;
     if (authoritative_cursor_id.empty())
     {
-        return reject("missing-quaternary-claim-cursor");
+        return reject("missing-quinary-claim-cursor");
     }
     if (!EqualsIgnoreCase(authoritative_cursor_id, checkpoint_cursor_id)
         && !EqualsIgnoreCase(quaternary_slot->last_message_cursor_id, checkpoint_cursor_id))
     {
-        return reject("invalid-quaternary-claim-resume-allow-cursor");
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allow-request");
     }
 
     const std::string source_session_id =
@@ -153221,11 +153306,46 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     const std::string tertiary_successor_claimant_session_id =
         quaternary_slot
             ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_tertiary_successor_claimant_session;
+    const std::string quaternary_claimant_session_id_from_claim =
+        quaternary_slot
+            ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_quaternary_claimant_session;
+    const std::string quinary_claimant_session_id_from_claim =
+        quaternary_slot
+                ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_quinary_claimant_session
+                .empty()
+            ? quaternary_slot->session_id
+            : quaternary_slot
+                  ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_quinary_claimant_session;
+    const std::string local_claim_purpose =
+        quaternary_slot
+                ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_purpose
+                .empty()
+            ? std::string("future-quinary-checkpoint-range-only")
+            : quaternary_slot
+                  ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_purpose;
     if (source_session_id.empty() || issuer_target_session_id.empty()
         || claimant_session_id.empty() || successor_claimant_session_id.empty()
         || tertiary_successor_claimant_session_id.empty())
     {
         return reject("incomplete-quaternary-claim-lineage");
+    }
+    if (quaternary_claimant_session_id_from_claim.empty())
+    {
+        return reject("unknown-quaternary-claimant-session");
+    }
+    if (quinary_claimant_session_id_from_claim.empty())
+    {
+        return reject("unknown-quinary-claimant-session");
+    }
+    if (!EqualsIgnoreCase(quinary_claimant_session_id_from_claim, quaternary_slot->session_id))
+    {
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allow-quinary-session");
+    }
+    if (local_claim_purpose != "future-quinary-checkpoint-range-only")
+    {
+        return reject(
+            "invalid-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allow-purpose");
     }
 
     const int local_current_start_message_index =
@@ -153243,7 +153363,8 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     if (local_current_start_message_index != 1 || local_current_message_count != 2
         || local_next_start_message_index != 3 || local_remaining_message_count != 1)
     {
-        return reject("quaternary-claim-resume-allow-state-not-non-exhausted");
+        return reject(
+            "successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-allow-state-not-non-exhausted");
     }
 
     const std::string local_resume_policy =
@@ -153255,28 +153376,33 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         *quaternary_slot,
         DedicatedPlayerLifecycleState::
             kSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeReady,
-        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume token claim positive resume allow marked quaternary claimant session signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_ready sourceSession="
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume token claim positive resume allow marked quinary claimant session signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_ready sourceSession="
             + source_session_id
             + " issuerTargetSession=" + issuer_target_session_id
             + " claimantSession=" + claimant_session_id
             + " successorClaimantSession=" + successor_claimant_session_id
             + " tertiarySuccessorClaimantSession="
             + tertiary_successor_claimant_session_id
-            + " quaternaryClaimantSession=" + quaternary_slot->session_id
-            + " cursorId=" + authoritative_cursor_id);
+            + " quaternaryClaimantSession="
+            + quaternary_claimant_session_id_from_claim
+            + " quinaryClaimantSession=" + quinary_claimant_session_id_from_claim
+            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
     RecordDedicatedLifecycleTransition(
         state.dedicated_multiplayer_foundation,
         *quaternary_slot,
         DedicatedPlayerLifecycleState::
             kNonExhaustedClaimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumeAllowed,
-        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume token claim positive resume allow delivered truthful bounded quaternary claimant non-exhausted resume descriptor sourceSession="
+        "loopback pseudo signon carried-checkpoint claimed-checkpoint successor checkpoint resume token claim checkpoint resume token claim positive resume allow delivered truthful bounded quinary claimant non-exhausted resume descriptor sourceSession="
             + source_session_id
             + " issuerTargetSession=" + issuer_target_session_id
             + " claimantSession=" + claimant_session_id
             + " successorClaimantSession=" + successor_claimant_session_id
             + " tertiarySuccessorClaimantSession="
             + tertiary_successor_claimant_session_id
-            + " quaternaryClaimantSession=" + quaternary_slot->session_id
+            + " quaternaryClaimantSession="
+            + quaternary_claimant_session_id_from_claim
+            + " quinaryClaimantSession=" + quinary_claimant_session_id_from_claim
+            + " claimantDepth=quinary"
             + " cursorId=" + authoritative_cursor_id
             + " currentRange=start=1,count=2"
             + " nextStartMessageIndex=3"
@@ -153302,7 +153428,10 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
         tertiary_successor_claimant_session_id;
     quaternary_slot
         ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quaternary_claimant_session =
-        quaternary_slot->session_id;
+        quaternary_claimant_session_id_from_claim;
+    quaternary_slot
+        ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quinary_claimant_session =
+        quinary_claimant_session_id_from_claim;
     quaternary_slot
         ->last_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_cursor_id =
         authoritative_cursor_id;
@@ -153366,7 +153495,12 @@ bool ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpoi
     }
     if (resolved_quaternary_claimant_session != nullptr)
     {
-        *resolved_quaternary_claimant_session = quaternary_slot->session_id;
+        *resolved_quaternary_claimant_session =
+            quaternary_claimant_session_id_from_claim;
+    }
+    if (resolved_quinary_claimant_session != nullptr)
+    {
+        *resolved_quinary_claimant_session = quinary_claimant_session_id_from_claim;
     }
     if (current_start_message_index != nullptr)
     {
@@ -153399,7 +153533,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     EngineShimState& state,
     SOCKET server_socket,
     int bound_port,
-    std::string_view quaternary_claimant_session_id,
+    std::string_view quinary_claimant_session_id,
     std::string_view cursor_id,
     bool expect_accept,
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowProbeSummary*
@@ -153411,8 +153545,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     }
 
     ++probe->attempts;
-    probe->requested_quaternary_claimant_session =
-        std::string(quaternary_claimant_session_id);
+    probe->requested_quinary_claimant_session =
+        std::string(quinary_claimant_session_id);
     probe->requested_cursor_id = std::string(cursor_id);
 
     ScopedUdpSocket probe_socket(::socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP));
@@ -153426,11 +153560,11 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
 
     const sockaddr_in server_address =
         MakeLoopbackAddress(static_cast<unsigned short>(bound_port));
-    const std::string requested_quaternary_claimant_session =
-        quaternary_claimant_session_id.empty()
+    const std::string requested_quinary_claimant_session =
+        quinary_claimant_session_id.empty()
         ? std::string(
-            "invalid_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quaternary")
-        : std::string(quaternary_claimant_session_id);
+            "invalid_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quinary")
+        : std::string(quinary_claimant_session_id);
     const std::string requested_cursor =
         cursor_id.empty()
         ? std::string(
@@ -153440,8 +153574,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
             probe_socket.Get(),
             server_address,
             sizeof(server_address),
-            "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow quaternaryClaimantSession="
-                + requested_quaternary_claimant_session + " cursorId="
+            "signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow quinaryClaimantSession="
+                + requested_quinary_claimant_session + " cursorId="
                 + requested_cursor,
             &probe->detail,
             "signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume token claim resume allow probe request"))
@@ -153473,8 +153607,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
         return false;
     }
 
-    const std::string request_quaternary_claimant_session_id =
-        ExtractTokenValue(request_text, "quaternaryClaimantSession=");
+    const std::string request_quinary_claimant_session_id =
+        ExtractTokenValue(request_text, "quinaryClaimantSession=");
     const std::string request_cursor_id = ExtractTokenValue(request_text, "cursorId=");
     std::string resolved_source_session;
     std::string resolved_issuer_target_session;
@@ -153482,6 +153616,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     std::string resolved_successor_claimant_session;
     std::string resolved_tertiary_successor_claimant_session;
     std::string resolved_quaternary_claimant_session;
+    std::string resolved_quinary_claimant_session;
     int local_current_start_message_index = -1;
     int local_current_message_count = 0;
     std::string local_next_start_message_index = "<unset>";
@@ -153492,7 +153627,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     const bool accepted =
         ResolveDedicatedLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllow(
             state,
-            request_quaternary_claimant_session_id,
+            request_quinary_claimant_session_id,
             request_cursor_id,
             true,
             &resolved_source_session,
@@ -153501,6 +153636,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
             &resolved_successor_claimant_session,
             &resolved_tertiary_successor_claimant_session,
             &resolved_quaternary_claimant_session,
+            &resolved_quinary_claimant_session,
             &local_current_start_message_index,
             &local_current_message_count,
             &local_next_start_message_index,
@@ -153535,6 +153671,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
             + " tertiarySuccessorClaimantSession="
             + resolved_tertiary_successor_claimant_session
             + " quaternaryClaimantSession=" + resolved_quaternary_claimant_session
+            + " quinaryClaimantSession=" + resolved_quinary_claimant_session
+            + " claimantDepth=quinary"
             + " cursorId=" + request_cursor_id
             + " resumeAllowed=yes denialReason=" + local_denial_reason
             + " eof=no exhausted=no"
@@ -153609,8 +153747,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     }
 
     probe->detail =
-        "loopback signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume token claim resume allow probe quaternaryClaimantSession="
-        + probe->requested_quaternary_claimant_session
+        "loopback signon message cursor carried checkpoint claimed checkpoint successor checkpoint resume token claim checkpoint resume token claim resume allow probe quinaryClaimantSession="
+        + probe->requested_quinary_claimant_session
         + " cursorId=" + probe->requested_cursor_id
         + " completed on 127.0.0.1:" + std::to_string(bound_port);
     return true;
@@ -153620,7 +153758,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
     EngineShimState& state,
     SOCKET server_socket,
     int bound_port,
-    std::string_view quaternary_claimant_session_id,
+    std::string_view quinary_claimant_session_id,
     std::string_view cursor_id,
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowProbeSummary*
         probe)
@@ -153629,7 +153767,7 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
                state,
                server_socket,
                bound_port,
-               quaternary_claimant_session_id,
+               quinary_claimant_session_id,
                cursor_id,
                true,
                probe)
@@ -153641,6 +153779,8 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
         && !probe->parsed_successor_claimant_session.empty()
         && !probe->parsed_tertiary_successor_claimant_session.empty()
         && !probe->parsed_quaternary_claimant_session.empty()
+        && !probe->parsed_quinary_claimant_session.empty()
+        && probe->parsed_claimant_depth == "quinary"
         && !probe->parsed_cursor_id.empty()
         && probe->parsed_resume_allowed
         && probe->parsed_denial_reason == "<none>"
@@ -180446,6 +180586,10 @@ void PerformDedicatedQuerySurface()
                 && (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_probe
                         .enabled
                     || signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_surface
+                           .enabled
+                    || signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                           .enabled
+                    || signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface
                            .enabled);
             if (use_seventh_quinary_claimant_session)
             {
@@ -181258,13 +181402,13 @@ void PerformDedicatedQuerySurface()
         std::string
             checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_quaternary_claimant_session_id =
                 !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_probe
-                         .parsed_quaternary_claimant_session.empty()
+                         .parsed_quinary_claimant_session.empty()
                 ? signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_probe
-                      .parsed_quaternary_claimant_session
+                      .parsed_quinary_claimant_session
                 : !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_surface
-                           .last_quaternary_claimant_session.empty()
+                           .last_quinary_claimant_session.empty()
                 ? signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_surface
-                      .last_quaternary_claimant_session
+                      .last_quinary_claimant_session
                 : std::string();
         std::string
             checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_cursor_id =
@@ -181375,7 +181519,7 @@ void PerformDedicatedQuerySurface()
                 .rejected = 1;
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                 .last_reject_reason =
-                std::string("quaternary-claim-resume-allow-prerequisites-not-met")
+                std::string("quinary-claim-resume-allow-prerequisites-not-met")
                 + ", probeStageConfirmed="
                 + (carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_probe_stage_confirmed
                        ? "yes"
@@ -181486,6 +181630,11 @@ void PerformDedicatedQuerySurface()
                 && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                         .parsed_quaternary_claimant_session.empty()
                 && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                        .parsed_quinary_claimant_session.empty()
+                && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                       .parsed_claimant_depth
+                   == "quinary"
+                && !signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                         .parsed_cursor_id.empty()
                 && signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                        .parsed_resume_allowed
@@ -181528,21 +181677,21 @@ void PerformDedicatedQuerySurface()
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
             .compatibility =
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_verified
-            ? "loopback-verified,quaternary-claimant-claimed-bridged-local-checkpoint-positive-resume-allow-implemented"
-            : "loopback-probe-failed,quaternary-claimant-claimed-bridged-local-checkpoint-positive-resume-allow-pending";
+            ? "loopback-verified,quinary-claimant-claimed-quaternary-local-checkpoint-positive-resume-allow-implemented"
+            : "loopback-probe-failed,quinary-claimant-claimed-quaternary-local-checkpoint-positive-resume-allow-pending";
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface
             .compatibility =
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_verified
-            ? "loopback-verified,quaternary-claimant-claimed-bridged-local-checkpoint-positive-resume-allow-implemented"
-            : "loopback-probe-failed,quaternary-claimant-claimed-bridged-local-checkpoint-positive-resume-allow-pending";
+            ? "loopback-verified,quinary-claimant-claimed-quaternary-local-checkpoint-positive-resume-allow-implemented"
+            : "loopback-probe-failed,quinary-claimant-claimed-quaternary-local-checkpoint-positive-resume-allow-pending";
         if (signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_verified)
         {
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_probe
                 .compatibility =
-                "loopback-verified,quaternary-claimant-positive-resume-allow-implemented";
+                "loopback-verified,quinary-claimant-positive-resume-allow-implemented";
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_surface
                 .compatibility =
-                "loopback-verified,quaternary-claimant-positive-resume-allow-implemented";
+                "loopback-verified,quinary-claimant-positive-resume-allow-implemented";
         }
     }
     else if (
@@ -211110,6 +211259,13 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 || impl_->summary
                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                        .parsed_quaternary_claimant_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                       .parsed_quinary_claimant_session.empty()
+                || impl_->summary
+                       .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
+                       .parsed_claimant_depth
+                   != "quinary"
                 || impl_->summary
                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe
                        .parsed_cursor_id.empty()
