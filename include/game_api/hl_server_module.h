@@ -13519,6 +13519,8 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string last_successor_claimant_session;
     std::string last_tertiary_successor_claimant_session;
     std::string last_quaternary_claimant_session;
+    std::string last_quinary_claimant_session;
+    std::string claimant_depth = "quinary";
     std::string last_checkpoint_cursor_id;
     std::string last_fetched_message_indices;
     std::string next_start_message_index_after_resume_fetch = "<unset>";
@@ -13548,6 +13550,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     int rejected = 0;
     std::string last_reject_reason = "<none>";
     std::string requested_quaternary_claimant_session;
+    std::string requested_quinary_claimant_session;
     int requested_message_count = 0;
     std::string requested_cursor_id;
     std::string parsed_source_session;
@@ -13556,6 +13559,8 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string parsed_successor_claimant_session;
     std::string parsed_tertiary_successor_claimant_session;
     std::string parsed_quaternary_claimant_session;
+    std::string parsed_quinary_claimant_session;
+    std::string parsed_claimant_depth = "quinary";
     std::string parsed_cursor_id;
     std::string parsed_fetched_message_indices;
     std::string parsed_semantic_tags;
