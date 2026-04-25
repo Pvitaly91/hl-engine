@@ -5740,6 +5740,30 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument
+            == L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy" && normalized != L"gate")
+            {
+                result.error_message =
+                    L"Invalid value for --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario. Expected happy or gate.";
+                return result;
+            }
+
+            result.options
+                .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         constexpr std::wstring_view
             signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_probe_scenario_prefix =
                 L"--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario=";
@@ -11852,6 +11876,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-probe-scenario <happy|gate>]\n"
+             L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-advance-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-denial-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-denial-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-denial-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-advance-probe-scenario <happy|gate>]\n"
@@ -11977,6 +12002,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-surface Enable the bounded loopback dedicated UDP quaternary claimant claimed-range surface for a claimed bridged tertiary local checkpoint token\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-probe Run a deterministic loopback quaternary claimant claimed-range probe against a claimed bridged tertiary local checkpoint token\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range probe scenario: happy or gate (default: happy)\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-surface Enable the bounded loopback dedicated UDP quinary claimant claimed checkpoint EOF surface for a claimed quaternary local checkpoint token\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe Run a deterministic loopback quinary claimant claimed checkpoint EOF probe against a claim-range-ready quinary admission\n"
+              L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof probe scenario: happy or gate (default: happy)\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-surface Enable the bounded loopback dedicated UDP claimant checkpoint positive resumed-range surface gated by claimant checkpoint positive resume-allow state\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-probe Run a deterministic loopback claimant checkpoint positive resumed-range probe against a resume-ready claimant checkpoint admission\n"
               L"  --signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range-probe-scenario <s> Signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-range probe scenario: happy or gate (default: happy)\n"
