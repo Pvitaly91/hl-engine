@@ -13666,6 +13666,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     bool successor_checkpoint_resume_token_claim_eof_enabled = false;
     bool requires_claimed_successor_checkpoint_resume_token_claim_range_ready_session =
         true;
+    std::string claimant_depth = "quinary";
     int accepted = 0;
     int rejected = 0;
     std::string last_source_session;
@@ -13674,6 +13675,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string last_successor_claimant_session;
     std::string last_tertiary_successor_claimant_session;
     std::string last_quaternary_claimant_session;
+    std::string last_quinary_claimant_session;
     std::string last_checkpoint_cursor_id;
     bool eof = false;
     bool exhausted = false;
@@ -13708,6 +13710,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     int rejected = 0;
     std::string last_reject_reason = "<none>";
     std::string requested_quaternary_claimant_session;
+    std::string requested_quinary_claimant_session;
     std::string requested_cursor_id;
     std::string parsed_source_session;
     std::string parsed_issuer_target_session;
@@ -13715,6 +13718,8 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string parsed_successor_claimant_session;
     std::string parsed_tertiary_successor_claimant_session;
     std::string parsed_quaternary_claimant_session;
+    std::string parsed_quinary_claimant_session;
+    std::string parsed_claimant_depth = "quinary";
     std::string parsed_cursor_id;
     bool parsed_eof = false;
     bool parsed_exhausted = false;
@@ -13722,6 +13727,7 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string parsed_next_start_message_index = "<unset>";
     int parsed_remaining_message_count = 0;
     std::string parsed_resume_policy;
+    std::string parsed_claim_purpose;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_ready =
         0;
     int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claimed =
