@@ -13778,6 +13778,87 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string detail;
 };
 
+struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointBridgeSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    std::string protocol_shape = "disabled";
+    bool successor_checkpoint_resume_token_claim_checkpoint_bridge_enabled = false;
+    bool requires_claimed_successor_checkpoint_resume_token_claim_resumed_denied_session =
+        true;
+    std::string claimant_depth = "quinary";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_source_session;
+    std::string last_issuer_target_session;
+    std::string last_claimant_session;
+    std::string last_successor_claimant_session;
+    std::string last_tertiary_successor_claimant_session;
+    std::string last_quaternary_claimant_session;
+    std::string last_quinary_claimant_session;
+    std::string last_source_claimed_cursor_id;
+    std::string last_quinary_checkpoint_cursor_id;
+    int current_start_message_index = -1;
+    int current_message_count = 0;
+    std::string next_start_message_index = "<unset>";
+    int remaining_message_count = 0;
+    std::string bridge_policy = "<unset>";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denied_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_resumed_denied =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_materialized =
+        0;
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointBridgeProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string requested_quinary_claimant_session;
+    std::string requested_cursor_id;
+    std::string parsed_source_session;
+    std::string parsed_issuer_target_session;
+    std::string parsed_claimant_session;
+    std::string parsed_successor_claimant_session;
+    std::string parsed_tertiary_successor_claimant_session;
+    std::string parsed_quaternary_claimant_session;
+    std::string parsed_quinary_claimant_session;
+    std::string parsed_claimant_depth = "quinary";
+    std::string parsed_source_claimed_cursor_id;
+    std::string parsed_quinary_checkpoint_cursor_id;
+    std::string parsed_current_range;
+    std::string parsed_next_start_message_index = "<unset>";
+    int parsed_remaining_message_count = 0;
+    std::string parsed_bridge_policy;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denied_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_resumed_denied =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_materialized =
+        0;
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimRangeSurfaceSummary
 {
     bool enabled = false;
@@ -18209,6 +18290,13 @@ struct HlServerModuleInitOptions
     std::string
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_probe_scenario =
             "happy";
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_surface_enabled =
+        false;
+    bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_probe_enabled =
+        false;
+    std::string
+        signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_probe_scenario =
+            "happy";
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_range_surface_enabled =
         false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_range_probe_enabled =
@@ -18667,6 +18755,10 @@ struct HlServerModuleSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumedDenialProbeSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_probe;
+    DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointBridgeSurfaceSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_surface;
+    DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointBridgeProbeSummary
+        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_bridge_probe;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimRangeSurfaceSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_range_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimRangeProbeSummary
