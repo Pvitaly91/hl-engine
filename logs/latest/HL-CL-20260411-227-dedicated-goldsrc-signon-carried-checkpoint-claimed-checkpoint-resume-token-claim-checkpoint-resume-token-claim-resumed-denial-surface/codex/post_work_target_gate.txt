@@ -1,0 +1,56 @@
+HEAD:include/game_api/hl_server_module.h:18667:        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
+HEAD:src/game_api/hl_server_module.cpp:2934:        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
+HEAD:src/game_api/hl_server_module.cpp:22784:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumedDeniedReady="
+HEAD:src/game_api/hl_server_module.cpp:22788:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumedDenied="
+HEAD:src/game_api/hl_server_module.cpp:32558:        + ", claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:32585:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:32735:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:32896:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:33054:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:33182:    return "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface: mode="
+HEAD:src/game_api/hl_server_module.cpp:33219:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:33261:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumedDeniedReady="
+HEAD:src/game_api/hl_server_module.cpp:33265:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumedDenied="
+HEAD:src/game_api/hl_server_module.cpp:33351:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumedDeniedReady="
+HEAD:src/game_api/hl_server_module.cpp:33355:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumedDenied="
+HEAD:src/game_api/hl_server_module.cpp:33406:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:33566:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:34651:        + ", lastQuinaryClaimantSession="
+HEAD:src/game_api/hl_server_module.cpp:48444:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:48451:                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface));
+HEAD:src/game_api/hl_server_module.cpp:102042:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
+HEAD:src/game_api/hl_server_module.cpp:102067:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:102071:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:153901:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:153917:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:154735:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+HEAD:src/game_api/hl_server_module.cpp:154751:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:155021:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:155933:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+HEAD:src/game_api/hl_server_module.cpp:155949:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:156203:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:156757:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+HEAD:src/game_api/hl_server_module.cpp:156772:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:157050:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:157537:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+HEAD:src/game_api/hl_server_module.cpp:157552:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:157813:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:158138:                  .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:158273:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+HEAD:src/game_api/hl_server_module.cpp:158288:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:158343:              .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:158535:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:159013:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:159029:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:159336:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:161867:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+HEAD:src/game_api/hl_server_module.cpp:161882:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+HEAD:src/game_api/hl_server_module.cpp:162141:            + " claimantDepth=quinary"
+HEAD:src/game_api/hl_server_module.cpp:176180:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
+HEAD:src/game_api/hl_server_module.cpp:200785:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface =
+HEAD:src/game_api/hl_server_module.cpp:201897:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface =
+HEAD:src/game_api/hl_server_module.cpp:201899:                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface;
+HEAD:src/game_api/hl_server_module.cpp:202340:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface,
+HEAD:src/game_api/hl_server_module.cpp:210493:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface =
+HEAD:src/game_api/hl_server_module.cpp:210496:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface
+HEAD:src/game_api/hl_server_module.cpp:210501:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resumed_denial_surface

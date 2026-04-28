@@ -1,0 +1,52 @@
+a7572755b65b845e501d08737fdf3d30dbcda419:include/game_api/hl_server_module.h:18552:        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface;
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:2890:        dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface;
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:22728:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeEofReady="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:22732:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumeExhausted="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32502:        + ", claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32529:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32679:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32840:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32962:    return "dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface: mode="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:32998:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33029:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeEofReady="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33033:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumeExhausted="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33110:        + ", signonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeEofReady="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33114:        + ", claimedCheckpointSuccessorResumeTokenClaimCheckpointResumeTokenClaimResumeExhausted="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33165:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:33325:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:34410:        + ", lastQuinaryClaimantSession="
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:48097:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:48104:                        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface));
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:101422:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface;
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:101447:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:101451:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:153232:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:153248:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:154066:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:154082:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:154352:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:155264:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:155280:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:155534:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156088:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156103:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156381:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156721:                  .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156868:            + " claimantDepth=quinary cursorId=" + authoritative_cursor_id);
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156883:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:156944:              .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:157144:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:157616:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:157632:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:157939:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:160470:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:160485:            + " claimantDepth=quinary cursorId=" + std::string(checkpoint_cursor_id));
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:160744:            + " claimantDepth=quinary"
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:174775:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface;
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:199087:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface =
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:200167:            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface =
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:200169:                    .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface;
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:200606:                .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface,
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:208733:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface =
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:208736:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
+a7572755b65b845e501d08737fdf3d30dbcda419:src/game_api/hl_server_module.cpp:208741:        .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_surface
