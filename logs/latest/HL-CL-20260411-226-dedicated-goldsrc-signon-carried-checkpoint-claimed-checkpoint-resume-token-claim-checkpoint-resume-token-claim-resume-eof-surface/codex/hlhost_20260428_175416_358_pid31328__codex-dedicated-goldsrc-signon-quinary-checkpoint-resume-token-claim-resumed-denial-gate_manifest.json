@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260428_175416",
+  "runInstanceId": "20260428_175416_358_pid31328",
+  "runLabel": "codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-token-claim-resumed-denial-gate",
+  "promptId": "HL-CL-20260411-227-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resumed-denial-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "a7572755b65b845e501d08737fdf3d30dbcda419",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260428_175416_358_pid31328__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-token-claim-resumed-denial-gate_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260428_175416_358_pid31328__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-token-claim-resumed-denial-gate_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260428_175416_358_pid31328__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-token-claim-resumed-denial-gate_part01.log"]
+}
