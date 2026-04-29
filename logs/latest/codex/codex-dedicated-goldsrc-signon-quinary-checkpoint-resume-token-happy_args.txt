@@ -12,9 +12,9 @@ G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260411-160-dedicated-goldsrc-signo
 --frametime
 0.05
 --run-label
-codex-dedicated-goldsrc-signon-quinary-checkpoint-resumed-denial-happy
+codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-token-happy
 --prompt-id
-HL-CL-20260411-235-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resumed-denial-surface
+HL-CL-20260411-236-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-surface
 --activation-probe
 --activation-probe-scenario
 happy
@@ -380,3 +380,6 @@ happy
 --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resumed-denial-surface
 --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resumed-denial-probe
 --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resumed-denial-probe-scenario=happy
+--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-surface
+--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-probe
+--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-probe-scenario=happy
