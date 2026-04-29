@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260429_182215",
+  "runInstanceId": "20260429_182215_838_pid41236",
+  "runLabel": "codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-range-gate",
+  "promptId": "HL-CL-20260411-233-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-range-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "33780d9e1efed0866bba1e5e438744ea28f4da59",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260429_182215_838_pid41236__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-range-gate_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260429_182215_838_pid41236__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-range-gate_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260429_182215_838_pid41236__codex-dedicated-goldsrc-signon-quinary-checkpoint-resume-range-gate_part01.log"]
+}
