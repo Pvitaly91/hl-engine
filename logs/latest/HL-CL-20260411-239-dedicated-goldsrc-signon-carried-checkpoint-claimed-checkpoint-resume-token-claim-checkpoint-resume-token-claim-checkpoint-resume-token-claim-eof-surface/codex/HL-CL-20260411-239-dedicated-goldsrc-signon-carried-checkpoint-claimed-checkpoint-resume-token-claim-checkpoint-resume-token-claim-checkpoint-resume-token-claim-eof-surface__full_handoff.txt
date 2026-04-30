@@ -128,4 +128,3 @@ issues / risks / quirks noticed in logs: MSBuild succeeded with existing C4127 c
 progress assessment: prompt 239 implementation and proof completed; senary claimant checkpoint-EOF from the claimed quinary checkpoint token is externally probeable through loopback summary surfaces.
 concise conclusion: Senary claimant checkpoint-EOF реалізовано і доведено.
 PROMPT-ID: HL-CL-20260411-239-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-surface
-
