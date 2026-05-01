@@ -12,9 +12,9 @@ G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260411-160-dedicated-goldsrc-signo
 --frametime
 0.05
 --run-label
-codex-dedicated-goldsrc-signon-senary-checkpoint-advance-gate
+codex-dedicated-goldsrc-signon-senary-checkpoint-eof-gate
 --prompt-id
-HL-CL-20260411-246-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-advance-range-surface
+HL-CL-20260411-247-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-eof-surface
 --activation-probe
 --activation-probe-scenario
 happy
@@ -317,4 +317,7 @@ gate
 gate
 --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-advance-probe
 --signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-advance-probe-scenario
+gate
+--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-eof-probe
+--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-eof-probe-scenario
 gate
