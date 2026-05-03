@@ -15733,8 +15733,13 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     bool requires_claimed_successor_checkpoint_resume_token_claim_eof_ready_session =
         true;
     std::string claimant_depth = "septenary";
+    int requested_message_count = 1;
     int accepted = 0;
     int rejected = 0;
+    bool denial_observed = false;
+    int denial_count = 0;
+    std::string last_deny_reason = "<none>";
+    std::string denial_scenario = "stale_cursor_after_eof";
     std::string last_source_session;
     std::string last_issuer_target_session;
     std::string last_claimant_session;
@@ -15745,12 +15750,18 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string last_senary_claimant_session;
     std::string last_septenary_claimant_session;
     std::string last_denied_cursor_id;
+    std::string last_fetched_message_indices;
     bool resume_allowed = false;
     std::string denial_reason = "<none>";
     bool eof = false;
     bool exhausted = false;
+    std::string next_start_message_index_after_resume_fetch = "<unset>";
+    int remaining_message_count_after_resume_fetch = 0;
     std::string next_start_message_index = "<unset>";
     int remaining_message_count = 0;
+    std::string resume_policy;
+    int post_denial_range_delivered_delta = 0;
+    int post_denial_eof_delivered_delta = 0;
     std::string auth = "disabled";
     std::string signon = "disabled";
     std::string gameplay_transport = "no";
@@ -15765,6 +15776,14 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_ready =
         0;
     int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_exhausted =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_delivered =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_exhausted =
         0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denied_ready =
         0;
@@ -15783,7 +15802,12 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     int accepted = 0;
     int rejected = 0;
     std::string last_reject_reason = "<none>";
+    bool denial_observed = false;
+    int denial_count = 0;
+    std::string last_deny_reason = "<none>";
+    std::string denial_scenario = "stale_cursor_after_eof";
     std::string requested_septenary_claimant_session;
+    int requested_message_count = 1;
     std::string requested_cursor_id;
     std::string parsed_source_session;
     std::string parsed_issuer_target_session;
@@ -15796,13 +15820,18 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string parsed_septenary_claimant_session;
     std::string parsed_claimant_depth = "septenary";
     std::string parsed_cursor_id;
+    std::string parsed_fetched_message_indices;
     bool parsed_resume_allowed = false;
     std::string parsed_denial_reason;
     bool parsed_eof = false;
     bool parsed_exhausted = false;
+    std::string parsed_next_start_message_index_after_resume_fetch = "<unset>";
+    int parsed_remaining_message_count_after_resume_fetch = 0;
     std::string parsed_next_start_message_index = "<unset>";
     int parsed_remaining_message_count = 0;
     std::string parsed_resume_policy;
+    int post_denial_range_delivered_delta = 0;
+    int post_denial_eof_delivered_delta = 0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_ready =
         0;
     int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claimed =
@@ -15814,6 +15843,14 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_ready =
         0;
     int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_exhausted =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_delivered =
+        0;
+    int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_ready =
+        0;
+    int claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_exhausted =
         0;
     int signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denied_ready =
         0;
