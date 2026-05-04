@@ -1,0 +1,126 @@
+HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness
+
+# Full Handoff
+
+Prompt: HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad
+Inspected HEAD: 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad
+Source/final commit: none (report-only; no source changes)
+Artifact commit: <pending-artifact-commit>
+Compatibility claim level: diagnostic-production-receive-path-readiness-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+## Startup / Gates
+
+Git root: G:/DEV/СPP/HLengine/host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+HEAD before prompt artifacts: 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad
+Remote: https://github.com/Pvitaly91/hl-engine.git
+
+Descendant gates all passed:
+88b4ea5affae71a1ac014e63694e8771a562bb0a : pass
+a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea : pass
+2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e : pass
+87a0915d9c07634606576ea54a9e91cb78d11743 : pass
+353f2076f54dd14427e76fc08ec3aa3c5bf7b003 : pass
+8d44f3d5a96a727d716cfbe341b992bf74940706 : pass
+4f9c20288a2b751d124b30dce3482f0b7a72f132 : pass
+e73814fabe2cae06fa058872ff1f9e6080cc112b : pass
+10c1bad3d830a3561fdaca6702c63ab94798372b : pass
+9bac937b6fb62c77911b22432b9502f1d97f4d40 : pass
+efa5dde9a8728e3f9a87f8a6dcaadf573882d630 : pass
+4024a2673e1c67177ac449d9448972e5411b214f : pass
+552fee1682bad180d8010ab6bbd7e5b14b34c8ba : pass
+2b5e8d707e319c19877fc3809b934c4636e36759 : pass
+4a0299b5fdac68ff384ba2fa5be9d24c166b6cad : pass
+
+## Receive Path Inventory Conclusion
+
+The production receive-path inventory is complete for this prompt and found no actual production dedicated-host UDP datagram receive pump. The only concrete UDP send/receive code found is the bounded diagnostic harness in src/game_api/hl_server_module.cpp:
+
+- ScopedUdpSocket at line 148619
+- BindLoopbackQuerySocket at line 148690
+- SendConnectionlessText at line 148857
+- ReceiveConnectionlessText at line 148885
+- RunHldsConnectionlessLoopbackUdpDiagnostic at line 149242
+- RunHldsConnectionlessDiagnosticLifecycleAcceptance at line 151039
+- PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate at line 209556
+
+pfnConnectionlessPacket is only surfaced as SDK export presence inventory at line 248806; it is not wired to a production socket receive loop in the inspected code.
+
+## Hook Decision
+
+Guarded hook installed: 0
+
+Reason: no safe production receive path exists to attach. Adding a hook in this prompt would duplicate or rename the diagnostic harness rather than moving toward a real production receive boundary. Per prompt instruction, no fake hook was added.
+
+## Proof / Readiness Summary
+
+- production_receive_path_inventory_complete=1
+- production_receive_path_available=0
+- guarded_hook_installed=0
+- receive_path_hook_disabled_by_default=1
+- proof_happy=not_run_with_reason=unsupported_or_absent_production_receive_path
+- proof_gate_disabled_by_default=not_run_with_reason=no_launch_plumbing_added_report_only
+- proof_gate_non_loopback_bind_denied=not_run_with_reason=no_guarded_hook_installed
+- proof_gate_public_socket_blocked=not_run_with_reason=no_guarded_hook_installed
+- proof_gate_unsupported_receive_path=pass
+- production_receive_path_used=0
+- diagnostic_harness_receive_path_used=0
+- lifecycle_acceptance_passed=not_run_with_reason=unsupported_or_absent_production_receive_path
+- public_socket_opened=0
+- loopback_udp_socket_opened=0
+- sockets_closed=1
+- bind_policy=report_only_no_bind_attempted
+
+## Prompt 271 Baseline
+
+Prompt 271 remains the accepted diagnostic lifecycle regression boundary. It proved getchallenge, loopback UDP, address-scoped challenge cache, connect, userinfo policy, and serverinfo skeleton lifecycle with eight negative gates, while preserving diagnostic-only boundaries.
+
+## Artifacts
+
+- $codex/HL-CL-20260504-272__full_handoff.txt
+- $codex/receive_path_readiness_report.md
+- $codex/receive_path_inventory.md
+- $codex/receive_path_diagnostic_summary.json
+- $codex/command_log.txt
+- $codex/git_state.txt
+- $runtime/gate_unsupported_receive_path_summary.log
+- $runtime/gate_unsupported_receive_path_manifest.json
+
+## Public Links
+
+Exact stable GitHub links are emitted in the final Codex response after the artifact commit SHA is known.
+
+## Risks / Issues
+
+- No production connectionless receive path was found.
+- No production bind-address policy was found.
+- No production connectionless dispatch/send-response path was found.
+- Current UDP behavior remains diagnostic-only and must not be represented as Steam Half-Life or HLDS-compatible client support.
+
+## Recommended Next Prompt
+
+Recommended next prompt id: HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface
+
+Recommended next task: add a disabled-by-default localhost-only production-style connectionless socket pump abstraction with bind policy gates, without routing to client admission
+
+## Remaining Before Real Client Connection Attempts
+
+- production connectionless socket receive path if absent
+- durable challenge cache integrated with real remote address handling
+- final protocol/version compatibility policy
+- production userinfo validation policy
+- real serverinfo wire emission
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+## Final Conclusion
+
+Report-only readiness is complete: production receive path is absent, no guarded hook was installed, no sockets were opened, and the next safe step is a disabled-by-default localhost-only production-style socket pump diagnostic boundary.
+
+HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness
