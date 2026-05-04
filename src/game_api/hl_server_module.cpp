@@ -3893,6 +3893,10 @@ struct EngineShimState
         hlds_connect_diagnostic_surface;
     hl::game_api::HldsConnectDiagnosticProbeSummary hlds_connect_diagnostic_probe;
     std::string hlds_connect_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsServerinfoDiagnosticSurfaceSummary
+        hlds_serverinfo_diagnostic_surface;
+    hl::game_api::HldsServerinfoDiagnosticProbeSummary hlds_serverinfo_diagnostic_probe;
+    std::string hlds_serverinfo_diagnostic_probe_scenario = "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4793,6 +4797,10 @@ std::string BuildHldsConnectDiagnosticSurfaceLine(
     const hl::game_api::HldsConnectDiagnosticSurfaceSummary& summary);
 std::string BuildHldsConnectDiagnosticProbeLine(
     const hl::game_api::HldsConnectDiagnosticProbeSummary& summary);
+std::string BuildHldsServerinfoDiagnosticSurfaceLine(
+    const hl::game_api::HldsServerinfoDiagnosticSurfaceSummary& summary);
+std::string BuildHldsServerinfoDiagnosticProbeLine(
+    const hl::game_api::HldsServerinfoDiagnosticProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -24955,6 +24963,90 @@ std::string BuildHldsConnectDiagnosticProbeLine(
     const hl::game_api::HldsConnectDiagnosticProbeSummary& summary)
 {
     return BuildHldsConnectDiagnosticLine("hlds_connect_diagnostic_probe", summary);
+}
+
+template <typename Summary>
+std::string BuildHldsServerinfoDiagnosticLine(std::string_view prefix, const Summary& summary)
+{
+    return std::string(prefix) + ": enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", getchallenge_dependency_checked="
+        + std::string(summary.getchallenge_dependency_checked ? "1" : "0")
+        + ", connect_dependency_checked="
+        + std::string(summary.connect_dependency_checked ? "1" : "0")
+        + ", prior_challenge_issued="
+        + std::string(summary.prior_challenge_issued ? "1" : "0")
+        + ", prior_challenge_value=" + summary.prior_challenge_value
+        + ", connect_diagnostic_ready="
+        + std::string(summary.connect_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_diagnostic_ready="
+        + std::string(summary.serverinfo_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_response_ready="
+        + std::string(summary.serverinfo_response_ready ? "1" : "0")
+        + ", protocol_version_raw=" + summary.protocol_version_raw
+        + ", protocol_version_normalized=" + summary.protocol_version_normalized
+        + ", protocol_version_present="
+        + std::string(summary.protocol_version_present ? "1" : "0")
+        + ", protocol_version_accepted="
+        + std::string(summary.protocol_version_accepted ? "1" : "0")
+        + ", hostname_raw_safe_preview=" + summary.hostname_raw_safe_preview
+        + ", hostname_present=" + std::string(summary.hostname_present ? "1" : "0")
+        + ", map_name_raw_safe_preview=" + summary.map_name_raw_safe_preview
+        + ", map_name_present=" + std::string(summary.map_name_present ? "1" : "0")
+        + ", game_dir_raw_safe_preview=" + summary.game_dir_raw_safe_preview
+        + ", game_dir_present=" + std::string(summary.game_dir_present ? "1" : "0")
+        + ", maxplayers_raw=" + summary.maxplayers_raw
+        + ", maxplayers_present=" + std::string(summary.maxplayers_present ? "1" : "0")
+        + ", maxplayers_accepted=" + std::string(summary.maxplayers_accepted ? "1" : "0")
+        + ", player_slot_placeholder_present="
+        + std::string(summary.player_slot_placeholder_present ? "1" : "0")
+        + ", response_shape=" + summary.response_shape
+        + ", response_bytes_or_text_safe_preview="
+        + summary.response_bytes_or_text_safe_preview
+        + ", remote_address_source=" + summary.remote_address_source
+        + ", bounded_loopback=" + std::string(summary.bounded_loopback ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", steam_auth_not_implemented="
+        + std::string(summary.steam_auth_not_implemented ? "1" : "0")
+        + ", netchan_not_started="
+        + std::string(summary.netchan_not_started ? "1" : "0")
+        + ", reliable_channel_not_started="
+        + std::string(summary.reliable_channel_not_started ? "1" : "0")
+        + ", resource_baselines_not_sent="
+        + std::string(summary.resource_baselines_not_sent ? "1" : "0")
+        + ", signon_state_not_entered="
+        + std::string(summary.signon_state_not_entered ? "1" : "0")
+        + ", client_not_put_in_server="
+        + std::string(summary.client_not_put_in_server ? "1" : "0")
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsServerinfoDiagnosticSurfaceLine(
+    const hl::game_api::HldsServerinfoDiagnosticSurfaceSummary& summary)
+{
+    return BuildHldsServerinfoDiagnosticLine(
+        "hlds_serverinfo_diagnostic_surface",
+        summary);
+}
+
+std::string BuildHldsServerinfoDiagnosticProbeLine(
+    const hl::game_api::HldsServerinfoDiagnosticProbeSummary& summary)
+{
+    return BuildHldsServerinfoDiagnosticLine(
+        "hlds_serverinfo_diagnostic_probe",
+        summary);
 }
 
 std::string BuildDedicatedActivationSurfaceLine(
@@ -56142,6 +56234,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsConnectDiagnosticProbeLine(
                     summary.hlds_connect_diagnostic_probe));
+        }
+        if (summary.hlds_serverinfo_diagnostic_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoDiagnosticSurfaceLine(
+                    summary.hlds_serverinfo_diagnostic_surface));
+        }
+        if (summary.hlds_serverinfo_diagnostic_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoDiagnosticProbeLine(
+                    summary.hlds_serverinfo_diagnostic_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -127003,6 +127109,190 @@ void ApplyHldsConnectDiagnosticResult(
     summary->steam_auth_not_implemented = true;
     summary->netchan_not_started = true;
     summary->serverinfo_not_sent = true;
+    summary->client_not_put_in_server = true;
+    summary->auth = "none-diagnostic-only";
+    summary->signon = "not-started";
+    summary->gameplay_transport = "no";
+    summary->detail = result.detail;
+}
+
+struct HldsServerinfoDiagnosticResult
+{
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    bool getchallenge_dependency_checked = false;
+    bool connect_dependency_checked = false;
+    bool prior_challenge_issued = false;
+    std::string prior_challenge_value = "<none>";
+    bool connect_diagnostic_ready = false;
+    bool serverinfo_diagnostic_ready = false;
+    bool serverinfo_response_ready = false;
+    std::string protocol_version_raw = "<none>";
+    std::string protocol_version_normalized = "<none>";
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+    std::string hostname_raw_safe_preview = "<none>";
+    bool hostname_present = false;
+    std::string map_name_raw_safe_preview = "<none>";
+    bool map_name_present = false;
+    std::string game_dir_raw_safe_preview = "<none>";
+    bool game_dir_present = false;
+    std::string maxplayers_raw = "<none>";
+    bool maxplayers_present = false;
+    bool maxplayers_accepted = false;
+    bool player_slot_placeholder_present = false;
+    std::string response_shape = "serverinfo_diagnostic";
+    std::string response_preview = "<none>";
+    std::string detail;
+};
+
+HldsConnectDiagnosticResult BuildHldsServerinfoPrerequisiteConnect(
+    std::string_view scenario,
+    HldsGetchallengeDiagnosticResult* issued_challenge)
+{
+    if (issued_challenge != nullptr)
+    {
+        *issued_challenge = ParseHldsGetchallengeDiagnosticInput(
+            BuildHldsGetchallengeDiagnosticInput("happy"));
+    }
+
+    const HldsGetchallengeDiagnosticResult fallback =
+        issued_challenge == nullptr
+        ? ParseHldsGetchallengeDiagnosticInput(BuildHldsGetchallengeDiagnosticInput("happy"))
+        : *issued_challenge;
+
+    const std::string connect_scenario =
+        scenario == "gate_missing_connect"
+        ? "gate_missing_or_wrong_challenge"
+        : scenario == "gate_wrong_protocol"
+        ? "gate_wrong_protocol"
+        : "happy";
+    return ParseHldsConnectDiagnosticInput(
+        BuildHldsConnectDiagnosticInput(connect_scenario, fallback.challenge_value),
+        fallback);
+}
+
+HldsServerinfoDiagnosticResult BuildHldsServerinfoDiagnosticResult(
+    std::string_view scenario)
+{
+    HldsGetchallengeDiagnosticResult issued_challenge;
+    const HldsConnectDiagnosticResult connect_result =
+        BuildHldsServerinfoPrerequisiteConnect(scenario, &issued_challenge);
+
+    HldsServerinfoDiagnosticResult result;
+    result.getchallenge_dependency_checked = true;
+    result.connect_dependency_checked = true;
+    result.prior_challenge_issued = connect_result.prior_challenge_issued;
+    result.prior_challenge_value = connect_result.prior_challenge_value;
+    result.connect_diagnostic_ready = connect_result.connect_diagnostic_ready;
+    result.protocol_version_raw = connect_result.protocol_version_raw;
+    result.protocol_version_normalized = connect_result.protocol_version_normalized;
+    result.protocol_version_present = connect_result.protocol_version_present;
+    result.protocol_version_accepted = connect_result.protocol_version_accepted;
+
+    if (!result.connect_diagnostic_ready)
+    {
+        result.rejected = 1;
+        result.last_reject_reason =
+            scenario == "gate_wrong_protocol"
+            ? "unsupported_protocol_version"
+            : "missing_connect_diagnostic";
+        result.detail =
+            scenario == "gate_wrong_protocol"
+            ? "diagnostic serverinfo rejected: prerequisite connect used unsupported protocol/version-shaped field"
+            : "diagnostic serverinfo rejected: successful diagnostic connect readiness is missing";
+        return result;
+    }
+
+    result.hostname_raw_safe_preview = "HLengine Diagnostic Server";
+    result.hostname_present = true;
+    result.map_name_raw_safe_preview =
+        scenario == "gate_missing_serverinfo_field" ? "<none>" : "crossfire";
+    result.map_name_present = scenario != "gate_missing_serverinfo_field";
+    result.game_dir_raw_safe_preview = "valve";
+    result.game_dir_present = true;
+    result.maxplayers_raw = "4";
+    result.maxplayers_present = true;
+    result.maxplayers_accepted = true;
+    result.player_slot_placeholder_present = true;
+
+    if (!result.map_name_present || !result.game_dir_present || !result.hostname_present
+        || !result.maxplayers_present)
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "missing_serverinfo_field";
+        result.detail =
+            "diagnostic serverinfo rejected: required serverinfo-shaped field omitted";
+        return result;
+    }
+
+    result.accepted = 1;
+    result.last_reject_reason = "<none>";
+    result.serverinfo_diagnostic_ready = true;
+    result.serverinfo_response_ready = true;
+    result.response_shape = "serverinfo_diagnostic";
+    result.response_preview =
+        "FF FF FF FF serverinfo protocol=48 hostname=HLengine_Diagnostic_Server"
+        " map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1 00";
+    result.detail =
+        "diagnostic-only HLDS-style serverinfo skeleton assembled after diagnostic getchallenge and connect; no auth, netchan, baselines, signon state, or admission performed";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsServerinfoDiagnosticResult(
+    const HldsServerinfoDiagnosticResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->mode = std::string(mode);
+    summary->scenario = std::string(scenario);
+    summary->accepted = result.accepted;
+    summary->rejected = result.rejected;
+    summary->last_reject_reason = result.last_reject_reason;
+    summary->compatibility_claim_level =
+        "diagnostic-serverinfo-skeleton-only";
+    summary->diagnostic_only = true;
+    summary->getchallenge_dependency_checked =
+        result.getchallenge_dependency_checked;
+    summary->connect_dependency_checked = result.connect_dependency_checked;
+    summary->prior_challenge_issued = result.prior_challenge_issued;
+    summary->prior_challenge_value = result.prior_challenge_value;
+    summary->connect_diagnostic_ready = result.connect_diagnostic_ready;
+    summary->serverinfo_diagnostic_ready = result.serverinfo_diagnostic_ready;
+    summary->serverinfo_response_ready = result.serverinfo_response_ready;
+    summary->protocol_version_raw = result.protocol_version_raw;
+    summary->protocol_version_normalized = result.protocol_version_normalized;
+    summary->protocol_version_present = result.protocol_version_present;
+    summary->protocol_version_accepted = result.protocol_version_accepted;
+    summary->hostname_raw_safe_preview = result.hostname_raw_safe_preview;
+    summary->hostname_present = result.hostname_present;
+    summary->map_name_raw_safe_preview = result.map_name_raw_safe_preview;
+    summary->map_name_present = result.map_name_present;
+    summary->game_dir_raw_safe_preview = result.game_dir_raw_safe_preview;
+    summary->game_dir_present = result.game_dir_present;
+    summary->maxplayers_raw = result.maxplayers_raw;
+    summary->maxplayers_present = result.maxplayers_present;
+    summary->maxplayers_accepted = result.maxplayers_accepted;
+    summary->player_slot_placeholder_present =
+        result.player_slot_placeholder_present;
+    summary->response_shape = result.response_shape;
+    summary->response_bytes_or_text_safe_preview = result.response_preview;
+    summary->remote_address_source = "diagnostic-loopback-input";
+    summary->bounded_loopback = true;
+    summary->public_socket_opened = false;
+    summary->steam_auth_not_implemented = true;
+    summary->netchan_not_started = true;
+    summary->reliable_channel_not_started = true;
+    summary->resource_baselines_not_sent = true;
+    summary->signon_state_not_entered = true;
     summary->client_not_put_in_server = true;
     summary->auth = "none-diagnostic-only";
     summary->signon = "not-started";
@@ -206392,6 +206682,39 @@ void PerformHldsConnectDiagnosticSurface()
     ApplyHldsConnectDiagnosticResult(result, mode, scenario, &probe);
 }
 
+void PerformHldsServerinfoDiagnosticSurface()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& surface = state.hlds_serverinfo_diagnostic_surface;
+    auto& probe = state.hlds_serverinfo_diagnostic_probe;
+    if (!state.server_state.dedicated || !surface.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_serverinfo_diagnostic_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_serverinfo_diagnostic_probe_scenario;
+
+    HldsServerinfoDiagnosticResult surface_ready;
+    surface_ready.last_reject_reason = "<none>";
+    surface_ready.detail =
+        "diagnostic serverinfo surface ready; probe disabled or not yet run";
+    ApplyHldsServerinfoDiagnosticResult(surface_ready, mode, scenario, &surface);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsServerinfoDiagnosticResult result =
+        BuildHldsServerinfoDiagnosticResult(scenario);
+    ApplyHldsServerinfoDiagnosticResult(result, mode, scenario, &surface);
+    ApplyHldsServerinfoDiagnosticResult(result, mode, scenario, &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -237989,6 +238312,8 @@ void PopulateBootstrapSummary(
     summary.hlds_getchallenge_diagnostic_probe = {};
     summary.hlds_connect_diagnostic_surface = {};
     summary.hlds_connect_diagnostic_probe = {};
+    summary.hlds_serverinfo_diagnostic_surface = {};
+    summary.hlds_serverinfo_diagnostic_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -239055,6 +239380,10 @@ void PopulateBootstrapSummary(
             state.hlds_connect_diagnostic_surface;
         summary.hlds_connect_diagnostic_probe =
             state.hlds_connect_diagnostic_probe;
+        summary.hlds_serverinfo_diagnostic_surface =
+            state.hlds_serverinfo_diagnostic_surface;
+        summary.hlds_serverinfo_diagnostic_probe =
+            state.hlds_serverinfo_diagnostic_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -245510,6 +245839,7 @@ void FinalizeServerBootstrapStep()
     PerformDedicatedQuerySurface();
     PerformHldsGetchallengeDiagnosticSurface();
     PerformHldsConnectDiagnosticSurface();
+    PerformHldsServerinfoDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -247414,6 +247744,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_getchallenge_diagnostic_probe = {};
     impl_->summary.hlds_connect_diagnostic_surface = {};
     impl_->summary.hlds_connect_diagnostic_probe = {};
+    impl_->summary.hlds_serverinfo_diagnostic_surface = {};
+    impl_->summary.hlds_serverinfo_diagnostic_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -247634,6 +247966,21 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         ? "gate_wrong_protocol"
         : options.hlds_connect_diagnostic_probe_scenario == "gate_malformed_userinfo"
         ? "gate_malformed_userinfo"
+        : "happy";
+    impl_->shim_state.hlds_serverinfo_diagnostic_surface = {};
+    impl_->shim_state.hlds_serverinfo_diagnostic_surface.enabled =
+        options.hlds_serverinfo_diagnostic_surface_enabled;
+    impl_->shim_state.hlds_serverinfo_diagnostic_probe = {};
+    impl_->shim_state.hlds_serverinfo_diagnostic_probe.enabled =
+        options.hlds_serverinfo_diagnostic_probe_enabled;
+    impl_->shim_state.hlds_serverinfo_diagnostic_probe_scenario =
+        options.hlds_serverinfo_diagnostic_probe_scenario == "gate_missing_connect"
+        ? "gate_missing_connect"
+        : options.hlds_serverinfo_diagnostic_probe_scenario == "gate_wrong_protocol"
+        ? "gate_wrong_protocol"
+        : options.hlds_serverinfo_diagnostic_probe_scenario
+                == "gate_missing_serverinfo_field"
+        ? "gate_missing_serverinfo_field"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -250721,6 +251068,79 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_connect_gate_userinfo
                 ? !hlds_connect_userinfo_gate_ok
                 : !hlds_connect_happy_ok);
+    const auto& hlds_serverinfo_probe =
+        impl_->summary.hlds_serverinfo_diagnostic_probe;
+    const bool hlds_serverinfo_gate_missing_connect =
+        impl_->shim_state.hlds_serverinfo_diagnostic_probe_scenario
+        == "gate_missing_connect";
+    const bool hlds_serverinfo_gate_wrong_protocol =
+        impl_->shim_state.hlds_serverinfo_diagnostic_probe_scenario
+        == "gate_wrong_protocol";
+    const bool hlds_serverinfo_gate_missing_field =
+        impl_->shim_state.hlds_serverinfo_diagnostic_probe_scenario
+        == "gate_missing_serverinfo_field";
+    const bool hlds_serverinfo_happy_ok =
+        hlds_serverinfo_probe.enabled
+        && hlds_serverinfo_probe.accepted == 1
+        && hlds_serverinfo_probe.rejected == 0
+        && hlds_serverinfo_probe.getchallenge_dependency_checked
+        && hlds_serverinfo_probe.connect_dependency_checked
+        && hlds_serverinfo_probe.prior_challenge_issued
+        && hlds_serverinfo_probe.connect_diagnostic_ready
+        && hlds_serverinfo_probe.serverinfo_diagnostic_ready
+        && hlds_serverinfo_probe.serverinfo_response_ready
+        && hlds_serverinfo_probe.protocol_version_present
+        && hlds_serverinfo_probe.protocol_version_accepted
+        && hlds_serverinfo_probe.hostname_present
+        && hlds_serverinfo_probe.map_name_present
+        && hlds_serverinfo_probe.game_dir_present
+        && hlds_serverinfo_probe.maxplayers_present
+        && hlds_serverinfo_probe.maxplayers_accepted
+        && hlds_serverinfo_probe.steam_auth_not_implemented
+        && hlds_serverinfo_probe.netchan_not_started
+        && hlds_serverinfo_probe.reliable_channel_not_started
+        && hlds_serverinfo_probe.resource_baselines_not_sent
+        && hlds_serverinfo_probe.signon_state_not_entered
+        && hlds_serverinfo_probe.client_not_put_in_server
+        && hlds_serverinfo_probe.bounded_loopback
+        && !hlds_serverinfo_probe.public_socket_opened
+        && hlds_serverinfo_probe.compatibility_claim_level
+            == "diagnostic-serverinfo-skeleton-only";
+    const bool hlds_serverinfo_missing_connect_gate_ok =
+        hlds_serverinfo_probe.enabled
+        && hlds_serverinfo_probe.accepted == 0
+        && hlds_serverinfo_probe.rejected == 1
+        && hlds_serverinfo_probe.connect_dependency_checked
+        && !hlds_serverinfo_probe.connect_diagnostic_ready
+        && !hlds_serverinfo_probe.serverinfo_response_ready
+        && hlds_serverinfo_probe.last_reject_reason
+            == "missing_connect_diagnostic";
+    const bool hlds_serverinfo_protocol_gate_ok =
+        hlds_serverinfo_probe.enabled
+        && hlds_serverinfo_probe.accepted == 0
+        && hlds_serverinfo_probe.rejected == 1
+        && hlds_serverinfo_probe.protocol_version_present
+        && !hlds_serverinfo_probe.protocol_version_accepted
+        && !hlds_serverinfo_probe.serverinfo_response_ready
+        && hlds_serverinfo_probe.last_reject_reason
+            == "unsupported_protocol_version";
+    const bool hlds_serverinfo_missing_field_gate_ok =
+        hlds_serverinfo_probe.enabled
+        && hlds_serverinfo_probe.accepted == 0
+        && hlds_serverinfo_probe.rejected == 1
+        && hlds_serverinfo_probe.connect_diagnostic_ready
+        && !hlds_serverinfo_probe.map_name_present
+        && !hlds_serverinfo_probe.serverinfo_response_ready
+        && hlds_serverinfo_probe.last_reject_reason == "missing_serverinfo_field";
+    const bool hlds_serverinfo_diagnostic_probe_failed =
+        options.hlds_serverinfo_diagnostic_probe_enabled
+        && (hlds_serverinfo_gate_missing_connect
+                ? !hlds_serverinfo_missing_connect_gate_ok
+                : hlds_serverinfo_gate_wrong_protocol
+                ? !hlds_serverinfo_protocol_gate_ok
+                : hlds_serverinfo_gate_missing_field
+                ? !hlds_serverinfo_missing_field_gate_ok
+                : !hlds_serverinfo_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -260869,6 +261289,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_connect_probe_failed
         && !hlds_getchallenge_diagnostic_probe_failed
         && !hlds_connect_diagnostic_probe_failed
+        && !hlds_serverinfo_diagnostic_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
