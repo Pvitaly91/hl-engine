@@ -1,0 +1,26 @@
+Prompt: HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface
+show-toplevel: G:/DEV/СPP/HLengine/host
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 88b4ea5affae71a1ac014e63694e8771a562bb0a
+source_commit: a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea
+
+descendant gates:
+- ebf60354c861b932a07124f41790ae7996f9edcb: pass
+- 88b4ea5affae71a1ac014e63694e8771a562bb0a: pass
+
+Commands:
+- git status --short
+- git branch --show-current
+- git rev-parse HEAD
+- git merge-base --is-ancestor ebf60354c861b932a07124f41790ae7996f9edcb HEAD
+- git merge-base --is-ancestor 88b4ea5affae71a1ac014e63694e8771a562bb0a HEAD
+- git grep for getchallenge/connectionless/query/connect/parser symbols
+- MSBuild hlhost Debug Win32
+- hlhost proof happy
+- hlhost proof gate_bad_marker
+- hlhost proof gate_wrong_command
+
+Build: pass, 0 errors, warnings C4127 at legacy constant-condition sites.
+Proof happy: pass
+Proof gate_bad_marker: pass
+Proof gate_wrong_command: pass
