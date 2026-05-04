@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_003321",
+  "runInstanceId": "20260505_003321_076_pid33676",
+  "runLabel": "codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-missing-required-userinfo-name",
+  "promptId": "HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "552fee1682bad180d8010ab6bbd7e5b14b34c8ba",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_003321_076_pid33676__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-missing-required-userinfo-name_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_003321_076_pid33676__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-missing-required-userinfo-name_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_003321_076_pid33676__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-missing-required-userinfo-name_part01.log"]
+}
