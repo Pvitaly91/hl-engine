@@ -51,6 +51,9 @@ struct LaunchOptions
     bool hlds_serverinfo_diagnostic_surface_enabled = false;
     bool hlds_serverinfo_diagnostic_probe_enabled = false;
     std::string hlds_serverinfo_diagnostic_probe_scenario = "happy";
+    bool hlds_connectionless_loopback_udp_diagnostic_surface_enabled = false;
+    bool hlds_connectionless_loopback_udp_diagnostic_probe_enabled = false;
+    std::string hlds_connectionless_loopback_udp_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
