@@ -1,0 +1,33 @@
+PROMPT-ID: HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate
+
+startup/baseline commands:
+cd host
+git rev-parse --show-toplevel
+git status --short
+git checkout codex/HL-CL-20260401-081-target-runtime-completion-state
+git branch --show-current
+git rev-parse HEAD
+for each required ancestor: git merge-base --is-ancestor <sha> HEAD
+
+inspection commands:
+Select-String over launch_options/host_application/hl_server_module for hlds_* diagnostic symbols
+Get-Content focused source snippets around prompt 265-270 helpers
+
+development validation:
+git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp
+& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe' build32\host\hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1
+
+runtime proof command shape:
+build32\host\Debug\hlhost.exe --dedicated --gamedir G:/DEV/СPP/HLengine/host/logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label <label> --prompt-id HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate --hlds-connectionless-diagnostic-lifecycle-acceptance-probe --hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario <scenario>
+
+scenarios:
+- happy: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-happy
+- gate_bad_marker_udp: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-bad-marker-udp
+- gate_connect_without_cached_challenge: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-connect-without-cached-challenge
+- gate_wrong_endpoint_reuse: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-wrong-endpoint-reuse
+- gate_expired_or_replayed_challenge: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-expired-or-replayed-challenge
+- gate_wrong_protocol: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-wrong-protocol
+- gate_missing_required_userinfo_name: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-missing-required-userinfo-name
+- gate_unsafe_userinfo: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-unsafe-userinfo
+- gate_non_loopback_bind_blocked: codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate-non-loopback-bind-blocked
+

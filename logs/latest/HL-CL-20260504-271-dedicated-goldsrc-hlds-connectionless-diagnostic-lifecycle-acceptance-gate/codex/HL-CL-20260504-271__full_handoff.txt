@@ -1,0 +1,74 @@
+HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate
+
+Status: success pending artifact commit and push.
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 552fee1682bad180d8010ab6bbd7e5b14b34c8ba
+Source commit: 2b5e8d707e319c19877fc3809b934c4636e36759
+Compatibility claim level: diagnostic-connectionless-lifecycle-acceptance-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+Implemented a compact deterministic lifecycle acceptance gate/probe for the diagnostic HLDS-style connectionless bridge. The gate reuses the already landed diagnostic getchallenge, connect, serverinfo, localhost UDP, address-scoped challenge cache, and userinfo validation policy helpers. It does not add another synthetic resume-token suffix and does not claim real Steam Half-Life or HLDS-compatible client compatibility.
+
+Changed source files:
+- include/app/launch_options.h
+- include/game_api/hl_server_module.h
+- src/app/host_application.cpp
+- src/app/launch_options.cpp
+- src/game_api/hl_server_module.cpp
+
+New launch options:
+- --hlds-connectionless-diagnostic-lifecycle-acceptance-gate
+- --hlds-connectionless-diagnostic-lifecycle-acceptance-probe
+- --hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario <happy|gate_bad_marker_udp|gate_connect_without_cached_challenge|gate_wrong_endpoint_reuse|gate_expired_or_replayed_challenge|gate_wrong_protocol|gate_missing_required_userinfo_name|gate_unsafe_userinfo|gate_non_loopback_bind_blocked>
+
+Proofs:
+
+scenario                              pass accepted rejected last_reject_reason             summary
+--------                              ---- -------- -------- ------------------             -------                     
+happy                                 True 1        0        <none>                         logs/latest/HL-CL-20260504-…
+gate_bad_marker_udp                   True 0        1        bad_connectionless_marker      logs/latest/HL-CL-20260504-…
+gate_connect_without_cached_challenge True 0        1        missing_cached_challenge       logs/latest/HL-CL-20260504-…
+gate_wrong_endpoint_reuse             True 0        1        challenge_endpoint_mismatch    logs/latest/HL-CL-20260504-…
+gate_expired_or_replayed_challenge    True 0        1        challenge_replay               logs/latest/HL-CL-20260504-…
+gate_wrong_protocol                   True 0        1        unsupported_protocol_version   logs/latest/HL-CL-20260504-…
+gate_missing_required_userinfo_name   True 0        1        missing_required_userinfo_name logs/latest/HL-CL-20260504-…
+gate_unsafe_userinfo                  True 0        1        unsafe_userinfo_value          logs/latest/HL-CL-20260504-…
+gate_non_loopback_bind_blocked        True 0        1        non_loopback_bind_denied       logs/latest/HL-CL-20260504-…
+
+Aggregate lifecycle gates: total=8, passed=8, failed=0
+Happy lifecycle: acceptance=1, getchallenge=1, loopback_udp=1, challenge_cache=1, connect=1, userinfo_policy=1, serverinfo=1
+
+Runtime/socket notes:
+- localhost UDP sockets opened in runtime proofs: 1
+- public sockets opened: 0
+- sockets closed: 1
+- UDP bind address: 127.0.0.1
+- maxclients runtime override: none; used default maxclients=4
+
+Build:
+MSBuild Debug Win32 hlhost succeeded; warnings: existing C4127 constant conditional warnings only.
+
+Artifacts:
+- logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/HL-CL-20260504-271__full_handoff.txt
+- logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/connectionless_diagnostic_lifecycle_acceptance_report.md
+- logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/connectionless_diagnostic_lifecycle_acceptance_summary.json
+- logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/command_log.txt
+- logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/git_state.txt
+- runtime summaries/manifests copied under logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/runtime/
+
+Remaining before real client connection attempts:
+- production connectionless receive path
+- durable challenge cache integrated with real remote address handling
+- final protocol/version compatibility policy
+- production userinfo validation policy
+- real serverinfo wire emission
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Conclusion: Diagnostic connectionless lifecycle acceptance gate is implemented and all positive/negative proofs pass.
+
+HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate
