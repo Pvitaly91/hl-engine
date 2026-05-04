@@ -22467,6 +22467,12 @@ bool HostApplication::RunServerEngineShim(
         options.hlds_getchallenge_diagnostic_probe_enabled;
     init_options.hlds_getchallenge_diagnostic_probe_scenario =
         options.hlds_getchallenge_diagnostic_probe_scenario;
+    init_options.hlds_connect_diagnostic_surface_enabled =
+        options.hlds_connect_diagnostic_surface_enabled;
+    init_options.hlds_connect_diagnostic_probe_enabled =
+        options.hlds_connect_diagnostic_probe_enabled;
+    init_options.hlds_connect_diagnostic_probe_scenario =
+        options.hlds_connect_diagnostic_probe_scenario;
     init_options.activation_surface_enabled = options.activation_surface_enabled;
     init_options.activation_probe_enabled = options.activation_probe_enabled;
     init_options.activation_probe_scenario = options.activation_probe_scenario;
@@ -23779,6 +23785,12 @@ bool HostApplication::RunServerEngineShim(
             init_options.hlds_getchallenge_diagnostic_probe_enabled ? "1" : "0")
         + ", hlds_getchallenge_diagnostic_probe_scenario="
         + init_options.hlds_getchallenge_diagnostic_probe_scenario
+        + ", hlds_connect_diagnostic_surface="
+        + std::string(init_options.hlds_connect_diagnostic_surface_enabled ? "1" : "0")
+        + ", hlds_connect_diagnostic_probe="
+        + std::string(init_options.hlds_connect_diagnostic_probe_enabled ? "1" : "0")
+        + ", hlds_connect_diagnostic_probe_scenario="
+        + init_options.hlds_connect_diagnostic_probe_scenario
         + ", activation_surface=" + std::string(init_options.activation_surface_enabled ? "1" : "0")
         + ", activation_probe=" + std::string(init_options.activation_probe_enabled ? "1" : "0")
         + ", activation_probe_scenario=" + init_options.activation_probe_scenario
