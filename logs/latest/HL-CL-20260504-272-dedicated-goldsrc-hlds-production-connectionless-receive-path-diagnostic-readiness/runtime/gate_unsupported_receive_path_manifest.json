@@ -1,0 +1,17 @@
+{
+  "prompt_id": "HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness",
+  "label": "codex-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-gate-unsupported-receive-path",
+  "scenario": "gate_unsupported_receive_path",
+  "runtime_executed": 0,
+  "report_only": 1,
+  "pass": true,
+  "summary": "logs\\latest\\HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness\\runtime/gate_unsupported_receive_path_summary.log",
+  "accepted": 0,
+  "rejected": 1,
+  "last_reject_reason": "unsupported_or_absent_production_receive_path",
+  "production_receive_path_available": 0,
+  "guarded_hook_installed": 0,
+  "public_socket_opened": 0,
+  "loopback_udp_socket_opened": 0,
+  "sockets_closed": 1
+}
