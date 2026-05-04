@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_135524",
+  "runInstanceId": "20260504_135524_746_pid11808",
+  "runLabel": "codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy",
+  "promptId": "HL-CL-20260503-263-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "bf8341812d494a4210f4208524bf9b74385b3994",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_part01.log"]
+}
