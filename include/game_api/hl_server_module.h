@@ -7066,6 +7066,41 @@ struct HldsAddressScopedChallengeCacheDiagnosticProbeSummary
 {
 };
 
+struct HldsUserinfoValidationPolicyDiagnosticSurfaceSummary
+    : HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary
+{
+    bool userinfo_policy_enabled = false;
+    std::string userinfo_policy_name = "disabled";
+    bool userinfo_policy_diagnostic_only = true;
+    bool userinfo_required_name = false;
+    bool userinfo_required_name_present = false;
+    std::string userinfo_raw_safe_preview = "<none>";
+    std::string userinfo_sanitized_safe_preview = "<none>";
+    bool userinfo_sanitized_preview_only = true;
+    bool userinfo_policy_checked = false;
+    bool userinfo_policy_passed = false;
+    int userinfo_keys_count = 0;
+    int userinfo_max_keys = 0;
+    int userinfo_bytes = 0;
+    int userinfo_max_bytes = 0;
+    bool userinfo_bytes_within_limit = false;
+    int userinfo_max_key_bytes = 0;
+    int userinfo_max_value_bytes = 0;
+    bool userinfo_key_bytes_within_limit = false;
+    bool userinfo_value_bytes_within_limit = false;
+    std::string userinfo_duplicate_policy = "disabled";
+    bool userinfo_duplicate_protected_key_detected = false;
+    bool userinfo_control_chars_detected = false;
+    bool userinfo_unsafe_value_detected = false;
+    bool userinfo_name_seen = false;
+    bool userinfo_model_seen = false;
+};
+
+struct HldsUserinfoValidationPolicyDiagnosticProbeSummary
+    : HldsUserinfoValidationPolicyDiagnosticSurfaceSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21584,6 +21619,9 @@ struct HlServerModuleInitOptions
     bool hlds_address_scoped_challenge_cache_diagnostic_surface_enabled = false;
     bool hlds_address_scoped_challenge_cache_diagnostic_probe_enabled = false;
     std::string hlds_address_scoped_challenge_cache_diagnostic_probe_scenario = "happy";
+    bool hlds_userinfo_validation_policy_diagnostic_surface_enabled = false;
+    bool hlds_userinfo_validation_policy_diagnostic_probe_enabled = false;
+    std::string hlds_userinfo_validation_policy_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22404,6 +22442,10 @@ struct HlServerModuleSummary
         hlds_address_scoped_challenge_cache_diagnostic_surface;
     HldsAddressScopedChallengeCacheDiagnosticProbeSummary
         hlds_address_scoped_challenge_cache_diagnostic_probe;
+    HldsUserinfoValidationPolicyDiagnosticSurfaceSummary
+        hlds_userinfo_validation_policy_diagnostic_surface;
+    HldsUserinfoValidationPolicyDiagnosticProbeSummary
+        hlds_userinfo_validation_policy_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;

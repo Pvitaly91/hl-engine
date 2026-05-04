@@ -3907,6 +3907,11 @@ struct EngineShimState
     hl::game_api::HldsAddressScopedChallengeCacheDiagnosticProbeSummary
         hlds_address_scoped_challenge_cache_diagnostic_probe;
     std::string hlds_address_scoped_challenge_cache_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsUserinfoValidationPolicyDiagnosticSurfaceSummary
+        hlds_userinfo_validation_policy_diagnostic_surface;
+    hl::game_api::HldsUserinfoValidationPolicyDiagnosticProbeSummary
+        hlds_userinfo_validation_policy_diagnostic_probe;
+    std::string hlds_userinfo_validation_policy_diagnostic_probe_scenario = "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4819,6 +4824,10 @@ std::string BuildHldsAddressScopedChallengeCacheDiagnosticSurfaceLine(
     const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary& summary);
 std::string BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
     const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticProbeSummary& summary);
+std::string BuildHldsUserinfoValidationPolicyDiagnosticSurfaceLine(
+    const hl::game_api::HldsUserinfoValidationPolicyDiagnosticSurfaceSummary& summary);
+std::string BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
+    const hl::game_api::HldsUserinfoValidationPolicyDiagnosticProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25241,6 +25250,74 @@ std::string BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
 {
     return BuildHldsAddressScopedChallengeCacheDiagnosticLine(
         "hlds_address_scoped_challenge_cache_diagnostic_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsUserinfoValidationPolicyDiagnosticLine(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsAddressScopedChallengeCacheDiagnosticLine(prefix, summary)
+        + ", userinfo_policy_enabled="
+        + std::string(summary.userinfo_policy_enabled ? "1" : "0")
+        + ", userinfo_policy_name=" + summary.userinfo_policy_name
+        + ", userinfo_policy_diagnostic_only="
+        + std::string(summary.userinfo_policy_diagnostic_only ? "1" : "0")
+        + ", userinfo_required_name="
+        + std::string(summary.userinfo_required_name ? "1" : "0")
+        + ", userinfo_required_name_present="
+        + std::string(summary.userinfo_required_name_present ? "1" : "0")
+        + ", userinfo_raw_safe_preview=" + summary.userinfo_raw_safe_preview
+        + ", userinfo_sanitized_safe_preview="
+        + summary.userinfo_sanitized_safe_preview
+        + ", userinfo_sanitized_preview_only="
+        + std::string(summary.userinfo_sanitized_preview_only ? "1" : "0")
+        + ", userinfo_policy_checked="
+        + std::string(summary.userinfo_policy_checked ? "1" : "0")
+        + ", userinfo_policy_passed="
+        + std::string(summary.userinfo_policy_passed ? "1" : "0")
+        + ", userinfo_keys_count=" + std::to_string(summary.userinfo_keys_count)
+        + ", userinfo_max_keys=" + std::to_string(summary.userinfo_max_keys)
+        + ", userinfo_bytes=" + std::to_string(summary.userinfo_bytes)
+        + ", userinfo_max_bytes=" + std::to_string(summary.userinfo_max_bytes)
+        + ", userinfo_bytes_within_limit="
+        + std::string(summary.userinfo_bytes_within_limit ? "1" : "0")
+        + ", userinfo_max_key_bytes="
+        + std::to_string(summary.userinfo_max_key_bytes)
+        + ", userinfo_max_value_bytes="
+        + std::to_string(summary.userinfo_max_value_bytes)
+        + ", userinfo_key_bytes_within_limit="
+        + std::string(summary.userinfo_key_bytes_within_limit ? "1" : "0")
+        + ", userinfo_value_bytes_within_limit="
+        + std::string(summary.userinfo_value_bytes_within_limit ? "1" : "0")
+        + ", userinfo_duplicate_policy=" + summary.userinfo_duplicate_policy
+        + ", userinfo_duplicate_protected_key_detected="
+        + std::string(
+            summary.userinfo_duplicate_protected_key_detected ? "1" : "0")
+        + ", userinfo_control_chars_detected="
+        + std::string(summary.userinfo_control_chars_detected ? "1" : "0")
+        + ", userinfo_unsafe_value_detected="
+        + std::string(summary.userinfo_unsafe_value_detected ? "1" : "0")
+        + ", userinfo_name_seen="
+        + std::string(summary.userinfo_name_seen ? "1" : "0")
+        + ", userinfo_model_seen="
+        + std::string(summary.userinfo_model_seen ? "1" : "0");
+}
+
+std::string BuildHldsUserinfoValidationPolicyDiagnosticSurfaceLine(
+    const hl::game_api::HldsUserinfoValidationPolicyDiagnosticSurfaceSummary& summary)
+{
+    return BuildHldsUserinfoValidationPolicyDiagnosticLine(
+        "hlds_userinfo_validation_policy_diagnostic_surface",
+        summary);
+}
+
+std::string BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
+    const hl::game_api::HldsUserinfoValidationPolicyDiagnosticProbeSummary& summary)
+{
+    return BuildHldsUserinfoValidationPolicyDiagnosticLine(
+        "hlds_userinfo_validation_policy_diagnostic_probe",
         summary);
 }
 
@@ -56471,6 +56548,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
                     summary.hlds_address_scoped_challenge_cache_diagnostic_probe));
+        }
+        if (summary.hlds_userinfo_validation_policy_diagnostic_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsUserinfoValidationPolicyDiagnosticSurfaceLine(
+                    summary.hlds_userinfo_validation_policy_diagnostic_surface));
+        }
+        if (summary.hlds_userinfo_validation_policy_diagnostic_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
+                    summary.hlds_userinfo_validation_policy_diagnostic_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -150087,6 +150178,643 @@ void ApplyHldsAddressScopedChallengeCacheDiagnosticResult(
     summary->udp_client_b_endpoint = result.udp_client_b_endpoint;
 }
 
+constexpr int kHldsUserinfoValidationPolicyMaxBytes = 256;
+constexpr int kHldsUserinfoValidationPolicyMaxKeys = 16;
+constexpr int kHldsUserinfoValidationPolicyMaxKeyBytes = 32;
+constexpr int kHldsUserinfoValidationPolicyMaxValueBytes = 64;
+
+struct HldsUserinfoValidationPolicyDiagnosticResult
+    : HldsAddressScopedChallengeCacheDiagnosticResult
+{
+    bool userinfo_policy_enabled = true;
+    std::string userinfo_policy_name = "diagnostic_goldsrc_userinfo_minimal_policy";
+    bool userinfo_policy_diagnostic_only = true;
+    bool userinfo_required_name = true;
+    bool userinfo_required_name_present = false;
+    std::string userinfo_raw_safe_preview = "<none>";
+    std::string userinfo_sanitized_safe_preview = "<none>";
+    bool userinfo_sanitized_preview_only = true;
+    bool userinfo_policy_checked = false;
+    bool userinfo_policy_passed = false;
+    int userinfo_keys_count = 0;
+    int userinfo_max_keys = kHldsUserinfoValidationPolicyMaxKeys;
+    int userinfo_bytes = 0;
+    int userinfo_max_bytes = kHldsUserinfoValidationPolicyMaxBytes;
+    bool userinfo_bytes_within_limit = false;
+    int userinfo_max_key_bytes = kHldsUserinfoValidationPolicyMaxKeyBytes;
+    int userinfo_max_value_bytes = kHldsUserinfoValidationPolicyMaxValueBytes;
+    bool userinfo_key_bytes_within_limit = true;
+    bool userinfo_value_bytes_within_limit = true;
+    std::string userinfo_duplicate_policy = "reject_duplicate_protected_keys";
+    bool userinfo_duplicate_protected_key_detected = false;
+    bool userinfo_control_chars_detected = false;
+    bool userinfo_unsafe_value_detected = false;
+    bool userinfo_name_seen = false;
+    bool userinfo_model_seen = false;
+};
+
+std::string SanitizeUserinfoPreview(std::string_view value)
+{
+    if (value.empty())
+    {
+        return "<none>";
+    }
+
+    std::string sanitized;
+    sanitized.reserve(value.size());
+    for (const char character : value)
+    {
+        const unsigned char byte = static_cast<unsigned char>(character);
+        if (byte < 0x20u || byte == 0x7Fu)
+        {
+            sanitized.push_back('?');
+        }
+        else
+        {
+            sanitized.push_back(character);
+        }
+    }
+
+    constexpr std::size_t kMaxPreviewBytes = 96;
+    if (sanitized.size() > kMaxPreviewBytes)
+    {
+        sanitized.resize(kMaxPreviewBytes);
+        sanitized += "...";
+    }
+    return sanitized;
+}
+
+bool IsProtectedDiagnosticUserinfoKey(std::string_view normalized_key)
+{
+    return normalized_key == "name" || normalized_key == "model";
+}
+
+bool IsUnsafeDiagnosticUserinfoValue(std::string_view value)
+{
+    if (value.find("..") != std::string_view::npos
+        || value.find('/') != std::string_view::npos
+        || value.find(';') != std::string_view::npos
+        || value.find('"') != std::string_view::npos
+        || value.find('\'') != std::string_view::npos)
+    {
+        return true;
+    }
+
+    for (const char character : value)
+    {
+        const unsigned char byte = static_cast<unsigned char>(character);
+        if (byte < 0x20u || byte == 0x7Fu)
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+std::string ValidateHldsDiagnosticUserinfoPolicy(
+    std::string_view userinfo,
+    HldsUserinfoValidationPolicyDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return "invalid_diagnostic_state";
+    }
+
+    result->userinfo_raw_safe_preview = SanitizeUserinfoPreview(userinfo);
+    result->userinfo_sanitized_safe_preview = result->userinfo_raw_safe_preview;
+    result->userinfo_parse_attempted = true;
+    result->userinfo_policy_checked = true;
+    result->userinfo_bytes = static_cast<int>(userinfo.size());
+    result->userinfo_bytes_within_limit =
+        result->userinfo_bytes <= result->userinfo_max_bytes;
+
+    if (userinfo.empty() || userinfo.front() != '\\')
+    {
+        result->userinfo_parsed = false;
+        result->userinfo_policy_passed = false;
+        return "malformed_userinfo";
+    }
+
+    std::unordered_set<std::string> seen_protected_keys;
+    std::size_t offset = 1;
+    while (offset < userinfo.size())
+    {
+        const std::size_t key_end = userinfo.find('\\', offset);
+        if (key_end == std::string_view::npos || key_end == offset)
+        {
+            result->userinfo_parsed = false;
+            result->userinfo_policy_passed = false;
+            return "malformed_userinfo";
+        }
+
+        const std::string key(userinfo.substr(offset, key_end - offset));
+        offset = key_end + 1;
+        const std::size_t value_end = userinfo.find('\\', offset);
+        const std::size_t value_size =
+            value_end == std::string_view::npos ? userinfo.size() - offset : value_end - offset;
+        if (value_size == 0)
+        {
+            result->userinfo_parsed = false;
+            result->userinfo_policy_passed = false;
+            return "malformed_userinfo";
+        }
+
+        const std::string value(userinfo.substr(offset, value_size));
+        ++result->userinfo_keys_count;
+
+        const std::string normalized_key = ToLowerCopy(key);
+        if (normalized_key == "name")
+        {
+            result->userinfo_name_seen = true;
+            result->userinfo_required_name_present = !value.empty();
+        }
+        if (normalized_key == "model")
+        {
+            result->userinfo_model_seen = true;
+        }
+        if (IsProtectedDiagnosticUserinfoKey(normalized_key)
+            && !seen_protected_keys.insert(normalized_key).second)
+        {
+            result->userinfo_duplicate_protected_key_detected = true;
+        }
+
+        if (key.size()
+            > static_cast<std::size_t>(result->userinfo_max_key_bytes))
+        {
+            result->userinfo_key_bytes_within_limit = false;
+        }
+        if (value.size()
+            > static_cast<std::size_t>(result->userinfo_max_value_bytes))
+        {
+            result->userinfo_value_bytes_within_limit = false;
+        }
+
+        for (const char character : key + value)
+        {
+            const unsigned char byte = static_cast<unsigned char>(character);
+            if (byte < 0x20u || byte == 0x7Fu)
+            {
+                result->userinfo_control_chars_detected = true;
+            }
+        }
+        if (IsUnsafeDiagnosticUserinfoValue(value))
+        {
+            result->userinfo_unsafe_value_detected = true;
+        }
+
+        if (value_end == std::string_view::npos)
+        {
+            offset = userinfo.size();
+        }
+        else
+        {
+            offset = value_end + 1;
+        }
+    }
+
+    result->userinfo_parsed = result->userinfo_keys_count > 0;
+    if (!result->userinfo_parsed)
+    {
+        result->userinfo_policy_passed = false;
+        return "malformed_userinfo";
+    }
+    if (result->userinfo_keys_count > result->userinfo_max_keys)
+    {
+        result->userinfo_policy_passed = false;
+        return "userinfo_too_many_keys";
+    }
+    if (!result->userinfo_bytes_within_limit)
+    {
+        result->userinfo_policy_passed = false;
+        return "userinfo_too_large";
+    }
+    if (!result->userinfo_key_bytes_within_limit)
+    {
+        result->userinfo_policy_passed = false;
+        return "userinfo_key_too_large";
+    }
+    if (!result->userinfo_value_bytes_within_limit)
+    {
+        result->userinfo_policy_passed = false;
+        return "userinfo_value_too_large";
+    }
+    if (result->userinfo_duplicate_protected_key_detected)
+    {
+        result->userinfo_policy_passed = false;
+        return "duplicate_userinfo_key";
+    }
+    if (result->userinfo_control_chars_detected || result->userinfo_unsafe_value_detected)
+    {
+        result->userinfo_policy_passed = false;
+        return "unsafe_userinfo_value";
+    }
+    if (!result->userinfo_required_name_present)
+    {
+        result->userinfo_policy_passed = false;
+        return "missing_required_userinfo_name";
+    }
+
+    result->userinfo_policy_passed = true;
+    return "<none>";
+}
+
+std::string BuildHldsUserinfoValidationPolicyUserinfo(std::string_view scenario)
+{
+    if (scenario == "gate_missing_required_name")
+    {
+        return "\\model\\gordon\\rate\\25000";
+    }
+    if (scenario == "gate_malformed_userinfo_policy")
+    {
+        return "\\name\\diagnostic_loopback\\model";
+    }
+    if (scenario == "gate_overlong_userinfo")
+    {
+        return "\\name\\" + std::string(65, 'a') + "\\model\\gordon";
+    }
+    if (scenario == "gate_duplicate_protected_key")
+    {
+        return "\\name\\diagnostic_loopback\\model\\gordon\\name\\duplicate";
+    }
+    if (scenario == "gate_control_character_value")
+    {
+        return std::string("\\name\\diagnostic")
+            + static_cast<char>(0x01)
+            + "loopback\\model\\gordon";
+    }
+    return "\\name\\diagnostic_loopback\\model\\gordon\\rate\\25000";
+}
+
+std::vector<unsigned char> BuildHldsUserinfoValidationPolicyConnectInput(
+    std::string_view scenario,
+    std::string_view issued_challenge)
+{
+    std::string challenge = std::string(issued_challenge);
+    if (scenario == "gate_challenge_mismatch_still_precedes_userinfo_acceptance")
+    {
+        challenge = std::to_string(std::atoi(challenge.c_str()) + 1);
+    }
+
+    return BuildConnectionlessTextPacket(
+        "connect protocol=48 challenge=" + challenge
+        + " userinfo=" + BuildHldsUserinfoValidationPolicyUserinfo(scenario));
+}
+
+HldsUserinfoValidationPolicyDiagnosticResult RejectHldsUserinfoValidationPolicyDiagnostic(
+    HldsUserinfoValidationPolicyDiagnosticResult result,
+    const HldsAddressScopedChallengeCache& cache,
+    std::string reject_reason,
+    std::string detail)
+{
+    result.accepted = 0;
+    result.rejected = 1;
+    result.last_reject_reason = std::move(reject_reason);
+    result.detail = std::move(detail);
+    result.connect_diagnostic_ready = false;
+    result.serverinfo_diagnostic_ready = false;
+    result.serverinfo_response_ready = false;
+    result.serverinfo_response_shape = "disabled";
+    result.challenge_cache_entries_after = cache.Size();
+    result.challenge_cache_evicted = cache.evicted;
+    result.sockets_closed = true;
+    return result;
+}
+
+HldsUserinfoValidationPolicyDiagnosticResult RunHldsUserinfoValidationPolicyDiagnostic(
+    std::string_view scenario)
+{
+    HldsUserinfoValidationPolicyDiagnosticResult result;
+    result.loopback_policy_enforced = true;
+    result.udp_bind_address = "127.0.0.1";
+
+    HldsAddressScopedChallengeCache cache;
+    result.challenge_cache_entries_before = cache.Size();
+
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&result.detail))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            "winsock_start_failed",
+            result.detail);
+    }
+
+    ScopedUdpSocket server_socket;
+    if (!BindLoopbackQuerySocket(0, &server_socket, &result.udp_bound_port, &result.detail))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            "loopback_udp_bind_failed",
+            result.detail);
+    }
+
+    ScopedUdpSocket client_socket;
+    int client_port = 0;
+    if (!BindLoopbackQuerySocket(0, &client_socket, &client_port, &result.detail))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            "loopback_udp_client_bind_failed",
+            result.detail);
+    }
+
+    result.loopback_udp_socket_opened = true;
+    result.udp_server_address_source = LoopbackEndpointString(result.udp_bound_port);
+    result.udp_client_address_source = LoopbackEndpointString(client_port);
+    result.udp_client_a_endpoint = "AF_INET/" + LoopbackEndpointString(client_port);
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(result.udp_bound_port));
+
+    const std::vector<unsigned char> getchallenge_request =
+        BuildHldsGetchallengeDiagnosticInput("happy");
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            getchallenge_request,
+            &result,
+            "userinfo-policy getchallenge UDP client"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    std::vector<unsigned char> received_getchallenge;
+    sockaddr_in challenge_client_address{};
+    int challenge_client_address_size = sizeof(challenge_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_getchallenge,
+            &challenge_client_address,
+            &challenge_client_address_size,
+            &result,
+            "userinfo-policy getchallenge UDP server"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    result.getchallenge_datagram_received = true;
+    const HldsGetchallengeDiagnosticResult getchallenge_result =
+        ParseHldsGetchallengeDiagnosticInput(received_getchallenge);
+    CopyGetchallengeDiagnosticToUdpResult(getchallenge_result, &result);
+    if (getchallenge_result.accepted != 1)
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            getchallenge_result.last_reject_reason,
+            getchallenge_result.detail);
+    }
+
+    const std::string client_endpoint =
+        LoopbackEndpointIdentityString(challenge_client_address);
+    result.udp_client_a_endpoint = client_endpoint;
+    result.issued_challenge_value = getchallenge_result.challenge_value;
+    result.challenge_created_tick = kHldsAddressScopedChallengeCacheCreatedTick;
+    result.challenge_current_tick = kHldsAddressScopedChallengeCacheCreatedTick;
+    cache.Insert(
+        client_endpoint,
+        getchallenge_result.challenge_value,
+        kHldsAddressScopedChallengeCacheCreatedTick);
+    result.challenge_cache_inserted = true;
+    result.challenge_cache_entries_after = cache.Size();
+
+    const std::vector<unsigned char> challenge_response =
+        BuildConnectionlessTextPacket("challenge " + getchallenge_result.challenge_value);
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            challenge_client_address,
+            challenge_response,
+            &result,
+            "userinfo-policy challenge UDP server response"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+    result.challenge_response_datagram_sent = true;
+    result.response_preview = SafePacketPreview(challenge_response);
+
+    std::vector<unsigned char> received_challenge_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &received_challenge_response,
+            nullptr,
+            nullptr,
+            &result,
+            "userinfo-policy challenge UDP client"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    const std::vector<unsigned char> connect_request =
+        BuildHldsUserinfoValidationPolicyConnectInput(
+            scenario,
+            getchallenge_result.challenge_value);
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            connect_request,
+            &result,
+            "userinfo-policy connect UDP client"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    std::vector<unsigned char> received_connect;
+    sockaddr_in connect_client_address{};
+    int connect_client_address_size = sizeof(connect_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_connect,
+            &connect_client_address,
+            &connect_client_address_size,
+            &result,
+            "userinfo-policy connect UDP server"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    result.connect_datagram_received = true;
+    CopyConnectPacketShapeToAddressScopedResult(received_connect, &result);
+    const std::string connect_text = ExtractConnectionlessText(
+        received_connect.data(),
+        static_cast<int>(received_connect.size()));
+    const std::string userinfo_value = ExtractTokenValue(connect_text, "userinfo=");
+    std::string reject_reason = ValidateAddressScopedCachedChallenge(
+        cache,
+        LoopbackEndpointIdentityString(connect_client_address),
+        kHldsAddressScopedChallengeCacheCreatedTick + 1,
+        &result);
+    if (reject_reason != "<none>")
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic connect rejected by address-scoped challenge cache before userinfo policy acceptance");
+    }
+
+    reject_reason = ValidateHldsDiagnosticUserinfoPolicy(userinfo_value, &result);
+    if (reject_reason != "<none>")
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic connect rejected by explicit userinfo validation policy");
+    }
+
+    HldsAddressScopedChallengeCacheEntry* cache_entry =
+        cache.FindEndpoint(LoopbackEndpointIdentityString(connect_client_address));
+    const HldsConnectDiagnosticResult connect_result =
+        ParseHldsConnectDiagnosticInput(received_connect, getchallenge_result);
+    CopyConnectDiagnosticToUdpResult(connect_result, &result);
+    result.connect_challenge_value = connect_result.challenge_raw;
+    result.challenge_value_matches = true;
+    result.challenge_endpoint_matches = true;
+    result.userinfo_parse_attempted = true;
+    result.userinfo_parsed = true;
+    if (connect_result.accepted != 1)
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            connect_result.last_reject_reason,
+            connect_result.detail);
+    }
+
+    if (cache_entry != nullptr)
+    {
+        cache_entry->consumed = true;
+    }
+    result.challenge_consumed = true;
+
+    const HldsServerinfoDiagnosticResult serverinfo_result =
+        BuildHldsServerinfoDiagnosticResultFromConnect(connect_result, "happy");
+    CopyServerinfoDiagnosticToUdpResult(serverinfo_result, &result);
+    if (serverinfo_result.accepted != 1)
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            serverinfo_result.last_reject_reason,
+            serverinfo_result.detail);
+    }
+
+    const std::vector<unsigned char> serverinfo_response =
+        BuildConnectionlessTextPacket(
+            "serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire"
+            " game=valve maxplayers=4 slot=diagnostic-client-slot-1");
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            connect_client_address,
+            serverinfo_response,
+            &result,
+            "userinfo-policy serverinfo UDP server response"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+    result.serverinfo_response_datagram_sent = true;
+    result.response_preview = serverinfo_result.response_preview;
+
+    std::vector<unsigned char> received_serverinfo_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &received_serverinfo_response,
+            nullptr,
+            nullptr,
+            &result,
+            "userinfo-policy serverinfo UDP client"))
+    {
+        return RejectHldsUserinfoValidationPolicyDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    result.accepted = 1;
+    result.rejected = 0;
+    result.last_reject_reason = "<none>";
+    result.challenge_cache_entries_after = cache.Size();
+    result.challenge_cache_evicted = cache.evicted;
+    result.sockets_closed = true;
+    result.detail =
+        "diagnostic-only userinfo validation policy accepted a localhost UDP connect after address-scoped challenge validation; no auth, netchan, baselines, signon state, or admission performed";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsUserinfoValidationPolicyDiagnosticResult(
+    const HldsUserinfoValidationPolicyDiagnosticResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    ApplyHldsAddressScopedChallengeCacheDiagnosticResult(result, mode, scenario, summary);
+    summary->compatibility_claim_level =
+        "diagnostic-userinfo-validation-policy-only";
+    summary->userinfo_policy_enabled = result.userinfo_policy_enabled;
+    summary->userinfo_policy_name = result.userinfo_policy_name;
+    summary->userinfo_policy_diagnostic_only = result.userinfo_policy_diagnostic_only;
+    summary->userinfo_required_name = result.userinfo_required_name;
+    summary->userinfo_required_name_present = result.userinfo_required_name_present;
+    summary->userinfo_raw_safe_preview = result.userinfo_raw_safe_preview;
+    summary->userinfo_sanitized_safe_preview = result.userinfo_sanitized_safe_preview;
+    summary->userinfo_sanitized_preview_only = result.userinfo_sanitized_preview_only;
+    summary->userinfo_policy_checked = result.userinfo_policy_checked;
+    summary->userinfo_policy_passed = result.userinfo_policy_passed;
+    summary->userinfo_keys_count = result.userinfo_keys_count;
+    summary->userinfo_max_keys = result.userinfo_max_keys;
+    summary->userinfo_bytes = result.userinfo_bytes;
+    summary->userinfo_max_bytes = result.userinfo_max_bytes;
+    summary->userinfo_bytes_within_limit = result.userinfo_bytes_within_limit;
+    summary->userinfo_max_key_bytes = result.userinfo_max_key_bytes;
+    summary->userinfo_max_value_bytes = result.userinfo_max_value_bytes;
+    summary->userinfo_key_bytes_within_limit = result.userinfo_key_bytes_within_limit;
+    summary->userinfo_value_bytes_within_limit = result.userinfo_value_bytes_within_limit;
+    summary->userinfo_duplicate_policy = result.userinfo_duplicate_policy;
+    summary->userinfo_duplicate_protected_key_detected =
+        result.userinfo_duplicate_protected_key_detected;
+    summary->userinfo_control_chars_detected = result.userinfo_control_chars_detected;
+    summary->userinfo_unsafe_value_detected = result.userinfo_unsafe_value_detected;
+    summary->userinfo_name_seen = result.userinfo_name_seen;
+    summary->userinfo_model_seen = result.userinfo_model_seen;
+}
+
 bool PumpOneLoopbackConnectAdmissionAttempt(
     EngineShimState& state,
     SOCKET server_socket,
@@ -208330,6 +209058,52 @@ void PerformHldsAddressScopedChallengeCacheDiagnosticSurface()
         &probe);
 }
 
+void PerformHldsUserinfoValidationPolicyDiagnosticSurface()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& surface = state.hlds_userinfo_validation_policy_diagnostic_surface;
+    auto& probe = state.hlds_userinfo_validation_policy_diagnostic_probe;
+    if (!state.server_state.dedicated || !surface.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_userinfo_validation_policy_diagnostic_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_userinfo_validation_policy_diagnostic_probe_scenario;
+
+    HldsUserinfoValidationPolicyDiagnosticResult surface_ready;
+    surface_ready.last_reject_reason = "<none>";
+    surface_ready.sockets_closed = true;
+    surface_ready.detail =
+        "diagnostic userinfo validation policy surface ready; probe disabled or not yet run";
+    ApplyHldsUserinfoValidationPolicyDiagnosticResult(
+        surface_ready,
+        mode,
+        scenario,
+        &surface);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsUserinfoValidationPolicyDiagnosticResult result =
+        RunHldsUserinfoValidationPolicyDiagnostic(scenario);
+    ApplyHldsUserinfoValidationPolicyDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &surface);
+    ApplyHldsUserinfoValidationPolicyDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -239933,6 +240707,8 @@ void PopulateBootstrapSummary(
     summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
     summary.hlds_address_scoped_challenge_cache_diagnostic_surface = {};
     summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
+    summary.hlds_userinfo_validation_policy_diagnostic_surface = {};
+    summary.hlds_userinfo_validation_policy_diagnostic_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -241011,6 +241787,10 @@ void PopulateBootstrapSummary(
             state.hlds_address_scoped_challenge_cache_diagnostic_surface;
         summary.hlds_address_scoped_challenge_cache_diagnostic_probe =
             state.hlds_address_scoped_challenge_cache_diagnostic_probe;
+        summary.hlds_userinfo_validation_policy_diagnostic_surface =
+            state.hlds_userinfo_validation_policy_diagnostic_surface;
+        summary.hlds_userinfo_validation_policy_diagnostic_probe =
+            state.hlds_userinfo_validation_policy_diagnostic_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -247469,6 +248249,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsServerinfoDiagnosticSurface();
     PerformHldsConnectionlessLoopbackUdpDiagnosticSurface();
     PerformHldsAddressScopedChallengeCacheDiagnosticSurface();
+    PerformHldsUserinfoValidationPolicyDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -249379,6 +250160,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
     impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_surface = {};
     impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
+    impl_->summary.hlds_userinfo_validation_policy_diagnostic_surface = {};
+    impl_->summary.hlds_userinfo_validation_policy_diagnostic_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -249660,6 +250443,32 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
                 == "gate_cache_capacity_eviction"
         ? "gate_cache_capacity_eviction"
+        : "happy";
+    impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_surface = {};
+    impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_surface.enabled =
+        options.hlds_userinfo_validation_policy_diagnostic_surface_enabled;
+    impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_probe = {};
+    impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_probe.enabled =
+        options.hlds_userinfo_validation_policy_diagnostic_probe_enabled;
+    impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_probe_scenario =
+        options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+            == "gate_missing_required_name"
+        ? "gate_missing_required_name"
+        : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+                == "gate_malformed_userinfo_policy"
+        ? "gate_malformed_userinfo_policy"
+        : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+                == "gate_overlong_userinfo"
+        ? "gate_overlong_userinfo"
+        : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+                == "gate_duplicate_protected_key"
+        ? "gate_duplicate_protected_key"
+        : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+                == "gate_control_character_value"
+        ? "gate_control_character_value"
+        : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+                == "gate_challenge_mismatch_still_precedes_userinfo_acceptance"
+        ? "gate_challenge_mismatch_still_precedes_userinfo_acceptance"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -253079,6 +253888,162 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_address_cache_gate_capacity
                 ? !hlds_address_cache_capacity_ok
                 : !hlds_address_cache_happy_ok);
+    const auto& hlds_userinfo_policy_probe =
+        impl_->summary.hlds_userinfo_validation_policy_diagnostic_probe;
+    const std::string& hlds_userinfo_policy_scenario =
+        impl_->shim_state.hlds_userinfo_validation_policy_diagnostic_probe_scenario;
+    const bool hlds_userinfo_policy_gate_missing_name =
+        hlds_userinfo_policy_scenario == "gate_missing_required_name";
+    const bool hlds_userinfo_policy_gate_malformed =
+        hlds_userinfo_policy_scenario == "gate_malformed_userinfo_policy";
+    const bool hlds_userinfo_policy_gate_overlong =
+        hlds_userinfo_policy_scenario == "gate_overlong_userinfo";
+    const bool hlds_userinfo_policy_gate_duplicate =
+        hlds_userinfo_policy_scenario == "gate_duplicate_protected_key";
+    const bool hlds_userinfo_policy_gate_control =
+        hlds_userinfo_policy_scenario == "gate_control_character_value";
+    const bool hlds_userinfo_policy_gate_challenge =
+        hlds_userinfo_policy_scenario
+        == "gate_challenge_mismatch_still_precedes_userinfo_acceptance";
+    const bool hlds_userinfo_policy_common_ok =
+        hlds_userinfo_policy_probe.enabled
+        && hlds_userinfo_policy_probe.bounded_loopback
+        && !hlds_userinfo_policy_probe.public_socket_opened
+        && hlds_userinfo_policy_probe.loopback_policy_enforced
+        && hlds_userinfo_policy_probe.loopback_udp_socket_opened
+        && hlds_userinfo_policy_probe.sockets_closed
+        && hlds_userinfo_policy_probe.challenge_cache_enabled
+        && hlds_userinfo_policy_probe.challenge_cache_key
+            == "remote_loopback_endpoint"
+        && hlds_userinfo_policy_probe.challenge_cache_hit
+        && hlds_userinfo_policy_probe.challenge_endpoint_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_enabled
+        && hlds_userinfo_policy_probe.userinfo_policy_name
+            == "diagnostic_goldsrc_userinfo_minimal_policy"
+        && hlds_userinfo_policy_probe.userinfo_policy_diagnostic_only
+        && hlds_userinfo_policy_probe.userinfo_required_name
+        && hlds_userinfo_policy_probe.userinfo_sanitized_preview_only
+        && hlds_userinfo_policy_probe.steam_auth_not_implemented
+        && hlds_userinfo_policy_probe.netchan_not_started
+        && hlds_userinfo_policy_probe.reliable_channel_not_started
+        && hlds_userinfo_policy_probe.resource_baselines_not_sent
+        && hlds_userinfo_policy_probe.signon_state_not_entered
+        && hlds_userinfo_policy_probe.client_not_put_in_server
+        && hlds_userinfo_policy_probe.compatibility_claim_level
+            == "diagnostic-userinfo-validation-policy-only";
+    const bool hlds_userinfo_policy_happy_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 1
+        && hlds_userinfo_policy_probe.rejected == 0
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && !hlds_userinfo_policy_probe.challenge_expired
+        && !hlds_userinfo_policy_probe.challenge_replay_detected
+        && hlds_userinfo_policy_probe.userinfo_parse_attempted
+        && hlds_userinfo_policy_probe.userinfo_parsed
+        && hlds_userinfo_policy_probe.userinfo_policy_checked
+        && hlds_userinfo_policy_probe.userinfo_policy_passed
+        && hlds_userinfo_policy_probe.userinfo_required_name_present
+        && hlds_userinfo_policy_probe.userinfo_keys_count > 0
+        && hlds_userinfo_policy_probe.userinfo_bytes_within_limit
+        && hlds_userinfo_policy_probe.userinfo_key_bytes_within_limit
+        && hlds_userinfo_policy_probe.userinfo_value_bytes_within_limit
+        && !hlds_userinfo_policy_probe.userinfo_duplicate_protected_key_detected
+        && !hlds_userinfo_policy_probe.userinfo_control_chars_detected
+        && !hlds_userinfo_policy_probe.userinfo_unsafe_value_detected
+        && hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && hlds_userinfo_policy_probe.serverinfo_response_ready;
+    const bool hlds_userinfo_policy_missing_name_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 0
+        && hlds_userinfo_policy_probe.rejected == 1
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_checked
+        && !hlds_userinfo_policy_probe.userinfo_required_name_present
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason
+            == "missing_required_userinfo_name";
+    const bool hlds_userinfo_policy_malformed_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 0
+        && hlds_userinfo_policy_probe.rejected == 1
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_parse_attempted
+        && !hlds_userinfo_policy_probe.userinfo_parsed
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason == "malformed_userinfo";
+    const bool hlds_userinfo_policy_overlong_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 0
+        && hlds_userinfo_policy_probe.rejected == 1
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_checked
+        && !hlds_userinfo_policy_probe.userinfo_value_bytes_within_limit
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason
+            == "userinfo_value_too_large";
+    const bool hlds_userinfo_policy_duplicate_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 0
+        && hlds_userinfo_policy_probe.rejected == 1
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_checked
+        && hlds_userinfo_policy_probe.userinfo_duplicate_protected_key_detected
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason == "duplicate_userinfo_key";
+    const bool hlds_userinfo_policy_control_ok =
+        hlds_userinfo_policy_common_ok
+        && hlds_userinfo_policy_probe.accepted == 0
+        && hlds_userinfo_policy_probe.rejected == 1
+        && hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_checked
+        && hlds_userinfo_policy_probe.userinfo_control_chars_detected
+        && hlds_userinfo_policy_probe.userinfo_unsafe_value_detected
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason == "unsafe_userinfo_value";
+    const bool hlds_userinfo_policy_challenge_ok =
+        hlds_userinfo_policy_probe.enabled
+        && hlds_userinfo_policy_probe.bounded_loopback
+        && !hlds_userinfo_policy_probe.public_socket_opened
+        && hlds_userinfo_policy_probe.loopback_policy_enforced
+        && hlds_userinfo_policy_probe.loopback_udp_socket_opened
+        && hlds_userinfo_policy_probe.sockets_closed
+        && hlds_userinfo_policy_probe.challenge_cache_enabled
+        && hlds_userinfo_policy_probe.challenge_cache_hit
+        && hlds_userinfo_policy_probe.challenge_endpoint_matches
+        && !hlds_userinfo_policy_probe.challenge_value_matches
+        && hlds_userinfo_policy_probe.userinfo_policy_enabled
+        && !hlds_userinfo_policy_probe.userinfo_policy_passed
+        && !hlds_userinfo_policy_probe.connect_diagnostic_ready
+        && !hlds_userinfo_policy_probe.serverinfo_response_ready
+        && hlds_userinfo_policy_probe.last_reject_reason
+            == "challenge_value_mismatch"
+        && hlds_userinfo_policy_probe.compatibility_claim_level
+            == "diagnostic-userinfo-validation-policy-only";
+    const bool hlds_userinfo_validation_policy_diagnostic_probe_failed =
+        options.hlds_userinfo_validation_policy_diagnostic_probe_enabled
+        && (hlds_userinfo_policy_gate_missing_name
+                ? !hlds_userinfo_policy_missing_name_ok
+                : hlds_userinfo_policy_gate_malformed
+                ? !hlds_userinfo_policy_malformed_ok
+                : hlds_userinfo_policy_gate_overlong
+                ? !hlds_userinfo_policy_overlong_ok
+                : hlds_userinfo_policy_gate_duplicate
+                ? !hlds_userinfo_policy_duplicate_ok
+                : hlds_userinfo_policy_gate_control
+                ? !hlds_userinfo_policy_control_ok
+                : hlds_userinfo_policy_gate_challenge
+                ? !hlds_userinfo_policy_challenge_ok
+                : !hlds_userinfo_policy_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -263230,6 +264195,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_serverinfo_diagnostic_probe_failed
         && !hlds_connectionless_loopback_udp_diagnostic_probe_failed
         && !hlds_address_scoped_challenge_cache_diagnostic_probe_failed
+        && !hlds_userinfo_validation_policy_diagnostic_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
