@@ -3912,6 +3912,12 @@ struct EngineShimState
     hl::game_api::HldsUserinfoValidationPolicyDiagnosticProbeSummary
         hlds_userinfo_validation_policy_diagnostic_probe;
     std::string hlds_userinfo_validation_policy_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+        hlds_connectionless_diagnostic_lifecycle_acceptance_gate;
+    hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary
+        hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
+    std::string hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario =
+        "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4828,6 +4834,10 @@ std::string BuildHldsUserinfoValidationPolicyDiagnosticSurfaceLine(
     const hl::game_api::HldsUserinfoValidationPolicyDiagnosticSurfaceSummary& summary);
 std::string BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
     const hl::game_api::HldsUserinfoValidationPolicyDiagnosticProbeSummary& summary);
+std::string BuildHldsConnectionlessDiagnosticLifecycleAcceptanceGateLine(
+    const hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary& summary);
+std::string BuildHldsConnectionlessDiagnosticLifecycleAcceptanceProbeLine(
+    const hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25318,6 +25328,69 @@ std::string BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
 {
     return BuildHldsUserinfoValidationPolicyDiagnosticLine(
         "hlds_userinfo_validation_policy_diagnostic_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsConnectionlessDiagnosticLifecycleAcceptanceLine(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsUserinfoValidationPolicyDiagnosticLine(prefix, summary)
+        + ", lifecycle_acceptance_enabled="
+        + std::string(summary.lifecycle_acceptance_enabled ? "1" : "0")
+        + ", lifecycle_acceptance_passed="
+        + std::string(summary.lifecycle_acceptance_passed ? "1" : "0")
+        + ", lifecycle_gates_total="
+        + std::to_string(summary.lifecycle_gates_total)
+        + ", lifecycle_gates_passed="
+        + std::to_string(summary.lifecycle_gates_passed)
+        + ", lifecycle_gates_failed="
+        + std::to_string(summary.lifecycle_gates_failed)
+        + ", lifecycle_gate_names=" + summary.lifecycle_gate_names
+        + ", getchallenge_lifecycle_passed="
+        + std::string(summary.getchallenge_lifecycle_passed ? "1" : "0")
+        + ", loopback_udp_lifecycle_passed="
+        + std::string(summary.loopback_udp_lifecycle_passed ? "1" : "0")
+        + ", challenge_cache_lifecycle_passed="
+        + std::string(summary.challenge_cache_lifecycle_passed ? "1" : "0")
+        + ", connect_lifecycle_passed="
+        + std::string(summary.connect_lifecycle_passed ? "1" : "0")
+        + ", userinfo_policy_lifecycle_passed="
+        + std::string(summary.userinfo_policy_lifecycle_passed ? "1" : "0")
+        + ", serverinfo_lifecycle_passed="
+        + std::string(summary.serverinfo_lifecycle_passed ? "1" : "0")
+        + ", bad_marker_gate_passed="
+        + std::string(summary.bad_marker_gate_passed ? "1" : "0")
+        + ", challenge_cache_gate_passed="
+        + std::string(summary.challenge_cache_gate_passed ? "1" : "0")
+        + ", wrong_endpoint_gate_passed="
+        + std::string(summary.wrong_endpoint_gate_passed ? "1" : "0")
+        + ", challenge_expiry_or_replay_gate_passed="
+        + std::string(summary.challenge_expiry_or_replay_gate_passed ? "1" : "0")
+        + ", protocol_gate_passed="
+        + std::string(summary.protocol_gate_passed ? "1" : "0")
+        + ", userinfo_required_name_gate_passed="
+        + std::string(summary.userinfo_required_name_gate_passed ? "1" : "0")
+        + ", unsafe_userinfo_gate_passed="
+        + std::string(summary.unsafe_userinfo_gate_passed ? "1" : "0")
+        + ", non_loopback_bind_gate_passed="
+        + std::string(summary.non_loopback_bind_gate_passed ? "1" : "0");
+}
+
+std::string BuildHldsConnectionlessDiagnosticLifecycleAcceptanceGateLine(
+    const hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary& summary)
+{
+    return BuildHldsConnectionlessDiagnosticLifecycleAcceptanceLine(
+        "hlds_connectionless_diagnostic_lifecycle_acceptance_gate",
+        summary);
+}
+
+std::string BuildHldsConnectionlessDiagnosticLifecycleAcceptanceProbeLine(
+    const hl::game_api::HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary& summary)
+{
+    return BuildHldsConnectionlessDiagnosticLifecycleAcceptanceLine(
+        "hlds_connectionless_diagnostic_lifecycle_acceptance_probe",
         summary);
 }
 
@@ -56562,6 +56635,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsUserinfoValidationPolicyDiagnosticProbeLine(
                     summary.hlds_userinfo_validation_policy_diagnostic_probe));
+        }
+        if (summary.hlds_connectionless_diagnostic_lifecycle_acceptance_gate.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessDiagnosticLifecycleAcceptanceGateLine(
+                    summary.hlds_connectionless_diagnostic_lifecycle_acceptance_gate));
+        }
+        if (summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessDiagnosticLifecycleAcceptanceProbeLine(
+                    summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -150815,6 +150902,368 @@ void ApplyHldsUserinfoValidationPolicyDiagnosticResult(
     summary->userinfo_model_seen = result.userinfo_model_seen;
 }
 
+struct HldsConnectionlessDiagnosticLifecycleAcceptanceResult
+    : HldsUserinfoValidationPolicyDiagnosticResult
+{
+    bool lifecycle_acceptance_enabled = true;
+    bool lifecycle_acceptance_passed = false;
+    int lifecycle_gates_total = 0;
+    int lifecycle_gates_passed = 0;
+    int lifecycle_gates_failed = 0;
+    std::string lifecycle_gate_names =
+        "bad_marker_udp;connect_without_cached_challenge;wrong_endpoint_reuse;"
+        "expired_or_replayed_challenge;wrong_protocol;missing_required_userinfo_name;"
+        "unsafe_userinfo;non_loopback_bind_blocked";
+    bool getchallenge_lifecycle_passed = false;
+    bool loopback_udp_lifecycle_passed = false;
+    bool challenge_cache_lifecycle_passed = false;
+    bool connect_lifecycle_passed = false;
+    bool userinfo_policy_lifecycle_passed = false;
+    bool serverinfo_lifecycle_passed = false;
+    bool bad_marker_gate_passed = false;
+    bool challenge_cache_gate_passed = false;
+    bool wrong_endpoint_gate_passed = false;
+    bool challenge_expiry_or_replay_gate_passed = false;
+    bool protocol_gate_passed = false;
+    bool userinfo_required_name_gate_passed = false;
+    bool unsafe_userinfo_gate_passed = false;
+    bool non_loopback_bind_gate_passed = false;
+};
+
+void CopyHldsConnectionlessLoopbackUdpDiagnosticToLifecycleResult(
+    const HldsConnectionlessLoopbackUdpDiagnosticResult& source,
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    static_cast<HldsConnectionlessLoopbackUdpDiagnosticResult&>(*result) = source;
+}
+
+void CopyHldsAddressScopedChallengeCacheDiagnosticToLifecycleResult(
+    const HldsAddressScopedChallengeCacheDiagnosticResult& source,
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    static_cast<HldsAddressScopedChallengeCacheDiagnosticResult&>(*result) = source;
+}
+
+void CopyHldsUserinfoValidationPolicyDiagnosticToLifecycleResult(
+    const HldsUserinfoValidationPolicyDiagnosticResult& source,
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    static_cast<HldsUserinfoValidationPolicyDiagnosticResult&>(*result) = source;
+}
+
+void SetHldsConnectionlessLifecycleGateResult(
+    bool passed,
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->lifecycle_acceptance_enabled = true;
+    result->lifecycle_acceptance_passed = false;
+    result->lifecycle_gates_total = 1;
+    result->lifecycle_gates_passed = passed ? 1 : 0;
+    result->lifecycle_gates_failed = passed ? 0 : 1;
+}
+
+void PopulateHldsConnectionlessLifecyclePositiveFlags(
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->getchallenge_lifecycle_passed =
+        result->getchallenge_datagram_received
+        && result->getchallenge_detected
+        && result->challenge_generated
+        && result->challenge_response_ready;
+    result->loopback_udp_lifecycle_passed =
+        result->bounded_loopback
+        && !result->public_socket_opened
+        && result->loopback_policy_enforced
+        && result->loopback_udp_socket_opened
+        && result->sockets_closed;
+    result->challenge_cache_lifecycle_passed =
+        result->challenge_cache_enabled
+        && result->challenge_cache_key == "remote_loopback_endpoint"
+        && result->challenge_cache_inserted
+        && result->challenge_cache_lookup_attempted
+        && result->challenge_cache_hit
+        && result->challenge_endpoint_matches
+        && result->challenge_value_matches
+        && !result->challenge_expired
+        && !result->challenge_replay_detected
+        && result->challenge_one_shot;
+    result->connect_lifecycle_passed =
+        result->connect_datagram_received
+        && result->connect_detected
+        && result->protocol_version_present
+        && result->protocol_version_accepted
+        && result->connect_diagnostic_ready;
+    result->userinfo_policy_lifecycle_passed =
+        result->userinfo_policy_enabled
+        && result->userinfo_policy_checked
+        && result->userinfo_policy_passed
+        && result->userinfo_required_name_present
+        && result->userinfo_keys_count > 0
+        && result->userinfo_bytes_within_limit
+        && !result->userinfo_duplicate_protected_key_detected
+        && !result->userinfo_control_chars_detected
+        && !result->userinfo_unsafe_value_detected;
+    result->serverinfo_lifecycle_passed =
+        result->serverinfo_diagnostic_ready
+        && result->serverinfo_response_ready
+        && result->serverinfo_response_shape == "serverinfo_diagnostic"
+        && result->serverinfo_response_datagram_sent;
+}
+
+HldsConnectionlessDiagnosticLifecycleAcceptanceResult
+RunHldsConnectionlessDiagnosticLifecycleAcceptance(std::string_view scenario)
+{
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult result;
+    result.lifecycle_acceptance_enabled = true;
+    result.lifecycle_gate_names =
+        "bad_marker_udp;connect_without_cached_challenge;wrong_endpoint_reuse;"
+        "expired_or_replayed_challenge;wrong_protocol;missing_required_userinfo_name;"
+        "unsafe_userinfo;non_loopback_bind_blocked";
+
+    if (scenario == "gate_bad_marker_udp")
+    {
+        CopyHldsConnectionlessLoopbackUdpDiagnosticToLifecycleResult(
+            RunHldsConnectionlessLoopbackUdpDiagnostic("gate_bad_marker_udp"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "bad_connectionless_marker"
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.bad_marker_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved malformed connectionless marker rejection";
+        return result;
+    }
+
+    if (scenario == "gate_connect_without_cached_challenge")
+    {
+        CopyHldsAddressScopedChallengeCacheDiagnosticToLifecycleResult(
+            RunHldsAddressScopedChallengeCacheDiagnostic(
+                "gate_connect_without_cached_challenge"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "missing_cached_challenge"
+            && !result.challenge_cache_hit
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.challenge_cache_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved connect cannot pass before cached challenge";
+        return result;
+    }
+
+    if (scenario == "gate_wrong_endpoint_reuse")
+    {
+        CopyHldsAddressScopedChallengeCacheDiagnosticToLifecycleResult(
+            RunHldsAddressScopedChallengeCacheDiagnostic("gate_wrong_endpoint_reuse"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "challenge_endpoint_mismatch"
+            && !result.challenge_endpoint_matches
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.wrong_endpoint_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved loopback endpoint-scoped challenge reuse rejection";
+        return result;
+    }
+
+    if (scenario == "gate_expired_or_replayed_challenge")
+    {
+        CopyHldsAddressScopedChallengeCacheDiagnosticToLifecycleResult(
+            RunHldsAddressScopedChallengeCacheDiagnostic("gate_replay_after_success"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "challenge_replay"
+            && result.challenge_replay_detected
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.challenge_expiry_or_replay_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved one-shot challenge replay rejection";
+        return result;
+    }
+
+    if (scenario == "gate_wrong_protocol")
+    {
+        CopyHldsConnectionlessLoopbackUdpDiagnosticToLifecycleResult(
+            RunHldsConnectionlessLoopbackUdpDiagnostic("gate_wrong_protocol_udp"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "unsupported_protocol_version"
+            && result.protocol_version_present
+            && !result.protocol_version_accepted
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.protocol_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved unsupported protocol rejection";
+        return result;
+    }
+
+    if (scenario == "gate_missing_required_userinfo_name")
+    {
+        CopyHldsUserinfoValidationPolicyDiagnosticToLifecycleResult(
+            RunHldsUserinfoValidationPolicyDiagnostic("gate_missing_required_name"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "missing_required_userinfo_name"
+            && result.userinfo_policy_checked
+            && !result.userinfo_required_name_present
+            && !result.userinfo_policy_passed
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.userinfo_required_name_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved required diagnostic userinfo name rejection";
+        return result;
+    }
+
+    if (scenario == "gate_unsafe_userinfo")
+    {
+        CopyHldsUserinfoValidationPolicyDiagnosticToLifecycleResult(
+            RunHldsUserinfoValidationPolicyDiagnostic("gate_control_character_value"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "unsafe_userinfo_value"
+            && result.userinfo_policy_checked
+            && result.userinfo_control_chars_detected
+            && !result.userinfo_policy_passed
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        result.unsafe_userinfo_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved unsafe diagnostic userinfo rejection";
+        return result;
+    }
+
+    if (scenario == "gate_non_loopback_bind_blocked")
+    {
+        CopyHldsConnectionlessLoopbackUdpDiagnosticToLifecycleResult(
+            RunHldsConnectionlessLoopbackUdpDiagnostic("gate_non_loopback_bind_blocked"),
+            &result);
+        const bool passed =
+            result.rejected == 1
+            && result.last_reject_reason == "non_loopback_bind_denied"
+            && !result.public_socket_opened
+            && result.loopback_policy_enforced;
+        result.non_loopback_bind_gate_passed = passed;
+        SetHldsConnectionlessLifecycleGateResult(passed, &result);
+        result.detail =
+            "lifecycle acceptance gate proved non-loopback diagnostic bind denial before public socket exposure";
+        return result;
+    }
+
+    CopyHldsUserinfoValidationPolicyDiagnosticToLifecycleResult(
+        RunHldsUserinfoValidationPolicyDiagnostic("happy"),
+        &result);
+    PopulateHldsConnectionlessLifecyclePositiveFlags(&result);
+    result.lifecycle_acceptance_passed =
+        result.accepted == 1
+        && result.rejected == 0
+        && result.getchallenge_lifecycle_passed
+        && result.loopback_udp_lifecycle_passed
+        && result.challenge_cache_lifecycle_passed
+        && result.connect_lifecycle_passed
+        && result.userinfo_policy_lifecycle_passed
+        && result.serverinfo_lifecycle_passed;
+    result.lifecycle_gates_total = 0;
+    result.lifecycle_gates_passed = 0;
+    result.lifecycle_gates_failed = 0;
+    result.detail =
+        "diagnostic connectionless lifecycle accepted getchallenge/cache/connect/userinfo/serverinfo over localhost UDP; no public socket, auth, netchan, signon, baselines, or admission";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsConnectionlessDiagnosticLifecycleAcceptanceResult(
+    const HldsConnectionlessDiagnosticLifecycleAcceptanceResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    ApplyHldsUserinfoValidationPolicyDiagnosticResult(result, mode, scenario, summary);
+    summary->compatibility_claim_level =
+        "diagnostic-connectionless-lifecycle-acceptance-only";
+    summary->lifecycle_acceptance_enabled =
+        result.lifecycle_acceptance_enabled;
+    summary->lifecycle_acceptance_passed =
+        result.lifecycle_acceptance_passed;
+    summary->lifecycle_gates_total = result.lifecycle_gates_total;
+    summary->lifecycle_gates_passed = result.lifecycle_gates_passed;
+    summary->lifecycle_gates_failed = result.lifecycle_gates_failed;
+    summary->lifecycle_gate_names = result.lifecycle_gate_names;
+    summary->getchallenge_lifecycle_passed =
+        result.getchallenge_lifecycle_passed;
+    summary->loopback_udp_lifecycle_passed =
+        result.loopback_udp_lifecycle_passed;
+    summary->challenge_cache_lifecycle_passed =
+        result.challenge_cache_lifecycle_passed;
+    summary->connect_lifecycle_passed = result.connect_lifecycle_passed;
+    summary->userinfo_policy_lifecycle_passed =
+        result.userinfo_policy_lifecycle_passed;
+    summary->serverinfo_lifecycle_passed =
+        result.serverinfo_lifecycle_passed;
+    summary->bad_marker_gate_passed = result.bad_marker_gate_passed;
+    summary->challenge_cache_gate_passed =
+        result.challenge_cache_gate_passed;
+    summary->wrong_endpoint_gate_passed =
+        result.wrong_endpoint_gate_passed;
+    summary->challenge_expiry_or_replay_gate_passed =
+        result.challenge_expiry_or_replay_gate_passed;
+    summary->protocol_gate_passed = result.protocol_gate_passed;
+    summary->userinfo_required_name_gate_passed =
+        result.userinfo_required_name_gate_passed;
+    summary->unsafe_userinfo_gate_passed =
+        result.unsafe_userinfo_gate_passed;
+    summary->non_loopback_bind_gate_passed =
+        result.non_loopback_bind_gate_passed;
+}
+
 bool PumpOneLoopbackConnectAdmissionAttempt(
     EngineShimState& state,
     SOCKET server_socket,
@@ -209104,6 +209553,52 @@ void PerformHldsUserinfoValidationPolicyDiagnosticSurface()
         &probe);
 }
 
+void PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& gate = state.hlds_connectionless_diagnostic_lifecycle_acceptance_gate;
+    auto& probe = state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
+    if (!state.server_state.dedicated || !gate.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario;
+
+    HldsConnectionlessDiagnosticLifecycleAcceptanceResult gate_ready;
+    gate_ready.last_reject_reason = "<none>";
+    gate_ready.sockets_closed = true;
+    gate_ready.detail =
+        "diagnostic connectionless lifecycle acceptance gate ready; probe disabled or not yet run";
+    ApplyHldsConnectionlessDiagnosticLifecycleAcceptanceResult(
+        gate_ready,
+        mode,
+        scenario,
+        &gate);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsConnectionlessDiagnosticLifecycleAcceptanceResult result =
+        RunHldsConnectionlessDiagnosticLifecycleAcceptance(scenario);
+    ApplyHldsConnectionlessDiagnosticLifecycleAcceptanceResult(
+        result,
+        mode,
+        scenario,
+        &gate);
+    ApplyHldsConnectionlessDiagnosticLifecycleAcceptanceResult(
+        result,
+        mode,
+        scenario,
+        &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -240709,6 +241204,8 @@ void PopulateBootstrapSummary(
     summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
     summary.hlds_userinfo_validation_policy_diagnostic_surface = {};
     summary.hlds_userinfo_validation_policy_diagnostic_probe = {};
+    summary.hlds_connectionless_diagnostic_lifecycle_acceptance_gate = {};
+    summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -241791,6 +242288,10 @@ void PopulateBootstrapSummary(
             state.hlds_userinfo_validation_policy_diagnostic_surface;
         summary.hlds_userinfo_validation_policy_diagnostic_probe =
             state.hlds_userinfo_validation_policy_diagnostic_probe;
+        summary.hlds_connectionless_diagnostic_lifecycle_acceptance_gate =
+            state.hlds_connectionless_diagnostic_lifecycle_acceptance_gate;
+        summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe =
+            state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -248250,6 +248751,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsConnectionlessLoopbackUdpDiagnosticSurface();
     PerformHldsAddressScopedChallengeCacheDiagnosticSurface();
     PerformHldsUserinfoValidationPolicyDiagnosticSurface();
+    PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -250162,6 +250664,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
     impl_->summary.hlds_userinfo_validation_policy_diagnostic_surface = {};
     impl_->summary.hlds_userinfo_validation_policy_diagnostic_probe = {};
+    impl_->summary.hlds_connectionless_diagnostic_lifecycle_acceptance_gate = {};
+    impl_->summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -250469,6 +250973,39 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
                 == "gate_challenge_mismatch_still_precedes_userinfo_acceptance"
         ? "gate_challenge_mismatch_still_precedes_userinfo_acceptance"
+        : "happy";
+    impl_->shim_state.hlds_connectionless_diagnostic_lifecycle_acceptance_gate = {};
+    impl_->shim_state.hlds_connectionless_diagnostic_lifecycle_acceptance_gate.enabled =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled;
+    impl_->shim_state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe = {};
+    impl_->shim_state.hlds_connectionless_diagnostic_lifecycle_acceptance_probe.enabled =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled;
+    impl_->shim_state
+        .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+            == "gate_bad_marker_udp"
+        ? "gate_bad_marker_udp"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_connect_without_cached_challenge"
+        ? "gate_connect_without_cached_challenge"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_wrong_endpoint_reuse"
+        ? "gate_wrong_endpoint_reuse"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_expired_or_replayed_challenge"
+        ? "gate_expired_or_replayed_challenge"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_wrong_protocol"
+        ? "gate_wrong_protocol"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_missing_required_userinfo_name"
+        ? "gate_missing_required_userinfo_name"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_unsafe_userinfo"
+        ? "gate_unsafe_userinfo"
+        : options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
+                == "gate_non_loopback_bind_blocked"
+        ? "gate_non_loopback_bind_blocked"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -254044,6 +254581,172 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_userinfo_policy_gate_challenge
                 ? !hlds_userinfo_policy_challenge_ok
                 : !hlds_userinfo_policy_happy_ok);
+    const auto& hlds_lifecycle_probe =
+        impl_->summary.hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
+    const std::string& hlds_lifecycle_scenario =
+        impl_->shim_state
+            .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario;
+    const bool hlds_lifecycle_gate_bad_marker =
+        hlds_lifecycle_scenario == "gate_bad_marker_udp";
+    const bool hlds_lifecycle_gate_connect_without_cache =
+        hlds_lifecycle_scenario == "gate_connect_without_cached_challenge";
+    const bool hlds_lifecycle_gate_wrong_endpoint =
+        hlds_lifecycle_scenario == "gate_wrong_endpoint_reuse";
+    const bool hlds_lifecycle_gate_expired_or_replayed =
+        hlds_lifecycle_scenario == "gate_expired_or_replayed_challenge";
+    const bool hlds_lifecycle_gate_wrong_protocol =
+        hlds_lifecycle_scenario == "gate_wrong_protocol";
+    const bool hlds_lifecycle_gate_missing_name =
+        hlds_lifecycle_scenario == "gate_missing_required_userinfo_name";
+    const bool hlds_lifecycle_gate_unsafe_userinfo =
+        hlds_lifecycle_scenario == "gate_unsafe_userinfo";
+    const bool hlds_lifecycle_gate_non_loopback =
+        hlds_lifecycle_scenario == "gate_non_loopback_bind_blocked";
+    const bool hlds_lifecycle_common_ok =
+        hlds_lifecycle_probe.enabled
+        && hlds_lifecycle_probe.lifecycle_acceptance_enabled
+        && hlds_lifecycle_probe.diagnostic_only
+        && hlds_lifecycle_probe.bounded_loopback
+        && !hlds_lifecycle_probe.public_socket_opened
+        && hlds_lifecycle_probe.loopback_policy_enforced
+        && hlds_lifecycle_probe.sockets_closed
+        && hlds_lifecycle_probe.steam_auth_not_implemented
+        && hlds_lifecycle_probe.netchan_not_started
+        && hlds_lifecycle_probe.reliable_channel_not_started
+        && hlds_lifecycle_probe.resource_baselines_not_sent
+        && hlds_lifecycle_probe.signon_state_not_entered
+        && hlds_lifecycle_probe.client_not_put_in_server
+        && hlds_lifecycle_probe.compatibility_claim_level
+            == "diagnostic-connectionless-lifecycle-acceptance-only";
+    const bool hlds_lifecycle_happy_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 1
+        && hlds_lifecycle_probe.rejected == 0
+        && hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.lifecycle_gates_total == 0
+        && hlds_lifecycle_probe.getchallenge_lifecycle_passed
+        && hlds_lifecycle_probe.loopback_udp_lifecycle_passed
+        && hlds_lifecycle_probe.challenge_cache_lifecycle_passed
+        && hlds_lifecycle_probe.connect_lifecycle_passed
+        && hlds_lifecycle_probe.userinfo_policy_lifecycle_passed
+        && hlds_lifecycle_probe.serverinfo_lifecycle_passed
+        && hlds_lifecycle_probe.loopback_udp_socket_opened
+        && hlds_lifecycle_probe.challenge_cache_key == "remote_loopback_endpoint"
+        && hlds_lifecycle_probe.challenge_one_shot
+        && hlds_lifecycle_probe.challenge_endpoint_matches
+        && hlds_lifecycle_probe.challenge_value_matches
+        && hlds_lifecycle_probe.protocol_version_accepted
+        && hlds_lifecycle_probe.userinfo_policy_passed
+        && hlds_lifecycle_probe.connect_diagnostic_ready
+        && hlds_lifecycle_probe.serverinfo_response_ready;
+    const bool hlds_lifecycle_bad_marker_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.bad_marker_gate_passed
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason == "bad_connectionless_marker";
+    const bool hlds_lifecycle_connect_without_cache_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.challenge_cache_gate_passed
+        && !hlds_lifecycle_probe.challenge_cache_hit
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason == "missing_cached_challenge";
+    const bool hlds_lifecycle_wrong_endpoint_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.wrong_endpoint_gate_passed
+        && !hlds_lifecycle_probe.challenge_endpoint_matches
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason == "challenge_endpoint_mismatch";
+    const bool hlds_lifecycle_expired_or_replayed_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.challenge_expiry_or_replay_gate_passed
+        && hlds_lifecycle_probe.challenge_replay_detected
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason == "challenge_replay";
+    const bool hlds_lifecycle_wrong_protocol_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.protocol_gate_passed
+        && hlds_lifecycle_probe.protocol_version_present
+        && !hlds_lifecycle_probe.protocol_version_accepted
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason == "unsupported_protocol_version";
+    const bool hlds_lifecycle_missing_name_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.userinfo_required_name_gate_passed
+        && hlds_lifecycle_probe.userinfo_policy_checked
+        && !hlds_lifecycle_probe.userinfo_required_name_present
+        && !hlds_lifecycle_probe.userinfo_policy_passed
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && hlds_lifecycle_probe.last_reject_reason
+            == "missing_required_userinfo_name";
+    const bool hlds_lifecycle_unsafe_userinfo_ok =
+        hlds_lifecycle_common_ok
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.unsafe_userinfo_gate_passed
+        && hlds_lifecycle_probe.userinfo_policy_checked
+        && !hlds_lifecycle_probe.userinfo_policy_passed
+        && !hlds_lifecycle_probe.connect_diagnostic_ready
+        && !hlds_lifecycle_probe.serverinfo_response_ready
+        && !hlds_lifecycle_probe.last_reject_reason.empty()
+        && hlds_lifecycle_probe.last_reject_reason != "<none>";
+    const bool hlds_lifecycle_non_loopback_ok =
+        hlds_lifecycle_probe.enabled
+        && hlds_lifecycle_probe.lifecycle_acceptance_enabled
+        && hlds_lifecycle_probe.accepted == 0
+        && hlds_lifecycle_probe.rejected == 1
+        && !hlds_lifecycle_probe.lifecycle_acceptance_passed
+        && hlds_lifecycle_probe.non_loopback_bind_gate_passed
+        && hlds_lifecycle_probe.bounded_loopback
+        && !hlds_lifecycle_probe.public_socket_opened
+        && hlds_lifecycle_probe.loopback_policy_enforced
+        && hlds_lifecycle_probe.sockets_closed
+        && hlds_lifecycle_probe.last_reject_reason == "non_loopback_bind_denied"
+        && hlds_lifecycle_probe.compatibility_claim_level
+            == "diagnostic-connectionless-lifecycle-acceptance-only";
+    const bool hlds_connectionless_diagnostic_lifecycle_acceptance_probe_failed =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled
+        && (hlds_lifecycle_gate_bad_marker
+                ? !hlds_lifecycle_bad_marker_ok
+                : hlds_lifecycle_gate_connect_without_cache
+                ? !hlds_lifecycle_connect_without_cache_ok
+                : hlds_lifecycle_gate_wrong_endpoint
+                ? !hlds_lifecycle_wrong_endpoint_ok
+                : hlds_lifecycle_gate_expired_or_replayed
+                ? !hlds_lifecycle_expired_or_replayed_ok
+                : hlds_lifecycle_gate_wrong_protocol
+                ? !hlds_lifecycle_wrong_protocol_ok
+                : hlds_lifecycle_gate_missing_name
+                ? !hlds_lifecycle_missing_name_ok
+                : hlds_lifecycle_gate_unsafe_userinfo
+                ? !hlds_lifecycle_unsafe_userinfo_ok
+                : hlds_lifecycle_gate_non_loopback
+                ? !hlds_lifecycle_non_loopback_ok
+                : !hlds_lifecycle_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -264196,6 +264899,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_connectionless_loopback_udp_diagnostic_probe_failed
         && !hlds_address_scoped_challenge_cache_diagnostic_probe_failed
         && !hlds_userinfo_validation_policy_diagnostic_probe_failed
+        && !hlds_connectionless_diagnostic_lifecycle_acceptance_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
