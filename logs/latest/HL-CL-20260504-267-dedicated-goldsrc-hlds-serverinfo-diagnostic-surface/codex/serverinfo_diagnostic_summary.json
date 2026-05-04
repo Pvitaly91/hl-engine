@@ -1,0 +1,67 @@
+{
+  "prompt_id": "HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface",
+  "branch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "pre_change_head": "353f2076f54dd14427e76fc08ec3aa3c5bf7b003",
+  "source_commit": "8d44f3d5a96a727d716cfbe341b992bf74940706",
+  "artifact_commit": "pending-artifact-commit",
+  "compatibility_claim_level": "diagnostic-serverinfo-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "public_socket_opened": 0,
+  "bounded_loopback": 1,
+  "getchallenge_dependency_checked": 1,
+  "connect_dependency_checked": 1,
+  "prior_challenge_issued": 1,
+  "prior_challenge_value": "265042650",
+  "connect_diagnostic_ready": 1,
+  "serverinfo_diagnostic_ready": 1,
+  "serverinfo_response_ready": 1,
+  "protocol_version_accepted": 1,
+  "hostname_present": 1,
+  "map_name_present": 1,
+  "game_dir_present": 1,
+  "maxplayers_present": 1,
+  "steam_auth_not_implemented": 1,
+  "netchan_not_started": 1,
+  "reliable_channel_not_started": 1,
+  "resource_baselines_not_sent": 1,
+  "signon_state_not_entered": 1,
+  "client_not_put_in_server": 1,
+  "proofs": {
+    "happy": {
+      "status": "pass",
+      "summary": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_summary.log",
+      "manifest": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_manifest.json"
+    },
+    "gate_missing_connect": {
+      "status": "pass",
+      "last_reject_reason": "missing_connect_diagnostic",
+      "summary": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_summary.log",
+      "manifest": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_manifest.json"
+    },
+    "gate_wrong_protocol": {
+      "status": "pass",
+      "last_reject_reason": "unsupported_protocol_version",
+      "summary": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_summary.log",
+      "manifest": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_manifest.json"
+    },
+    "gate_missing_serverinfo_field": {
+      "status": "pass",
+      "last_reject_reason": "missing_serverinfo_field",
+      "summary": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_summary.log",
+      "manifest": "logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_manifest.json"
+    }
+  },
+  "changed_files": [
+    "include/app/launch_options.h",
+    "include/game_api/hl_server_module.h",
+    "src/app/host_application.cpp",
+    "src/app/launch_options.cpp",
+    "src/game_api/hl_server_module.cpp"
+  ],
+  "commands_run": [
+    "git status --short",
+    "descendant gates",
+    "git grep inspections",
+    "MSBuild Debug Win32",
+    "four hlds-serverinfo diagnostic runtime proofs"
+  ]
+}
