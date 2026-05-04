@@ -3889,6 +3889,10 @@ struct EngineShimState
     hl::game_api::HldsGetchallengeDiagnosticProbeSummary
         hlds_getchallenge_diagnostic_probe;
     std::string hlds_getchallenge_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsConnectDiagnosticSurfaceSummary
+        hlds_connect_diagnostic_surface;
+    hl::game_api::HldsConnectDiagnosticProbeSummary hlds_connect_diagnostic_probe;
+    std::string hlds_connect_diagnostic_probe_scenario = "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4785,6 +4789,10 @@ std::string BuildHldsGetchallengeDiagnosticSurfaceLine(
     const hl::game_api::HldsGetchallengeDiagnosticSurfaceSummary& summary);
 std::string BuildHldsGetchallengeDiagnosticProbeLine(
     const hl::game_api::HldsGetchallengeDiagnosticProbeSummary& summary);
+std::string BuildHldsConnectDiagnosticSurfaceLine(
+    const hl::game_api::HldsConnectDiagnosticSurfaceSummary& summary);
+std::string BuildHldsConnectDiagnosticProbeLine(
+    const hl::game_api::HldsConnectDiagnosticProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -24868,6 +24876,85 @@ std::string BuildHldsGetchallengeDiagnosticProbeLine(
         + ", signon=" + summary.signon
         + ", gameplay_transport=" + summary.gameplay_transport
         + ", detail=" + summary.detail;
+}
+
+template <typename Summary>
+std::string BuildHldsConnectDiagnosticLine(std::string_view prefix, const Summary& summary)
+{
+    return std::string(prefix) + ": enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", getchallenge_dependency_checked="
+        + std::string(summary.getchallenge_dependency_checked ? "1" : "0")
+        + ", prior_challenge_issued="
+        + std::string(summary.prior_challenge_issued ? "1" : "0")
+        + ", prior_challenge_value=" + summary.prior_challenge_value
+        + ", connectionless_marker_seen="
+        + std::string(summary.connectionless_marker_seen ? "1" : "0")
+        + ", connectionless_marker_valid="
+        + std::string(summary.connectionless_marker_valid ? "1" : "0")
+        + ", command_raw=" + summary.command_raw
+        + ", command_normalized=" + summary.command_normalized
+        + ", connect_detected=" + std::string(summary.connect_detected ? "1" : "0")
+        + ", protocol_version_raw=" + summary.protocol_version_raw
+        + ", protocol_version_normalized=" + summary.protocol_version_normalized
+        + ", protocol_version_present="
+        + std::string(summary.protocol_version_present ? "1" : "0")
+        + ", protocol_version_accepted="
+        + std::string(summary.protocol_version_accepted ? "1" : "0")
+        + ", challenge_raw=" + summary.challenge_raw
+        + ", challenge_present=" + std::string(summary.challenge_present ? "1" : "0")
+        + ", challenge_matches_issued="
+        + std::string(summary.challenge_matches_issued ? "1" : "0")
+        + ", userinfo_raw_safe_preview=" + summary.userinfo_raw_safe_preview
+        + ", userinfo_parse_attempted="
+        + std::string(summary.userinfo_parse_attempted ? "1" : "0")
+        + ", userinfo_parsed=" + std::string(summary.userinfo_parsed ? "1" : "0")
+        + ", userinfo_keys_count=" + std::to_string(summary.userinfo_keys_count)
+        + ", userinfo_name_seen="
+        + std::string(summary.userinfo_name_seen ? "1" : "0")
+        + ", userinfo_model_seen="
+        + std::string(summary.userinfo_model_seen ? "1" : "0")
+        + ", connect_diagnostic_ready="
+        + std::string(summary.connect_diagnostic_ready ? "1" : "0")
+        + ", response_shape=" + summary.response_shape
+        + ", response_bytes_or_text_safe_preview="
+        + summary.response_bytes_or_text_safe_preview
+        + ", remote_address_source=" + summary.remote_address_source
+        + ", bounded_loopback=" + std::string(summary.bounded_loopback ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", steam_auth_not_implemented="
+        + std::string(summary.steam_auth_not_implemented ? "1" : "0")
+        + ", netchan_not_started="
+        + std::string(summary.netchan_not_started ? "1" : "0")
+        + ", serverinfo_not_sent="
+        + std::string(summary.serverinfo_not_sent ? "1" : "0")
+        + ", client_not_put_in_server="
+        + std::string(summary.client_not_put_in_server ? "1" : "0")
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsConnectDiagnosticSurfaceLine(
+    const hl::game_api::HldsConnectDiagnosticSurfaceSummary& summary)
+{
+    return BuildHldsConnectDiagnosticLine("hlds_connect_diagnostic_surface", summary);
+}
+
+std::string BuildHldsConnectDiagnosticProbeLine(
+    const hl::game_api::HldsConnectDiagnosticProbeSummary& summary)
+{
+    return BuildHldsConnectDiagnosticLine("hlds_connect_diagnostic_probe", summary);
 }
 
 std::string BuildDedicatedActivationSurfaceLine(
@@ -56041,6 +56128,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsGetchallengeDiagnosticProbeLine(
                     summary.hlds_getchallenge_diagnostic_probe));
+        }
+        if (summary.hlds_connect_diagnostic_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectDiagnosticSurfaceLine(
+                    summary.hlds_connect_diagnostic_surface));
+        }
+        if (summary.hlds_connect_diagnostic_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectDiagnosticProbeLine(
+                    summary.hlds_connect_diagnostic_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -126565,6 +126666,344 @@ void ApplyHldsGetchallengeDiagnosticResult(
     summary->remote_address_source = "diagnostic-loopback-input";
     summary->bounded_loopback = true;
     summary->public_socket_opened = false;
+    summary->auth = "none-diagnostic-only";
+    summary->signon = "not-started";
+    summary->gameplay_transport = "no";
+    summary->detail = result.detail;
+}
+
+struct HldsConnectDiagnosticResult
+{
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    bool getchallenge_dependency_checked = false;
+    bool prior_challenge_issued = false;
+    std::string prior_challenge_value = "<none>";
+    bool connectionless_marker_seen = false;
+    bool connectionless_marker_valid = false;
+    std::string command_raw = "<none>";
+    std::string command_normalized = "<none>";
+    bool connect_detected = false;
+    std::string protocol_version_raw = "<none>";
+    std::string protocol_version_normalized = "<none>";
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+    std::string challenge_raw = "<none>";
+    bool challenge_present = false;
+    bool challenge_matches_issued = false;
+    std::string userinfo_raw_safe_preview = "<none>";
+    bool userinfo_parse_attempted = false;
+    bool userinfo_parsed = false;
+    int userinfo_keys_count = 0;
+    bool userinfo_name_seen = false;
+    bool userinfo_model_seen = false;
+    bool connect_diagnostic_ready = false;
+    std::string response_shape = "connectionless-text:connect-diagnostic";
+    std::string response_preview = "<none>";
+    std::string detail;
+};
+
+std::string FirstWhitespaceDelimitedToken(std::string_view text)
+{
+    const std::string trimmed = TrimAsciiWhitespace(std::string(text));
+    const std::size_t first_space = trimmed.find_first_of(" \t\r\n");
+    if (first_space == std::string::npos)
+    {
+        return trimmed;
+    }
+    return trimmed.substr(0, first_space);
+}
+
+bool ParseHldsConnectDiagnosticUserinfo(
+    std::string_view userinfo,
+    int* keys_count,
+    bool* name_seen,
+    bool* model_seen)
+{
+    if (keys_count != nullptr)
+    {
+        *keys_count = 0;
+    }
+    if (name_seen != nullptr)
+    {
+        *name_seen = false;
+    }
+    if (model_seen != nullptr)
+    {
+        *model_seen = false;
+    }
+    if (userinfo.empty() || userinfo.front() != '\\')
+    {
+        return false;
+    }
+
+    std::size_t offset = 1;
+    int parsed_pairs = 0;
+    while (offset < userinfo.size())
+    {
+        const std::size_t key_end = userinfo.find('\\', offset);
+        if (key_end == std::string_view::npos || key_end == offset)
+        {
+            return false;
+        }
+        const std::string key(userinfo.substr(offset, key_end - offset));
+        offset = key_end + 1;
+        const std::size_t value_end = userinfo.find('\\', offset);
+        const std::size_t value_size =
+            value_end == std::string_view::npos ? userinfo.size() - offset : value_end - offset;
+        if (value_size == 0)
+        {
+            return false;
+        }
+        const std::string value(userinfo.substr(offset, value_size));
+        (void)value;
+
+        ++parsed_pairs;
+        const std::string normalized_key = ToLowerCopy(key);
+        if (normalized_key == "name" && name_seen != nullptr)
+        {
+            *name_seen = true;
+        }
+        if (normalized_key == "model" && model_seen != nullptr)
+        {
+            *model_seen = true;
+        }
+
+        if (value_end == std::string_view::npos)
+        {
+            offset = userinfo.size();
+        }
+        else
+        {
+            offset = value_end + 1;
+        }
+    }
+
+    if (keys_count != nullptr)
+    {
+        *keys_count = parsed_pairs;
+    }
+    return parsed_pairs > 0;
+}
+
+std::vector<unsigned char> BuildHldsConnectDiagnosticInput(
+    std::string_view scenario,
+    std::string_view issued_challenge)
+{
+    const std::string valid_userinfo = "\\name\\diagnostic_loopback\\model\\gordon";
+    if (scenario == "gate_missing_or_wrong_challenge")
+    {
+        return BuildConnectionlessTextPacket(
+            "connect protocol=48 challenge=265042651 userinfo=" + valid_userinfo);
+    }
+    if (scenario == "gate_wrong_protocol")
+    {
+        return BuildConnectionlessTextPacket(
+            "connect protocol=47 challenge=" + std::string(issued_challenge)
+            + " userinfo=" + valid_userinfo);
+    }
+    if (scenario == "gate_malformed_userinfo")
+    {
+        return BuildConnectionlessTextPacket(
+            "connect protocol=48 challenge=" + std::string(issued_challenge)
+            + " userinfo=\\name\\diagnostic_loopback\\model");
+    }
+
+    return BuildConnectionlessTextPacket(
+        "connect protocol=48 challenge=" + std::string(issued_challenge)
+        + " userinfo=" + valid_userinfo);
+}
+
+HldsConnectDiagnosticResult ParseHldsConnectDiagnosticInput(
+    const std::vector<unsigned char>& bytes,
+    const HldsGetchallengeDiagnosticResult& issued_challenge)
+{
+    HldsConnectDiagnosticResult result;
+    result.getchallenge_dependency_checked = true;
+    result.prior_challenge_issued =
+        issued_challenge.accepted == 1
+        && issued_challenge.challenge_generated
+        && issued_challenge.challenge_response_ready
+        && !issued_challenge.challenge_value.empty()
+        && issued_challenge.challenge_value != "<none>";
+    result.prior_challenge_value =
+        result.prior_challenge_issued ? issued_challenge.challenge_value : "<none>";
+    if (!result.prior_challenge_issued)
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "prior_challenge_not_issued";
+        result.detail =
+            "diagnostic connect rejected: prerequisite getchallenge helper did not issue a challenge";
+        return result;
+    }
+
+    result.connectionless_marker_seen = bytes.size() >= 4;
+    result.connectionless_marker_valid =
+        bytes.size() >= 5
+        && bytes[0] == 0xFFu
+        && bytes[1] == 0xFFu
+        && bytes[2] == 0xFFu
+        && bytes[3] == 0xFFu;
+    if (!result.connectionless_marker_valid)
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "bad_connectionless_marker";
+        result.detail =
+            "diagnostic connect rejected before command parse: bad connectionless marker";
+        return result;
+    }
+
+    const std::string connect_text = ExtractConnectionlessText(
+        bytes.data(),
+        static_cast<int>(bytes.size()));
+    result.command_raw = FirstWhitespaceDelimitedToken(connect_text);
+    if (result.command_raw.empty())
+    {
+        result.command_raw = "<empty>";
+    }
+    result.command_normalized = ToLowerCopy(result.command_raw);
+    if (result.command_normalized != "connect")
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "unsupported_connectionless_command";
+        result.detail =
+            "diagnostic connect rejected: unsupported connectionless command";
+        return result;
+    }
+    result.connect_detected = true;
+
+    result.protocol_version_raw = ExtractTokenValue(connect_text, "protocol=");
+    result.protocol_version_present = !result.protocol_version_raw.empty();
+    if (!result.protocol_version_present)
+    {
+        result.protocol_version_raw = "<none>";
+        result.protocol_version_normalized = "<none>";
+        result.rejected = 1;
+        result.last_reject_reason = "missing_protocol_version";
+        result.detail =
+            "diagnostic connect rejected: missing protocol/version-shaped field";
+        return result;
+    }
+    result.protocol_version_normalized = TrimAsciiWhitespace(result.protocol_version_raw);
+    result.protocol_version_accepted = result.protocol_version_normalized == "48";
+
+    result.challenge_raw = ExtractTokenValue(connect_text, "challenge=");
+    result.challenge_present = !result.challenge_raw.empty();
+    if (!result.challenge_present)
+    {
+        result.challenge_raw = "<none>";
+        result.rejected = 1;
+        result.last_reject_reason = "missing_challenge";
+        result.detail =
+            "diagnostic connect rejected: missing diagnostic challenge-shaped field";
+        return result;
+    }
+    result.challenge_matches_issued =
+        result.challenge_raw == result.prior_challenge_value;
+    if (!result.challenge_matches_issued)
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "challenge_mismatch";
+        result.detail =
+            "diagnostic connect rejected: challenge did not match issued diagnostic challenge";
+        return result;
+    }
+
+    if (!result.protocol_version_accepted)
+    {
+        result.rejected = 1;
+        result.last_reject_reason = "unsupported_protocol_version";
+        result.detail =
+            "diagnostic connect rejected: unsupported protocol/version-shaped field";
+        return result;
+    }
+
+    result.userinfo_raw_safe_preview = ExtractTokenValue(connect_text, "userinfo=");
+    result.userinfo_parse_attempted = true;
+    result.userinfo_parsed = ParseHldsConnectDiagnosticUserinfo(
+        result.userinfo_raw_safe_preview,
+        &result.userinfo_keys_count,
+        &result.userinfo_name_seen,
+        &result.userinfo_model_seen);
+    if (!result.userinfo_parsed)
+    {
+        if (result.userinfo_raw_safe_preview.empty())
+        {
+            result.userinfo_raw_safe_preview = "<none>";
+        }
+        result.rejected = 1;
+        result.last_reject_reason = "malformed_userinfo";
+        result.detail =
+            "diagnostic connect rejected: malformed userinfo-shaped payload";
+        return result;
+    }
+
+    result.accepted = 1;
+    result.last_reject_reason = "<none>";
+    result.connect_diagnostic_ready = true;
+    result.response_shape = "connectionless-text:connect-diagnostic <deterministic>";
+    result.response_preview =
+        "FF FF FF FF connect_diagnostic challenge=" + result.prior_challenge_value
+        + " protocol=48 userinfoKeys=" + std::to_string(result.userinfo_keys_count)
+        + " 00";
+    result.detail =
+        "diagnostic-only HLDS-style connect request accepted; no auth, serverinfo, netchan, or admission performed";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsConnectDiagnosticResult(
+    const HldsConnectDiagnosticResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->mode = std::string(mode);
+    summary->scenario = std::string(scenario);
+    summary->accepted = result.accepted;
+    summary->rejected = result.rejected;
+    summary->last_reject_reason = result.last_reject_reason;
+    summary->compatibility_claim_level =
+        "diagnostic-connectionless-connect-only";
+    summary->diagnostic_only = true;
+    summary->getchallenge_dependency_checked =
+        result.getchallenge_dependency_checked;
+    summary->prior_challenge_issued = result.prior_challenge_issued;
+    summary->prior_challenge_value = result.prior_challenge_value;
+    summary->connectionless_marker_seen = result.connectionless_marker_seen;
+    summary->connectionless_marker_valid = result.connectionless_marker_valid;
+    summary->command_raw = result.command_raw;
+    summary->command_normalized = result.command_normalized;
+    summary->connect_detected = result.connect_detected;
+    summary->protocol_version_raw = result.protocol_version_raw;
+    summary->protocol_version_normalized = result.protocol_version_normalized;
+    summary->protocol_version_present = result.protocol_version_present;
+    summary->protocol_version_accepted = result.protocol_version_accepted;
+    summary->challenge_raw = result.challenge_raw;
+    summary->challenge_present = result.challenge_present;
+    summary->challenge_matches_issued = result.challenge_matches_issued;
+    summary->userinfo_raw_safe_preview = result.userinfo_raw_safe_preview;
+    summary->userinfo_parse_attempted = result.userinfo_parse_attempted;
+    summary->userinfo_parsed = result.userinfo_parsed;
+    summary->userinfo_keys_count = result.userinfo_keys_count;
+    summary->userinfo_name_seen = result.userinfo_name_seen;
+    summary->userinfo_model_seen = result.userinfo_model_seen;
+    summary->connect_diagnostic_ready = result.connect_diagnostic_ready;
+    summary->response_shape = result.response_shape;
+    summary->response_bytes_or_text_safe_preview = result.response_preview;
+    summary->remote_address_source = "diagnostic-loopback-input";
+    summary->bounded_loopback = true;
+    summary->public_socket_opened = false;
+    summary->steam_auth_not_implemented = true;
+    summary->netchan_not_started = true;
+    summary->serverinfo_not_sent = true;
+    summary->client_not_put_in_server = true;
     summary->auth = "none-diagnostic-only";
     summary->signon = "not-started";
     summary->gameplay_transport = "no";
@@ -205914,6 +206353,45 @@ void PerformHldsGetchallengeDiagnosticSurface()
     ApplyHldsGetchallengeDiagnosticResult(result, mode, scenario, &probe);
 }
 
+void PerformHldsConnectDiagnosticSurface()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& surface = state.hlds_connect_diagnostic_surface;
+    auto& probe = state.hlds_connect_diagnostic_probe;
+    if (!state.server_state.dedicated || !surface.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_connect_diagnostic_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_connect_diagnostic_probe_scenario;
+
+    HldsConnectDiagnosticResult surface_ready;
+    surface_ready.last_reject_reason = "<none>";
+    surface_ready.detail =
+        "diagnostic connect surface ready; probe disabled or not yet run";
+    ApplyHldsConnectDiagnosticResult(surface_ready, mode, scenario, &surface);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsGetchallengeDiagnosticResult issued_challenge =
+        ParseHldsGetchallengeDiagnosticInput(
+            BuildHldsGetchallengeDiagnosticInput("happy"));
+    const std::vector<unsigned char> input = BuildHldsConnectDiagnosticInput(
+        scenario,
+        issued_challenge.challenge_value);
+    const HldsConnectDiagnosticResult result =
+        ParseHldsConnectDiagnosticInput(input, issued_challenge);
+    ApplyHldsConnectDiagnosticResult(result, mode, scenario, &surface);
+    ApplyHldsConnectDiagnosticResult(result, mode, scenario, &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -237509,6 +237987,8 @@ void PopulateBootstrapSummary(
     summary.dedicated_connect_probe = {};
     summary.hlds_getchallenge_diagnostic_surface = {};
     summary.hlds_getchallenge_diagnostic_probe = {};
+    summary.hlds_connect_diagnostic_surface = {};
+    summary.hlds_connect_diagnostic_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -238571,6 +239051,10 @@ void PopulateBootstrapSummary(
             state.hlds_getchallenge_diagnostic_surface;
         summary.hlds_getchallenge_diagnostic_probe =
             state.hlds_getchallenge_diagnostic_probe;
+        summary.hlds_connect_diagnostic_surface =
+            state.hlds_connect_diagnostic_surface;
+        summary.hlds_connect_diagnostic_probe =
+            state.hlds_connect_diagnostic_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -245025,6 +245509,7 @@ void FinalizeServerBootstrapStep()
     PerformDedicatedMultiplayerFoundation();
     PerformDedicatedQuerySurface();
     PerformHldsGetchallengeDiagnosticSurface();
+    PerformHldsConnectDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -246927,6 +247412,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_connect_probe = {};
     impl_->summary.hlds_getchallenge_diagnostic_surface = {};
     impl_->summary.hlds_getchallenge_diagnostic_probe = {};
+    impl_->summary.hlds_connect_diagnostic_surface = {};
+    impl_->summary.hlds_connect_diagnostic_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -247132,6 +247619,21 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         ? "gate_bad_marker"
         : options.hlds_getchallenge_diagnostic_probe_scenario == "gate_wrong_command"
         ? "gate_wrong_command"
+        : "happy";
+    impl_->shim_state.hlds_connect_diagnostic_surface = {};
+    impl_->shim_state.hlds_connect_diagnostic_surface.enabled =
+        options.hlds_connect_diagnostic_surface_enabled;
+    impl_->shim_state.hlds_connect_diagnostic_probe = {};
+    impl_->shim_state.hlds_connect_diagnostic_probe.enabled =
+        options.hlds_connect_diagnostic_probe_enabled;
+    impl_->shim_state.hlds_connect_diagnostic_probe_scenario =
+        options.hlds_connect_diagnostic_probe_scenario
+            == "gate_missing_or_wrong_challenge"
+        ? "gate_missing_or_wrong_challenge"
+        : options.hlds_connect_diagnostic_probe_scenario == "gate_wrong_protocol"
+        ? "gate_wrong_protocol"
+        : options.hlds_connect_diagnostic_probe_scenario == "gate_malformed_userinfo"
+        ? "gate_malformed_userinfo"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -250146,6 +250648,79 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_getchallenge_gate_wrong_command
                 ? !hlds_getchallenge_wrong_command_ok
                 : !hlds_getchallenge_happy_ok);
+    const auto& hlds_connect_probe =
+        impl_->summary.hlds_connect_diagnostic_probe;
+    const bool hlds_connect_gate_challenge =
+        impl_->shim_state.hlds_connect_diagnostic_probe_scenario
+        == "gate_missing_or_wrong_challenge";
+    const bool hlds_connect_gate_protocol =
+        impl_->shim_state.hlds_connect_diagnostic_probe_scenario
+        == "gate_wrong_protocol";
+    const bool hlds_connect_gate_userinfo =
+        impl_->shim_state.hlds_connect_diagnostic_probe_scenario
+        == "gate_malformed_userinfo";
+    const bool hlds_connect_happy_ok =
+        hlds_connect_probe.enabled
+        && hlds_connect_probe.accepted == 1
+        && hlds_connect_probe.rejected == 0
+        && hlds_connect_probe.getchallenge_dependency_checked
+        && hlds_connect_probe.prior_challenge_issued
+        && hlds_connect_probe.connectionless_marker_valid
+        && hlds_connect_probe.connect_detected
+        && hlds_connect_probe.challenge_present
+        && hlds_connect_probe.challenge_matches_issued
+        && hlds_connect_probe.protocol_version_present
+        && hlds_connect_probe.protocol_version_accepted
+        && hlds_connect_probe.userinfo_parse_attempted
+        && hlds_connect_probe.userinfo_parsed
+        && hlds_connect_probe.connect_diagnostic_ready
+        && hlds_connect_probe.steam_auth_not_implemented
+        && hlds_connect_probe.netchan_not_started
+        && hlds_connect_probe.client_not_put_in_server
+        && hlds_connect_probe.bounded_loopback
+        && !hlds_connect_probe.public_socket_opened
+        && hlds_connect_probe.compatibility_claim_level
+            == "diagnostic-connectionless-connect-only";
+    const bool hlds_connect_challenge_gate_ok =
+        hlds_connect_probe.enabled
+        && hlds_connect_probe.accepted == 0
+        && hlds_connect_probe.rejected == 1
+        && hlds_connect_probe.connect_detected
+        && hlds_connect_probe.challenge_present
+        && !hlds_connect_probe.challenge_matches_issued
+        && !hlds_connect_probe.connect_diagnostic_ready
+        && hlds_connect_probe.last_reject_reason == "challenge_mismatch";
+    const bool hlds_connect_protocol_gate_ok =
+        hlds_connect_probe.enabled
+        && hlds_connect_probe.accepted == 0
+        && hlds_connect_probe.rejected == 1
+        && hlds_connect_probe.connect_detected
+        && hlds_connect_probe.challenge_matches_issued
+        && hlds_connect_probe.protocol_version_present
+        && !hlds_connect_probe.protocol_version_accepted
+        && !hlds_connect_probe.connect_diagnostic_ready
+        && hlds_connect_probe.last_reject_reason
+            == "unsupported_protocol_version";
+    const bool hlds_connect_userinfo_gate_ok =
+        hlds_connect_probe.enabled
+        && hlds_connect_probe.accepted == 0
+        && hlds_connect_probe.rejected == 1
+        && hlds_connect_probe.connect_detected
+        && hlds_connect_probe.challenge_matches_issued
+        && hlds_connect_probe.protocol_version_accepted
+        && hlds_connect_probe.userinfo_parse_attempted
+        && !hlds_connect_probe.userinfo_parsed
+        && !hlds_connect_probe.connect_diagnostic_ready
+        && hlds_connect_probe.last_reject_reason == "malformed_userinfo";
+    const bool hlds_connect_diagnostic_probe_failed =
+        options.hlds_connect_diagnostic_probe_enabled
+        && (hlds_connect_gate_challenge
+                ? !hlds_connect_challenge_gate_ok
+                : hlds_connect_gate_protocol
+                ? !hlds_connect_protocol_gate_ok
+                : hlds_connect_gate_userinfo
+                ? !hlds_connect_userinfo_gate_ok
+                : !hlds_connect_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -260293,6 +260868,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_query_probe_failed
         && !dedicated_connect_probe_failed
         && !hlds_getchallenge_diagnostic_probe_failed
+        && !hlds_connect_diagnostic_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
