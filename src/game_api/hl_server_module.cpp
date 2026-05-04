@@ -3897,6 +3897,11 @@ struct EngineShimState
         hlds_serverinfo_diagnostic_surface;
     hl::game_api::HldsServerinfoDiagnosticProbeSummary hlds_serverinfo_diagnostic_probe;
     std::string hlds_serverinfo_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticSurfaceSummary
+        hlds_connectionless_loopback_udp_diagnostic_surface;
+    hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticProbeSummary
+        hlds_connectionless_loopback_udp_diagnostic_probe;
+    std::string hlds_connectionless_loopback_udp_diagnostic_probe_scenario = "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4801,6 +4806,10 @@ std::string BuildHldsServerinfoDiagnosticSurfaceLine(
     const hl::game_api::HldsServerinfoDiagnosticSurfaceSummary& summary);
 std::string BuildHldsServerinfoDiagnosticProbeLine(
     const hl::game_api::HldsServerinfoDiagnosticProbeSummary& summary);
+std::string BuildHldsConnectionlessLoopbackUdpDiagnosticSurfaceLine(
+    const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticSurfaceSummary& summary);
+std::string BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
+    const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25046,6 +25055,118 @@ std::string BuildHldsServerinfoDiagnosticProbeLine(
 {
     return BuildHldsServerinfoDiagnosticLine(
         "hlds_serverinfo_diagnostic_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsConnectionlessLoopbackUdpDiagnosticLine(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return std::string(prefix) + ": enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>") : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", bounded_loopback=" + std::string(summary.bounded_loopback ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", loopback_udp_socket_opened="
+        + std::string(summary.loopback_udp_socket_opened ? "1" : "0")
+        + ", inprocess_datagram_loopback_used="
+        + std::string(summary.inprocess_datagram_loopback_used ? "1" : "0")
+        + ", loopback_policy_enforced="
+        + std::string(summary.loopback_policy_enforced ? "1" : "0")
+        + ", udp_bind_address=" + summary.udp_bind_address
+        + ", udp_bound_port=" + std::to_string(summary.udp_bound_port)
+        + ", udp_client_address_source=" + summary.udp_client_address_source
+        + ", udp_server_address_source=" + summary.udp_server_address_source
+        + ", udp_datagrams_sent=" + std::to_string(summary.udp_datagrams_sent)
+        + ", udp_datagrams_received=" + std::to_string(summary.udp_datagrams_received)
+        + ", udp_bytes_sent=" + std::to_string(summary.udp_bytes_sent)
+        + ", udp_bytes_received=" + std::to_string(summary.udp_bytes_received)
+        + ", sockets_closed=" + std::string(summary.sockets_closed ? "1" : "0")
+        + ", getchallenge_datagram_received="
+        + std::string(summary.getchallenge_datagram_received ? "1" : "0")
+        + ", challenge_response_datagram_sent="
+        + std::string(summary.challenge_response_datagram_sent ? "1" : "0")
+        + ", connect_datagram_received="
+        + std::string(summary.connect_datagram_received ? "1" : "0")
+        + ", serverinfo_response_datagram_sent="
+        + std::string(summary.serverinfo_response_datagram_sent ? "1" : "0")
+        + ", connectionless_marker_seen="
+        + std::string(summary.connectionless_marker_seen ? "1" : "0")
+        + ", connectionless_marker_valid="
+        + std::string(summary.connectionless_marker_valid ? "1" : "0")
+        + ", command_raw=" + summary.command_raw
+        + ", command_normalized=" + summary.command_normalized
+        + ", getchallenge_detected="
+        + std::string(summary.getchallenge_detected ? "1" : "0")
+        + ", challenge_generated="
+        + std::string(summary.challenge_generated ? "1" : "0")
+        + ", challenge_response_ready="
+        + std::string(summary.challenge_response_ready ? "1" : "0")
+        + ", prior_challenge_issued="
+        + std::string(summary.prior_challenge_issued ? "1" : "0")
+        + ", prior_challenge_value=" + summary.prior_challenge_value
+        + ", connect_detected=" + std::string(summary.connect_detected ? "1" : "0")
+        + ", challenge_present=" + std::string(summary.challenge_present ? "1" : "0")
+        + ", challenge_matches_issued="
+        + std::string(summary.challenge_matches_issued ? "1" : "0")
+        + ", protocol_version_raw=" + summary.protocol_version_raw
+        + ", protocol_version_present="
+        + std::string(summary.protocol_version_present ? "1" : "0")
+        + ", protocol_version_accepted="
+        + std::string(summary.protocol_version_accepted ? "1" : "0")
+        + ", userinfo_parse_attempted="
+        + std::string(summary.userinfo_parse_attempted ? "1" : "0")
+        + ", userinfo_parsed=" + std::string(summary.userinfo_parsed ? "1" : "0")
+        + ", connect_diagnostic_ready="
+        + std::string(summary.connect_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_diagnostic_ready="
+        + std::string(summary.serverinfo_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_response_ready="
+        + std::string(summary.serverinfo_response_ready ? "1" : "0")
+        + ", serverinfo_response_shape=" + summary.serverinfo_response_shape
+        + ", response_bytes_or_text_safe_preview="
+        + summary.response_bytes_or_text_safe_preview
+        + ", remote_address_source=" + summary.remote_address_source
+        + ", steam_auth_not_implemented="
+        + std::string(summary.steam_auth_not_implemented ? "1" : "0")
+        + ", netchan_not_started="
+        + std::string(summary.netchan_not_started ? "1" : "0")
+        + ", reliable_channel_not_started="
+        + std::string(summary.reliable_channel_not_started ? "1" : "0")
+        + ", resource_baselines_not_sent="
+        + std::string(summary.resource_baselines_not_sent ? "1" : "0")
+        + ", signon_state_not_entered="
+        + std::string(summary.signon_state_not_entered ? "1" : "0")
+        + ", client_not_put_in_server="
+        + std::string(summary.client_not_put_in_server ? "1" : "0")
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsConnectionlessLoopbackUdpDiagnosticSurfaceLine(
+    const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticSurfaceSummary& summary)
+{
+    return BuildHldsConnectionlessLoopbackUdpDiagnosticLine(
+        "hlds_connectionless_loopback_udp_diagnostic_surface",
+        summary);
+}
+
+std::string BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
+    const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticProbeSummary& summary)
+{
+    return BuildHldsConnectionlessLoopbackUdpDiagnosticLine(
+        "hlds_connectionless_loopback_udp_diagnostic_probe",
         summary);
 }
 
@@ -56248,6 +56369,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsServerinfoDiagnosticProbeLine(
                     summary.hlds_serverinfo_diagnostic_probe));
+        }
+        if (summary.hlds_connectionless_loopback_udp_diagnostic_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessLoopbackUdpDiagnosticSurfaceLine(
+                    summary.hlds_connectionless_loopback_udp_diagnostic_surface));
+        }
+        if (summary.hlds_connectionless_loopback_udp_diagnostic_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
+                    summary.hlds_connectionless_loopback_udp_diagnostic_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -127173,13 +127308,10 @@ HldsConnectDiagnosticResult BuildHldsServerinfoPrerequisiteConnect(
         fallback);
 }
 
-HldsServerinfoDiagnosticResult BuildHldsServerinfoDiagnosticResult(
+HldsServerinfoDiagnosticResult BuildHldsServerinfoDiagnosticResultFromConnect(
+    const HldsConnectDiagnosticResult& connect_result,
     std::string_view scenario)
 {
-    HldsGetchallengeDiagnosticResult issued_challenge;
-    const HldsConnectDiagnosticResult connect_result =
-        BuildHldsServerinfoPrerequisiteConnect(scenario, &issued_challenge);
-
     HldsServerinfoDiagnosticResult result;
     result.getchallenge_dependency_checked = true;
     result.connect_dependency_checked = true;
@@ -127238,6 +127370,15 @@ HldsServerinfoDiagnosticResult BuildHldsServerinfoDiagnosticResult(
     result.detail =
         "diagnostic-only HLDS-style serverinfo skeleton assembled after diagnostic getchallenge and connect; no auth, netchan, baselines, signon state, or admission performed";
     return result;
+}
+
+HldsServerinfoDiagnosticResult BuildHldsServerinfoDiagnosticResult(
+    std::string_view scenario)
+{
+    HldsGetchallengeDiagnosticResult issued_challenge;
+    const HldsConnectDiagnosticResult connect_result =
+        BuildHldsServerinfoPrerequisiteConnect(scenario, &issued_challenge);
+    return BuildHldsServerinfoDiagnosticResultFromConnect(connect_result, scenario);
 }
 
 template <typename Summary>
@@ -148562,6 +148703,628 @@ int DrainConnectionlessSocket(SOCKET socket, int max_packets)
     }
 
     return drained;
+}
+
+struct HldsConnectionlessLoopbackUdpDiagnosticResult
+{
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    bool bounded_loopback = true;
+    bool public_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool inprocess_datagram_loopback_used = false;
+    bool loopback_policy_enforced = true;
+    std::string udp_bind_address = "127.0.0.1";
+    int udp_bound_port = 0;
+    std::string udp_client_address_source = "disabled";
+    std::string udp_server_address_source = "disabled";
+    int udp_datagrams_sent = 0;
+    int udp_datagrams_received = 0;
+    int udp_bytes_sent = 0;
+    int udp_bytes_received = 0;
+    bool sockets_closed = false;
+    bool getchallenge_datagram_received = false;
+    bool challenge_response_datagram_sent = false;
+    bool connect_datagram_received = false;
+    bool serverinfo_response_datagram_sent = false;
+    bool connectionless_marker_seen = false;
+    bool connectionless_marker_valid = false;
+    std::string command_raw = "<none>";
+    std::string command_normalized = "<none>";
+    bool getchallenge_detected = false;
+    bool challenge_generated = false;
+    bool challenge_response_ready = false;
+    bool prior_challenge_issued = false;
+    std::string prior_challenge_value = "<none>";
+    bool connect_detected = false;
+    bool challenge_present = false;
+    bool challenge_matches_issued = false;
+    std::string protocol_version_raw = "<none>";
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+    bool userinfo_parse_attempted = false;
+    bool userinfo_parsed = false;
+    bool connect_diagnostic_ready = false;
+    bool serverinfo_diagnostic_ready = false;
+    bool serverinfo_response_ready = false;
+    std::string serverinfo_response_shape = "disabled";
+    std::string response_preview = "<none>";
+    std::string remote_address_source = "diagnostic-loopback-udp";
+    std::string detail;
+};
+
+std::string LoopbackEndpointString(int port)
+{
+    return "127.0.0.1:" + std::to_string(std::max(0, port));
+}
+
+std::string SafePacketPreview(const std::vector<unsigned char>& bytes)
+{
+    const std::string text =
+        ExtractConnectionlessText(bytes.data(), static_cast<int>(bytes.size()));
+    if (!text.empty())
+    {
+        return "FF FF FF FF " + text + " 00";
+    }
+
+    std::ostringstream stream;
+    stream << std::uppercase << std::hex << std::setfill('0');
+    const std::size_t limit = std::min<std::size_t>(bytes.size(), 24);
+    for (std::size_t index = 0; index < limit; ++index)
+    {
+        if (index != 0)
+        {
+            stream << ' ';
+        }
+        stream << std::setw(2) << static_cast<int>(bytes[index]);
+    }
+    if (bytes.size() > limit)
+    {
+        stream << " ...";
+    }
+    return stream.str().empty() ? "<empty>" : stream.str();
+}
+
+bool SendUdpDiagnosticDatagram(
+    SOCKET socket,
+    const sockaddr_in& address,
+    const std::vector<unsigned char>& bytes,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result,
+    std::string_view role)
+{
+    if (sendto(
+            socket,
+            reinterpret_cast<const char*>(bytes.data()),
+            static_cast<int>(bytes.size()),
+            0,
+            reinterpret_cast<const sockaddr*>(&address),
+            sizeof(address)) == SOCKET_ERROR)
+    {
+        if (result != nullptr)
+        {
+            result->last_reject_reason = "udp_send_failed";
+            result->detail = std::string(role)
+                + " sendto() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    if (result != nullptr)
+    {
+        ++result->udp_datagrams_sent;
+        result->udp_bytes_sent += static_cast<int>(bytes.size());
+    }
+    return true;
+}
+
+bool ReceiveUdpDiagnosticDatagram(
+    SOCKET socket,
+    std::vector<unsigned char>* bytes,
+    sockaddr_in* address,
+    int* address_size,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result,
+    std::string_view role)
+{
+    if (bytes == nullptr)
+    {
+        return false;
+    }
+    if (!WaitForSocketReadable(socket, 1000))
+    {
+        if (result != nullptr)
+        {
+            result->last_reject_reason = "udp_receive_timeout";
+            result->detail = std::string(role) + " did not receive a bounded UDP datagram";
+        }
+        return false;
+    }
+
+    std::array<unsigned char, 4096> buffer{};
+    sockaddr_in fallback_address{};
+    int fallback_address_size = sizeof(fallback_address);
+    sockaddr_in* receive_address = address != nullptr ? address : &fallback_address;
+    int* receive_address_size =
+        address_size != nullptr ? address_size : &fallback_address_size;
+    const int received = recvfrom(
+        socket,
+        reinterpret_cast<char*>(buffer.data()),
+        static_cast<int>(buffer.size()),
+        0,
+        reinterpret_cast<sockaddr*>(receive_address),
+        receive_address_size);
+    if (received == SOCKET_ERROR)
+    {
+        if (result != nullptr)
+        {
+            result->last_reject_reason = "udp_receive_failed";
+            result->detail = std::string(role)
+                + " recvfrom() failed WSA=" + std::to_string(WSAGetLastError());
+        }
+        return false;
+    }
+
+    bytes->assign(buffer.begin(), buffer.begin() + received);
+    if (result != nullptr)
+    {
+        ++result->udp_datagrams_received;
+        result->udp_bytes_received += received;
+    }
+    return true;
+}
+
+void CopyConnectionlessMarkerAndCommand(
+    const std::vector<unsigned char>& bytes,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->connectionless_marker_seen = bytes.size() >= 4;
+    result->connectionless_marker_valid =
+        bytes.size() >= 5
+        && bytes[0] == 0xFFu
+        && bytes[1] == 0xFFu
+        && bytes[2] == 0xFFu
+        && bytes[3] == 0xFFu;
+    const std::string text =
+        ExtractConnectionlessText(bytes.data(), static_cast<int>(bytes.size()));
+    result->command_raw = FirstWhitespaceDelimitedToken(text);
+    if (result->command_raw.empty())
+    {
+        result->command_raw = "<none>";
+    }
+    result->command_normalized = ToLowerCopy(result->command_raw);
+}
+
+void CopyGetchallengeDiagnosticToUdpResult(
+    const HldsGetchallengeDiagnosticResult& source,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->connectionless_marker_seen = source.connectionless_marker_seen;
+    result->connectionless_marker_valid = source.connectionless_marker_valid;
+    result->command_raw = source.command_raw;
+    result->command_normalized = source.command_normalized;
+    result->getchallenge_detected = source.getchallenge_detected;
+    result->challenge_generated = source.challenge_generated;
+    result->challenge_response_ready = source.challenge_response_ready;
+    result->prior_challenge_issued =
+        source.accepted == 1 && source.challenge_generated && source.challenge_response_ready;
+    result->prior_challenge_value =
+        result->prior_challenge_issued ? source.challenge_value : "<none>";
+}
+
+void CopyConnectDiagnosticToUdpResult(
+    const HldsConnectDiagnosticResult& source,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->command_raw = source.command_raw;
+    result->command_normalized = source.command_normalized;
+    result->connect_detected = source.connect_detected;
+    result->prior_challenge_issued = source.prior_challenge_issued;
+    result->prior_challenge_value = source.prior_challenge_value;
+    result->challenge_present = source.challenge_present;
+    result->challenge_matches_issued = source.challenge_matches_issued;
+    result->protocol_version_raw = source.protocol_version_raw;
+    result->protocol_version_present = source.protocol_version_present;
+    result->protocol_version_accepted = source.protocol_version_accepted;
+    result->userinfo_parse_attempted = source.userinfo_parse_attempted;
+    result->userinfo_parsed = source.userinfo_parsed;
+    result->connect_diagnostic_ready = source.connect_diagnostic_ready;
+}
+
+void CopyServerinfoDiagnosticToUdpResult(
+    const HldsServerinfoDiagnosticResult& source,
+    HldsConnectionlessLoopbackUdpDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    result->serverinfo_diagnostic_ready = source.serverinfo_diagnostic_ready;
+    result->serverinfo_response_ready = source.serverinfo_response_ready;
+    result->serverinfo_response_shape = source.response_shape;
+    result->response_preview = source.response_preview;
+}
+
+HldsConnectionlessLoopbackUdpDiagnosticResult RejectUdpDiagnostic(
+    HldsConnectionlessLoopbackUdpDiagnosticResult result,
+    std::string reject_reason,
+    std::string detail)
+{
+    result.accepted = 0;
+    result.rejected = 1;
+    result.last_reject_reason = std::move(reject_reason);
+    result.detail = std::move(detail);
+    result.sockets_closed = true;
+    return result;
+}
+
+HldsConnectionlessLoopbackUdpDiagnosticResult RunHldsConnectionlessLoopbackUdpDiagnostic(
+    std::string_view scenario)
+{
+    HldsConnectionlessLoopbackUdpDiagnosticResult result;
+    result.loopback_policy_enforced = true;
+    result.udp_bind_address =
+        scenario == "gate_non_loopback_bind_blocked" ? "0.0.0.0" : "127.0.0.1";
+
+    if (scenario == "gate_non_loopback_bind_blocked")
+    {
+        return RejectUdpDiagnostic(
+            result,
+            "non_loopback_bind_denied",
+            "diagnostic UDP harness rejected non-loopback bind request before opening a socket");
+    }
+
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&result.detail))
+    {
+        return RejectUdpDiagnostic(
+            result,
+            "winsock_start_failed",
+            result.detail);
+    }
+
+    ScopedUdpSocket server_socket;
+    if (!BindLoopbackQuerySocket(0, &server_socket, &result.udp_bound_port, &result.detail))
+    {
+        return RejectUdpDiagnostic(
+            result,
+            "loopback_udp_bind_failed",
+            result.detail);
+    }
+    ScopedUdpSocket client_socket;
+    int client_port = 0;
+    if (!BindLoopbackQuerySocket(0, &client_socket, &client_port, &result.detail))
+    {
+        return RejectUdpDiagnostic(
+            result,
+            "loopback_udp_client_bind_failed",
+            result.detail);
+    }
+
+    result.loopback_udp_socket_opened = true;
+    result.udp_server_address_source = LoopbackEndpointString(result.udp_bound_port);
+    result.udp_client_address_source = LoopbackEndpointString(client_port);
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(result.udp_bound_port));
+
+    if (scenario == "gate_bad_marker_udp")
+    {
+        const std::vector<unsigned char> bad_marker = {
+            'g', 'e', 't', 'c', 'h', 'a', 'l', 'l', 'e', 'n', 'g', 'e', 0x00u};
+        if (!SendUdpDiagnosticDatagram(
+                client_socket.Get(),
+                server_address,
+                bad_marker,
+                &result,
+                "bad-marker UDP client"))
+        {
+            return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+        }
+
+        std::vector<unsigned char> received_bad_marker;
+        if (!ReceiveUdpDiagnosticDatagram(
+                server_socket.Get(),
+                &received_bad_marker,
+                nullptr,
+                nullptr,
+                &result,
+                "bad-marker UDP server"))
+        {
+            return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+        }
+        result.getchallenge_datagram_received = true;
+        CopyConnectionlessMarkerAndCommand(received_bad_marker, &result);
+        const HldsGetchallengeDiagnosticResult parsed =
+            ParseHldsGetchallengeDiagnosticInput(received_bad_marker);
+        CopyGetchallengeDiagnosticToUdpResult(parsed, &result);
+        return RejectUdpDiagnostic(
+            result,
+            parsed.last_reject_reason,
+            "diagnostic UDP getchallenge rejected malformed connectionless marker");
+    }
+
+    if (scenario == "gate_connect_without_challenge")
+    {
+        const std::vector<unsigned char> connect_without_challenge =
+            BuildHldsConnectDiagnosticInput("happy", "265042650");
+        if (!SendUdpDiagnosticDatagram(
+                client_socket.Get(),
+                server_address,
+                connect_without_challenge,
+                &result,
+                "connect-without-challenge UDP client"))
+        {
+            return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+        }
+
+        std::vector<unsigned char> received_connect;
+        if (!ReceiveUdpDiagnosticDatagram(
+                server_socket.Get(),
+                &received_connect,
+                nullptr,
+                nullptr,
+                &result,
+                "connect-without-challenge UDP server"))
+        {
+            return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+        }
+        result.connect_datagram_received = true;
+        CopyConnectionlessMarkerAndCommand(received_connect, &result);
+        result.connect_detected = result.command_normalized == "connect";
+        const std::string connect_text =
+            ExtractConnectionlessText(received_connect.data(), static_cast<int>(received_connect.size()));
+        result.challenge_present = !ExtractTokenValue(connect_text, "challenge=").empty();
+        result.challenge_matches_issued = false;
+        result.protocol_version_raw = ExtractTokenValue(connect_text, "protocol=");
+        result.protocol_version_present = !result.protocol_version_raw.empty();
+        result.protocol_version_accepted = result.protocol_version_raw == "48";
+        result.userinfo_parse_attempted = connect_text.find("userinfo=") != std::string::npos;
+        return RejectUdpDiagnostic(
+            result,
+            "missing_prior_challenge",
+            "diagnostic UDP connect rejected before serverinfo: no prior matching challenge was issued");
+    }
+
+    const std::vector<unsigned char> getchallenge_request =
+        BuildHldsGetchallengeDiagnosticInput("happy");
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            getchallenge_request,
+            &result,
+            "getchallenge UDP client"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+
+    std::vector<unsigned char> received_getchallenge;
+    sockaddr_in challenge_client_address{};
+    int challenge_client_address_size = sizeof(challenge_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_getchallenge,
+            &challenge_client_address,
+            &challenge_client_address_size,
+            &result,
+            "getchallenge UDP server"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+    result.getchallenge_datagram_received = true;
+    const HldsGetchallengeDiagnosticResult getchallenge_result =
+        ParseHldsGetchallengeDiagnosticInput(received_getchallenge);
+    CopyGetchallengeDiagnosticToUdpResult(getchallenge_result, &result);
+    if (getchallenge_result.accepted != 1)
+    {
+        return RejectUdpDiagnostic(
+            result,
+            getchallenge_result.last_reject_reason,
+            getchallenge_result.detail);
+    }
+
+    const std::vector<unsigned char> challenge_response =
+        BuildConnectionlessTextPacket("challenge " + getchallenge_result.challenge_value);
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            challenge_client_address,
+            challenge_response,
+            &result,
+            "challenge UDP server response"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+    result.challenge_response_datagram_sent = true;
+    result.response_preview = SafePacketPreview(challenge_response);
+
+    std::vector<unsigned char> received_challenge_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &received_challenge_response,
+            nullptr,
+            nullptr,
+            &result,
+            "challenge UDP client"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+
+    const std::string connect_scenario =
+        scenario == "gate_wrong_protocol_udp" ? "gate_wrong_protocol" : "happy";
+    const std::vector<unsigned char> connect_request =
+        BuildHldsConnectDiagnosticInput(connect_scenario, getchallenge_result.challenge_value);
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            connect_request,
+            &result,
+            "connect UDP client"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+
+    std::vector<unsigned char> received_connect;
+    sockaddr_in connect_client_address{};
+    int connect_client_address_size = sizeof(connect_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_connect,
+            &connect_client_address,
+            &connect_client_address_size,
+            &result,
+            "connect UDP server"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+    result.connect_datagram_received = true;
+    const HldsConnectDiagnosticResult connect_result =
+        ParseHldsConnectDiagnosticInput(received_connect, getchallenge_result);
+    CopyConnectDiagnosticToUdpResult(connect_result, &result);
+    if (connect_result.accepted != 1)
+    {
+        return RejectUdpDiagnostic(
+            result,
+            connect_result.last_reject_reason,
+            connect_result.detail);
+    }
+
+    const HldsServerinfoDiagnosticResult serverinfo_result =
+        BuildHldsServerinfoDiagnosticResultFromConnect(connect_result, "happy");
+    CopyServerinfoDiagnosticToUdpResult(serverinfo_result, &result);
+    if (serverinfo_result.accepted != 1)
+    {
+        return RejectUdpDiagnostic(
+            result,
+            serverinfo_result.last_reject_reason,
+            serverinfo_result.detail);
+    }
+
+    const std::vector<unsigned char> serverinfo_response =
+        BuildConnectionlessTextPacket(
+            "serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire"
+            " game=valve maxplayers=4 slot=diagnostic-client-slot-1");
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            connect_client_address,
+            serverinfo_response,
+            &result,
+            "serverinfo UDP server response"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+    result.serverinfo_response_datagram_sent = true;
+    result.response_preview = serverinfo_result.response_preview;
+
+    std::vector<unsigned char> received_serverinfo_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &received_serverinfo_response,
+            nullptr,
+            nullptr,
+            &result,
+            "serverinfo UDP client"))
+    {
+        return RejectUdpDiagnostic(result, result.last_reject_reason, result.detail);
+    }
+
+    result.accepted = 1;
+    result.rejected = 0;
+    result.last_reject_reason = "<none>";
+    result.sockets_closed = true;
+    result.detail =
+        "diagnostic-only HLDS-style getchallenge/connect/serverinfo sequence completed over localhost UDP; no auth, netchan, baselines, signon state, or admission performed";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(
+    const HldsConnectionlessLoopbackUdpDiagnosticResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->mode = std::string(mode);
+    summary->scenario = std::string(scenario);
+    summary->accepted = result.accepted;
+    summary->rejected = result.rejected;
+    summary->last_reject_reason = result.last_reject_reason;
+    summary->compatibility_claim_level =
+        "diagnostic-localhost-udp-connectionless-only";
+    summary->diagnostic_only = true;
+    summary->bounded_loopback = result.bounded_loopback;
+    summary->public_socket_opened = result.public_socket_opened;
+    summary->loopback_udp_socket_opened = result.loopback_udp_socket_opened;
+    summary->inprocess_datagram_loopback_used =
+        result.inprocess_datagram_loopback_used;
+    summary->loopback_policy_enforced = result.loopback_policy_enforced;
+    summary->udp_bind_address = result.udp_bind_address;
+    summary->udp_bound_port = result.udp_bound_port;
+    summary->udp_client_address_source = result.udp_client_address_source;
+    summary->udp_server_address_source = result.udp_server_address_source;
+    summary->udp_datagrams_sent = result.udp_datagrams_sent;
+    summary->udp_datagrams_received = result.udp_datagrams_received;
+    summary->udp_bytes_sent = result.udp_bytes_sent;
+    summary->udp_bytes_received = result.udp_bytes_received;
+    summary->sockets_closed = result.sockets_closed;
+    summary->getchallenge_datagram_received =
+        result.getchallenge_datagram_received;
+    summary->challenge_response_datagram_sent =
+        result.challenge_response_datagram_sent;
+    summary->connect_datagram_received = result.connect_datagram_received;
+    summary->serverinfo_response_datagram_sent =
+        result.serverinfo_response_datagram_sent;
+    summary->connectionless_marker_seen = result.connectionless_marker_seen;
+    summary->connectionless_marker_valid = result.connectionless_marker_valid;
+    summary->command_raw = result.command_raw;
+    summary->command_normalized = result.command_normalized;
+    summary->getchallenge_detected = result.getchallenge_detected;
+    summary->challenge_generated = result.challenge_generated;
+    summary->challenge_response_ready = result.challenge_response_ready;
+    summary->prior_challenge_issued = result.prior_challenge_issued;
+    summary->prior_challenge_value = result.prior_challenge_value;
+    summary->connect_detected = result.connect_detected;
+    summary->challenge_present = result.challenge_present;
+    summary->challenge_matches_issued = result.challenge_matches_issued;
+    summary->protocol_version_raw = result.protocol_version_raw;
+    summary->protocol_version_present = result.protocol_version_present;
+    summary->protocol_version_accepted = result.protocol_version_accepted;
+    summary->userinfo_parse_attempted = result.userinfo_parse_attempted;
+    summary->userinfo_parsed = result.userinfo_parsed;
+    summary->connect_diagnostic_ready = result.connect_diagnostic_ready;
+    summary->serverinfo_diagnostic_ready = result.serverinfo_diagnostic_ready;
+    summary->serverinfo_response_ready = result.serverinfo_response_ready;
+    summary->serverinfo_response_shape = result.serverinfo_response_shape;
+    summary->response_bytes_or_text_safe_preview = result.response_preview;
+    summary->remote_address_source = result.remote_address_source;
+    summary->steam_auth_not_implemented = true;
+    summary->netchan_not_started = true;
+    summary->reliable_channel_not_started = true;
+    summary->resource_baselines_not_sent = true;
+    summary->signon_state_not_entered = true;
+    summary->client_not_put_in_server = true;
+    summary->auth = "none-diagnostic-only";
+    summary->signon = "not-started";
+    summary->gameplay_transport = "no";
+    summary->detail = result.detail;
 }
 
 bool PumpOneLoopbackConnectAdmissionAttempt(
@@ -206715,6 +207478,52 @@ void PerformHldsServerinfoDiagnosticSurface()
     ApplyHldsServerinfoDiagnosticResult(result, mode, scenario, &probe);
 }
 
+void PerformHldsConnectionlessLoopbackUdpDiagnosticSurface()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& surface = state.hlds_connectionless_loopback_udp_diagnostic_surface;
+    auto& probe = state.hlds_connectionless_loopback_udp_diagnostic_probe;
+    if (!state.server_state.dedicated || !surface.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario;
+
+    HldsConnectionlessLoopbackUdpDiagnosticResult surface_ready;
+    surface_ready.last_reject_reason = "<none>";
+    surface_ready.sockets_closed = true;
+    surface_ready.detail =
+        "diagnostic localhost UDP surface ready; probe disabled or not yet run";
+    ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(
+        surface_ready,
+        mode,
+        scenario,
+        &surface);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsConnectionlessLoopbackUdpDiagnosticResult result =
+        RunHldsConnectionlessLoopbackUdpDiagnostic(scenario);
+    ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &surface);
+    ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -238314,6 +239123,8 @@ void PopulateBootstrapSummary(
     summary.hlds_connect_diagnostic_probe = {};
     summary.hlds_serverinfo_diagnostic_surface = {};
     summary.hlds_serverinfo_diagnostic_probe = {};
+    summary.hlds_connectionless_loopback_udp_diagnostic_surface = {};
+    summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -239384,6 +240195,10 @@ void PopulateBootstrapSummary(
             state.hlds_serverinfo_diagnostic_surface;
         summary.hlds_serverinfo_diagnostic_probe =
             state.hlds_serverinfo_diagnostic_probe;
+        summary.hlds_connectionless_loopback_udp_diagnostic_surface =
+            state.hlds_connectionless_loopback_udp_diagnostic_surface;
+        summary.hlds_connectionless_loopback_udp_diagnostic_probe =
+            state.hlds_connectionless_loopback_udp_diagnostic_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -245840,6 +246655,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsGetchallengeDiagnosticSurface();
     PerformHldsConnectDiagnosticSurface();
     PerformHldsServerinfoDiagnosticSurface();
+    PerformHldsConnectionlessLoopbackUdpDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -247746,6 +248562,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_connect_diagnostic_probe = {};
     impl_->summary.hlds_serverinfo_diagnostic_surface = {};
     impl_->summary.hlds_serverinfo_diagnostic_probe = {};
+    impl_->summary.hlds_connectionless_loopback_udp_diagnostic_surface = {};
+    impl_->summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -247981,6 +248799,26 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : options.hlds_serverinfo_diagnostic_probe_scenario
                 == "gate_missing_serverinfo_field"
         ? "gate_missing_serverinfo_field"
+        : "happy";
+    impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_surface = {};
+    impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_surface.enabled =
+        options.hlds_connectionless_loopback_udp_diagnostic_surface_enabled;
+    impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe = {};
+    impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe.enabled =
+        options.hlds_connectionless_loopback_udp_diagnostic_probe_enabled;
+    impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario =
+        options.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+            == "gate_bad_marker_udp"
+        ? "gate_bad_marker_udp"
+        : options.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+                == "gate_connect_without_challenge"
+        ? "gate_connect_without_challenge"
+        : options.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+                == "gate_wrong_protocol_udp"
+        ? "gate_wrong_protocol_udp"
+        : options.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+                == "gate_non_loopback_bind_blocked"
+        ? "gate_non_loopback_bind_blocked"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -251141,6 +251979,125 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_serverinfo_gate_missing_field
                 ? !hlds_serverinfo_missing_field_gate_ok
                 : !hlds_serverinfo_happy_ok);
+    const auto& hlds_loopback_udp_probe =
+        impl_->summary.hlds_connectionless_loopback_udp_diagnostic_probe;
+    const bool hlds_loopback_udp_gate_bad_marker =
+        impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+        == "gate_bad_marker_udp";
+    const bool hlds_loopback_udp_gate_connect_without_challenge =
+        impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+        == "gate_connect_without_challenge";
+    const bool hlds_loopback_udp_gate_wrong_protocol =
+        impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+        == "gate_wrong_protocol_udp";
+    const bool hlds_loopback_udp_gate_non_loopback =
+        impl_->shim_state.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
+        == "gate_non_loopback_bind_blocked";
+    const bool hlds_loopback_udp_common_ok =
+        hlds_loopback_udp_probe.enabled
+        && hlds_loopback_udp_probe.bounded_loopback
+        && !hlds_loopback_udp_probe.public_socket_opened
+        && hlds_loopback_udp_probe.loopback_policy_enforced
+        && hlds_loopback_udp_probe.sockets_closed
+        && hlds_loopback_udp_probe.steam_auth_not_implemented
+        && hlds_loopback_udp_probe.netchan_not_started
+        && hlds_loopback_udp_probe.reliable_channel_not_started
+        && hlds_loopback_udp_probe.resource_baselines_not_sent
+        && hlds_loopback_udp_probe.signon_state_not_entered
+        && hlds_loopback_udp_probe.client_not_put_in_server
+        && hlds_loopback_udp_probe.compatibility_claim_level
+            == "diagnostic-localhost-udp-connectionless-only";
+    const bool hlds_loopback_udp_happy_ok =
+        hlds_loopback_udp_common_ok
+        && hlds_loopback_udp_probe.accepted == 1
+        && hlds_loopback_udp_probe.rejected == 0
+        && hlds_loopback_udp_probe.loopback_udp_socket_opened
+        && hlds_loopback_udp_probe.udp_bind_address == "127.0.0.1"
+        && hlds_loopback_udp_probe.udp_bound_port > 0
+        && hlds_loopback_udp_probe.udp_datagrams_sent >= 4
+        && hlds_loopback_udp_probe.udp_datagrams_received >= 4
+        && hlds_loopback_udp_probe.getchallenge_datagram_received
+        && hlds_loopback_udp_probe.challenge_response_datagram_sent
+        && hlds_loopback_udp_probe.connect_datagram_received
+        && hlds_loopback_udp_probe.serverinfo_response_datagram_sent
+        && hlds_loopback_udp_probe.connectionless_marker_valid
+        && hlds_loopback_udp_probe.getchallenge_detected
+        && hlds_loopback_udp_probe.challenge_generated
+        && hlds_loopback_udp_probe.challenge_response_ready
+        && hlds_loopback_udp_probe.prior_challenge_issued
+        && hlds_loopback_udp_probe.connect_detected
+        && hlds_loopback_udp_probe.challenge_matches_issued
+        && hlds_loopback_udp_probe.protocol_version_present
+        && hlds_loopback_udp_probe.protocol_version_accepted
+        && hlds_loopback_udp_probe.userinfo_parse_attempted
+        && hlds_loopback_udp_probe.userinfo_parsed
+        && hlds_loopback_udp_probe.connect_diagnostic_ready
+        && hlds_loopback_udp_probe.serverinfo_diagnostic_ready
+        && hlds_loopback_udp_probe.serverinfo_response_ready
+        && hlds_loopback_udp_probe.serverinfo_response_shape
+            == "serverinfo_diagnostic";
+    const bool hlds_loopback_udp_bad_marker_gate_ok =
+        hlds_loopback_udp_common_ok
+        && hlds_loopback_udp_probe.accepted == 0
+        && hlds_loopback_udp_probe.rejected == 1
+        && hlds_loopback_udp_probe.loopback_udp_socket_opened
+        && hlds_loopback_udp_probe.getchallenge_datagram_received
+        && hlds_loopback_udp_probe.connectionless_marker_seen
+        && !hlds_loopback_udp_probe.connectionless_marker_valid
+        && !hlds_loopback_udp_probe.getchallenge_detected
+        && !hlds_loopback_udp_probe.connect_detected
+        && !hlds_loopback_udp_probe.challenge_response_datagram_sent
+        && !hlds_loopback_udp_probe.serverinfo_response_datagram_sent
+        && hlds_loopback_udp_probe.last_reject_reason
+            == "bad_connectionless_marker";
+    const bool hlds_loopback_udp_connect_without_challenge_gate_ok =
+        hlds_loopback_udp_common_ok
+        && hlds_loopback_udp_probe.accepted == 0
+        && hlds_loopback_udp_probe.rejected == 1
+        && hlds_loopback_udp_probe.loopback_udp_socket_opened
+        && hlds_loopback_udp_probe.connect_datagram_received
+        && hlds_loopback_udp_probe.connect_detected
+        && !hlds_loopback_udp_probe.prior_challenge_issued
+        && !hlds_loopback_udp_probe.challenge_matches_issued
+        && !hlds_loopback_udp_probe.connect_diagnostic_ready
+        && !hlds_loopback_udp_probe.serverinfo_response_datagram_sent
+        && hlds_loopback_udp_probe.last_reject_reason
+            == "missing_prior_challenge";
+    const bool hlds_loopback_udp_wrong_protocol_gate_ok =
+        hlds_loopback_udp_common_ok
+        && hlds_loopback_udp_probe.accepted == 0
+        && hlds_loopback_udp_probe.rejected == 1
+        && hlds_loopback_udp_probe.loopback_udp_socket_opened
+        && hlds_loopback_udp_probe.getchallenge_detected
+        && hlds_loopback_udp_probe.prior_challenge_issued
+        && hlds_loopback_udp_probe.connect_detected
+        && hlds_loopback_udp_probe.challenge_matches_issued
+        && hlds_loopback_udp_probe.protocol_version_present
+        && !hlds_loopback_udp_probe.protocol_version_accepted
+        && !hlds_loopback_udp_probe.connect_diagnostic_ready
+        && !hlds_loopback_udp_probe.serverinfo_response_datagram_sent
+        && hlds_loopback_udp_probe.last_reject_reason
+            == "unsupported_protocol_version";
+    const bool hlds_loopback_udp_non_loopback_gate_ok =
+        hlds_loopback_udp_common_ok
+        && hlds_loopback_udp_probe.accepted == 0
+        && hlds_loopback_udp_probe.rejected == 1
+        && !hlds_loopback_udp_probe.loopback_udp_socket_opened
+        && hlds_loopback_udp_probe.udp_bind_address == "0.0.0.0"
+        && hlds_loopback_udp_probe.udp_bound_port == 0
+        && hlds_loopback_udp_probe.last_reject_reason
+            == "non_loopback_bind_denied";
+    const bool hlds_connectionless_loopback_udp_diagnostic_probe_failed =
+        options.hlds_connectionless_loopback_udp_diagnostic_probe_enabled
+        && (hlds_loopback_udp_gate_bad_marker
+                ? !hlds_loopback_udp_bad_marker_gate_ok
+                : hlds_loopback_udp_gate_connect_without_challenge
+                ? !hlds_loopback_udp_connect_without_challenge_gate_ok
+                : hlds_loopback_udp_gate_wrong_protocol
+                ? !hlds_loopback_udp_wrong_protocol_gate_ok
+                : hlds_loopback_udp_gate_non_loopback
+                ? !hlds_loopback_udp_non_loopback_gate_ok
+                : !hlds_loopback_udp_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -261290,6 +262247,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_getchallenge_diagnostic_probe_failed
         && !hlds_connect_diagnostic_probe_failed
         && !hlds_serverinfo_diagnostic_probe_failed
+        && !hlds_connectionless_loopback_udp_diagnostic_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
