@@ -1,0 +1,26 @@
+[
+  {
+    "scenario": "happy",
+    "label": "codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy__console.txt"
+  },
+  {
+    "scenario": "gate_missing_connect",
+    "label": "codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect__console.txt"
+  },
+  {
+    "scenario": "gate_wrong_protocol",
+    "label": "codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol__console.txt"
+  },
+  {
+    "scenario": "gate_missing_serverinfo_field",
+    "label": "codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field__console.txt"
+  }
+]

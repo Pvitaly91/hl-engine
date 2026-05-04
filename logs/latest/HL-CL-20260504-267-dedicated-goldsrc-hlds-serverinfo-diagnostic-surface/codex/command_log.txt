@@ -1,0 +1,23 @@
+PROMPT-ID: HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 353f2076f54dd14427e76fc08ec3aa3c5bf7b003
+source_commit: 8d44f3d5a96a727d716cfbe341b992bf74940706
+commands_run:
+- git rev-parse --show-toplevel -> G:/DEV/СPP/HLengine/host
+- git branch --show-current -> codex/HL-CL-20260401-081-target-runtime-completion-state
+- git rev-parse HEAD before work -> 353f2076f54dd14427e76fc08ec3aa3c5bf7b003
+- git status --short -> dirty unrelated build/log outputs present; preserved
+- git merge-base --is-ancestor 88b4ea5affae71a1ac014e63694e8771a562bb0a HEAD -> exit 0
+- git merge-base --is-ancestor a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea HEAD -> exit 0
+- git merge-base --is-ancestor 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e HEAD -> exit 0
+- git merge-base --is-ancestor 87a0915d9c07634606576ea54a9e91cb78d11743 HEAD -> exit 0
+- git merge-base --is-ancestor 353f2076f54dd14427e76fc08ec3aa3c5bf7b003 HEAD -> exit 0
+- git grep -n -e hlds_connect_diagnostic -e HldsConnectDiagnostic -e hlds_getchallenge_diagnostic -- include src
+- git grep/read prior 264/265/266 reports and summary JSON
+- MSBuild build32/host/hlhost.vcxproj Debug Win32 -> succeeded with existing C4127 warnings in hl_server_module.cpp
+- build32/host/Debug/hlhost.exe --dedicated --gamedir <valve-fixture> --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy --prompt-id HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface --hlds-serverinfo-diagnostic-probe --hlds-serverinfo-diagnostic-probe-scenario happy -> exit 0
+- build32/host/Debug/hlhost.exe --dedicated --gamedir <valve-fixture> --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect --prompt-id HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface --hlds-serverinfo-diagnostic-probe --hlds-serverinfo-diagnostic-probe-scenario gate_missing_connect -> exit 0
+- build32/host/Debug/hlhost.exe --dedicated --gamedir <valve-fixture> --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol --prompt-id HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface --hlds-serverinfo-diagnostic-probe --hlds-serverinfo-diagnostic-probe-scenario gate_wrong_protocol -> exit 0
+- build32/host/Debug/hlhost.exe --dedicated --gamedir <valve-fixture> --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field --prompt-id HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface --hlds-serverinfo-diagnostic-probe --hlds-serverinfo-diagnostic-probe-scenario gate_missing_serverinfo_field -> exit 0
+- copied latest runtime summaries/logs and manifests into prompt-specific artifacts
+PROMPT-ID: HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface

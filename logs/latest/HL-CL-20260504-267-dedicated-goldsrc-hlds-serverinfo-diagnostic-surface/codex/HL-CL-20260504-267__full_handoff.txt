@@ -1,0 +1,65 @@
+PROMPT-ID: HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface
+
+status: success
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 353f2076f54dd14427e76fc08ec3aa3c5bf7b003
+source/final_commit: 8d44f3d5a96a727d716cfbe341b992bf74940706
+artifact_commit: pending-artifact-commit
+compatibility_claim_level: diagnostic-serverinfo-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+source_changes:
+- include/app/launch_options.h
+- include/game_api/hl_server_module.h
+- src/app/host_application.cpp
+- src/app/launch_options.cpp
+- src/game_api/hl_server_module.cpp
+
+behavior_added:
+- Added diagnostic-only HLDS-style serverinfo skeleton surface/probe.
+- Added --hlds-serverinfo-diagnostic-surface, --hlds-serverinfo-diagnostic-probe, and --hlds-serverinfo-diagnostic-probe-scenario.
+- Happy path reuses deterministic getchallenge + connect diagnostics and assembles serverinfo-shaped summary fields.
+- Gate paths reject missing connect readiness, wrong protocol, and missing serverinfo field with stable reasons.
+
+validation:
+- descendant gates against 88b4ea5affae71a1ac014e63694e8771a562bb0a, a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea, 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e, 87a0915d9c07634606576ea54a9e91cb78d11743, 353f2076f54dd14427e76fc08ec3aa3c5bf7b003: all exit 0
+- build: MSBuild Debug Win32 succeeded; existing C4127 warnings remained
+- proof_happy: pass
+- proof_gate_missing_connect: pass
+- proof_gate_wrong_protocol: pass
+- proof_gate_missing_serverinfo_field: pass
+
+summary_lines:
+[2026-05-04 20:17:51.449] [info][summary] hlds_serverinfo_diagnostic_probe: enabled=1, mode=dedicated, scenario=happy, accepted=1, rejected=0, lastRejectReason=<none>, compatibility_claim_level=diagnostic-serverinfo-skeleton-only, diagnostic_only=1, getchallenge_dependency_checked=1, connect_dependency_checked=1, prior_challenge_issued=1, prior_challenge_value=265042650, connect_diagnostic_ready=1, serverinfo_diagnostic_ready=1, serverinfo_response_ready=1, protocol_version_raw=48, protocol_version_normalized=48, protocol_version_present=1, protocol_version_accepted=1, hostname_raw_safe_preview=HLengine Diagnostic Server, hostname_present=1, map_name_raw_safe_preview=crossfire, map_name_present=1, game_dir_raw_safe_preview=valve, game_dir_present=1, maxplayers_raw=4, maxplayers_present=1, maxplayers_accepted=1, player_slot_placeholder_present=1, response_shape=serverinfo_diagnostic, response_bytes_or_text_safe_preview=FF FF FF FF serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1 00, remote_address_source=diagnostic-loopback-input, bounded_loopback=1, public_socket_opened=0, steam_auth_not_implemented=1, netchan_not_started=1, reliable_channel_not_started=1, resource_baselines_not_sent=1, signon_state_not_entered=1, client_not_put_in_server=1, auth=none-diagnostic-only, signon=not-started, gameplay_transport=no, detail=diagnostic-only HLDS-style serverinfo skeleton assembled after diagnostic getchallenge and connect; no auth, netchan, baselines, signon state, or admission performed
+[2026-05-04 20:18:54.888] [info][summary] hlds_serverinfo_diagnostic_probe: enabled=1, mode=dedicated, scenario=gate_missing_connect, accepted=0, rejected=1, lastRejectReason=missing_connect_diagnostic, compatibility_claim_level=diagnostic-serverinfo-skeleton-only, diagnostic_only=1, getchallenge_dependency_checked=1, connect_dependency_checked=1, prior_challenge_issued=1, prior_challenge_value=265042650, connect_diagnostic_ready=0, serverinfo_diagnostic_ready=0, serverinfo_response_ready=0, protocol_version_raw=48, protocol_version_normalized=48, protocol_version_present=1, protocol_version_accepted=1, hostname_raw_safe_preview=<none>, hostname_present=0, map_name_raw_safe_preview=<none>, map_name_present=0, game_dir_raw_safe_preview=<none>, game_dir_present=0, maxplayers_raw=<none>, maxplayers_present=0, maxplayers_accepted=0, player_slot_placeholder_present=0, response_shape=serverinfo_diagnostic, response_bytes_or_text_safe_preview=<none>, remote_address_source=diagnostic-loopback-input, bounded_loopback=1, public_socket_opened=0, steam_auth_not_implemented=1, netchan_not_started=1, reliable_channel_not_started=1, resource_baselines_not_sent=1, signon_state_not_entered=1, client_not_put_in_server=1, auth=none-diagnostic-only, signon=not-started, gameplay_transport=no, detail=diagnostic serverinfo rejected: successful diagnostic connect readiness is missing
+[2026-05-04 20:19:57.356] [info][summary] hlds_serverinfo_diagnostic_probe: enabled=1, mode=dedicated, scenario=gate_wrong_protocol, accepted=0, rejected=1, lastRejectReason=unsupported_protocol_version, compatibility_claim_level=diagnostic-serverinfo-skeleton-only, diagnostic_only=1, getchallenge_dependency_checked=1, connect_dependency_checked=1, prior_challenge_issued=1, prior_challenge_value=265042650, connect_diagnostic_ready=0, serverinfo_diagnostic_ready=0, serverinfo_response_ready=0, protocol_version_raw=47, protocol_version_normalized=47, protocol_version_present=1, protocol_version_accepted=0, hostname_raw_safe_preview=<none>, hostname_present=0, map_name_raw_safe_preview=<none>, map_name_present=0, game_dir_raw_safe_preview=<none>, game_dir_present=0, maxplayers_raw=<none>, maxplayers_present=0, maxplayers_accepted=0, player_slot_placeholder_present=0, response_shape=serverinfo_diagnostic, response_bytes_or_text_safe_preview=<none>, remote_address_source=diagnostic-loopback-input, bounded_loopback=1, public_socket_opened=0, steam_auth_not_implemented=1, netchan_not_started=1, reliable_channel_not_started=1, resource_baselines_not_sent=1, signon_state_not_entered=1, client_not_put_in_server=1, auth=none-diagnostic-only, signon=not-started, gameplay_transport=no, detail=diagnostic serverinfo rejected: prerequisite connect used unsupported protocol/version-shaped field
+[2026-05-04 20:21:01.009] [info][summary] hlds_serverinfo_diagnostic_probe: enabled=1, mode=dedicated, scenario=gate_missing_serverinfo_field, accepted=0, rejected=1, lastRejectReason=missing_serverinfo_field, compatibility_claim_level=diagnostic-serverinfo-skeleton-only, diagnostic_only=1, getchallenge_dependency_checked=1, connect_dependency_checked=1, prior_challenge_issued=1, prior_challenge_value=265042650, connect_diagnostic_ready=1, serverinfo_diagnostic_ready=0, serverinfo_response_ready=0, protocol_version_raw=48, protocol_version_normalized=48, protocol_version_present=1, protocol_version_accepted=1, hostname_raw_safe_preview=HLengine Diagnostic Server, hostname_present=1, map_name_raw_safe_preview=<none>, map_name_present=0, game_dir_raw_safe_preview=valve, game_dir_present=1, maxplayers_raw=4, maxplayers_present=1, maxplayers_accepted=1, player_slot_placeholder_present=1, response_shape=serverinfo_diagnostic, response_bytes_or_text_safe_preview=<none>, remote_address_source=diagnostic-loopback-input, bounded_loopback=1, public_socket_opened=0, steam_auth_not_implemented=1, netchan_not_started=1, reliable_channel_not_started=1, resource_baselines_not_sent=1, signon_state_not_entered=1, client_not_put_in_server=1, auth=none-diagnostic-only, signon=not-started, gameplay_transport=no, detail=diagnostic serverinfo rejected: required serverinfo-shaped field omitted
+
+artifacts:
+- full_handoff_file: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/HL-CL-20260504-267__full_handoff.txt
+- diagnostic_report_file: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/serverinfo_diagnostic_report.md
+- json_summary_file: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/serverinfo_diagnostic_summary.json
+- command_log: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/command_log.txt
+- git_state: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/git_state.txt
+- happy_summary: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_summary.log
+- gate_missing_connect_summary: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_summary.log
+- gate_wrong_protocol_summary: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_summary.log
+- gate_missing_serverinfo_field_summary: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/runtime/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_summary.log
+- happy_manifest: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_manifest.json
+- gate_missing_connect_manifest: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_manifest.json
+- gate_wrong_protocol_manifest: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_manifest.json
+- gate_missing_serverinfo_field_manifest: logs/latest/HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface/codex/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_manifest.json
+
+runtime_notes:
+- public_socket_opened=0
+- bounded_loopback=1
+- maxclients runtime override used: no; proof args used maxclients=4
+- no Steam auth, netchan, reliable channel, resource baseline, signon state, or put-in-server path was started by this diagnostic.
+
+issues_risks_quirks:
+- Existing unrelated dirty build/log outputs were present and preserved.
+- Fixture still logs missing optional sound assets during worldspawn precache; this is pre-existing and not part of serverinfo diagnostic behavior.
+- This is diagnostic-only and must not be treated as real HLDS or Steam Half-Life client compatibility.
+
+concise_conclusion: Diagnostic serverinfo skeleton implemented and proven with happy plus three gate scenarios.
+
+PROMPT-ID: HL-CL-20260504-267-dedicated-goldsrc-hlds-serverinfo-diagnostic-surface
