@@ -1,0 +1,68 @@
+{
+  "prompt_id": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface",
+  "branch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "pre_change_head": "88b4ea5affae71a1ac014e63694e8771a562bb0a",
+  "source_commit": "a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea",
+  "compatibility_claim_level": "diagnostic-connectionless-getchallenge-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "public_socket_opened": 0,
+  "bounded_loopback": 1,
+  "getchallenge_detected": 1,
+  "challenge_generated": 1,
+  "challenge_response_ready": 1,
+  "scenarios": [
+    {
+      "summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_summary.log",
+      "last_reject_reason": "<none>",
+      "manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_manifest.json",
+      "proof": "pass",
+      "command": "getchallenge",
+      "rejected": 0,
+      "name": "happy",
+      "challenge_value": "265042650",
+      "accepted": 1
+    },
+    {
+      "summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_summary.log",
+      "last_reject_reason": "bad_connectionless_marker",
+      "manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_manifest.json",
+      "proof": "pass",
+      "command": "<none>",
+      "rejected": 1,
+      "name": "gate_bad_marker",
+      "challenge_value": "<none>",
+      "accepted": 0
+    },
+    {
+      "summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_summary.log",
+      "last_reject_reason": "unsupported_connectionless_command",
+      "manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_manifest.json",
+      "proof": "pass",
+      "command": "status",
+      "rejected": 1,
+      "name": "gate_wrong_command",
+      "challenge_value": "<none>",
+      "accepted": 0
+    }
+  ],
+  "changed_source_files": [
+    "include/app/launch_options.h",
+    "include/game_api/hl_server_module.h",
+    "src/app/host_application.cpp",
+    "src/app/launch_options.cpp",
+    "src/game_api/hl_server_module.cpp"
+  ],
+  "commands_run": [
+    "descendant gates for ebf60354c861b932a07124f41790ae7996f9edcb and 88b4ea5affae71a1ac014e63694e8771a562bb0a",
+    "git grep inspections for getchallenge/connectionless/query/connect code",
+    "MSBuild hlhost Debug Win32",
+    "three hlhost diagnostic proofs"
+  ],
+  "artifacts": {
+    "gate_wrong_command_summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_summary.log",
+    "happy_summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_summary.log",
+    "gate_bad_marker_manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_manifest.json",
+    "happy_manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_manifest.json",
+    "gate_bad_marker_summary": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\runtime\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_summary.log",
+    "gate_wrong_command_manifest": "logs\\latest\\HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface\\codex\\hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_manifest.json"
+  }
+}
