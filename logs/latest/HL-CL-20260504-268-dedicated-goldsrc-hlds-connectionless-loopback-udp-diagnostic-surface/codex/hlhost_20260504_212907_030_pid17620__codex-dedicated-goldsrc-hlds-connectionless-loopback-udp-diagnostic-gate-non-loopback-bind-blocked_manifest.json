@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_212907",
+  "runInstanceId": "20260504_212907_030_pid17620",
+  "runLabel": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked",
+  "promptId": "HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "4f9c20288a2b751d124b30dce3482f0b7a72f132",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_part01.log"]
+}
