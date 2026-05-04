@@ -57,6 +57,9 @@ struct LaunchOptions
     bool hlds_address_scoped_challenge_cache_diagnostic_surface_enabled = false;
     bool hlds_address_scoped_challenge_cache_diagnostic_probe_enabled = false;
     std::string hlds_address_scoped_challenge_cache_diagnostic_probe_scenario = "happy";
+    bool hlds_userinfo_validation_policy_diagnostic_surface_enabled = false;
+    bool hlds_userinfo_validation_policy_diagnostic_probe_enabled = false;
+    std::string hlds_userinfo_validation_policy_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
