@@ -1,0 +1,29 @@
+Prompt: HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory
+Working directory: G:\DEV\СPP\HLengine\host
+show-toplevel: G:/DEV/СPP/HLengine/host
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: ebf60354c861b932a07124f41790ae7996f9edcb
+current_head_before_report_commit: ebf60354c861b932a07124f41790ae7996f9edcb
+
+descendant gate bf8341812d494a4210f4208524bf9b74385b3994: exit=0
+descendant gate ebf60354c861b932a07124f41790ae7996f9edcb: exit=0
+
+Commands run:
+1. git rev-parse --show-toplevel
+2. git status --short
+3. git branch --show-current
+4. git rev-parse HEAD
+5. git merge-base --is-ancestor bf8341812d494a4210f4208524bf9b74385b3994 HEAD
+6. git merge-base --is-ancestor ebf60354c861b932a07124f41790ae7996f9edcb HEAD
+7. git grep / rg searches for prompt 259/260/261/262/263 launch options and summary symbols.
+8. git grep / rg searches for getchallenge, challenge, connect, userinfo, serverinfo, netchan, connectionless, packet, GoldSrc, HLDS.
+9. file inspection of launch_options, host_application, hl_server_module, server_bootstrap, server_frame_loop, server_command_buffer, server_command_dispatcher.
+
+Evidence summary:
+- PumpOneLoopbackConnectAdmissionAttempt implements a deterministic synthetic text getchallenge/connect proof.
+- BuildGoldSrcInfoRequest/Response and PumpOneLoopbackGoldSrcInfoQuery implement a legacy-like query diagnostic.
+- BuildDedicatedSignon* helpers build synthetic proof bytes and semantic tags, not real GoldSrc signon payloads.
+- No real netchan sequencing/ack/fragmentation implementation was found by grep.
+
+Build/runtime validation:
+- Not run; this prompt changed only report artifacts and no source files.
