@@ -1,0 +1,240 @@
+{
+  "synthetic_surfaces": [
+    {
+      "proves": "positive resumed range after resume allow",
+      "prompt_id": "HL-CL-20260411-259",
+      "synthetic_only_fields": [
+        "septenary claimant chain",
+        "carried checkpoint",
+        "claimed checkpoint",
+        "resume range"
+      ],
+      "name": "septenary positive resumed-range",
+      "flags": [
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-range-surface",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-range-probe",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-range-probe-scenario"
+      ]
+    },
+    {
+      "proves": "terminal EOF after resumed range",
+      "prompt_id": "HL-CL-20260502-260",
+      "synthetic_only_fields": [
+        "synthetic EOF descriptor",
+        "terminal cursor state"
+      ],
+      "name": "septenary positive resumed-EOF",
+      "flags": [
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-eof-surface",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-eof-probe",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-eof-probe-scenario"
+      ]
+    },
+    {
+      "proves": "stale_cursor_after_eof denial",
+      "prompt_id": "HL-CL-20260503-261",
+      "synthetic_only_fields": [
+        "synthetic denial scenario",
+        "synthetic deny reason"
+      ],
+      "name": "single resume-denial",
+      "flags": [
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-surface",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-probe",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-probe-scenario"
+      ]
+    },
+    {
+      "proves": "five deterministic negative denial variants",
+      "prompt_id": "HL-CL-20260503-262",
+      "synthetic_only_fields": [
+        "denial matrix counters",
+        "post-terminal synthetic policy"
+      ],
+      "name": "resume-denial matrix",
+      "flags": [
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-matrix-surface",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-matrix-probe",
+        "--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-checkpoint-resume-token-claim-resume-denial-matrix-probe-scenario"
+      ]
+    },
+    {
+      "proves": "aggregate range EOF denial matrix lifecycle contract",
+      "prompt_id": "HL-CL-20260503-263",
+      "synthetic_only_fields": [
+        "aggregate lifecycle counters"
+      ],
+      "name": "resume lifecycle acceptance gate",
+      "flags": [
+        "--signon-resume-lifecycle-acceptance-gate",
+        "--signon-resume-lifecycle-acceptance-probe",
+        "--signon-resume-lifecycle-acceptance-probe-scenario"
+      ]
+    }
+  ],
+  "prompt_id": "HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory",
+  "recommended_next_task": "Implement a read-only HLDS-style connectionless getchallenge/challenge response diagnostic surface that parses real connectionless packet bytes and emits deterministic summary/reject fields, without accepting real clients yet.",
+  "pre_change_head": "ebf60354c861b932a07124f41790ae7996f9edcb",
+  "compatibility_claim_level": "synthetic-loopback-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "blockers": [
+    "no real HLDS connect packet parser",
+    "no protocol/version/userinfo parser",
+    "no real signon state packet contract",
+    "no reliable/unreliable netchan",
+    "no resource/baseline wire inventory",
+    "no real Steam Half-Life client smoke proof"
+  ],
+  "changed_files": [
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/HL-CL-20260504-264__full_handoff.txt",
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/wire_contract_inventory.md",
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/gap_matrix.md",
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/wire_contract_inventory.json",
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/command_log.txt",
+    "logs/latest/HL-CL-20260504-264-dedicated-goldsrc-hlds-signon-wire-contract-inventory/codex/git_state.txt"
+  ],
+  "commands_run": [
+    "git rev-parse --show-toplevel",
+    "git status --short",
+    "git branch --show-current",
+    "git rev-parse HEAD",
+    "git merge-base --is-ancestor bf8341812d494a4210f4208524bf9b74385b3994 HEAD",
+    "git merge-base --is-ancestor ebf60354c861b932a07124f41790ae7996f9edcb HEAD",
+    "rg/git grep for prompt 259-263 launch options and getchallenge/connect/userinfo/serverinfo/netchan/sign-on evidence"
+  ],
+  "branch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gaps": [
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "udp_connectionless_packet_boundary",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "a2s_server_info_query",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "challenge_request_response",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "client_connect_request_parsing",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "protocol_version_validation",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "userinfo_parsing",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "serverinfo_emission",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "signon_state_transition",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "resource_model_sound_event_baseline_inventory",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "reliable_unreliable_channel_setup",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "netchan_sequencing_ack_fragmentation",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "client_spawn_put_in_server_equivalent",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "disconnect_reject_paths",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    },
+    {
+      "risk": "medium_to_high",
+      "missing_real_hlds_compatible_behavior": "see gap_matrix.md",
+      "test_proof_needed": "deterministic loopback or fixture proof before compatibility claim",
+      "current_status": "partial_or_missing_as_inventory_described",
+      "area": "map_mod_game_directory_negotiation_steam_risks",
+      "recommended_next_prompt_task": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface where applicable, otherwise defer"
+    }
+  ],
+  "inspected_commits": [
+    "bf8341812d494a4210f4208524bf9b74385b3994",
+    "ebf60354c861b932a07124f41790ae7996f9edcb"
+  ],
+  "recommended_next_prompt_id": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface",
+  "real_wire_areas": [
+    "udp_connectionless_packet_boundary",
+    "a2s_server_info_query",
+    "challenge_request_response",
+    "client_connect_request_parsing",
+    "protocol_version_validation",
+    "userinfo_parsing",
+    "serverinfo_emission",
+    "signon_state_transition",
+    "resource_model_sound_event_baseline_inventory",
+    "reliable_unreliable_channel_setup",
+    "netchan_sequencing_ack_fragmentation",
+    "client_spawn_put_in_server_equivalent",
+    "disconnect_reject_paths",
+    "map_mod_game_directory_negotiation_steam_risks"
+  ]
+}
