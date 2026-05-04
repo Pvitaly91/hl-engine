@@ -7131,6 +7131,37 @@ struct HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary
 {
 };
 
+struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurfaceSummary
+    : HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+{
+    bool socket_pump_surface_enabled = false;
+    bool socket_pump_enabled = false;
+    bool socket_pump_disabled_by_default = true;
+    bool production_style_socket_pump_used = false;
+    bool diagnostic_harness_receive_path_used = false;
+    bool socket_pump_initialized = false;
+    bool socket_pump_started = false;
+    bool socket_pump_stopped = false;
+    int socket_pump_steps = 0;
+    int socket_pump_max_datagrams_per_step = 0;
+    int socket_pump_datagrams_received = 0;
+    int socket_pump_datagrams_dispatched = 0;
+    int socket_pump_datagrams_rejected = 0;
+    int socket_pump_responses_sent = 0;
+    int socket_pump_bytes_received = 0;
+    int socket_pump_bytes_sent = 0;
+    std::string bind_policy = "disabled";
+    std::string bind_address_requested = "disabled";
+    std::string bind_address_effective = "disabled";
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+};
+
+struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurfaceSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21655,6 +21686,13 @@ struct HlServerModuleInitOptions
     bool hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled = false;
     bool hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled = false;
     std::string hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario = "happy";
+    bool hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled =
+        false;
+    bool hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_enabled =
+        false;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22483,6 +22521,10 @@ struct HlServerModuleSummary
         hlds_connectionless_diagnostic_lifecycle_acceptance_gate;
     HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary
         hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurfaceSummary
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_surface;
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;

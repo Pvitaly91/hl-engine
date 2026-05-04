@@ -1738,6 +1738,111 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-surface")
+        {
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_surface_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-surface=";
+        if (StartsWith(argument, hlds_production_socket_pump_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_production_socket_pump_surface_prefix.size()),
+                    &result.options
+                         .hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled,
+                    &result.error_message,
+                    L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-probe")
+        {
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_probe_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-probe=";
+        if (StartsWith(argument, hlds_production_socket_pump_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_production_socket_pump_probe_prefix.size()),
+                    &result.options
+                         .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-production-loopback-connectionless-socket-pump-diagnostic-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_non_loopback_bind_denied"
+                && normalized != L"gate_public_socket_blocked"
+                && normalized != L"gate_bad_marker"
+                && normalized != L"gate_connect_without_cached_challenge"
+                && normalized != L"gate_wrong_protocol"
+                && normalized != L"gate_unsafe_userinfo")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-production-loopback-connectionless-socket-pump-diagnostic-probe-scenario. Expected happy, gate_disabled_by_default, gate_non_loopback_bind_denied, gate_public_socket_blocked, gate_bad_marker, gate_connect_without_cached_challenge, gate_wrong_protocol, or gate_unsafe_userinfo.";
+                return result;
+            }
+
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_probe_scenario_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-diagnostic-probe-scenario=";
+        if (StartsWith(argument, hlds_production_socket_pump_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_production_socket_pump_probe_scenario_prefix.size()));
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_non_loopback_bind_denied"
+                && normalized != L"gate_public_socket_blocked"
+                && normalized != L"gate_bad_marker"
+                && normalized != L"gate_connect_without_cached_challenge"
+                && normalized != L"gate_wrong_protocol"
+                && normalized != L"gate_unsafe_userinfo")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-production-loopback-connectionless-socket-pump-diagnostic-probe-scenario. Expected happy, gate_disabled_by_default, gate_non_loopback_bind_denied, gate_public_socket_blocked, gate_bad_marker, gate_connect_without_cached_challenge, gate_wrong_protocol, or gate_unsafe_userinfo.";
+                return result;
+            }
+
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--activation-surface")
         {
             result.options.activation_surface_enabled = true;
@@ -15190,6 +15295,13 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         result.options.hlds_serverinfo_diagnostic_surface_enabled = true;
         result.options.hlds_connect_diagnostic_surface_enabled = true;
         result.options.hlds_getchallenge_diagnostic_surface_enabled = true;
+    }
+    if (result.options
+            .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_enabled)
+    {
+        result.options
+            .hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled =
+            true;
     }
     if (result.options.connect_surface_enabled)
     {
