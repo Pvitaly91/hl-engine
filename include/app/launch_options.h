@@ -63,6 +63,10 @@ struct LaunchOptions
     bool hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled = false;
     bool hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled = false;
     std::string hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario = "happy";
+    bool hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled = false;
+    bool hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_enabled = false;
+    std::string hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
+        "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
