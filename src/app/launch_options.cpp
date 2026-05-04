@@ -1631,6 +1631,113 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--hlds-connectionless-diagnostic-lifecycle-acceptance-gate")
+        {
+            result.options
+                .hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_connectionless_lifecycle_gate_prefix =
+            L"--hlds-connectionless-diagnostic-lifecycle-acceptance-gate=";
+        if (StartsWith(argument, hlds_connectionless_lifecycle_gate_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_connectionless_lifecycle_gate_prefix.size()),
+                    &result.options
+                         .hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled,
+                    &result.error_message,
+                    L"--hlds-connectionless-diagnostic-lifecycle-acceptance-gate"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-connectionless-diagnostic-lifecycle-acceptance-probe")
+        {
+            result.options
+                .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_connectionless_lifecycle_probe_prefix =
+            L"--hlds-connectionless-diagnostic-lifecycle-acceptance-probe=";
+        if (StartsWith(argument, hlds_connectionless_lifecycle_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_connectionless_lifecycle_probe_prefix.size()),
+                    &result.options
+                         .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-connectionless-diagnostic-lifecycle-acceptance-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy"
+                && normalized != L"gate_bad_marker_udp"
+                && normalized != L"gate_connect_without_cached_challenge"
+                && normalized != L"gate_wrong_endpoint_reuse"
+                && normalized != L"gate_expired_or_replayed_challenge"
+                && normalized != L"gate_wrong_protocol"
+                && normalized != L"gate_missing_required_userinfo_name"
+                && normalized != L"gate_unsafe_userinfo"
+                && normalized != L"gate_non_loopback_bind_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario. Expected happy, gate_bad_marker_udp, gate_connect_without_cached_challenge, gate_wrong_endpoint_reuse, gate_expired_or_replayed_challenge, gate_wrong_protocol, gate_missing_required_userinfo_name, gate_unsafe_userinfo, or gate_non_loopback_bind_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_connectionless_lifecycle_probe_scenario_prefix =
+            L"--hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario=";
+        if (StartsWith(argument, hlds_connectionless_lifecycle_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_connectionless_lifecycle_probe_scenario_prefix.size()));
+            if (normalized != L"happy"
+                && normalized != L"gate_bad_marker_udp"
+                && normalized != L"gate_connect_without_cached_challenge"
+                && normalized != L"gate_wrong_endpoint_reuse"
+                && normalized != L"gate_expired_or_replayed_challenge"
+                && normalized != L"gate_wrong_protocol"
+                && normalized != L"gate_missing_required_userinfo_name"
+                && normalized != L"gate_unsafe_userinfo"
+                && normalized != L"gate_non_loopback_bind_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-connectionless-diagnostic-lifecycle-acceptance-probe-scenario. Expected happy, gate_bad_marker_udp, gate_connect_without_cached_challenge, gate_wrong_endpoint_reuse, gate_expired_or_replayed_challenge, gate_wrong_protocol, gate_missing_required_userinfo_name, gate_unsafe_userinfo, or gate_non_loopback_bind_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--activation-surface")
         {
             result.options.activation_surface_enabled = true;
@@ -15057,6 +15164,32 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             true;
         result.options.hlds_connectionless_loopback_udp_diagnostic_surface_enabled =
             true;
+    }
+    if (result.options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled)
+    {
+        result.options.hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled =
+            true;
+        result.options.hlds_userinfo_validation_policy_diagnostic_probe_enabled =
+            true;
+        result.options.hlds_address_scoped_challenge_cache_diagnostic_probe_enabled =
+            true;
+        result.options.hlds_connectionless_loopback_udp_diagnostic_probe_enabled =
+            true;
+        result.options.hlds_serverinfo_diagnostic_probe_enabled = true;
+        result.options.hlds_connect_diagnostic_probe_enabled = true;
+        result.options.hlds_getchallenge_diagnostic_probe_enabled = true;
+    }
+    if (result.options.hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled)
+    {
+        result.options.hlds_userinfo_validation_policy_diagnostic_surface_enabled =
+            true;
+        result.options.hlds_address_scoped_challenge_cache_diagnostic_surface_enabled =
+            true;
+        result.options.hlds_connectionless_loopback_udp_diagnostic_surface_enabled =
+            true;
+        result.options.hlds_serverinfo_diagnostic_surface_enabled = true;
+        result.options.hlds_connect_diagnostic_surface_enabled = true;
+        result.options.hlds_getchallenge_diagnostic_surface_enabled = true;
     }
     if (result.options.connect_surface_enabled)
     {

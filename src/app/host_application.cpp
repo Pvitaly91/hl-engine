@@ -22497,6 +22497,12 @@ bool HostApplication::RunServerEngineShim(
         options.hlds_userinfo_validation_policy_diagnostic_probe_enabled;
     init_options.hlds_userinfo_validation_policy_diagnostic_probe_scenario =
         options.hlds_userinfo_validation_policy_diagnostic_probe_scenario;
+    init_options.hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled;
+    init_options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled;
+    init_options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario =
+        options.hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario;
     init_options.activation_surface_enabled = options.activation_surface_enabled;
     init_options.activation_probe_enabled = options.activation_probe_enabled;
     init_options.activation_probe_scenario = options.activation_probe_scenario;
@@ -23860,6 +23866,21 @@ bool HostApplication::RunServerEngineShim(
                 : "0")
         + ", hlds_userinfo_validation_policy_diagnostic_probe_scenario="
         + init_options.hlds_userinfo_validation_policy_diagnostic_probe_scenario
+        + ", hlds_connectionless_diagnostic_lifecycle_acceptance_gate="
+        + std::string(
+            init_options
+                    .hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled
+                ? "1"
+                : "0")
+        + ", hlds_connectionless_diagnostic_lifecycle_acceptance_probe="
+        + std::string(
+            init_options
+                    .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled
+                ? "1"
+                : "0")
+        + ", hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario="
+        + init_options
+              .hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario
         + ", activation_surface=" + std::string(init_options.activation_surface_enabled ? "1" : "0")
         + ", activation_probe=" + std::string(init_options.activation_probe_enabled ? "1" : "0")
         + ", activation_probe_scenario=" + init_options.activation_probe_scenario

@@ -7101,6 +7101,36 @@ struct HldsUserinfoValidationPolicyDiagnosticProbeSummary
 {
 };
 
+struct HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+    : HldsUserinfoValidationPolicyDiagnosticSurfaceSummary
+{
+    bool lifecycle_acceptance_enabled = false;
+    bool lifecycle_acceptance_passed = false;
+    int lifecycle_gates_total = 0;
+    int lifecycle_gates_passed = 0;
+    int lifecycle_gates_failed = 0;
+    std::string lifecycle_gate_names = "<none>";
+    bool getchallenge_lifecycle_passed = false;
+    bool loopback_udp_lifecycle_passed = false;
+    bool challenge_cache_lifecycle_passed = false;
+    bool connect_lifecycle_passed = false;
+    bool userinfo_policy_lifecycle_passed = false;
+    bool serverinfo_lifecycle_passed = false;
+    bool bad_marker_gate_passed = false;
+    bool challenge_cache_gate_passed = false;
+    bool wrong_endpoint_gate_passed = false;
+    bool challenge_expiry_or_replay_gate_passed = false;
+    bool protocol_gate_passed = false;
+    bool userinfo_required_name_gate_passed = false;
+    bool unsafe_userinfo_gate_passed = false;
+    bool non_loopback_bind_gate_passed = false;
+};
+
+struct HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary
+    : HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21622,6 +21652,9 @@ struct HlServerModuleInitOptions
     bool hlds_userinfo_validation_policy_diagnostic_surface_enabled = false;
     bool hlds_userinfo_validation_policy_diagnostic_probe_enabled = false;
     std::string hlds_userinfo_validation_policy_diagnostic_probe_scenario = "happy";
+    bool hlds_connectionless_diagnostic_lifecycle_acceptance_gate_enabled = false;
+    bool hlds_connectionless_diagnostic_lifecycle_acceptance_probe_enabled = false;
+    std::string hlds_connectionless_diagnostic_lifecycle_acceptance_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22446,6 +22479,10 @@ struct HlServerModuleSummary
         hlds_userinfo_validation_policy_diagnostic_surface;
     HldsUserinfoValidationPolicyDiagnosticProbeSummary
         hlds_userinfo_validation_policy_diagnostic_probe;
+    HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+        hlds_connectionless_diagnostic_lifecycle_acceptance_gate;
+    HldsConnectionlessDiagnosticLifecycleAcceptanceProbeSummary
+        hlds_connectionless_diagnostic_lifecycle_acceptance_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
