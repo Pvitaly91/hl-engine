@@ -1,0 +1,14 @@
+cd host
+git rev-parse --show-toplevel
+git status --short
+git branch --show-current
+git rev-parse HEAD
+git merge-base --is-ancestor <checkpoint> HEAD (nine descendant gates; all exit=0)
+git grep / Select-String inspection for hlds_getchallenge_diagnostic, hlds_connect_diagnostic, hlds_serverinfo_diagnostic, hlds_connectionless_loopback_udp_diagnostic, challenge cache helpers
+git add -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp
+git commit -m "Add HLDS address-scoped challenge cache diagnostic surface"
+MSBuild build32\host\hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m (failed due C1041 PDB contention)
+MSBuild build32\host\hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 (succeeded)
+hlhost.exe --dedicated --gamedir <valve-fixture> --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label <scenario-label> --prompt-id HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface --hlds-address-scoped-challenge-cache-diagnostic-probe --hlds-address-scoped-challenge-cache-diagnostic-probe-scenario <scenario> (seven scenarios)
+Copy-Item logs/latest/runtime/*address-scoped-challenge-cache-diagnostic* prompt runtime dir
+Copy-Item logs/latest/codex/*address-scoped-challenge-cache-diagnostic* prompt codex dir
