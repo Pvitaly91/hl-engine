@@ -6810,6 +6810,102 @@ struct HldsConnectDiagnosticProbeSummary
     std::string detail;
 };
 
+struct HldsServerinfoDiagnosticSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool getchallenge_dependency_checked = false;
+    bool connect_dependency_checked = false;
+    bool prior_challenge_issued = false;
+    std::string prior_challenge_value = "<none>";
+    bool connect_diagnostic_ready = false;
+    bool serverinfo_diagnostic_ready = false;
+    bool serverinfo_response_ready = false;
+    std::string protocol_version_raw = "<none>";
+    std::string protocol_version_normalized = "<none>";
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+    std::string hostname_raw_safe_preview = "<none>";
+    bool hostname_present = false;
+    std::string map_name_raw_safe_preview = "<none>";
+    bool map_name_present = false;
+    std::string game_dir_raw_safe_preview = "<none>";
+    bool game_dir_present = false;
+    std::string maxplayers_raw = "<none>";
+    bool maxplayers_present = false;
+    bool maxplayers_accepted = false;
+    bool player_slot_placeholder_present = false;
+    std::string response_shape = "disabled";
+    std::string response_bytes_or_text_safe_preview = "<none>";
+    std::string remote_address_source = "disabled";
+    bool bounded_loopback = false;
+    bool public_socket_opened = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
+struct HldsServerinfoDiagnosticProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool getchallenge_dependency_checked = false;
+    bool connect_dependency_checked = false;
+    bool prior_challenge_issued = false;
+    std::string prior_challenge_value = "<none>";
+    bool connect_diagnostic_ready = false;
+    bool serverinfo_diagnostic_ready = false;
+    bool serverinfo_response_ready = false;
+    std::string protocol_version_raw = "<none>";
+    std::string protocol_version_normalized = "<none>";
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+    std::string hostname_raw_safe_preview = "<none>";
+    bool hostname_present = false;
+    std::string map_name_raw_safe_preview = "<none>";
+    bool map_name_present = false;
+    std::string game_dir_raw_safe_preview = "<none>";
+    bool game_dir_present = false;
+    std::string maxplayers_raw = "<none>";
+    bool maxplayers_present = false;
+    bool maxplayers_accepted = false;
+    bool player_slot_placeholder_present = false;
+    std::string response_shape = "disabled";
+    std::string response_bytes_or_text_safe_preview = "<none>";
+    std::string remote_address_source = "disabled";
+    bool bounded_loopback = false;
+    bool public_socket_opened = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21319,6 +21415,9 @@ struct HlServerModuleInitOptions
     bool hlds_connect_diagnostic_surface_enabled = false;
     bool hlds_connect_diagnostic_probe_enabled = false;
     std::string hlds_connect_diagnostic_probe_scenario = "happy";
+    bool hlds_serverinfo_diagnostic_surface_enabled = false;
+    bool hlds_serverinfo_diagnostic_probe_enabled = false;
+    std::string hlds_serverinfo_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22129,6 +22228,8 @@ struct HlServerModuleSummary
     HldsGetchallengeDiagnosticProbeSummary hlds_getchallenge_diagnostic_probe;
     HldsConnectDiagnosticSurfaceSummary hlds_connect_diagnostic_surface;
     HldsConnectDiagnosticProbeSummary hlds_connect_diagnostic_probe;
+    HldsServerinfoDiagnosticSurfaceSummary hlds_serverinfo_diagnostic_surface;
+    HldsServerinfoDiagnosticProbeSummary hlds_serverinfo_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
