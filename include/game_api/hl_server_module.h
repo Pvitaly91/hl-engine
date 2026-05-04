@@ -15983,6 +15983,95 @@ struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCh
     std::string detail;
 };
 
+struct DedicatedSignonResumeLifecycleAcceptanceGateSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string bind = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    std::string protocol_shape = "disabled";
+    bool lifecycle_acceptance_enabled = false;
+    bool lifecycle_acceptance_passed = false;
+    bool lifecycle_acceptance_rejected = false;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    bool range_positive_passed = false;
+    bool eof_positive_passed = false;
+    bool single_denial_passed = false;
+    bool denial_matrix_passed = false;
+    int matrix_scenarios_total = 0;
+    int matrix_scenarios_passed = 0;
+    int matrix_scenarios_failed = 0;
+    std::string matrix_scenario_names;
+    std::string matrix_deny_reasons;
+    bool stale_cursor_after_eof_denied = false;
+    bool mismatched_claimant_session_denied = false;
+    bool wrong_issuer_target_session_denied = false;
+    bool duplicate_resume_after_terminal_eof_denied = false;
+    bool invalid_resume_token_claim_chain_denied = false;
+    int resume_range_ready = 0;
+    int resume_range_delivered = 0;
+    int resume_eof_ready = 0;
+    int resume_eof_delivered = 0;
+    bool denial_observed = false;
+    bool matrix_denial_observed = false;
+    int post_denial_range_delivered_delta = 0;
+    int post_denial_eof_delivered_delta = 0;
+    int post_matrix_range_delivered_delta = 0;
+    int post_matrix_eof_delivered_delta = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
+struct DedicatedSignonResumeLifecycleAcceptanceProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string probe = "disabled";
+    int attempts = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    bool lifecycle_acceptance_enabled = false;
+    bool lifecycle_acceptance_passed = false;
+    bool lifecycle_acceptance_rejected = false;
+    bool range_positive_passed = false;
+    bool eof_positive_passed = false;
+    bool single_denial_passed = false;
+    bool denial_matrix_passed = false;
+    int matrix_scenarios_total = 0;
+    int matrix_scenarios_passed = 0;
+    int matrix_scenarios_failed = 0;
+    std::string matrix_scenario_names;
+    std::string matrix_deny_reasons;
+    bool stale_cursor_after_eof_denied = false;
+    bool mismatched_claimant_session_denied = false;
+    bool wrong_issuer_target_session_denied = false;
+    bool duplicate_resume_after_terminal_eof_denied = false;
+    bool invalid_resume_token_claim_chain_denied = false;
+    int resume_range_ready = 0;
+    int resume_range_delivered = 0;
+    int resume_eof_ready = 0;
+    int resume_eof_delivered = 0;
+    bool denial_observed = false;
+    bool matrix_denial_observed = false;
+    int post_denial_range_delivered_delta = 0;
+    int post_denial_eof_delivered_delta = 0;
+    int post_matrix_range_delivered_delta = 0;
+    int post_matrix_eof_delivered_delta = 0;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "no";
+    std::string protocol_shape = "disabled";
+    std::string compatibility = "disabled";
+    std::string detail;
+};
+
 struct DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowSurfaceSummary
 {
     bool enabled = false;
@@ -21547,6 +21636,9 @@ struct HlServerModuleInitOptions
     std::string
         signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe_scenario =
             "happy";
+    bool signon_resume_lifecycle_acceptance_gate_enabled = false;
+    bool signon_resume_lifecycle_acceptance_probe_enabled = false;
+    std::string signon_resume_lifecycle_acceptance_probe_scenario = "happy";
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface_enabled =
         false;
     bool signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_probe_enabled =
@@ -22150,6 +22242,10 @@ struct HlServerModuleSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeDenialMatrixProbeSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe;
+    DedicatedSignonResumeLifecycleAcceptanceGateSummary
+        dedicated_signon_resume_lifecycle_acceptance_gate;
+    DedicatedSignonResumeLifecycleAcceptanceProbeSummary
+        dedicated_signon_resume_lifecycle_acceptance_probe;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowSurfaceSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface;
     DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowProbeSummary
