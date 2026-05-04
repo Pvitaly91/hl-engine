@@ -3902,6 +3902,11 @@ struct EngineShimState
     hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticProbeSummary
         hlds_connectionless_loopback_udp_diagnostic_probe;
     std::string hlds_connectionless_loopback_udp_diagnostic_probe_scenario = "happy";
+    hl::game_api::HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary
+        hlds_address_scoped_challenge_cache_diagnostic_surface;
+    hl::game_api::HldsAddressScopedChallengeCacheDiagnosticProbeSummary
+        hlds_address_scoped_challenge_cache_diagnostic_probe;
+    std::string hlds_address_scoped_challenge_cache_diagnostic_probe_scenario = "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4810,6 +4815,10 @@ std::string BuildHldsConnectionlessLoopbackUdpDiagnosticSurfaceLine(
     const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticSurfaceSummary& summary);
 std::string BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
     const hl::game_api::HldsConnectionlessLoopbackUdpDiagnosticProbeSummary& summary);
+std::string BuildHldsAddressScopedChallengeCacheDiagnosticSurfaceLine(
+    const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary& summary);
+std::string BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
+    const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25167,6 +25176,71 @@ std::string BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
 {
     return BuildHldsConnectionlessLoopbackUdpDiagnosticLine(
         "hlds_connectionless_loopback_udp_diagnostic_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsAddressScopedChallengeCacheDiagnosticLine(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsConnectionlessLoopbackUdpDiagnosticLine(prefix, summary)
+        + ", challenge_cache_enabled="
+        + std::string(summary.challenge_cache_enabled ? "1" : "0")
+        + ", challenge_cache_key=" + summary.challenge_cache_key
+        + ", challenge_cache_max_entries="
+        + std::to_string(summary.challenge_cache_max_entries)
+        + ", challenge_cache_entries_before="
+        + std::to_string(summary.challenge_cache_entries_before)
+        + ", challenge_cache_entries_after="
+        + std::to_string(summary.challenge_cache_entries_after)
+        + ", challenge_cache_inserted="
+        + std::string(summary.challenge_cache_inserted ? "1" : "0")
+        + ", challenge_cache_lookup_attempted="
+        + std::string(summary.challenge_cache_lookup_attempted ? "1" : "0")
+        + ", challenge_cache_hit="
+        + std::string(summary.challenge_cache_hit ? "1" : "0")
+        + ", challenge_cache_evicted="
+        + std::string(summary.challenge_cache_evicted ? "1" : "0")
+        + ", challenge_cache_cleared="
+        + std::string(summary.challenge_cache_cleared ? "1" : "0")
+        + ", challenge_ttl_policy=" + summary.challenge_ttl_policy
+        + ", challenge_created_tick="
+        + std::to_string(summary.challenge_created_tick)
+        + ", challenge_current_tick="
+        + std::to_string(summary.challenge_current_tick)
+        + ", challenge_age_ticks=" + std::to_string(summary.challenge_age_ticks)
+        + ", challenge_expired="
+        + std::string(summary.challenge_expired ? "1" : "0")
+        + ", challenge_one_shot="
+        + std::string(summary.challenge_one_shot ? "1" : "0")
+        + ", challenge_consumed="
+        + std::string(summary.challenge_consumed ? "1" : "0")
+        + ", challenge_replay_detected="
+        + std::string(summary.challenge_replay_detected ? "1" : "0")
+        + ", issued_challenge_value=" + summary.issued_challenge_value
+        + ", connect_challenge_value=" + summary.connect_challenge_value
+        + ", challenge_value_matches="
+        + std::string(summary.challenge_value_matches ? "1" : "0")
+        + ", challenge_endpoint_matches="
+        + std::string(summary.challenge_endpoint_matches ? "1" : "0")
+        + ", udp_client_a_endpoint=" + summary.udp_client_a_endpoint
+        + ", udp_client_b_endpoint=" + summary.udp_client_b_endpoint;
+}
+
+std::string BuildHldsAddressScopedChallengeCacheDiagnosticSurfaceLine(
+    const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary& summary)
+{
+    return BuildHldsAddressScopedChallengeCacheDiagnosticLine(
+        "hlds_address_scoped_challenge_cache_diagnostic_surface",
+        summary);
+}
+
+std::string BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
+    const hl::game_api::HldsAddressScopedChallengeCacheDiagnosticProbeSummary& summary)
+{
+    return BuildHldsAddressScopedChallengeCacheDiagnosticLine(
+        "hlds_address_scoped_challenge_cache_diagnostic_probe",
         summary);
 }
 
@@ -56383,6 +56457,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsConnectionlessLoopbackUdpDiagnosticProbeLine(
                     summary.hlds_connectionless_loopback_udp_diagnostic_probe));
+        }
+        if (summary.hlds_address_scoped_challenge_cache_diagnostic_surface.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsAddressScopedChallengeCacheDiagnosticSurfaceLine(
+                    summary.hlds_address_scoped_challenge_cache_diagnostic_surface));
+        }
+        if (summary.hlds_address_scoped_challenge_cache_diagnostic_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsAddressScopedChallengeCacheDiagnosticProbeLine(
+                    summary.hlds_address_scoped_challenge_cache_diagnostic_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -149327,6 +149415,678 @@ void ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(
     summary->detail = result.detail;
 }
 
+constexpr int kHldsAddressScopedChallengeCacheMaxEntries = 8;
+constexpr int kHldsAddressScopedChallengeCacheTtlTicks = 3;
+constexpr int kHldsAddressScopedChallengeCacheCreatedTick = 10;
+
+struct HldsAddressScopedChallengeCacheEntry
+{
+    std::string endpoint;
+    std::string value;
+    int created_tick = 0;
+    bool consumed = false;
+};
+
+struct HldsAddressScopedChallengeCache
+{
+    std::vector<HldsAddressScopedChallengeCacheEntry> entries;
+    bool evicted = false;
+
+    int Size() const
+    {
+        return static_cast<int>(entries.size());
+    }
+
+    void Insert(std::string endpoint, std::string value, int created_tick)
+    {
+        if (entries.size()
+            >= static_cast<std::size_t>(kHldsAddressScopedChallengeCacheMaxEntries))
+        {
+            entries.erase(entries.begin());
+            evicted = true;
+        }
+
+        entries.push_back({
+            std::move(endpoint),
+            std::move(value),
+            created_tick,
+            false,
+        });
+    }
+
+    HldsAddressScopedChallengeCacheEntry* FindEndpoint(std::string_view endpoint)
+    {
+        for (HldsAddressScopedChallengeCacheEntry& entry : entries)
+        {
+            if (entry.endpoint == endpoint)
+            {
+                return &entry;
+            }
+        }
+        return nullptr;
+    }
+
+    const HldsAddressScopedChallengeCacheEntry* FindValue(std::string_view value) const
+    {
+        for (const HldsAddressScopedChallengeCacheEntry& entry : entries)
+        {
+            if (entry.value == value)
+            {
+                return &entry;
+            }
+        }
+        return nullptr;
+    }
+};
+
+struct HldsAddressScopedChallengeCacheDiagnosticResult
+    : HldsConnectionlessLoopbackUdpDiagnosticResult
+{
+    bool challenge_cache_enabled = true;
+    std::string challenge_cache_key = "remote_loopback_endpoint";
+    int challenge_cache_max_entries = kHldsAddressScopedChallengeCacheMaxEntries;
+    int challenge_cache_entries_before = 0;
+    int challenge_cache_entries_after = 0;
+    bool challenge_cache_inserted = false;
+    bool challenge_cache_lookup_attempted = false;
+    bool challenge_cache_hit = false;
+    bool challenge_cache_evicted = false;
+    bool challenge_cache_cleared = false;
+    std::string challenge_ttl_policy = "ttl_ticks=3";
+    int challenge_created_tick = 0;
+    int challenge_current_tick = kHldsAddressScopedChallengeCacheCreatedTick;
+    int challenge_age_ticks = 0;
+    bool challenge_expired = false;
+    bool challenge_one_shot = true;
+    bool challenge_consumed = false;
+    bool challenge_replay_detected = false;
+    std::string issued_challenge_value = "<none>";
+    std::string connect_challenge_value = "<none>";
+    bool challenge_value_matches = false;
+    bool challenge_endpoint_matches = false;
+    std::string udp_client_a_endpoint = "disabled";
+    std::string udp_client_b_endpoint = "disabled";
+};
+
+std::string LoopbackEndpointIdentityString(const sockaddr_in& address)
+{
+    const std::string family = address.sin_family == AF_INET ? "AF_INET" : "UNKNOWN";
+    return family + "/" + LoopbackEndpointString(ntohs(address.sin_port));
+}
+
+void CopyConnectPacketShapeToAddressScopedResult(
+    const std::vector<unsigned char>& bytes,
+    HldsAddressScopedChallengeCacheDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return;
+    }
+
+    CopyConnectionlessMarkerAndCommand(bytes, result);
+    result->connect_detected = result->command_normalized == "connect";
+    const std::string connect_text =
+        ExtractConnectionlessText(bytes.data(), static_cast<int>(bytes.size()));
+    result->connect_challenge_value = ExtractTokenValue(connect_text, "challenge=");
+    if (result->connect_challenge_value.empty())
+    {
+        result->connect_challenge_value = "<none>";
+    }
+    result->challenge_present = result->connect_challenge_value != "<none>";
+    result->protocol_version_raw = ExtractTokenValue(connect_text, "protocol=");
+    if (result->protocol_version_raw.empty())
+    {
+        result->protocol_version_raw = "<none>";
+    }
+    result->protocol_version_present = result->protocol_version_raw != "<none>";
+    result->protocol_version_accepted = result->protocol_version_raw == "48";
+    result->userinfo_parse_attempted = connect_text.find("userinfo=") != std::string::npos;
+}
+
+std::string ValidateAddressScopedCachedChallenge(
+    HldsAddressScopedChallengeCache& cache,
+    std::string_view endpoint,
+    int current_tick,
+    HldsAddressScopedChallengeCacheDiagnosticResult* result)
+{
+    if (result == nullptr)
+    {
+        return "invalid_diagnostic_state";
+    }
+
+    result->challenge_cache_lookup_attempted = true;
+    result->challenge_current_tick = current_tick;
+
+    HldsAddressScopedChallengeCacheEntry* endpoint_entry = cache.FindEndpoint(endpoint);
+    if (endpoint_entry == nullptr)
+    {
+        result->challenge_cache_hit = false;
+        result->challenge_endpoint_matches = false;
+        result->challenge_value_matches =
+            result->connect_challenge_value != "<none>"
+            && cache.FindValue(result->connect_challenge_value) != nullptr;
+        return result->challenge_value_matches
+            ? "challenge_endpoint_mismatch"
+            : "missing_cached_challenge";
+    }
+
+    result->challenge_cache_hit = true;
+    result->challenge_endpoint_matches = true;
+    result->challenge_created_tick = endpoint_entry->created_tick;
+    result->challenge_age_ticks = std::max(0, current_tick - endpoint_entry->created_tick);
+    result->challenge_value_matches =
+        result->connect_challenge_value == endpoint_entry->value;
+    if (!result->challenge_value_matches)
+    {
+        return "challenge_value_mismatch";
+    }
+
+    result->challenge_expired =
+        result->challenge_age_ticks > kHldsAddressScopedChallengeCacheTtlTicks;
+    if (result->challenge_expired)
+    {
+        return "challenge_expired";
+    }
+
+    result->challenge_replay_detected =
+        result->challenge_one_shot && endpoint_entry->consumed;
+    if (result->challenge_replay_detected)
+    {
+        return "challenge_replay";
+    }
+
+    return "<none>";
+}
+
+HldsAddressScopedChallengeCacheDiagnosticResult RejectAddressScopedChallengeCacheDiagnostic(
+    HldsAddressScopedChallengeCacheDiagnosticResult result,
+    const HldsAddressScopedChallengeCache& cache,
+    std::string reject_reason,
+    std::string detail)
+{
+    result.accepted = 0;
+    result.rejected = 1;
+    result.last_reject_reason = std::move(reject_reason);
+    result.detail = std::move(detail);
+    result.challenge_cache_entries_after = cache.Size();
+    result.challenge_cache_evicted = cache.evicted;
+    result.sockets_closed = true;
+    return result;
+}
+
+HldsAddressScopedChallengeCacheDiagnosticResult RunHldsAddressScopedChallengeCacheDiagnostic(
+    std::string_view scenario)
+{
+    HldsAddressScopedChallengeCacheDiagnosticResult result;
+    result.loopback_policy_enforced = true;
+    result.udp_bind_address = "127.0.0.1";
+
+    HldsAddressScopedChallengeCache cache;
+    result.challenge_cache_entries_before = cache.Size();
+
+    if (scenario == "gate_cache_capacity_eviction")
+    {
+        for (int index = 0;
+             index < kHldsAddressScopedChallengeCacheMaxEntries + 1;
+             ++index)
+        {
+            cache.Insert(
+                "AF_INET/127.0.0.1:" + std::to_string(61000 + index),
+                "capacity-" + std::to_string(index),
+                kHldsAddressScopedChallengeCacheCreatedTick + index);
+        }
+        result.challenge_cache_inserted = true;
+        result.challenge_cache_entries_after = cache.Size();
+        result.challenge_cache_evicted = cache.evicted;
+        result.accepted = 1;
+        result.rejected = 0;
+        result.last_reject_reason = "<none>";
+        result.sockets_closed = true;
+        result.detail =
+            "diagnostic challenge cache capacity policy kept entries bounded and evicted the oldest synthetic endpoint";
+        return result;
+    }
+
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&result.detail))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            "winsock_start_failed",
+            result.detail);
+    }
+
+    ScopedUdpSocket server_socket;
+    if (!BindLoopbackQuerySocket(0, &server_socket, &result.udp_bound_port, &result.detail))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            "loopback_udp_bind_failed",
+            result.detail);
+    }
+
+    ScopedUdpSocket client_a_socket;
+    int client_a_port = 0;
+    if (!BindLoopbackQuerySocket(0, &client_a_socket, &client_a_port, &result.detail))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            "loopback_udp_client_bind_failed",
+            result.detail);
+    }
+
+    result.loopback_udp_socket_opened = true;
+    result.udp_server_address_source = LoopbackEndpointString(result.udp_bound_port);
+    result.udp_client_address_source = LoopbackEndpointString(client_a_port);
+    result.udp_client_a_endpoint = "AF_INET/" + LoopbackEndpointString(client_a_port);
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(result.udp_bound_port));
+
+    if (scenario == "gate_connect_without_cached_challenge")
+    {
+        const std::vector<unsigned char> connect_without_cache =
+            BuildHldsConnectDiagnosticInput("happy", "265042650");
+        if (!SendUdpDiagnosticDatagram(
+                client_a_socket.Get(),
+                server_address,
+                connect_without_cache,
+                &result,
+                "address-cache connect-without-cache UDP client"))
+        {
+            return RejectAddressScopedChallengeCacheDiagnostic(
+                result,
+                cache,
+                result.last_reject_reason,
+                result.detail);
+        }
+
+        std::vector<unsigned char> received_connect;
+        sockaddr_in connect_client_address{};
+        int connect_client_address_size = sizeof(connect_client_address);
+        if (!ReceiveUdpDiagnosticDatagram(
+                server_socket.Get(),
+                &received_connect,
+                &connect_client_address,
+                &connect_client_address_size,
+                &result,
+                "address-cache connect-without-cache UDP server"))
+        {
+            return RejectAddressScopedChallengeCacheDiagnostic(
+                result,
+                cache,
+                result.last_reject_reason,
+                result.detail);
+        }
+
+        result.connect_datagram_received = true;
+        CopyConnectPacketShapeToAddressScopedResult(received_connect, &result);
+        const std::string reject_reason = ValidateAddressScopedCachedChallenge(
+            cache,
+            LoopbackEndpointIdentityString(connect_client_address),
+            kHldsAddressScopedChallengeCacheCreatedTick,
+            &result);
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic connect rejected because no address-scoped cached challenge existed for the loopback endpoint");
+    }
+
+    const std::vector<unsigned char> getchallenge_request =
+        BuildHldsGetchallengeDiagnosticInput("happy");
+    if (!SendUdpDiagnosticDatagram(
+            client_a_socket.Get(),
+            server_address,
+            getchallenge_request,
+            &result,
+            "address-cache getchallenge UDP client A"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    std::vector<unsigned char> received_getchallenge;
+    sockaddr_in challenge_client_address{};
+    int challenge_client_address_size = sizeof(challenge_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_getchallenge,
+            &challenge_client_address,
+            &challenge_client_address_size,
+            &result,
+            "address-cache getchallenge UDP server"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    result.getchallenge_datagram_received = true;
+    const HldsGetchallengeDiagnosticResult getchallenge_result =
+        ParseHldsGetchallengeDiagnosticInput(received_getchallenge);
+    CopyGetchallengeDiagnosticToUdpResult(getchallenge_result, &result);
+    if (getchallenge_result.accepted != 1)
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            getchallenge_result.last_reject_reason,
+            getchallenge_result.detail);
+    }
+
+    const std::string client_a_endpoint =
+        LoopbackEndpointIdentityString(challenge_client_address);
+    result.udp_client_a_endpoint = client_a_endpoint;
+    result.issued_challenge_value = getchallenge_result.challenge_value;
+    result.challenge_created_tick = kHldsAddressScopedChallengeCacheCreatedTick;
+    result.challenge_current_tick = kHldsAddressScopedChallengeCacheCreatedTick;
+    cache.Insert(
+        client_a_endpoint,
+        getchallenge_result.challenge_value,
+        kHldsAddressScopedChallengeCacheCreatedTick);
+    result.challenge_cache_inserted = true;
+    result.challenge_cache_entries_after = cache.Size();
+
+    const std::vector<unsigned char> challenge_response =
+        BuildConnectionlessTextPacket("challenge " + getchallenge_result.challenge_value);
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            challenge_client_address,
+            challenge_response,
+            &result,
+            "address-cache challenge UDP server response"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+    result.challenge_response_datagram_sent = true;
+    result.response_preview = SafePacketPreview(challenge_response);
+
+    std::vector<unsigned char> received_challenge_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_a_socket.Get(),
+            &received_challenge_response,
+            nullptr,
+            nullptr,
+            &result,
+            "address-cache challenge UDP client A"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    ScopedUdpSocket client_b_socket;
+    int client_b_port = 0;
+    SOCKET connect_socket = client_a_socket.Get();
+    std::string connect_role = "address-cache connect UDP client A";
+    if (scenario == "gate_wrong_endpoint_reuse")
+    {
+        if (!BindLoopbackQuerySocket(0, &client_b_socket, &client_b_port, &result.detail))
+        {
+            return RejectAddressScopedChallengeCacheDiagnostic(
+                result,
+                cache,
+                "loopback_udp_client_b_bind_failed",
+                result.detail);
+        }
+        result.udp_client_b_endpoint = "AF_INET/" + LoopbackEndpointString(client_b_port);
+        connect_socket = client_b_socket.Get();
+        connect_role = "address-cache connect UDP client B";
+    }
+
+    std::string connect_challenge = getchallenge_result.challenge_value;
+    if (scenario == "gate_wrong_challenge_value")
+    {
+        connect_challenge = std::to_string(std::atoi(getchallenge_result.challenge_value.c_str()) + 1);
+    }
+    const std::vector<unsigned char> connect_request =
+        BuildHldsConnectDiagnosticInput("happy", connect_challenge);
+    if (!SendUdpDiagnosticDatagram(
+            connect_socket,
+            server_address,
+            connect_request,
+            &result,
+            connect_role))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    std::vector<unsigned char> received_connect;
+    sockaddr_in connect_client_address{};
+    int connect_client_address_size = sizeof(connect_client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_connect,
+            &connect_client_address,
+            &connect_client_address_size,
+            &result,
+            "address-cache connect UDP server"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    result.connect_datagram_received = true;
+    CopyConnectPacketShapeToAddressScopedResult(received_connect, &result);
+    const int validation_tick =
+        scenario == "gate_expired_challenge"
+        ? kHldsAddressScopedChallengeCacheCreatedTick
+            + kHldsAddressScopedChallengeCacheTtlTicks + 1
+        : kHldsAddressScopedChallengeCacheCreatedTick + 1;
+    std::string reject_reason = ValidateAddressScopedCachedChallenge(
+        cache,
+        LoopbackEndpointIdentityString(connect_client_address),
+        validation_tick,
+        &result);
+    if (reject_reason != "<none>")
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic connect rejected by address-scoped challenge cache policy");
+    }
+
+    HldsAddressScopedChallengeCacheEntry* cache_entry =
+        cache.FindEndpoint(LoopbackEndpointIdentityString(connect_client_address));
+    const HldsConnectDiagnosticResult connect_result =
+        ParseHldsConnectDiagnosticInput(received_connect, getchallenge_result);
+    CopyConnectDiagnosticToUdpResult(connect_result, &result);
+    result.connect_challenge_value = connect_challenge;
+    result.challenge_value_matches = true;
+    result.challenge_endpoint_matches = true;
+    if (connect_result.accepted != 1)
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            connect_result.last_reject_reason,
+            connect_result.detail);
+    }
+
+    if (cache_entry != nullptr)
+    {
+        cache_entry->consumed = true;
+    }
+    result.challenge_consumed = true;
+
+    const HldsServerinfoDiagnosticResult serverinfo_result =
+        BuildHldsServerinfoDiagnosticResultFromConnect(connect_result, "happy");
+    CopyServerinfoDiagnosticToUdpResult(serverinfo_result, &result);
+    if (serverinfo_result.accepted != 1)
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            serverinfo_result.last_reject_reason,
+            serverinfo_result.detail);
+    }
+
+    const std::vector<unsigned char> serverinfo_response =
+        BuildConnectionlessTextPacket(
+            "serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire"
+            " game=valve maxplayers=4 slot=diagnostic-client-slot-1");
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            connect_client_address,
+            serverinfo_response,
+            &result,
+            "address-cache serverinfo UDP server response"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+    result.serverinfo_response_datagram_sent = true;
+    result.response_preview = serverinfo_result.response_preview;
+
+    std::vector<unsigned char> received_serverinfo_response;
+    if (!ReceiveUdpDiagnosticDatagram(
+            connect_socket,
+            &received_serverinfo_response,
+            nullptr,
+            nullptr,
+            &result,
+            "address-cache serverinfo UDP client"))
+    {
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            result.last_reject_reason,
+            result.detail);
+    }
+
+    if (scenario == "gate_replay_after_success")
+    {
+        if (!SendUdpDiagnosticDatagram(
+                client_a_socket.Get(),
+                server_address,
+                connect_request,
+                &result,
+                "address-cache replay UDP client A"))
+        {
+            return RejectAddressScopedChallengeCacheDiagnostic(
+                result,
+                cache,
+                result.last_reject_reason,
+                result.detail);
+        }
+
+        std::vector<unsigned char> received_replay_connect;
+        sockaddr_in replay_client_address{};
+        int replay_client_address_size = sizeof(replay_client_address);
+        if (!ReceiveUdpDiagnosticDatagram(
+                server_socket.Get(),
+                &received_replay_connect,
+                &replay_client_address,
+                &replay_client_address_size,
+                &result,
+                "address-cache replay UDP server"))
+        {
+            return RejectAddressScopedChallengeCacheDiagnostic(
+                result,
+                cache,
+                result.last_reject_reason,
+                result.detail);
+        }
+        result.connect_datagram_received = true;
+        CopyConnectPacketShapeToAddressScopedResult(received_replay_connect, &result);
+        reject_reason = ValidateAddressScopedCachedChallenge(
+            cache,
+            LoopbackEndpointIdentityString(replay_client_address),
+            kHldsAddressScopedChallengeCacheCreatedTick + 2,
+            &result);
+        result.connect_diagnostic_ready = false;
+        result.serverinfo_diagnostic_ready = false;
+        result.serverinfo_response_ready = false;
+        result.serverinfo_response_shape = "disabled";
+        if (reject_reason != "challenge_replay")
+        {
+            reject_reason = "challenge_replay";
+            result.challenge_replay_detected = true;
+        }
+        return RejectAddressScopedChallengeCacheDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic one-shot challenge cache rejected replay after first successful connect");
+    }
+
+    result.accepted = 1;
+    result.rejected = 0;
+    result.last_reject_reason = "<none>";
+    result.challenge_cache_entries_after = cache.Size();
+    result.challenge_cache_evicted = cache.evicted;
+    result.sockets_closed = true;
+    result.detail =
+        "diagnostic-only address-scoped challenge cache validated getchallenge/connect/serverinfo over localhost UDP; no auth, netchan, baselines, signon state, or admission performed";
+    return result;
+}
+
+template <typename Summary>
+void ApplyHldsAddressScopedChallengeCacheDiagnosticResult(
+    const HldsAddressScopedChallengeCacheDiagnosticResult& result,
+    std::string_view mode,
+    std::string_view scenario,
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    ApplyHldsConnectionlessLoopbackUdpDiagnosticResult(result, mode, scenario, summary);
+    summary->compatibility_claim_level =
+        "diagnostic-address-scoped-challenge-cache-only";
+    summary->challenge_cache_enabled = result.challenge_cache_enabled;
+    summary->challenge_cache_key = result.challenge_cache_key;
+    summary->challenge_cache_max_entries = result.challenge_cache_max_entries;
+    summary->challenge_cache_entries_before = result.challenge_cache_entries_before;
+    summary->challenge_cache_entries_after = result.challenge_cache_entries_after;
+    summary->challenge_cache_inserted = result.challenge_cache_inserted;
+    summary->challenge_cache_lookup_attempted = result.challenge_cache_lookup_attempted;
+    summary->challenge_cache_hit = result.challenge_cache_hit;
+    summary->challenge_cache_evicted = result.challenge_cache_evicted;
+    summary->challenge_cache_cleared = result.challenge_cache_cleared;
+    summary->challenge_ttl_policy = result.challenge_ttl_policy;
+    summary->challenge_created_tick = result.challenge_created_tick;
+    summary->challenge_current_tick = result.challenge_current_tick;
+    summary->challenge_age_ticks = result.challenge_age_ticks;
+    summary->challenge_expired = result.challenge_expired;
+    summary->challenge_one_shot = result.challenge_one_shot;
+    summary->challenge_consumed = result.challenge_consumed;
+    summary->challenge_replay_detected = result.challenge_replay_detected;
+    summary->issued_challenge_value = result.issued_challenge_value;
+    summary->connect_challenge_value = result.connect_challenge_value;
+    summary->challenge_value_matches = result.challenge_value_matches;
+    summary->challenge_endpoint_matches = result.challenge_endpoint_matches;
+    summary->udp_client_a_endpoint = result.udp_client_a_endpoint;
+    summary->udp_client_b_endpoint = result.udp_client_b_endpoint;
+}
+
 bool PumpOneLoopbackConnectAdmissionAttempt(
     EngineShimState& state,
     SOCKET server_socket,
@@ -207524,6 +208284,52 @@ void PerformHldsConnectionlessLoopbackUdpDiagnosticSurface()
         &probe);
 }
 
+void PerformHldsAddressScopedChallengeCacheDiagnosticSurface()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& surface = state.hlds_address_scoped_challenge_cache_diagnostic_surface;
+    auto& probe = state.hlds_address_scoped_challenge_cache_diagnostic_probe;
+    if (!state.server_state.dedicated || !surface.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario;
+
+    HldsAddressScopedChallengeCacheDiagnosticResult surface_ready;
+    surface_ready.last_reject_reason = "<none>";
+    surface_ready.sockets_closed = true;
+    surface_ready.detail =
+        "diagnostic address-scoped challenge cache surface ready; probe disabled or not yet run";
+    ApplyHldsAddressScopedChallengeCacheDiagnosticResult(
+        surface_ready,
+        mode,
+        scenario,
+        &surface);
+
+    if (!probe.enabled)
+    {
+        return;
+    }
+
+    const HldsAddressScopedChallengeCacheDiagnosticResult result =
+        RunHldsAddressScopedChallengeCacheDiagnostic(scenario);
+    ApplyHldsAddressScopedChallengeCacheDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &surface);
+    ApplyHldsAddressScopedChallengeCacheDiagnosticResult(
+        result,
+        mode,
+        scenario,
+        &probe);
+}
+
 void PerformDedicatedQuerySurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -239125,6 +239931,8 @@ void PopulateBootstrapSummary(
     summary.hlds_serverinfo_diagnostic_probe = {};
     summary.hlds_connectionless_loopback_udp_diagnostic_surface = {};
     summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
+    summary.hlds_address_scoped_challenge_cache_diagnostic_surface = {};
+    summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -240199,6 +241007,10 @@ void PopulateBootstrapSummary(
             state.hlds_connectionless_loopback_udp_diagnostic_surface;
         summary.hlds_connectionless_loopback_udp_diagnostic_probe =
             state.hlds_connectionless_loopback_udp_diagnostic_probe;
+        summary.hlds_address_scoped_challenge_cache_diagnostic_surface =
+            state.hlds_address_scoped_challenge_cache_diagnostic_surface;
+        summary.hlds_address_scoped_challenge_cache_diagnostic_probe =
+            state.hlds_address_scoped_challenge_cache_diagnostic_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -246656,6 +247468,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsConnectDiagnosticSurface();
     PerformHldsServerinfoDiagnosticSurface();
     PerformHldsConnectionlessLoopbackUdpDiagnosticSurface();
+    PerformHldsAddressScopedChallengeCacheDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
 
@@ -248564,6 +249377,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_serverinfo_diagnostic_probe = {};
     impl_->summary.hlds_connectionless_loopback_udp_diagnostic_surface = {};
     impl_->summary.hlds_connectionless_loopback_udp_diagnostic_probe = {};
+    impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_surface = {};
+    impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -248819,6 +249634,32 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : options.hlds_connectionless_loopback_udp_diagnostic_probe_scenario
                 == "gate_non_loopback_bind_blocked"
         ? "gate_non_loopback_bind_blocked"
+        : "happy";
+    impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_surface = {};
+    impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_surface.enabled =
+        options.hlds_address_scoped_challenge_cache_diagnostic_surface_enabled;
+    impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_probe = {};
+    impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_probe.enabled =
+        options.hlds_address_scoped_challenge_cache_diagnostic_probe_enabled;
+    impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario =
+        options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+            == "gate_connect_without_cached_challenge"
+        ? "gate_connect_without_cached_challenge"
+        : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+                == "gate_wrong_endpoint_reuse"
+        ? "gate_wrong_endpoint_reuse"
+        : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+                == "gate_expired_challenge"
+        ? "gate_expired_challenge"
+        : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+                == "gate_wrong_challenge_value"
+        ? "gate_wrong_challenge_value"
+        : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+                == "gate_replay_after_success"
+        ? "gate_replay_after_success"
+        : options.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario
+                == "gate_cache_capacity_eviction"
+        ? "gate_cache_capacity_eviction"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -252098,6 +252939,146 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_loopback_udp_gate_non_loopback
                 ? !hlds_loopback_udp_non_loopback_gate_ok
                 : !hlds_loopback_udp_happy_ok);
+    const auto& hlds_address_cache_probe =
+        impl_->summary.hlds_address_scoped_challenge_cache_diagnostic_probe;
+    const std::string& hlds_address_cache_scenario =
+        impl_->shim_state.hlds_address_scoped_challenge_cache_diagnostic_probe_scenario;
+    const bool hlds_address_cache_gate_connect_without_cached =
+        hlds_address_cache_scenario == "gate_connect_without_cached_challenge";
+    const bool hlds_address_cache_gate_wrong_endpoint =
+        hlds_address_cache_scenario == "gate_wrong_endpoint_reuse";
+    const bool hlds_address_cache_gate_expired =
+        hlds_address_cache_scenario == "gate_expired_challenge";
+    const bool hlds_address_cache_gate_wrong_value =
+        hlds_address_cache_scenario == "gate_wrong_challenge_value";
+    const bool hlds_address_cache_gate_replay =
+        hlds_address_cache_scenario == "gate_replay_after_success";
+    const bool hlds_address_cache_gate_capacity =
+        hlds_address_cache_scenario == "gate_cache_capacity_eviction";
+    const bool hlds_address_cache_common_ok =
+        hlds_address_cache_probe.enabled
+        && hlds_address_cache_probe.bounded_loopback
+        && !hlds_address_cache_probe.public_socket_opened
+        && hlds_address_cache_probe.loopback_policy_enforced
+        && hlds_address_cache_probe.sockets_closed
+        && hlds_address_cache_probe.challenge_cache_enabled
+        && hlds_address_cache_probe.challenge_cache_key == "remote_loopback_endpoint"
+        && hlds_address_cache_probe.challenge_cache_max_entries == 8
+        && hlds_address_cache_probe.challenge_one_shot
+        && hlds_address_cache_probe.steam_auth_not_implemented
+        && hlds_address_cache_probe.netchan_not_started
+        && hlds_address_cache_probe.reliable_channel_not_started
+        && hlds_address_cache_probe.resource_baselines_not_sent
+        && hlds_address_cache_probe.signon_state_not_entered
+        && hlds_address_cache_probe.client_not_put_in_server
+        && hlds_address_cache_probe.compatibility_claim_level
+            == "diagnostic-address-scoped-challenge-cache-only";
+    const bool hlds_address_cache_happy_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 1
+        && hlds_address_cache_probe.rejected == 0
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.udp_bind_address == "127.0.0.1"
+        && hlds_address_cache_probe.udp_bound_port > 0
+        && hlds_address_cache_probe.challenge_cache_inserted
+        && hlds_address_cache_probe.challenge_cache_lookup_attempted
+        && hlds_address_cache_probe.challenge_cache_hit
+        && hlds_address_cache_probe.challenge_endpoint_matches
+        && hlds_address_cache_probe.challenge_value_matches
+        && !hlds_address_cache_probe.challenge_expired
+        && hlds_address_cache_probe.challenge_consumed
+        && !hlds_address_cache_probe.challenge_replay_detected
+        && hlds_address_cache_probe.getchallenge_datagram_received
+        && hlds_address_cache_probe.challenge_response_datagram_sent
+        && hlds_address_cache_probe.connect_datagram_received
+        && hlds_address_cache_probe.serverinfo_response_datagram_sent
+        && hlds_address_cache_probe.connect_diagnostic_ready
+        && hlds_address_cache_probe.serverinfo_response_ready;
+    const bool hlds_address_cache_connect_without_cached_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 0
+        && hlds_address_cache_probe.rejected == 1
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.connect_datagram_received
+        && hlds_address_cache_probe.challenge_cache_lookup_attempted
+        && !hlds_address_cache_probe.challenge_cache_hit
+        && !hlds_address_cache_probe.challenge_endpoint_matches
+        && !hlds_address_cache_probe.connect_diagnostic_ready
+        && !hlds_address_cache_probe.serverinfo_response_ready
+        && hlds_address_cache_probe.last_reject_reason == "missing_cached_challenge";
+    const bool hlds_address_cache_wrong_endpoint_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 0
+        && hlds_address_cache_probe.rejected == 1
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.challenge_cache_inserted
+        && hlds_address_cache_probe.challenge_cache_lookup_attempted
+        && !hlds_address_cache_probe.challenge_cache_hit
+        && !hlds_address_cache_probe.challenge_endpoint_matches
+        && hlds_address_cache_probe.challenge_value_matches
+        && !hlds_address_cache_probe.connect_diagnostic_ready
+        && !hlds_address_cache_probe.serverinfo_response_ready
+        && hlds_address_cache_probe.last_reject_reason == "challenge_endpoint_mismatch";
+    const bool hlds_address_cache_expired_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 0
+        && hlds_address_cache_probe.rejected == 1
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.challenge_cache_hit
+        && hlds_address_cache_probe.challenge_endpoint_matches
+        && hlds_address_cache_probe.challenge_value_matches
+        && hlds_address_cache_probe.challenge_expired
+        && !hlds_address_cache_probe.connect_diagnostic_ready
+        && !hlds_address_cache_probe.serverinfo_response_ready
+        && hlds_address_cache_probe.last_reject_reason == "challenge_expired";
+    const bool hlds_address_cache_wrong_value_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 0
+        && hlds_address_cache_probe.rejected == 1
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.challenge_cache_hit
+        && hlds_address_cache_probe.challenge_endpoint_matches
+        && !hlds_address_cache_probe.challenge_value_matches
+        && !hlds_address_cache_probe.connect_diagnostic_ready
+        && !hlds_address_cache_probe.serverinfo_response_ready
+        && hlds_address_cache_probe.last_reject_reason == "challenge_value_mismatch";
+    const bool hlds_address_cache_replay_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 0
+        && hlds_address_cache_probe.rejected == 1
+        && hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.challenge_cache_hit
+        && hlds_address_cache_probe.challenge_endpoint_matches
+        && hlds_address_cache_probe.challenge_value_matches
+        && hlds_address_cache_probe.challenge_consumed
+        && hlds_address_cache_probe.challenge_replay_detected
+        && !hlds_address_cache_probe.connect_diagnostic_ready
+        && !hlds_address_cache_probe.serverinfo_response_ready
+        && hlds_address_cache_probe.last_reject_reason == "challenge_replay";
+    const bool hlds_address_cache_capacity_ok =
+        hlds_address_cache_common_ok
+        && hlds_address_cache_probe.accepted == 1
+        && hlds_address_cache_probe.rejected == 0
+        && !hlds_address_cache_probe.loopback_udp_socket_opened
+        && hlds_address_cache_probe.challenge_cache_inserted
+        && hlds_address_cache_probe.challenge_cache_evicted
+        && hlds_address_cache_probe.challenge_cache_entries_after
+            <= hlds_address_cache_probe.challenge_cache_max_entries;
+    const bool hlds_address_scoped_challenge_cache_diagnostic_probe_failed =
+        options.hlds_address_scoped_challenge_cache_diagnostic_probe_enabled
+        && (hlds_address_cache_gate_connect_without_cached
+                ? !hlds_address_cache_connect_without_cached_ok
+                : hlds_address_cache_gate_wrong_endpoint
+                ? !hlds_address_cache_wrong_endpoint_ok
+                : hlds_address_cache_gate_expired
+                ? !hlds_address_cache_expired_ok
+                : hlds_address_cache_gate_wrong_value
+                ? !hlds_address_cache_wrong_value_ok
+                : hlds_address_cache_gate_replay
+                ? !hlds_address_cache_replay_ok
+                : hlds_address_cache_gate_capacity
+                ? !hlds_address_cache_capacity_ok
+                : !hlds_address_cache_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -262248,6 +263229,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_connect_diagnostic_probe_failed
         && !hlds_serverinfo_diagnostic_probe_failed
         && !hlds_connectionless_loopback_udp_diagnostic_probe_failed
+        && !hlds_address_scoped_challenge_cache_diagnostic_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed

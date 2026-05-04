@@ -7032,6 +7032,40 @@ struct HldsConnectionlessLoopbackUdpDiagnosticProbeSummary
     std::string detail;
 };
 
+struct HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary
+    : HldsConnectionlessLoopbackUdpDiagnosticSurfaceSummary
+{
+    bool challenge_cache_enabled = false;
+    std::string challenge_cache_key = "disabled";
+    int challenge_cache_max_entries = 0;
+    int challenge_cache_entries_before = 0;
+    int challenge_cache_entries_after = 0;
+    bool challenge_cache_inserted = false;
+    bool challenge_cache_lookup_attempted = false;
+    bool challenge_cache_hit = false;
+    bool challenge_cache_evicted = false;
+    bool challenge_cache_cleared = false;
+    std::string challenge_ttl_policy = "disabled";
+    int challenge_created_tick = 0;
+    int challenge_current_tick = 0;
+    int challenge_age_ticks = 0;
+    bool challenge_expired = false;
+    bool challenge_one_shot = false;
+    bool challenge_consumed = false;
+    bool challenge_replay_detected = false;
+    std::string issued_challenge_value = "<none>";
+    std::string connect_challenge_value = "<none>";
+    bool challenge_value_matches = false;
+    bool challenge_endpoint_matches = false;
+    std::string udp_client_a_endpoint = "disabled";
+    std::string udp_client_b_endpoint = "disabled";
+};
+
+struct HldsAddressScopedChallengeCacheDiagnosticProbeSummary
+    : HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21547,6 +21581,9 @@ struct HlServerModuleInitOptions
     bool hlds_connectionless_loopback_udp_diagnostic_surface_enabled = false;
     bool hlds_connectionless_loopback_udp_diagnostic_probe_enabled = false;
     std::string hlds_connectionless_loopback_udp_diagnostic_probe_scenario = "happy";
+    bool hlds_address_scoped_challenge_cache_diagnostic_surface_enabled = false;
+    bool hlds_address_scoped_challenge_cache_diagnostic_probe_enabled = false;
+    std::string hlds_address_scoped_challenge_cache_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22363,6 +22400,10 @@ struct HlServerModuleSummary
         hlds_connectionless_loopback_udp_diagnostic_surface;
     HldsConnectionlessLoopbackUdpDiagnosticProbeSummary
         hlds_connectionless_loopback_udp_diagnostic_probe;
+    HldsAddressScopedChallengeCacheDiagnosticSurfaceSummary
+        hlds_address_scoped_challenge_cache_diagnostic_surface;
+    HldsAddressScopedChallengeCacheDiagnosticProbeSummary
+        hlds_address_scoped_challenge_cache_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
