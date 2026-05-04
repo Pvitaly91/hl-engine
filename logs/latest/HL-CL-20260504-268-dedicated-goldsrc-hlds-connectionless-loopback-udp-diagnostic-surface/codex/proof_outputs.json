@@ -1,0 +1,32 @@
+[
+  {
+    "scenario": "happy",
+    "label": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy__console.txt"
+  },
+  {
+    "scenario": "gate_bad_marker_udp",
+    "label": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker__console.txt"
+  },
+  {
+    "scenario": "gate_connect_without_challenge",
+    "label": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge__console.txt"
+  },
+  {
+    "scenario": "gate_wrong_protocol_udp",
+    "label": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol__console.txt"
+  },
+  {
+    "scenario": "gate_non_loopback_bind_blocked",
+    "label": "codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked__console.txt"
+  }
+]

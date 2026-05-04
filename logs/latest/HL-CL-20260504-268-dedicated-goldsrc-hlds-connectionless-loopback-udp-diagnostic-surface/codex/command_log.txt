@@ -1,0 +1,41 @@
+PROMPT-ID: HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface
+workdir: G:\DEV\СPP\HLengine\host
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 4f9c20288a2b751d124b30dce3482f0b7a72f132
+source_commit: e73814fabe2cae06fa058872ff1f9e6080cc112b
+
+Startup / baseline commands run:
+cd host
+git rev-parse --show-toplevel
+git status --short
+git checkout codex/HL-CL-20260401-081-target-runtime-completion-state
+git branch --show-current
+git rev-parse HEAD
+
+Descendant gates run and passed:
+git merge-base --is-ancestor 88b4ea5affae71a1ac014e63694e8771a562bb0a HEAD -> exit 0
+git merge-base --is-ancestor a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea HEAD -> exit 0
+git merge-base --is-ancestor 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e HEAD -> exit 0
+git merge-base --is-ancestor 87a0915d9c07634606576ea54a9e91cb78d11743 HEAD -> exit 0
+git merge-base --is-ancestor 353f2076f54dd14427e76fc08ec3aa3c5bf7b003 HEAD -> exit 0
+git merge-base --is-ancestor 8d44f3d5a96a727d716cfbe341b992bf74940706 HEAD -> exit 0
+git merge-base --is-ancestor 4f9c20288a2b751d124b30dce3482f0b7a72f132 HEAD -> exit 0
+
+Inspection commands run:
+git grep -n -e "hlds-getchallenge-diagnostic" -e "hlds_connect_diagnostic" -e "hlds_serverinfo_diagnostic" -- include src
+git grep -n -e "ScopedUdpSocket" -e "ScopedWinsockSession" -e "BuildConnectionlessTextPacket" -- src/game_api/hl_server_module.cpp
+
+Build command run:
+& 'C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe' build32\host\hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m
+build_result: pass; warnings only: existing C4127 constant conditional warnings in src/game_api/hl_server_module.cpp
+
+Runtime proof commands run:
+build32/host/Debug/hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy --prompt-id HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface --hlds-connectionless-loopback-udp-diagnostic-probe --hlds-connectionless-loopback-udp-diagnostic-probe-scenario happy -> exit 0
+build32/host/Debug/hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker --prompt-id HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface --hlds-connectionless-loopback-udp-diagnostic-probe --hlds-connectionless-loopback-udp-diagnostic-probe-scenario gate_bad_marker_udp -> exit 0
+build32/host/Debug/hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge --prompt-id HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface --hlds-connectionless-loopback-udp-diagnostic-probe --hlds-connectionless-loopback-udp-diagnostic-probe-scenario gate_connect_without_challenge -> exit 0
+build32/host/Debug/hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol --prompt-id HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface --hlds-connectionless-loopback-udp-diagnostic-probe --hlds-connectionless-loopback-udp-diagnostic-probe-scenario gate_wrong_protocol_udp -> exit 0
+build32/host/Debug/hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 1000 --frametime 0.05 --run-label codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked --prompt-id HL-CL-20260504-268-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-surface --hlds-connectionless-loopback-udp-diagnostic-probe --hlds-connectionless-loopback-udp-diagnostic-probe-scenario gate_non_loopback_bind_blocked -> exit 0
+
+Source commit command:
+git add -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp
+git commit -m "Add HLDS connectionless loopback UDP diagnostic surface" -> e73814fabe2cae06fa058872ff1f9e6080cc112b
