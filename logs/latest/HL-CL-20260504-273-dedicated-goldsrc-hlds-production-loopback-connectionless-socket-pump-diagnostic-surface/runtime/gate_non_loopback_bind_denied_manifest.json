@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_012220",
+  "runInstanceId": "20260505_012220_034_pid15808",
+  "runLabel": "codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-gate-non-loopback-bind-denied",
+  "promptId": "HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "b038470f98f7b82833754b4c21aa18ebc0902188",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_012220_034_pid15808__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-gate-non-loopback-bind-denied_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_012220_034_pid15808__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-gate-non-loopback-bind-denied_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_012220_034_pid15808__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-gate-non-loopback-bind-denied_part01.log"]
+}

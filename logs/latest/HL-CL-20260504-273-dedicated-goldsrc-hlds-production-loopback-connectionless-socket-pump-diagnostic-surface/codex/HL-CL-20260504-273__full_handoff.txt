@@ -1,0 +1,80 @@
+HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: b038470f98f7b82833754b4c21aa18ebc0902188
+source/final_commit: 7845839e1e30b170faca2ceaceab2faeab357dff
+artifact_commit: pending in artifact commit containing this handoff
+compatibility_claim_level: diagnostic-production-style-loopback-socket-pump-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- Implemented disabled-by-default localhost-only production-style connectionless UDP socket pump diagnostic surface/probe.
+- The pump is explicit diagnostic launch-option only and enforces loopback bind policy before opening sockets.
+- Happy proof sends getchallenge and connect datagrams through the production-style pump, receives diagnostic challenge and serverinfo responses, and proves no public socket or admission state.
+- Gate proofs cover disabled-by-default, non-loopback bind denied, public socket blocked, bad marker, connect without cached challenge, wrong protocol, and unsafe userinfo.
+
+Proofs:
+- proof_happy: pass
+- proof_gate_disabled_by_default: pass
+- proof_gate_non_loopback_bind_denied: pass
+- proof_gate_public_socket_blocked: pass
+- proof_gate_bad_marker: pass
+- proof_gate_connect_without_cached_challenge: pass
+- proof_gate_wrong_protocol: pass
+- proof_gate_unsafe_userinfo: pass
+
+Happy key fields:
+- socket_pump_disabled_by_default=1
+- production_style_socket_pump_used=1
+- diagnostic_harness_receive_path_used=0
+- public_socket_opened=0
+- loopback_udp_socket_opened=1
+- sockets_closed=1
+- bind_policy=loopback_only_explicit_diagnostic
+- bind_address_effective=127.0.0.1
+- udp_bound_port=63427
+- socket_pump_steps=2
+- socket_pump_datagrams_received=2
+- socket_pump_datagrams_dispatched=2
+- socket_pump_responses_sent=2
+- lifecycle_acceptance_passed=1
+- getchallenge_lifecycle_passed=1
+- challenge_cache_lifecycle_passed=1
+- connect_lifecycle_passed=1
+- userinfo_policy_lifecycle_passed=1
+- serverinfo_lifecycle_passed=1
+- protocol_version_accepted=1
+- userinfo_policy_passed=1
+- connect_diagnostic_ready=1
+- serverinfo_response_ready=1
+- steam_auth_not_implemented=1
+- netchan_not_started=1
+- reliable_channel_not_started=1
+- resource_baselines_not_sent=1
+- signon_state_not_entered=1
+- client_not_put_in_server=1
+
+Runtime artifact paths:
+- happy: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/happy_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/happy_manifest.json
+- gate_disabled_by_default: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_disabled_by_default_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_disabled_by_default_manifest.json
+- gate_non_loopback_bind_denied: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_non_loopback_bind_denied_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_non_loopback_bind_denied_manifest.json
+- gate_public_socket_blocked: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_public_socket_blocked_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_public_socket_blocked_manifest.json
+- gate_bad_marker: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_bad_marker_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_bad_marker_manifest.json
+- gate_connect_without_cached_challenge: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_connect_without_cached_challenge_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_connect_without_cached_challenge_manifest.json
+- gate_wrong_protocol: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_wrong_protocol_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_wrong_protocol_manifest.json
+- gate_unsafe_userinfo: summary=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_unsafe_userinfo_summary.log, manifest=logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/runtime/gate_unsafe_userinfo_manifest.json
+
+Report: logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/socket_pump_diagnostic_report.md
+JSON summary: logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/socket_pump_diagnostic_summary.json
+Command log: logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/command_log.txt
+Git state: logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/git_state.txt
+
+Why this is still diagnostic-only:
+- The pump runs only through explicit diagnostic launch options.
+- Binding is restricted to loopback and public bind attempts are rejected before sockets are opened.
+- It does not run Steam auth, netchan, reliable channels, real signon, resource baselines, or put-in-server admission.
+
+Recommended next prompt: HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory
+Recommended next task: inventory safe integration points for promoting the diagnostic pump beyond launch-only proof mode while preserving loopback-only gates
+
+HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface
