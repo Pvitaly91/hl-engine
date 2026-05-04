@@ -1,0 +1,44 @@
+[
+  {
+    "scenario": "happy",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-happy",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-happy__console.txt"
+  },
+  {
+    "scenario": "gate_missing_required_name",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name__console.txt"
+  },
+  {
+    "scenario": "gate_malformed_userinfo_policy",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-malformed-userinfo-policy",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-malformed-userinfo-policy__console.txt"
+  },
+  {
+    "scenario": "gate_overlong_userinfo",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-overlong-userinfo",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-overlong-userinfo__console.txt"
+  },
+  {
+    "scenario": "gate_duplicate_protected_key",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-duplicate-protected-key",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-duplicate-protected-key__console.txt"
+  },
+  {
+    "scenario": "gate_control_character_value",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-control-character-value",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-control-character-value__console.txt"
+  },
+  {
+    "scenario": "gate_challenge_mismatch_still_precedes_userinfo_acceptance",
+    "label": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-challenge-mismatch-still-precedes-userinfo-acceptance",
+    "exit_code": 0,
+    "console": "logs/latest/HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface/codex/codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-challenge-mismatch-still-precedes-userinfo-acceptance__console.txt"
+  }
+]
