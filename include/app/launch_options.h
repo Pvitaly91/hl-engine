@@ -42,6 +42,9 @@ struct LaunchOptions
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";
+    bool hlds_getchallenge_diagnostic_surface_enabled = false;
+    bool hlds_getchallenge_diagnostic_probe_enabled = false;
+    std::string hlds_getchallenge_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";

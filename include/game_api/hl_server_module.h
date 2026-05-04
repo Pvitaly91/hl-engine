@@ -6658,6 +6658,64 @@ struct DedicatedConnectProbeSummary
     std::string detail;
 };
 
+struct HldsGetchallengeDiagnosticSurfaceSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool connectionless_marker_seen = false;
+    bool connectionless_marker_valid = false;
+    std::string command_raw = "<none>";
+    std::string command_normalized = "<none>";
+    bool getchallenge_detected = false;
+    bool challenge_generated = false;
+    bool challenge_response_ready = false;
+    std::string challenge_value = "<none>";
+    std::string response_shape = "disabled";
+    std::string response_bytes_or_text_safe_preview = "<none>";
+    std::string remote_address_source = "disabled";
+    bool bounded_loopback = false;
+    bool public_socket_opened = false;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
+struct HldsGetchallengeDiagnosticProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool connectionless_marker_seen = false;
+    bool connectionless_marker_valid = false;
+    std::string command_raw = "<none>";
+    std::string command_normalized = "<none>";
+    bool getchallenge_detected = false;
+    bool challenge_generated = false;
+    bool challenge_response_ready = false;
+    std::string challenge_value = "<none>";
+    std::string response_shape = "disabled";
+    std::string response_bytes_or_text_safe_preview = "<none>";
+    std::string remote_address_source = "disabled";
+    bool bounded_loopback = false;
+    bool public_socket_opened = false;
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21161,6 +21219,9 @@ struct HlServerModuleInitOptions
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";
+    bool hlds_getchallenge_diagnostic_surface_enabled = false;
+    bool hlds_getchallenge_diagnostic_probe_enabled = false;
+    std::string hlds_getchallenge_diagnostic_probe_scenario = "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -21967,6 +22028,8 @@ struct HlServerModuleSummary
     DedicatedQueryProbeSummary dedicated_query_probe;
     DedicatedConnectSurfaceSummary dedicated_connect_surface;
     DedicatedConnectProbeSummary dedicated_connect_probe;
+    HldsGetchallengeDiagnosticSurfaceSummary hlds_getchallenge_diagnostic_surface;
+    HldsGetchallengeDiagnosticProbeSummary hlds_getchallenge_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
