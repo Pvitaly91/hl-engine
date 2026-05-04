@@ -4358,6 +4358,12 @@ struct EngineShimState
     std::string
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe_scenario =
             "happy";
+    hl::game_api::DedicatedSignonResumeLifecycleAcceptanceGateSummary
+        dedicated_signon_resume_lifecycle_acceptance_gate;
+    hl::game_api::DedicatedSignonResumeLifecycleAcceptanceProbeSummary
+        dedicated_signon_resume_lifecycle_acceptance_probe;
+    std::string dedicated_signon_resume_lifecycle_acceptance_probe_scenario =
+        "happy";
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowSurfaceSummary
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface;
     hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeAllowProbeSummary
@@ -39872,6 +39878,160 @@ std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointS
         + ", detail=" + summary.detail;
 }
 
+std::string BuildDedicatedSignonResumeLifecycleAcceptanceGateLine(
+    const hl::game_api::DedicatedSignonResumeLifecycleAcceptanceGateSummary&
+        summary)
+{
+    const auto bool_to_int = [](bool value) -> const char* {
+        return value ? "1" : "0";
+    };
+    return std::string("dedicated_signon_resume_lifecycle_acceptance_gate: prompt_id=HL-CL-20260503-263-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate")
+        + ", mode=" + summary.mode
+        + ", bind=" + summary.bind
+        + ", boundPort=" + std::to_string(summary.bound_port)
+        + ", protocolShape=" + summary.protocol_shape
+        + ", lifecycle_acceptance_enabled="
+        + bool_to_int(summary.lifecycle_acceptance_enabled)
+        + ", lifecycle_acceptance_passed="
+        + bool_to_int(summary.lifecycle_acceptance_passed)
+        + ", lifecycle_acceptance_rejected="
+        + bool_to_int(summary.lifecycle_acceptance_rejected)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", last_reject_reason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                              : summary.last_reject_reason)
+        + ", range_positive_passed="
+        + bool_to_int(summary.range_positive_passed)
+        + ", eof_positive_passed=" + bool_to_int(summary.eof_positive_passed)
+        + ", single_denial_passed="
+        + bool_to_int(summary.single_denial_passed)
+        + ", denial_matrix_passed="
+        + bool_to_int(summary.denial_matrix_passed)
+        + ", matrix_scenarios_total="
+        + std::to_string(summary.matrix_scenarios_total)
+        + ", matrix_scenarios_passed="
+        + std::to_string(summary.matrix_scenarios_passed)
+        + ", matrix_scenarios_failed="
+        + std::to_string(summary.matrix_scenarios_failed)
+        + ", matrix_scenario_names="
+        + (summary.matrix_scenario_names.empty() ? std::string("<none>")
+                                                 : summary.matrix_scenario_names)
+        + ", matrix_deny_reasons="
+        + (summary.matrix_deny_reasons.empty() ? std::string("<none>")
+                                               : summary.matrix_deny_reasons)
+        + ", stale_cursor_after_eof_denied="
+        + bool_to_int(summary.stale_cursor_after_eof_denied)
+        + ", mismatched_claimant_session_denied="
+        + bool_to_int(summary.mismatched_claimant_session_denied)
+        + ", wrong_issuer_target_session_denied="
+        + bool_to_int(summary.wrong_issuer_target_session_denied)
+        + ", duplicate_resume_after_terminal_eof_denied="
+        + bool_to_int(summary.duplicate_resume_after_terminal_eof_denied)
+        + ", invalid_resume_token_claim_chain_denied="
+        + bool_to_int(summary.invalid_resume_token_claim_chain_denied)
+        + ", resume_range_ready="
+        + std::to_string(summary.resume_range_ready)
+        + ", resume_range_delivered="
+        + std::to_string(summary.resume_range_delivered)
+        + ", resume_eof_ready=" + std::to_string(summary.resume_eof_ready)
+        + ", resume_eof_delivered="
+        + std::to_string(summary.resume_eof_delivered)
+        + ", denial_observed=" + bool_to_int(summary.denial_observed)
+        + ", matrix_denial_observed="
+        + bool_to_int(summary.matrix_denial_observed)
+        + ", post_denial_range_delivered_delta="
+        + std::to_string(summary.post_denial_range_delivered_delta)
+        + ", post_denial_eof_delivered_delta="
+        + std::to_string(summary.post_denial_eof_delivered_delta)
+        + ", post_matrix_range_delivered_delta="
+        + std::to_string(summary.post_matrix_range_delivered_delta)
+        + ", post_matrix_eof_delivered_delta="
+        + std::to_string(summary.post_matrix_eof_delivered_delta)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", compatibility=" + summary.compatibility
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildDedicatedSignonResumeLifecycleAcceptanceProbeLine(
+    const hl::game_api::DedicatedSignonResumeLifecycleAcceptanceProbeSummary&
+        summary)
+{
+    const auto bool_to_int = [](bool value) -> const char* {
+        return value ? "1" : "0";
+    };
+    return std::string("dedicated_signon_resume_lifecycle_acceptance_probe: prompt_id=HL-CL-20260503-263-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate")
+        + ", mode=" + summary.mode
+        + ", probe=" + summary.probe
+        + ", attempts=" + std::to_string(summary.attempts)
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", last_reject_reason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                              : summary.last_reject_reason)
+        + ", lifecycle_acceptance_enabled="
+        + bool_to_int(summary.lifecycle_acceptance_enabled)
+        + ", lifecycle_acceptance_passed="
+        + bool_to_int(summary.lifecycle_acceptance_passed)
+        + ", lifecycle_acceptance_rejected="
+        + bool_to_int(summary.lifecycle_acceptance_rejected)
+        + ", range_positive_passed="
+        + bool_to_int(summary.range_positive_passed)
+        + ", eof_positive_passed=" + bool_to_int(summary.eof_positive_passed)
+        + ", single_denial_passed="
+        + bool_to_int(summary.single_denial_passed)
+        + ", denial_matrix_passed="
+        + bool_to_int(summary.denial_matrix_passed)
+        + ", matrix_scenarios_total="
+        + std::to_string(summary.matrix_scenarios_total)
+        + ", matrix_scenarios_passed="
+        + std::to_string(summary.matrix_scenarios_passed)
+        + ", matrix_scenarios_failed="
+        + std::to_string(summary.matrix_scenarios_failed)
+        + ", matrix_scenario_names="
+        + (summary.matrix_scenario_names.empty() ? std::string("<none>")
+                                                 : summary.matrix_scenario_names)
+        + ", matrix_deny_reasons="
+        + (summary.matrix_deny_reasons.empty() ? std::string("<none>")
+                                               : summary.matrix_deny_reasons)
+        + ", stale_cursor_after_eof_denied="
+        + bool_to_int(summary.stale_cursor_after_eof_denied)
+        + ", mismatched_claimant_session_denied="
+        + bool_to_int(summary.mismatched_claimant_session_denied)
+        + ", wrong_issuer_target_session_denied="
+        + bool_to_int(summary.wrong_issuer_target_session_denied)
+        + ", duplicate_resume_after_terminal_eof_denied="
+        + bool_to_int(summary.duplicate_resume_after_terminal_eof_denied)
+        + ", invalid_resume_token_claim_chain_denied="
+        + bool_to_int(summary.invalid_resume_token_claim_chain_denied)
+        + ", resume_range_ready="
+        + std::to_string(summary.resume_range_ready)
+        + ", resume_range_delivered="
+        + std::to_string(summary.resume_range_delivered)
+        + ", resume_eof_ready=" + std::to_string(summary.resume_eof_ready)
+        + ", resume_eof_delivered="
+        + std::to_string(summary.resume_eof_delivered)
+        + ", denial_observed=" + bool_to_int(summary.denial_observed)
+        + ", matrix_denial_observed="
+        + bool_to_int(summary.matrix_denial_observed)
+        + ", post_denial_range_delivered_delta="
+        + std::to_string(summary.post_denial_range_delivered_delta)
+        + ", post_denial_eof_delivered_delta="
+        + std::to_string(summary.post_denial_eof_delivered_delta)
+        + ", post_matrix_range_delivered_delta="
+        + std::to_string(summary.post_matrix_range_delivered_delta)
+        + ", post_matrix_eof_delivered_delta="
+        + std::to_string(summary.post_matrix_eof_delivered_delta)
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", protocolShape=" + summary.protocol_shape
+        + ", compatibility=" + summary.compatibility
+        + ", detail=" + summary.detail;
+}
+
 std::string BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointAdvanceSurfaceLine(
     const hl::game_api::DedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointAdvanceSurfaceSummary&
         summary)
@@ -57172,6 +57332,20 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildDedicatedSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimResumeDenialMatrixProbeLine(
                     summary
                         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe));
+        }
+        if (summary.dedicated_signon_resume_lifecycle_acceptance_gate.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonResumeLifecycleAcceptanceGateLine(
+                    summary.dedicated_signon_resume_lifecycle_acceptance_gate));
+        }
+        if (summary.dedicated_signon_resume_lifecycle_acceptance_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildDedicatedSignonResumeLifecycleAcceptanceProbeLine(
+                    summary.dedicated_signon_resume_lifecycle_acceptance_probe));
         }
         if (summary
                 .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface
@@ -185508,6 +185682,193 @@ bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccess
                ->claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denied
            > 0;
 }
+
+void PopulateDedicatedSignonResumeLifecycleAcceptanceFromState(
+    EngineShimState& state,
+    bool gate_scenario)
+{
+    auto& gate = state.dedicated_signon_resume_lifecycle_acceptance_gate;
+    auto& probe = state.dedicated_signon_resume_lifecycle_acceptance_probe;
+    const auto& matrix_probe =
+        state
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe;
+    const auto& matrix_surface =
+        state
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_surface;
+    const auto& denial_probe =
+        state
+            .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_probe;
+
+    gate.enabled = gate.enabled || probe.enabled;
+    gate.mode = state.server_state.dedicated ? "dedicated" : "listen";
+    gate.bind = "loopback";
+    gate.bound_port = state.dedicated_query_surface.bound_port;
+    gate.protocol_shape =
+        "goldsrc-like-dedicated-signon-resume-lifecycle-acceptance";
+    gate.lifecycle_acceptance_enabled = gate.enabled;
+    gate.resume_range_ready =
+        matrix_probe
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_ready;
+    gate.resume_range_delivered =
+        matrix_probe
+            .claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_range_delivered;
+    gate.resume_eof_ready =
+        matrix_probe
+            .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_eof_ready;
+    gate.resume_eof_delivered =
+        matrix_probe
+            .claimed_checkpoint_successor_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_exhausted;
+    gate.denial_observed = denial_probe.denial_observed;
+    gate.matrix_denial_observed = matrix_probe.matrix_denial_observed;
+    gate.post_denial_range_delivered_delta =
+        denial_probe.post_denial_range_delivered_delta;
+    gate.post_denial_eof_delivered_delta =
+        denial_probe.post_denial_eof_delivered_delta;
+    gate.post_matrix_range_delivered_delta =
+        matrix_probe.post_matrix_range_delivered_delta;
+    gate.post_matrix_eof_delivered_delta =
+        matrix_probe.post_matrix_eof_delivered_delta;
+    gate.matrix_scenarios_total = matrix_probe.matrix_scenarios_total;
+    gate.matrix_scenarios_passed = matrix_probe.matrix_scenarios_passed;
+    gate.matrix_scenarios_failed = matrix_probe.matrix_scenarios_failed;
+    gate.matrix_scenario_names = matrix_probe.matrix_scenario_names;
+    gate.matrix_deny_reasons = matrix_probe.matrix_deny_reasons;
+    gate.stale_cursor_after_eof_denied =
+        matrix_probe.stale_cursor_after_eof_denied;
+    gate.mismatched_claimant_session_denied =
+        matrix_probe.mismatched_claimant_session_denied;
+    gate.wrong_issuer_target_session_denied =
+        matrix_probe.wrong_issuer_target_session_denied;
+    gate.duplicate_resume_after_terminal_eof_denied =
+        matrix_probe.duplicate_resume_after_terminal_eof_denied;
+    gate.invalid_resume_token_claim_chain_denied =
+        matrix_probe.invalid_resume_token_claim_chain_denied;
+    gate.range_positive_passed =
+        gate.resume_range_ready > 0 && gate.resume_range_delivered > 0;
+    gate.eof_positive_passed =
+        gate.resume_eof_ready > 0 && gate.resume_eof_delivered > 0;
+    gate.single_denial_passed =
+        denial_probe.accepted > 0 && denial_probe.rejected == 0
+        && denial_probe.denial_observed && denial_probe.denial_count > 0
+        && denial_probe.post_denial_range_delivered_delta == 0
+        && denial_probe.post_denial_eof_delivered_delta == 0;
+    gate.denial_matrix_passed =
+        matrix_probe.accepted > 0 && matrix_surface.accepted > 0
+        && matrix_probe.rejected == 0 && matrix_probe.matrix_denial_observed
+        && matrix_probe.matrix_denial_count >= 5
+        && matrix_probe.matrix_scenarios_total >= 5
+        && matrix_probe.matrix_scenarios_passed
+               == matrix_probe.matrix_scenarios_total
+        && matrix_probe.matrix_scenarios_failed == 0
+        && matrix_probe.stale_cursor_after_eof_denied
+        && matrix_probe.mismatched_claimant_session_denied
+        && matrix_probe.wrong_issuer_target_session_denied
+        && matrix_probe.duplicate_resume_after_terminal_eof_denied
+        && matrix_probe.invalid_resume_token_claim_chain_denied
+        && matrix_probe.post_matrix_range_delivered_delta == 0
+        && matrix_probe.post_matrix_eof_delivered_delta == 0;
+
+    const bool aggregate_ok =
+        gate.range_positive_passed && gate.eof_positive_passed
+        && gate.single_denial_passed && gate.denial_matrix_passed;
+    if (probe.enabled)
+    {
+        probe.attempts = 1;
+    }
+
+    if (gate_scenario)
+    {
+        gate.accepted = 0;
+        gate.rejected = 1;
+        gate.lifecycle_acceptance_passed = false;
+        gate.lifecycle_acceptance_rejected = true;
+        gate.last_reject_reason = "lifecycle-acceptance-prerequisite-corrupt";
+        gate.compatibility =
+            "loopback-verified,resume-lifecycle-acceptance-gate-rejected";
+        gate.detail =
+            "aggregate lifecycle acceptance intentionally rejected after corrupting the acceptance prerequisite";
+    }
+    else if (aggregate_ok)
+    {
+        gate.accepted = 1;
+        gate.rejected = 0;
+        gate.lifecycle_acceptance_passed = true;
+        gate.lifecycle_acceptance_rejected = false;
+        gate.last_reject_reason = "<none>";
+        gate.compatibility =
+            "loopback-verified,resume-lifecycle-acceptance-implemented";
+        gate.detail =
+            "aggregate lifecycle acceptance verified range, EOF, single denial, matrix denial, and zero post-denial mutation";
+    }
+    else
+    {
+        gate.accepted = 0;
+        gate.rejected = 1;
+        gate.lifecycle_acceptance_passed = false;
+        gate.lifecycle_acceptance_rejected = true;
+        gate.last_reject_reason = "lifecycle-acceptance-prerequisite-missing";
+        gate.compatibility =
+            "loopback-probe-failed,resume-lifecycle-acceptance-pending";
+        gate.detail =
+            "aggregate lifecycle acceptance rejected because one or more prerequisite proofs were incomplete";
+    }
+
+    gate.auth = "ok";
+    gate.signon = "ok";
+    gate.gameplay_transport = "ok";
+
+    if (probe.enabled)
+    {
+        probe.mode = gate.mode;
+        probe.probe = "loopback";
+        probe.accepted = gate.accepted;
+        probe.rejected = gate.rejected;
+        probe.last_reject_reason = gate.last_reject_reason;
+        probe.lifecycle_acceptance_enabled = gate.lifecycle_acceptance_enabled;
+        probe.lifecycle_acceptance_passed = gate.lifecycle_acceptance_passed;
+        probe.lifecycle_acceptance_rejected =
+            gate.lifecycle_acceptance_rejected;
+        probe.range_positive_passed = gate.range_positive_passed;
+        probe.eof_positive_passed = gate.eof_positive_passed;
+        probe.single_denial_passed = gate.single_denial_passed;
+        probe.denial_matrix_passed = gate.denial_matrix_passed;
+        probe.matrix_scenarios_total = gate.matrix_scenarios_total;
+        probe.matrix_scenarios_passed = gate.matrix_scenarios_passed;
+        probe.matrix_scenarios_failed = gate.matrix_scenarios_failed;
+        probe.matrix_scenario_names = gate.matrix_scenario_names;
+        probe.matrix_deny_reasons = gate.matrix_deny_reasons;
+        probe.stale_cursor_after_eof_denied =
+            gate.stale_cursor_after_eof_denied;
+        probe.mismatched_claimant_session_denied =
+            gate.mismatched_claimant_session_denied;
+        probe.wrong_issuer_target_session_denied =
+            gate.wrong_issuer_target_session_denied;
+        probe.duplicate_resume_after_terminal_eof_denied =
+            gate.duplicate_resume_after_terminal_eof_denied;
+        probe.invalid_resume_token_claim_chain_denied =
+            gate.invalid_resume_token_claim_chain_denied;
+        probe.resume_range_ready = gate.resume_range_ready;
+        probe.resume_range_delivered = gate.resume_range_delivered;
+        probe.resume_eof_ready = gate.resume_eof_ready;
+        probe.resume_eof_delivered = gate.resume_eof_delivered;
+        probe.denial_observed = gate.denial_observed;
+        probe.matrix_denial_observed = gate.matrix_denial_observed;
+        probe.post_denial_range_delivered_delta =
+            gate.post_denial_range_delivered_delta;
+        probe.post_denial_eof_delivered_delta =
+            gate.post_denial_eof_delivered_delta;
+        probe.post_matrix_range_delivered_delta =
+            gate.post_matrix_range_delivered_delta;
+        probe.post_matrix_eof_delivered_delta =
+            gate.post_matrix_eof_delivered_delta;
+        probe.auth = gate.auth;
+        probe.signon = gate.signon;
+        probe.gameplay_transport = gate.gameplay_transport;
+        probe.protocol_shape = gate.protocol_shape;
+        probe.compatibility = gate.compatibility;
+        probe.detail = gate.detail;
+    }
+}
 bool PumpOneLoopbackSignonMessageCursorCarriedCheckpointClaimedCheckpointSuccessorCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointResumeTokenClaimCheckpointAdvanceAttempt(
     EngineShimState& state,
     std::string_view senary_claimant_session_id,
@@ -220240,6 +220601,23 @@ void PerformDedicatedQuerySurface()
             state);
     }
     };
+    auto maybe_run_dedicated_signon_resume_lifecycle_acceptance_flow =
+        [&]()
+    {
+        auto& gate = state.dedicated_signon_resume_lifecycle_acceptance_gate;
+        auto& probe = state.dedicated_signon_resume_lifecycle_acceptance_probe;
+        if (!((gate.enabled || probe.enabled) && probe.attempts == 0
+              && probe.accepted == 0 && probe.rejected == 0))
+        {
+            return;
+        }
+
+        PopulateDedicatedSignonResumeLifecycleAcceptanceFromState(
+            state,
+            probe.enabled
+                && state.dedicated_signon_resume_lifecycle_acceptance_probe_scenario
+                       == "gate");
+    };
     auto maybe_run_senary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_advance_flow =
         [&]()
     {
@@ -223223,6 +223601,7 @@ void PerformDedicatedQuerySurface()
     maybe_run_septenary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_flow();
     maybe_run_septenary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_flow();
     maybe_run_septenary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_flow();
+    maybe_run_dedicated_signon_resume_lifecycle_acceptance_flow();
     maybe_run_senary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_advance_flow();
     maybe_run_senary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_eof_flow();
     maybe_run_senary_claimant_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_denial_flow();
@@ -238362,6 +238741,10 @@ void PopulateBootstrapSummary(
             .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe =
                 state
                     .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe;
+        summary.dedicated_signon_resume_lifecycle_acceptance_gate =
+            state.dedicated_signon_resume_lifecycle_acceptance_gate;
+        summary.dedicated_signon_resume_lifecycle_acceptance_probe =
+            state.dedicated_signon_resume_lifecycle_acceptance_probe;
         summary
             .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface =
                 state
@@ -248090,6 +248473,21 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 == "gate"
         ? "gate"
         : "happy";
+    impl_->shim_state.dedicated_signon_resume_lifecycle_acceptance_gate = {};
+    impl_->shim_state.dedicated_signon_resume_lifecycle_acceptance_gate.enabled =
+        options.signon_resume_lifecycle_acceptance_gate_enabled;
+    impl_->shim_state
+        .dedicated_signon_resume_lifecycle_acceptance_gate.requested_port =
+        impl_->shim_state.dedicated_query_surface.requested_port;
+    impl_->shim_state.dedicated_signon_resume_lifecycle_acceptance_probe = {};
+    impl_->shim_state
+        .dedicated_signon_resume_lifecycle_acceptance_probe.enabled =
+        options.signon_resume_lifecycle_acceptance_probe_enabled;
+    impl_->shim_state
+        .dedicated_signon_resume_lifecycle_acceptance_probe_scenario =
+        options.signon_resume_lifecycle_acceptance_probe_scenario == "gate"
+        ? "gate"
+        : "happy";
     impl_->shim_state
         .dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface =
         {};
@@ -256151,6 +256549,73 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             && (prompt262_checkpoint_resume_token_claim_resume_denial_matrix_gate
                     ? !prompt262_checkpoint_resume_token_claim_resume_denial_matrix_gate_ok
                     : !prompt262_checkpoint_resume_token_claim_resume_denial_matrix_happy_ok);
+    const auto& prompt263_resume_lifecycle_acceptance_probe =
+        impl_->summary.dedicated_signon_resume_lifecycle_acceptance_probe;
+    const bool prompt263_resume_lifecycle_acceptance_gate =
+        impl_->shim_state.dedicated_signon_resume_lifecycle_acceptance_probe_scenario
+        == "gate";
+    const bool prompt263_resume_lifecycle_acceptance_gate_ok =
+        prompt263_resume_lifecycle_acceptance_probe.enabled
+        && prompt263_resume_lifecycle_acceptance_probe.accepted == 0
+        && prompt263_resume_lifecycle_acceptance_probe.rejected == 1
+        && !prompt263_resume_lifecycle_acceptance_probe
+                .lifecycle_acceptance_passed
+        && prompt263_resume_lifecycle_acceptance_probe
+               .lifecycle_acceptance_rejected
+        && !prompt263_resume_lifecycle_acceptance_probe.last_reject_reason
+                .empty()
+        && prompt263_resume_lifecycle_acceptance_probe.last_reject_reason
+            != "<none>";
+    const bool prompt263_resume_lifecycle_acceptance_happy_ok =
+        prompt263_resume_lifecycle_acceptance_probe.enabled
+        && prompt263_resume_lifecycle_acceptance_probe.accepted > 0
+        && prompt263_resume_lifecycle_acceptance_probe.rejected == 0
+        && prompt263_resume_lifecycle_acceptance_probe
+               .lifecycle_acceptance_passed
+        && !prompt263_resume_lifecycle_acceptance_probe
+                .lifecycle_acceptance_rejected
+        && prompt263_resume_lifecycle_acceptance_probe.range_positive_passed
+        && prompt263_resume_lifecycle_acceptance_probe.eof_positive_passed
+        && prompt263_resume_lifecycle_acceptance_probe.single_denial_passed
+        && prompt263_resume_lifecycle_acceptance_probe.denial_matrix_passed
+        && prompt263_resume_lifecycle_acceptance_probe.matrix_scenarios_total
+               >= 5
+        && prompt263_resume_lifecycle_acceptance_probe.matrix_scenarios_passed
+            == prompt263_resume_lifecycle_acceptance_probe
+                   .matrix_scenarios_total
+        && prompt263_resume_lifecycle_acceptance_probe.matrix_scenarios_failed
+               == 0
+        && prompt263_resume_lifecycle_acceptance_probe
+               .stale_cursor_after_eof_denied
+        && prompt263_resume_lifecycle_acceptance_probe
+               .mismatched_claimant_session_denied
+        && prompt263_resume_lifecycle_acceptance_probe
+               .wrong_issuer_target_session_denied
+        && prompt263_resume_lifecycle_acceptance_probe
+               .duplicate_resume_after_terminal_eof_denied
+        && prompt263_resume_lifecycle_acceptance_probe
+               .invalid_resume_token_claim_chain_denied
+        && prompt263_resume_lifecycle_acceptance_probe
+               .post_denial_range_delivered_delta
+            == 0
+        && prompt263_resume_lifecycle_acceptance_probe
+               .post_denial_eof_delivered_delta
+            == 0
+        && prompt263_resume_lifecycle_acceptance_probe
+               .post_matrix_range_delivered_delta
+            == 0
+        && prompt263_resume_lifecycle_acceptance_probe
+               .post_matrix_eof_delivered_delta
+            == 0
+        && prompt263_resume_lifecycle_acceptance_probe.auth == "ok"
+        && prompt263_resume_lifecycle_acceptance_probe.signon == "ok"
+        && prompt263_resume_lifecycle_acceptance_probe.gameplay_transport
+               == "ok";
+    const bool dedicated_signon_resume_lifecycle_acceptance_probe_failed =
+        options.signon_resume_lifecycle_acceptance_probe_enabled
+        && (prompt263_resume_lifecycle_acceptance_gate
+                ? !prompt263_resume_lifecycle_acceptance_gate_ok
+                : !prompt263_resume_lifecycle_acceptance_happy_ok);
     const bool
         dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_range_probe_failed =
             options
@@ -259533,6 +259998,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_eof_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe_failed
+        && !dedicated_signon_resume_lifecycle_acceptance_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_range_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_eof_probe_failed
         && !dedicated_signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resumed_denial_probe_failed

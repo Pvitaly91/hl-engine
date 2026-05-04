@@ -23372,6 +23372,12 @@ bool HostApplication::RunServerEngineShim(
         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe_scenario =
         options
             .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_denial_matrix_probe_scenario;
+    init_options.signon_resume_lifecycle_acceptance_gate_enabled =
+        options.signon_resume_lifecycle_acceptance_gate_enabled;
+    init_options.signon_resume_lifecycle_acceptance_probe_enabled =
+        options.signon_resume_lifecycle_acceptance_probe_enabled;
+    init_options.signon_resume_lifecycle_acceptance_probe_scenario =
+        options.signon_resume_lifecycle_acceptance_probe_scenario;
     init_options
         .signon_message_cursor_carried_checkpoint_claimed_checkpoint_successor_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_checkpoint_resume_token_claim_resume_allow_surface_enabled =
         options
