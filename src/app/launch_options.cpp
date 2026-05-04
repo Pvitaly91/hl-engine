@@ -1082,6 +1082,90 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--hlds-getchallenge-diagnostic-surface")
+        {
+            result.options.hlds_getchallenge_diagnostic_surface_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_getchallenge_diagnostic_surface_prefix =
+            L"--hlds-getchallenge-diagnostic-surface=";
+        if (StartsWith(argument, hlds_getchallenge_diagnostic_surface_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_getchallenge_diagnostic_surface_prefix.size()),
+                    &result.options.hlds_getchallenge_diagnostic_surface_enabled,
+                    &result.error_message,
+                    L"--hlds-getchallenge-diagnostic-surface"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-getchallenge-diagnostic-probe")
+        {
+            result.options.hlds_getchallenge_diagnostic_probe_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_getchallenge_diagnostic_probe_prefix =
+            L"--hlds-getchallenge-diagnostic-probe=";
+        if (StartsWith(argument, hlds_getchallenge_diagnostic_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(hlds_getchallenge_diagnostic_probe_prefix.size()),
+                    &result.options.hlds_getchallenge_diagnostic_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-getchallenge-diagnostic-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--hlds-getchallenge-diagnostic-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-getchallenge-diagnostic-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy" && normalized != L"gate_bad_marker"
+                && normalized != L"gate_wrong_command")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-getchallenge-diagnostic-probe-scenario. Expected happy, gate_bad_marker, or gate_wrong_command.";
+                return result;
+            }
+
+            result.options.hlds_getchallenge_diagnostic_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_getchallenge_diagnostic_probe_scenario_prefix =
+            L"--hlds-getchallenge-diagnostic-probe-scenario=";
+        if (StartsWith(argument, hlds_getchallenge_diagnostic_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(hlds_getchallenge_diagnostic_probe_scenario_prefix.size()));
+            if (normalized != L"happy" && normalized != L"gate_bad_marker"
+                && normalized != L"gate_wrong_command")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-getchallenge-diagnostic-probe-scenario. Expected happy, gate_bad_marker, or gate_wrong_command.";
+                return result;
+            }
+
+            result.options.hlds_getchallenge_diagnostic_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--activation-surface")
         {
             result.options.activation_surface_enabled = true;
@@ -14469,6 +14553,10 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     if (result.options.connect_probe_enabled)
     {
         result.options.connect_surface_enabled = true;
+    }
+    if (result.options.hlds_getchallenge_diagnostic_probe_enabled)
+    {
+        result.options.hlds_getchallenge_diagnostic_surface_enabled = true;
     }
     if (result.options.connect_surface_enabled)
     {
