@@ -1,0 +1,46 @@
+[
+  {
+    "label": "codex-dedicated-goldsrc-hlds-connect-diagnostic-happy",
+    "scenario": "happy",
+    "summary": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_summary.log",
+    "manifest": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_manifest.json",
+    "console": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_console.txt",
+    "args": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_args.txt",
+    "parts": [
+      "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_part01.log"
+    ]
+  },
+  {
+    "label": "codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge",
+    "scenario": "gate_missing_or_wrong_challenge",
+    "summary": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_summary.log",
+    "manifest": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_manifest.json",
+    "console": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_console.txt",
+    "args": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_args.txt",
+    "parts": [
+      "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_part01.log"
+    ]
+  },
+  {
+    "label": "codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol",
+    "scenario": "gate_wrong_protocol",
+    "summary": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_summary.log",
+    "manifest": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_manifest.json",
+    "console": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_console.txt",
+    "args": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_args.txt",
+    "parts": [
+      "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_part01.log"
+    ]
+  },
+  {
+    "label": "codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo",
+    "scenario": "gate_malformed_userinfo",
+    "summary": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_summary.log",
+    "manifest": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_manifest.json",
+    "console": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_console.txt",
+    "args": "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_args.txt",
+    "parts": [
+      "logs\\latest\\HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface\\runtime\\hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_part01.log"
+    ]
+  }
+]
