@@ -1,0 +1,44 @@
+[
+  {
+    "scenario": "happy",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-happy",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-happy__console.txt"
+  },
+  {
+    "scenario": "gate_connect_without_cached_challenge",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-connect-without-cached-challenge",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-connect-without-cached-challenge__console.txt"
+  },
+  {
+    "scenario": "gate_wrong_endpoint_reuse",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-endpoint-reuse",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-endpoint-reuse__console.txt"
+  },
+  {
+    "scenario": "gate_expired_challenge",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-expired-challenge",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-expired-challenge__console.txt"
+  },
+  {
+    "scenario": "gate_wrong_challenge_value",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-challenge-value",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-challenge-value__console.txt"
+  },
+  {
+    "scenario": "gate_replay_after_success",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-replay-after-success",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-replay-after-success__console.txt"
+  },
+  {
+    "scenario": "gate_cache_capacity_eviction",
+    "label": "codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-cache-capacity-eviction",
+    "exit_code": 0,
+    "console": "logs\\latest\\HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface\\codex\\codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-cache-capacity-eviction__console.txt"
+  }
+]

@@ -1,0 +1,208 @@
+prompt_id=HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface
+toplevel=G:/DEV/СPP/HLengine/host
+branch=codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head=10c1bad3d830a3561fdaca6702c63ab94798372b
+source_head=9bac937b6fb62c77911b22432b9502f1d97f4d40
+current_head=9bac937b6fb62c77911b22432b9502f1d97f4d40
+descendant_gates:
+88b4ea5affae71a1ac014e63694e8771a562bb0a => exit=0 descendant=yes
+a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea => exit=0 descendant=yes
+2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e => exit=0 descendant=yes
+87a0915d9c07634606576ea54a9e91cb78d11743 => exit=0 descendant=yes
+353f2076f54dd14427e76fc08ec3aa3c5bf7b003 => exit=0 descendant=yes
+8d44f3d5a96a727d716cfbe341b992bf74940706 => exit=0 descendant=yes
+4f9c20288a2b751d124b30dce3482f0b7a72f132 => exit=0 descendant=yes
+e73814fabe2cae06fa058872ff1f9e6080cc112b => exit=0 descendant=yes
+10c1bad3d830a3561fdaca6702c63ab94798372b => exit=0 descendant=yes
+
+git status --short:
+ M build32/host/Debug/common.lib
+ M build32/host/Debug/common.pdb
+ M build32/host/Debug/filesystem.lib
+ M build32/host/Debug/filesystem.pdb
+ M build32/host/Debug/game_api.lib
+ M build32/host/Debug/game_api.pdb
+ M build32/host/Debug/hlhost.exe
+ M build32/host/Debug/hlhost.pdb
+ M build32/host/Debug/platform.lib
+ M build32/host/Debug/platform.pdb
+ M build32/host/common.dir/Debug/logger.obj
+ M build32/host/common.dir/Debug/text_encoding.obj
+ M build32/host/filesystem.dir/Debug/file_system.obj
+ M build32/host/filesystem.dir/Debug/valve_directory.obj
+ M build32/host/game_api.dir/Debug/brush_door_bootstrap_controller.obj
+ M build32/host/game_api.dir/Debug/cfg_executor.obj
+ M build32/host/game_api.dir/Debug/cvar_registry.obj
+ M build32/host/game_api.dir/Debug/dll_module.obj
+ M build32/host/game_api.dir/Debug/dll_search_directories.obj
+ M build32/host/game_api.dir/Debug/entity_lump_parser.obj
+ M build32/host/game_api.dir/Debug/entity_text_block.obj
+ M build32/host/game_api.dir/Debug/entity_think_scheduler.obj
+ M build32/host/game_api.dir/Debug/entity_var_access.obj
+ M build32/host/game_api.dir/Debug/game_api.tlog/CL.command.1.tlog
+ M build32/host/game_api.dir/Debug/game_api.tlog/CL.read.1.tlog
+ M build32/host/game_api.dir/Debug/game_api.tlog/CL.write.1.tlog
+ M build32/host/game_api.dir/Debug/game_module_loader.obj
+ M build32/host/game_api.dir/Debug/hl_server_module.obj
+ M build32/host/game_api.dir/Debug/map_logic_dispatcher.obj
+ M build32/host/game_api.dir/Debug/path_advance_controller.obj
+ M build32/host/game_api.dir/Debug/path_arrival_calibrator.obj
+ M build32/host/game_api.dir/Debug/path_mover_controller.obj
+ M build32/host/game_api.dir/Debug/path_mover_runtime.obj
+ M build32/host/game_api.dir/Debug/path_node_event_dispatcher.obj
+ M build32/host/game_api.dir/Debug/path_node_event_semantics_controller.obj
+ M build32/host/game_api.dir/Debug/path_node_message_runtime.obj
+ M build32/host/game_api.dir/Debug/path_traversal_controller.obj
+ M build32/host/game_api.dir/Debug/scripted_logic_tracker.obj
+ M build32/host/game_api.dir/Debug/scripted_movement_controller.obj
+ M build32/host/game_api.dir/Debug/server_bootstrap.obj
+ M build32/host/game_api.dir/Debug/server_command_buffer.obj
+ M build32/host/game_api.dir/Debug/server_command_dispatcher.obj
+ M build32/host/game_api.dir/Debug/server_frame_loop.obj
+ M build32/host/game_api.dir/Debug/sound_precache_registry.obj
+ M build32/host/game_api.dir/Debug/spawn_trace.obj
+ M build32/host/game_api.dir/Debug/track_path_resolver.obj
+ M build32/host/game_api.dir/Debug/win32_error.obj
+ M build32/host/game_api.dir/Debug/world_bootstrap.obj
+ M build32/host/hlhost.dir/Debug/hlhost.ilk
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/CL.command.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/CL.read.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/CL.write.1.tlog
+ M build32/host/hlhost.dir/Debug/host_application.obj
+ M build32/host/hlhost.dir/Debug/launch_options.obj
+ M build32/host/hlhost.dir/Debug/main.obj
+ M build32/host/hlhost.dir/Debug/vc143.pdb
+ M build32/host/platform.dir/Debug/environment.obj
+ M logs/latest/HL-CL-20260411-179-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-range-surface/codex/HL-CL-20260411-179-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-range-surface__full_handoff.txt
+ M logs/latest/HL-CL-20260411-181-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resumed-denial-surface/codex/HL-CL-20260411-181-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resumed-denial-surface__full_handoff.txt
+ M logs/latest/HL-CL-20260411-182-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-surface/codex/HL-CL-20260411-182-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-surface__full_handoff.txt
+ M logs/latest/HL-CL-20260411-183-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-surface/codex/HL-CL-20260411-183-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-surface__full_handoff.txt
+ M logs/latest/HL-CL-20260411-184-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-range-surface/codex/HL-CL-20260411-185-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-token-claim-checkpoint-resume-token-claim-eof-surface__full_handoff.txt
+?? build32/Win32/Debug/ALL_BUILD/
+?? build32/Win32/Debug/ZERO_CHECK/ZERO_CHECK.Build.CppClean.log
+?? build32/Win32/Debug/ZERO_CHECK/ZERO_CHECK.vcxproj.FileListAbsolute.txt
+?? build32/host/common.dir/Debug/common.Build.CppClean.log
+?? build32/host/common.dir/Debug/common.vcxproj.FileListAbsolute.txt
+?? build32/host/filesystem.dir/Debug/filesystem.Build.CppClean.log
+?? build32/host/filesystem.dir/Debug/filesystem.vcxproj.FileListAbsolute.txt
+?? build32/host/game_api.dir/Debug/game_api.Build.CppClean.log
+?? build32/host/game_api.dir/Debug/game_api.vcxproj.FileListAbsolute.txt
+?? build32/host/hlhost.dir/Debug/hlhost.Build.CppClean.log
+?? build32/host/hlhost.dir/Debug/hlhost.vcxproj.FileListAbsolute.txt
+?? build32/host/platform.dir/Debug/platform.Build.CppClean.log
+?? build32/host/platform.dir/Debug/platform.vcxproj.FileListAbsolute.txt
+?? logs/latest/HL-CL-20260504-269-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-surface/
+?? logs/latest/codex/hlhost_20260503_150449_883_pid14692__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_manifest.json
+?? logs/latest/codex/hlhost_20260503_150606_933_pid10568__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_manifest.json
+?? logs/latest/codex/hlhost_20260503_150950_119_pid16260__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_manifest.json
+?? logs/latest/codex/hlhost_20260503_151101_645_pid7776__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_manifest.json
+?? logs/latest/codex/hlhost_20260503_151443_799_pid20032__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_manifest.json
+?? logs/latest/codex/hlhost_20260503_151554_221_pid25276__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_manifest.json
+?? logs/latest/codex/hlhost_20260503_151931_733_pid3476__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_manifest.json
+?? logs/latest/codex/hlhost_20260503_152036_740_pid31696__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_manifest.json
+?? logs/latest/codex/hlhost_20260503_163633_420_pid29160__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-happy_manifest.json
+?? logs/latest/codex/hlhost_20260503_163812_642_pid7036__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-gate_manifest.json
+?? logs/latest/codex/hlhost_20260504_135128_935_pid10516__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_135233_512_pid7872__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_manifest.json
+?? logs/latest/codex/hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_135625_428_pid18168__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_manifest.json
+?? logs/latest/codex/hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_manifest.json
+?? logs/latest/codex/hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_manifest.json
+?? logs/latest/codex/hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_manifest.json
+?? logs/latest/codex/hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_manifest.json
+?? logs/latest/codex/hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_manifest.json
+?? logs/latest/codex/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_manifest.json
+?? logs/latest/codex/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_manifest.json
+?? logs/latest/codex/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_manifest.json
+?? logs/latest/codex/hlhost_20260504_212558_470_pid33196__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_212646_056_pid33680__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker_manifest.json
+?? logs/latest/codex/hlhost_20260504_212733_559_pid41408__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge_manifest.json
+?? logs/latest/codex/hlhost_20260504_212820_010_pid39268__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol_manifest.json
+?? logs/latest/codex/hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_manifest.json
+?? logs/latest/codex/hlhost_20260504_231315_067_pid26008__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-happy_manifest.json
+?? logs/latest/codex/hlhost_20260504_231410_821_pid17072__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-connect-without-cached-challenge_manifest.json
+?? logs/latest/codex/hlhost_20260504_231459_737_pid37180__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-endpoint-reuse_manifest.json
+?? logs/latest/codex/hlhost_20260504_231541_031_pid38116__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-expired-challenge_manifest.json
+?? logs/latest/codex/hlhost_20260504_231640_291_pid10684__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-challenge-value_manifest.json
+?? logs/latest/codex/hlhost_20260504_231727_885_pid14216__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-replay-after-success_manifest.json
+?? logs/latest/codex/hlhost_20260504_231816_162_pid7460__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-cache-capacity-eviction_manifest.json
+?? logs/latest/runtime/hlhost_20260503_150449_883_pid14692__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_part01.log
+?? logs/latest/runtime/hlhost_20260503_150449_883_pid14692__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_summary.log
+?? logs/latest/runtime/hlhost_20260503_150606_933_pid10568__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_part01.log
+?? logs/latest/runtime/hlhost_20260503_150606_933_pid10568__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_summary.log
+?? logs/latest/runtime/hlhost_20260503_150950_119_pid16260__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_part01.log
+?? logs/latest/runtime/hlhost_20260503_150950_119_pid16260__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_summary.log
+?? logs/latest/runtime/hlhost_20260503_151101_645_pid7776__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_part01.log
+?? logs/latest/runtime/hlhost_20260503_151101_645_pid7776__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_summary.log
+?? logs/latest/runtime/hlhost_20260503_151443_799_pid20032__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_part01.log
+?? logs/latest/runtime/hlhost_20260503_151443_799_pid20032__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_summary.log
+?? logs/latest/runtime/hlhost_20260503_151554_221_pid25276__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_part01.log
+?? logs/latest/runtime/hlhost_20260503_151554_221_pid25276__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_summary.log
+?? logs/latest/runtime/hlhost_20260503_151931_733_pid3476__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_part01.log
+?? logs/latest/runtime/hlhost_20260503_151931_733_pid3476__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-happy_summary.log
+?? logs/latest/runtime/hlhost_20260503_152036_740_pid31696__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_part01.log
+?? logs/latest/runtime/hlhost_20260503_152036_740_pid31696__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-gate_summary.log
+?? logs/latest/runtime/hlhost_20260503_163633_420_pid29160__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-happy_part01.log
+?? logs/latest/runtime/hlhost_20260503_163633_420_pid29160__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-happy_summary.log
+?? logs/latest/runtime/hlhost_20260503_163812_642_pid7036__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-gate_part01.log
+?? logs/latest/runtime/hlhost_20260503_163812_642_pid7036__codex-dedicated-goldsrc-signon-septenary-checkpoint-resume-token-claim-resume-denial-matrix-gate_summary.log
+?? logs/latest/runtime/hlhost_20260504_135128_935_pid10516__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_135128_935_pid10516__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_135233_512_pid7872__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_part01.log
+?? logs/latest/runtime/hlhost_20260504_135233_512_pid7872__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_summary.log
+?? logs/latest/runtime/hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_135524_746_pid11808__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_135625_428_pid18168__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_part01.log
+?? logs/latest/runtime/hlhost_20260504_135625_428_pid18168__codex-dedicated-goldsrc-signon-resume-lifecycle-acceptance-gate_summary.log
+?? logs/latest/runtime/hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_151922_650_pid28204__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_part01.log
+?? logs/latest/runtime/hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_summary.log
+?? logs/latest/runtime/hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_part01.log
+?? logs/latest/runtime/hlhost_20260504_152144_589_pid29612__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-wrong-command_summary.log
+?? logs/latest/runtime/hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_190127_019_pid6496__codex-dedicated-goldsrc-hlds-connect-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_part01.log
+?? logs/latest/runtime/hlhost_20260504_190239_740_pid40800__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-missing-or-wrong-challenge_summary.log
+?? logs/latest/runtime/hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_part01.log
+?? logs/latest/runtime/hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_summary.log
+?? logs/latest/runtime/hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_part01.log
+?? logs/latest/runtime/hlhost_20260504_190509_747_pid9040__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-malformed-userinfo_summary.log
+?? logs/latest/runtime/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_201650_076_pid7516__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_part01.log
+?? logs/latest/runtime/hlhost_20260504_201751_558_pid35000__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-connect_summary.log
+?? logs/latest/runtime/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_part01.log
+?? logs/latest/runtime/hlhost_20260504_201854_969_pid10376__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-wrong-protocol_summary.log
+?? logs/latest/runtime/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_part01.log
+?? logs/latest/runtime/hlhost_20260504_201957_498_pid8712__codex-dedicated-goldsrc-hlds-serverinfo-diagnostic-gate-missing-serverinfo-field_summary.log
+?? logs/latest/runtime/hlhost_20260504_212558_470_pid33196__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_212558_470_pid33196__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_212646_056_pid33680__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker_part01.log
+?? logs/latest/runtime/hlhost_20260504_212646_056_pid33680__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-bad-marker_summary.log
+?? logs/latest/runtime/hlhost_20260504_212733_559_pid41408__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge_part01.log
+?? logs/latest/runtime/hlhost_20260504_212733_559_pid41408__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-connect-without-challenge_summary.log
+?? logs/latest/runtime/hlhost_20260504_212820_010_pid39268__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol_part01.log
+?? logs/latest/runtime/hlhost_20260504_212820_010_pid39268__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-wrong-protocol_summary.log
+?? logs/latest/runtime/hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_part01.log
+?? logs/latest/runtime/hlhost_20260504_212907_030_pid17620__codex-dedicated-goldsrc-hlds-connectionless-loopback-udp-diagnostic-gate-non-loopback-bind-blocked_summary.log
+?? logs/latest/runtime/hlhost_20260504_231315_067_pid26008__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-happy_part01.log
+?? logs/latest/runtime/hlhost_20260504_231315_067_pid26008__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-happy_summary.log
+?? logs/latest/runtime/hlhost_20260504_231410_821_pid17072__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-connect-without-cached-challenge_part01.log
+?? logs/latest/runtime/hlhost_20260504_231410_821_pid17072__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-connect-without-cached-challenge_summary.log
+?? logs/latest/runtime/hlhost_20260504_231459_737_pid37180__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-endpoint-reuse_part01.log
+?? logs/latest/runtime/hlhost_20260504_231459_737_pid37180__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-endpoint-reuse_summary.log
+?? logs/latest/runtime/hlhost_20260504_231541_031_pid38116__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-expired-challenge_part01.log
+?? logs/latest/runtime/hlhost_20260504_231541_031_pid38116__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-expired-challenge_summary.log
+?? logs/latest/runtime/hlhost_20260504_231640_291_pid10684__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-challenge-value_part01.log
+?? logs/latest/runtime/hlhost_20260504_231640_291_pid10684__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-wrong-challenge-value_summary.log
+?? logs/latest/runtime/hlhost_20260504_231727_885_pid14216__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-replay-after-success_part01.log
+?? logs/latest/runtime/hlhost_20260504_231727_885_pid14216__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-replay-after-success_summary.log
+?? logs/latest/runtime/hlhost_20260504_231816_162_pid7460__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-cache-capacity-eviction_part01.log
+?? logs/latest/runtime/hlhost_20260504_231816_162_pid7460__codex-dedicated-goldsrc-hlds-address-scoped-challenge-cache-diagnostic-gate-cache-capacity-eviction_summary.log
