@@ -1,0 +1,52 @@
+# Git State
+
+Prompt ID: HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory
+
+## Before Prompt 274 Changes
+
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+HEAD: 286b041e572f5843fd190958bbc272afc1812ba4
+
+Remote: origin https://github.com/Pvitaly91/hl-engine.git
+
+Initial `git status --short --branch` showed the branch tracking origin and many preexisting dirty files under `build32/`, older prompt handoff logs, and older runtime manifests/logs. These were not modified or staged by this prompt.
+
+## Required Descendant Gates
+
+All required commits were ancestors of HEAD:
+
+| Commit | Result |
+| --- | --- |
+| 88b4ea5affae71a1ac014e63694e8771a562bb0a | ancestor=1 |
+| a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea | ancestor=1 |
+| 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e | ancestor=1 |
+| 87a0915d9c07634606576ea54a9e91cb78d11743 | ancestor=1 |
+| 353f2076f54dd14427e76fc08ec3aa3c5bf7b003 | ancestor=1 |
+| 8d44f3d5a96a727d716cfbe341b992bf74940706 | ancestor=1 |
+| 4f9c20288a2b751d124b30dce3482f0b7a72f132 | ancestor=1 |
+| e73814fabe2cae06fa058872ff1f9e6080cc112b | ancestor=1 |
+| 10c1bad3d830a3561fdaca6702c63ab94798372b | ancestor=1 |
+| 9bac937b6fb62c77911b22432b9502f1d97f4d40 | ancestor=1 |
+| efa5dde9a8728e3f9a87f8a6dcaadf573882d630 | ancestor=1 |
+| 4024a2673e1c67177ac449d9448972e5411b214f | ancestor=1 |
+| 552fee1682bad180d8010ab6bbd7e5b14b34c8ba | ancestor=1 |
+| 2b5e8d707e319c19877fc3809b934c4636e36759 | ancestor=1 |
+| 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad | ancestor=1 |
+| b038470f98f7b82833754b4c21aa18ebc0902188 | ancestor=1 |
+| 7845839e1e30b170faca2ceaceab2faeab357dff | ancestor=1 |
+| 286b041e572f5843fd190958bbc272afc1812ba4 | ancestor=1 |
+
+## Prompt 274 Files To Stage
+
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/HL-CL-20260504-274__full_handoff.txt
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_inventory.md
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_risk_matrix.md
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_safety_gate_matrix.md
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_summary.json
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/command_log.txt
+- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/git_state.txt
+
+## After Prompt 274 Changes
+
+Pending before commit: prompt 274 artifact files only under the prompt-specific directory. Existing unrelated dirty build/log files remain unstaged and preserved.

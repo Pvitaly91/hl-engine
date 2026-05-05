@@ -1,0 +1,93 @@
+{
+  "prompt_id": "HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory",
+  "branch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "pre_change_head": "286b041e572f5843fd190958bbc272afc1812ba4",
+  "source_changed": false,
+  "artifact_commit": "pending_artifact_commit",
+  "compatibility_claim_level": "diagnostic-socket-pump-integration-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "previous_socket_pump_commit": "7845839e1e30b170faca2ceaceab2faeab357dff",
+  "inventory_complete": true,
+  "integration_candidates_total": 10,
+  "integration_candidates_safe": 6,
+  "integration_candidates_risky": 4,
+  "selected_promotion_decision": "report_only_no_source_change",
+  "selected_integration_point": "none_added_current_prompt273_surface_remains_FinalizeServerBootstrapStep",
+  "source_changes_made": false,
+  "normal_host_behavior_changed": false,
+  "public_socket_opened": false,
+  "loopback_only_policy_preserved": true,
+  "disabled_by_default_preserved": true,
+  "gates_preserved": {
+    "disabled_by_default": true,
+    "explicit_diagnostic_mode_only": true,
+    "loopback_only_bind_policy": true,
+    "non_loopback_bind_denied": true,
+    "public_socket_blocked_before_open": true,
+    "malformed_marker_rejected": true,
+    "connect_without_cached_challenge_rejected": true,
+    "wrong_protocol_rejected": true,
+    "unsafe_userinfo_rejected": true,
+    "deterministic_bounded_pump": true,
+    "sockets_closed": true,
+    "no_steam_auth": true,
+    "no_netchan": true,
+    "no_reliable_channel": true,
+    "no_signon_state": true,
+    "no_resource_model_sound_event_baselines": true,
+    "no_put_in_server_client_admission": true,
+    "stable_machine_readable_summaries": true
+  },
+  "risks": [
+    {
+      "id": "R1",
+      "risk": "Frame pump wiring would require a persistent lifecycle owner and shutdown-owned socket cleanup before it can be proven safe.",
+      "level": "medium"
+    },
+    {
+      "id": "R2",
+      "risk": "Dedicated query/connect surfaces are admission-adjacent and should not absorb the socket pump until no-admission boundaries are explicit.",
+      "level": "medium"
+    },
+    {
+      "id": "R3",
+      "risk": "No real production receive path boundary exists yet; prompt 272 reported production_receive_path_available=0.",
+      "level": "high"
+    }
+  ],
+  "blockers": [
+    "No durable socket pump lifecycle registration owner exists yet.",
+    "No persistent shutdown cleanup contract exists for a promoted pump.",
+    "No normal production connectionless receive path is available to hook.",
+    "Frame pump wiring would need new proof that all prompt 273 gates still pass."
+  ],
+  "recommended_next_prompt_id": "HL-CL-20260504-275-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub",
+  "recommended_next_task": "add a disabled-by-default host lifecycle registration stub for the production loopback connectionless socket pump, with read-only registration summary fields, no socket opens, no frame pump, preserved prompt 273 gates, and a documented cleanup owner",
+  "changed_files": [
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/HL-CL-20260504-274__full_handoff.txt",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_inventory.md",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_risk_matrix.md",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_safety_gate_matrix.md",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/socket_pump_integration_summary.json",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/command_log.txt",
+    "logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex/git_state.txt"
+  ],
+  "commands_run": [
+    "git status --short --branch",
+    "git rev-parse --abbrev-ref HEAD",
+    "git rev-parse HEAD",
+    "git remote -v",
+    "git merge-base --is-ancestor <required_hash> HEAD",
+    "git show --stat --oneline --decorate --name-status 7845839e1e30b170faca2ceaceab2faeab357dff",
+    "git show --patch --find-renames --stat 7845839e1e30b170faca2ceaceab2faeab357dff -- <prompt273 source files>",
+    "git grep -n -E <socket pump and lifecycle patterns> -- include src tests tools CMakeLists.txt",
+    "Get-Content line range reads for launch_options, host_application, hl_server_module, server_frame_loop, logger, CMakeLists",
+    "Get-Content -Raw prior prompt 271/272/273 report artifacts",
+    "New-Item -ItemType Directory -Force <prompt274 artifact directory>",
+    "Move-Item <outer-workspace prompt274 artifacts> <host checkout prompt274 artifact directory>",
+    "ConvertFrom-Json socket_pump_integration_summary.json",
+    "git status --short --branch -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory",
+    "git add -f -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory",
+    "git diff --cached --stat -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory",
+    "git diff --cached --name-only"
+  ]
+}
