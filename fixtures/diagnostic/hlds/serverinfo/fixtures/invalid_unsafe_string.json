@@ -1,0 +1,63 @@
+{
+  "fixture_id": "invalid_unsafe_string",
+  "family": "invalid_mutation",
+  "stage": "diagnostic_current",
+  "evidence_source": "derived from prompt 270 userinfo safety policy style and prompt 279 requested future parser gate",
+  "evidence_confidence": "synthetic_placeholder",
+  "compatibility_claim": "not_real_client_compatible",
+  "marker_or_header": {
+    "known": true,
+    "hex": "ff ff ff ff"
+  },
+  "opcode_or_tag": {
+    "known": true,
+    "text_command": "serverinfo"
+  },
+  "field_order": [
+    "protocol",
+    "hostname",
+    "map",
+    "game",
+    "maxplayers",
+    "slot"
+  ],
+  "fields": {
+    "protocol": "48",
+    "hostname": "HLengine\u0007Diagnostic",
+    "map": "crossfire",
+    "game": "valve",
+    "maxplayers": "4",
+    "slot": "diagnostic-client-slot-1"
+  },
+  "string_encoding_policy": {
+    "encoding": "ascii",
+    "termination": "trailing_nul_after_text_packet",
+    "length_prefix": "none",
+    "unsafe_condition": "control_character_in_hostname"
+  },
+  "numeric_encoding_policy": {
+    "protocol": "decimal_text",
+    "maxplayers": "decimal_text",
+    "endian": "not_applicable_for_text_fields"
+  },
+  "length_policy": {
+    "max_response_bytes": 256,
+    "source": "diagnostic_safe_preview_budget"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "invalid_rejected",
+  "expected_reject_reason": "unsafe_serverinfo_string",
+  "unresolved_fields": [
+    "production_serverinfo_string_policy"
+  ],
+  "safe_preview": {
+    "text_preview": "serverinfo protocol=48 hostname=<unsafe-control-char-redacted> map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1"
+  },
+  "notes": "Invalid mutation includes a control character represented by JSON escape and redacted in preview."
+}

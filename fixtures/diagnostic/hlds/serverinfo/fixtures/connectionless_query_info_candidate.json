@@ -1,0 +1,84 @@
+{
+  "fixture_id": "connectionless_query_info_candidate",
+  "family": "connectionless_query_info_candidate",
+  "stage": "connectionless_query",
+  "evidence_source": "src/game_api/hl_server_module.cpp BuildGoldSrcInfoRequest BuildGoldSrcInfoResponse ParseGoldSrcInfoResponse",
+  "evidence_confidence": "local_code",
+  "compatibility_claim": "fixture_only",
+  "marker_or_header": {
+    "known": true,
+    "hex": "ff ff ff ff",
+    "description": "connectionless marker"
+  },
+  "opcode_or_tag": {
+    "known": true,
+    "request_text": "TSource Engine Query",
+    "response_tag_ascii": "m"
+  },
+  "field_order": [
+    "address",
+    "server_name",
+    "map",
+    "mod",
+    "game_description",
+    "players",
+    "max_players",
+    "protocol",
+    "server_type",
+    "os",
+    "password",
+    "mod_running",
+    "secure"
+  ],
+  "fields": {
+    "address": "127.0.0.1:<diagnostic_port>",
+    "server_name": "HLengine Test Server",
+    "map": "c0a0",
+    "mod": "valve",
+    "game_description": "Half-Life",
+    "players": 0,
+    "max_players": 4,
+    "protocol": 48,
+    "server_type": "d",
+    "os": "w",
+    "password": 0,
+    "mod_running": 0,
+    "secure": 0
+  },
+  "string_encoding_policy": {
+    "encoding": "ascii",
+    "termination": "nul_terminated_c_string",
+    "length_prefix": "none"
+  },
+  "numeric_encoding_policy": {
+    "players": "uint8",
+    "max_players": "uint8",
+    "protocol": "uint8",
+    "other_trailing_fields": "uint8",
+    "endian": "not_applicable_for_uint8_fields"
+  },
+  "length_policy": {
+    "max_response_bytes": 192,
+    "source": "builder_reserve_only_not_protocol_limit"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "valid_fixture_only",
+  "expected_reject_reason": "<none>",
+  "unresolved_fields": [
+    "external_hlds_query_compatibility",
+    "trailing_byte_semantics",
+    "response_length_protocol_limit",
+    "relationship_to_post_connect_serverinfo"
+  ],
+  "safe_preview": {
+    "hex_prefix": "ff ff ff ff 6d",
+    "text_preview": "m 127.0.0.1:<port> HLengine Test Server c0a0 valve Half-Life players=0 max=4 protocol=48"
+  },
+  "notes": "This is the only local byte-level serverinfo-like candidate. It is scoped to query/info, not post-connect or signon-time serverinfo."
+}

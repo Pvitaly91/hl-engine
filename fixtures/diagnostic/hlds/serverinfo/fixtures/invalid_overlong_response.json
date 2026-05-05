@@ -1,0 +1,63 @@
+{
+  "fixture_id": "invalid_overlong_response",
+  "family": "invalid_mutation",
+  "stage": "diagnostic_current",
+  "evidence_source": "derived from prompt 279 requested future parser gate",
+  "evidence_confidence": "synthetic_placeholder",
+  "compatibility_claim": "not_real_client_compatible",
+  "marker_or_header": {
+    "known": true,
+    "hex": "ff ff ff ff"
+  },
+  "opcode_or_tag": {
+    "known": true,
+    "text_command": "serverinfo"
+  },
+  "field_order": [
+    "protocol",
+    "hostname",
+    "map",
+    "game",
+    "maxplayers",
+    "slot"
+  ],
+  "fields": {
+    "protocol": "48",
+    "hostname": "<260-byte-diagnostic-placeholder>",
+    "map": "crossfire",
+    "game": "valve",
+    "maxplayers": "4",
+    "slot": "diagnostic-client-slot-1"
+  },
+  "string_encoding_policy": {
+    "encoding": "ascii",
+    "termination": "trailing_nul_after_text_packet",
+    "length_prefix": "none"
+  },
+  "numeric_encoding_policy": {
+    "protocol": "decimal_text",
+    "maxplayers": "decimal_text",
+    "endian": "not_applicable_for_text_fields"
+  },
+  "length_policy": {
+    "max_response_bytes": 256,
+    "actual_response_bytes": 300,
+    "source": "diagnostic_safe_preview_budget"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "invalid_rejected",
+  "expected_reject_reason": "serverinfo_response_too_large",
+  "unresolved_fields": [
+    "real_response_length_limit"
+  ],
+  "safe_preview": {
+    "text_preview": "serverinfo protocol=48 hostname=<overlong-redacted> map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1"
+  },
+  "notes": "Invalid mutation stores only a placeholder and length metadata, not an overlong raw payload."
+}

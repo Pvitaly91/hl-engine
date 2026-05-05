@@ -1,0 +1,62 @@
+{
+  "fixture_id": "invalid_field_order_mismatch",
+  "family": "invalid_mutation",
+  "stage": "diagnostic_current",
+  "evidence_source": "derived from prompt 279 requested future parser gate",
+  "evidence_confidence": "synthetic_placeholder",
+  "compatibility_claim": "not_real_client_compatible",
+  "marker_or_header": {
+    "known": true,
+    "hex": "ff ff ff ff"
+  },
+  "opcode_or_tag": {
+    "known": true,
+    "text_command": "serverinfo"
+  },
+  "field_order": [
+    "hostname",
+    "protocol",
+    "map",
+    "game",
+    "maxplayers",
+    "slot"
+  ],
+  "fields": {
+    "hostname": "HLengine_Diagnostic_Server",
+    "protocol": "48",
+    "map": "crossfire",
+    "game": "valve",
+    "maxplayers": "4",
+    "slot": "diagnostic-client-slot-1"
+  },
+  "string_encoding_policy": {
+    "encoding": "ascii",
+    "termination": "trailing_nul_after_text_packet",
+    "length_prefix": "none"
+  },
+  "numeric_encoding_policy": {
+    "protocol": "decimal_text",
+    "maxplayers": "decimal_text",
+    "endian": "not_applicable_for_text_fields"
+  },
+  "length_policy": {
+    "max_response_bytes": 256,
+    "source": "diagnostic_safe_preview_budget"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "invalid_rejected",
+  "expected_reject_reason": "serverinfo_field_order_mismatch",
+  "unresolved_fields": [
+    "real_field_order"
+  ],
+  "safe_preview": {
+    "text_preview": "serverinfo hostname=HLengine_Diagnostic_Server protocol=48 map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1"
+  },
+  "notes": "Invalid mutation changes diagnostic field order to seed a future parser gate."
+}
