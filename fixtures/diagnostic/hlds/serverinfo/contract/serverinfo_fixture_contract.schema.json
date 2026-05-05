@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "diagnostic-hlds-serverinfo-fixture-contract.schema.json",
+  "title": "Diagnostic HLDS Serverinfo Fixture Contract",
+  "type": "object",
+  "required": [
+    "fixture_id",
+    "family",
+    "stage",
+    "evidence_source",
+    "evidence_confidence",
+    "compatibility_claim",
+    "marker_or_header",
+    "opcode_or_tag",
+    "field_order",
+    "fields",
+    "string_encoding_policy",
+    "numeric_encoding_policy",
+    "length_policy",
+    "safety_policy",
+    "expected_parse_result",
+    "expected_reject_reason",
+    "unresolved_fields",
+    "safe_preview",
+    "notes"
+  ],
+  "properties": {
+    "fixture_id": { "type": "string", "minLength": 1 },
+    "family": {
+      "type": "string",
+      "enum": [
+        "connectionless_query_info_candidate",
+        "diagnostic_post_connect_serverinfo_current",
+        "post_connect_real_serverinfo_unresolved",
+        "signon_time_serverinfo_unresolved",
+        "invalid_mutation",
+        "unknown_unresolved"
+      ]
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "connectionless_query",
+        "post_connect",
+        "signon_time",
+        "diagnostic_current",
+        "unresolved"
+      ]
+    },
+    "evidence_source": { "type": "string", "minLength": 1 },
+    "evidence_confidence": {
+      "type": "string",
+      "enum": [
+        "local_code",
+        "local_artifact",
+        "local_doc",
+        "synthetic_placeholder",
+        "unresolved"
+      ]
+    },
+    "compatibility_claim": {
+      "type": "string",
+      "enum": [
+        "diagnostic_only",
+        "fixture_only",
+        "unresolved",
+        "not_real_client_compatible"
+      ]
+    },
+    "marker_or_header": { "type": "object" },
+    "opcode_or_tag": { "type": "object" },
+    "field_order": { "type": "array", "items": { "type": "string" } },
+    "fields": { "type": "object" },
+    "string_encoding_policy": { "type": "object" },
+    "numeric_encoding_policy": { "type": "object" },
+    "length_policy": { "type": "object" },
+    "safety_policy": {
+      "type": "object",
+      "required": [
+        "real_steam_client_used",
+        "real_client_binary_invoked",
+        "public_socket_opened",
+        "normal_host_behavior_changed",
+        "real_client_smoke_allowed_now"
+      ],
+      "properties": {
+        "real_steam_client_used": { "type": "boolean", "const": false },
+        "real_client_binary_invoked": { "type": "boolean", "const": false },
+        "public_socket_opened": { "type": "boolean", "const": false },
+        "normal_host_behavior_changed": { "type": "boolean", "const": false },
+        "real_client_smoke_allowed_now": { "type": "boolean", "const": false }
+      }
+    },
+    "expected_parse_result": {
+      "type": "string",
+      "enum": [
+        "valid_fixture_only",
+        "invalid_rejected",
+        "unresolved_not_parseable"
+      ]
+    },
+    "expected_reject_reason": { "type": "string" },
+    "unresolved_fields": { "type": "array", "items": { "type": "string" } },
+    "safe_preview": { "type": "object" },
+    "notes": { "type": "string" }
+  },
+  "additionalProperties": false
+}

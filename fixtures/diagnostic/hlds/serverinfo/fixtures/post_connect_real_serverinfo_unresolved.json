@@ -1,0 +1,54 @@
+{
+  "fixture_id": "post_connect_real_serverinfo_unresolved",
+  "family": "post_connect_real_serverinfo_unresolved",
+  "stage": "post_connect",
+  "evidence_source": "prompt 279 inventory found no local byte-level post-connect serverinfo contract",
+  "evidence_confidence": "unresolved",
+  "compatibility_claim": "unresolved",
+  "marker_or_header": {
+    "known": false,
+    "description": "unresolved"
+  },
+  "opcode_or_tag": {
+    "known": false,
+    "description": "unresolved"
+  },
+  "field_order": [],
+  "fields": {},
+  "string_encoding_policy": {
+    "encoding": "unknown",
+    "termination": "unknown",
+    "length_prefix": "unknown"
+  },
+  "numeric_encoding_policy": {
+    "widths": "unknown",
+    "endian": "unknown"
+  },
+  "length_policy": {
+    "max_response_bytes": "unknown",
+    "source": "unresolved"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "unresolved_not_parseable",
+  "expected_reject_reason": "serverinfo_wire_contract_unresolved",
+  "unresolved_fields": [
+    "marker_or_header",
+    "opcode_or_tag",
+    "field_order",
+    "string_encoding_policy",
+    "numeric_encoding_policy",
+    "length_policy",
+    "challenge_linkage",
+    "real_client_acceptance_fixture"
+  ],
+  "safe_preview": {
+    "text_preview": "<unresolved post-connect real serverinfo fixture>"
+  },
+  "notes": "Placeholder fixture records the evidence gap and must not be treated as compatible."
+}

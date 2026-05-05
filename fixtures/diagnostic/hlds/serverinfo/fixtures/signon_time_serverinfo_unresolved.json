@@ -1,0 +1,52 @@
+{
+  "fixture_id": "signon_time_serverinfo_unresolved",
+  "family": "signon_time_serverinfo_unresolved",
+  "stage": "signon_time",
+  "evidence_source": "prompt 264 signon wire-contract inventory and prompt 279 source search",
+  "evidence_confidence": "unresolved",
+  "compatibility_claim": "unresolved",
+  "marker_or_header": {
+    "known": false,
+    "description": "requires netchan/signon message context"
+  },
+  "opcode_or_tag": {
+    "known": false,
+    "description": "svc_serverinfo or equivalent not locally proven"
+  },
+  "field_order": [],
+  "fields": {},
+  "string_encoding_policy": {
+    "encoding": "unknown",
+    "termination": "unknown",
+    "length_prefix": "unknown"
+  },
+  "numeric_encoding_policy": {
+    "widths": "unknown",
+    "endian": "unknown"
+  },
+  "length_policy": {
+    "max_response_bytes": "unknown",
+    "source": "unresolved"
+  },
+  "safety_policy": {
+    "real_steam_client_used": false,
+    "real_client_binary_invoked": false,
+    "public_socket_opened": false,
+    "normal_host_behavior_changed": false,
+    "real_client_smoke_allowed_now": false
+  },
+  "expected_parse_result": "unresolved_not_parseable",
+  "expected_reject_reason": "signon_serverinfo_contract_unresolved",
+  "unresolved_fields": [
+    "svc_serverinfo_message_id",
+    "signon_payload_order",
+    "netchan_dependency",
+    "reliable_channel_dependency",
+    "baseline_dependency",
+    "real_client_acceptance_fixture"
+  ],
+  "safe_preview": {
+    "text_preview": "<unresolved signon-time serverinfo fixture>"
+  },
+  "notes": "This fixture exists to keep signon-time serverinfo distinct from connectionless query and diagnostic post-connect text."
+}
