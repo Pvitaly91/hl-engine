@@ -1,0 +1,33 @@
+PROMPT-ID: HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness
+
+Command log summary:
+1. git status --short --branch
+2. git rev-parse HEAD and git rev-parse --abbrev-ref HEAD
+3. git merge-base --is-ancestor for all required ancestry hashes: all passed before and after source changes.
+4. rg --version and rg search attempted; rg.exe failed with WindowsApps access denied, so git grep was used as fallback.
+5. git grep searches for localhost client harness, frame pump, socket pump, UDP, client smoke, Steam client, real client, and diagnostic flags.
+6. Read prompt 273, 275, and 276 source/checkpoint artifacts.
+7. Created prompt-local policy review note before source edits.
+8. Applied source edits for launch options, host option propagation, server module summary fields, diagnostic localhost UDP harness implementation, summary serialization, and validation.
+9. git diff --check on the five source files: passed with CRLF warnings.
+10. MSBuild rebuild command: & "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" "G:\DEV\СPP\HLengine\host\build32\host\hlhost.vcxproj" /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1
+11. MSBuild result: build succeeded with 2 C4127 warnings and 0 errors.
+12. Smoke checked happy scenario with explicit --gamedir fixture.
+13. git add source files only.
+14. git commit -m "Add HLDS socket pump localhost client smoke harness" -> 180a9a7ffee25678d33a19c300168b26d81279ed.
+15. Runtime proof matrix with --frames 10, --frametime 0.05, short labels p277-1 through p277-10:
+    - happy -> pass
+    - gate_disabled_by_default -> pass
+    - gate_no_real_client_used -> pass
+    - gate_non_loopback_client_denied -> pass
+    - gate_public_socket_blocked -> pass
+    - gate_client_timeout_bounded -> pass
+    - gate_wrong_challenge -> pass
+    - gate_wrong_protocol -> pass
+    - gate_unsafe_userinfo -> pass
+    - gate_shutdown_cleanup -> pass
+16. Copied canonical runtime summaries/manifests into logs/latest/HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness/runtime.
+17. Created codex artifacts: full handoff, report, policy review note, JSON summary, command log, git state.
+
+Runtime command pattern:
+build32/host/Debug/hlhost.exe --dedicated --gamedir G:/DEV/СPP/HLengine/host/logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --deathmatch 1 --coop 0 --maxclients 4 --frames 10 --frametime 0.05 --log-dir logs/latest/HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness/runtime --run-label <p277-N> --prompt-id HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness --hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness-probe --hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness-probe-scenario <scenario>
