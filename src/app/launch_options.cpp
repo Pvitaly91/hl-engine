@@ -1843,6 +1843,113 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument
+            == L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub")
+        {
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_registration_stub_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub=";
+        if (StartsWith(argument, hlds_production_socket_pump_registration_stub_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_production_socket_pump_registration_stub_prefix.size()),
+                    &result.options
+                         .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub_enabled,
+                    &result.error_message,
+                    L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe")
+        {
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_registration_probe_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe=";
+        if (StartsWith(argument, hlds_production_socket_pump_registration_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_production_socket_pump_registration_probe_prefix.size()),
+                    &result.options
+                         .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_no_socket_open_on_registration"
+                && normalized != L"gate_no_frame_pump_wiring"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe-scenario. Expected happy, gate_disabled_by_default, gate_no_socket_open_on_registration, gate_no_frame_pump_wiring, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view hlds_production_socket_pump_registration_probe_scenario_prefix =
+            L"--hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_production_socket_pump_registration_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_production_socket_pump_registration_probe_scenario_prefix
+                        .size()));
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_no_socket_open_on_registration"
+                && normalized != L"gate_no_frame_pump_wiring"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-probe-scenario. Expected happy, gate_disabled_by_default, gate_no_socket_open_on_registration, gate_no_frame_pump_wiring, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--activation-surface")
         {
             result.options.activation_surface_enabled = true;
@@ -15301,6 +15408,13 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options
             .hlds_production_loopback_connectionless_socket_pump_diagnostic_surface_enabled =
+            true;
+    }
+    if (result.options
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled)
+    {
+        result.options
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub_enabled =
             true;
     }
     if (result.options.connect_surface_enabled)

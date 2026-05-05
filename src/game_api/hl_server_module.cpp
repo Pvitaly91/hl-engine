@@ -3925,6 +3925,13 @@ struct EngineShimState
     std::string
         hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
             "happy";
+    hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+    hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
+            "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4849,6 +4856,10 @@ std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface
     const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurfaceSummary& summary);
 std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeLine(
     const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeSummary& summary);
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStubLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary& summary);
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25462,6 +25473,91 @@ std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeLi
 {
     return BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticLine(
         "hlds_production_loopback_connectionless_socket_pump_diagnostic_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationLine(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsConnectionlessDiagnosticLifecycleAcceptanceLine(prefix, summary)
+        + ", registration_stub_surface_enabled="
+        + std::string(summary.registration_stub_surface_enabled ? "1" : "0")
+        + ", registration_stub_enabled="
+        + std::string(summary.registration_stub_enabled ? "1" : "0")
+        + ", registration_stub_disabled_by_default="
+        + std::string(summary.registration_stub_disabled_by_default ? "1" : "0")
+        + ", registration_stub_installed="
+        + std::string(summary.registration_stub_installed ? "1" : "0")
+        + ", registration_requested="
+        + std::string(summary.registration_requested ? "1" : "0")
+        + ", registration_performed="
+        + std::string(summary.registration_performed ? "1" : "0")
+        + ", registration_public_bind_rejected="
+        + std::string(summary.registration_public_bind_rejected ? "1" : "0")
+        + ", registered_component_name=" + summary.registered_component_name
+        + ", registered_component_owner=" + summary.registered_component_owner
+        + ", registered_lifecycle_phase=" + summary.registered_lifecycle_phase
+        + ", registered_lifecycle_phase_source="
+        + summary.registered_lifecycle_phase_source
+        + ", selected_integration_point=" + summary.selected_integration_point
+        + ", cleanup_owner=" + summary.cleanup_owner
+        + ", cleanup_registered="
+        + std::string(summary.cleanup_registered ? "1" : "0")
+        + ", cleanup_performed="
+        + std::string(summary.cleanup_performed ? "1" : "0")
+        + ", source_changes_made="
+        + std::string(summary.source_changes_made ? "1" : "0")
+        + ", normal_host_behavior_changed="
+        + std::string(summary.normal_host_behavior_changed ? "1" : "0")
+        + ", socket_open_attempted="
+        + std::string(summary.socket_open_attempted ? "1" : "0")
+        + ", sockets_not_opened="
+        + std::string(summary.sockets_not_opened ? "1" : "0")
+        + ", bind_policy=" + summary.bind_policy
+        + ", bind_address_requested=" + summary.bind_address_requested
+        + ", bind_address_effective=" + summary.bind_address_effective
+        + ", loopback_only_policy_preserved="
+        + std::string(summary.loopback_only_policy_preserved ? "1" : "0")
+        + ", disabled_by_default_preserved="
+        + std::string(summary.disabled_by_default_preserved ? "1" : "0")
+        + ", prompt273_gates_preserved="
+        + std::string(summary.prompt273_gates_preserved ? "1" : "0")
+        + ", no_socket_open_on_registration_gate_passed="
+        + std::string(summary.no_socket_open_on_registration_gate_passed ? "1" : "0")
+        + ", no_frame_pump_wiring_gate_passed="
+        + std::string(summary.no_frame_pump_wiring_gate_passed ? "1" : "0")
+        + ", frame_pump_wired="
+        + std::string(summary.frame_pump_wired ? "1" : "0")
+        + ", socket_pump_started="
+        + std::string(summary.socket_pump_started ? "1" : "0")
+        + ", socket_pump_steps=" + std::to_string(summary.socket_pump_steps)
+        + ", socket_pump_datagrams_received="
+        + std::to_string(summary.socket_pump_datagrams_received)
+        + ", socket_pump_datagrams_dispatched="
+        + std::to_string(summary.socket_pump_datagrams_dispatched)
+        + ", socket_pump_responses_sent="
+        + std::to_string(summary.socket_pump_responses_sent)
+        + ", lifecycle_acceptance_invoked="
+        + std::string(summary.lifecycle_acceptance_invoked ? "1" : "0")
+        + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
+        + ", recommended_next_task=" + summary.recommended_next_task;
+}
+
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStubLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationLine(
+        "hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub",
+        summary);
+}
+
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationLine(
+        "hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe",
         summary);
 }
 
@@ -56740,6 +56836,26 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeLine(
                     summary
                         .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe));
+        }
+        if (summary
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStubLine(
+                    summary
+                        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub));
+        }
+        if (summary
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeLine(
+                    summary
+                        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -152034,6 +152150,153 @@ void ApplyHldsProductionLoopbackConnectionlessSocketPumpDiagnosticResult(
     summary->recommended_next_task = result.recommended_next_task;
 }
 
+constexpr std::string_view kHldsProductionLoopbackSocketPumpRegistrationNextPrompt =
+    "HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring";
+constexpr std::string_view kHldsProductionLoopbackSocketPumpRegistrationNextTask =
+    "add diagnostic frame pump wiring in explicit mode only with bounded per-frame pump budget shutdown cleanup proof and repeated start stop lifecycle proof";
+
+hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
+BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary(
+    std::string_view mode,
+    std::string_view scenario,
+    bool surface_enabled)
+{
+    hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
+        summary;
+    summary.enabled = true;
+    summary.mode = std::string(mode);
+    summary.scenario = scenario.empty() ? "happy" : std::string(scenario);
+    summary.accepted = 1;
+    summary.rejected = 0;
+    summary.last_reject_reason = "<none>";
+    summary.compatibility_claim_level =
+        "diagnostic-lifecycle-registration-stub-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary.diagnostic_only = true;
+    summary.bounded_loopback = true;
+    summary.public_socket_opened = false;
+    summary.loopback_udp_socket_opened = false;
+    summary.inprocess_datagram_loopback_used = false;
+    summary.loopback_policy_enforced = true;
+    summary.udp_bind_address = "not_opened";
+    summary.udp_bound_port = 0;
+    summary.udp_client_address_source = "not_opened";
+    summary.udp_server_address_source = "not_opened";
+    summary.udp_datagrams_sent = 0;
+    summary.udp_datagrams_received = 0;
+    summary.udp_bytes_sent = 0;
+    summary.udp_bytes_received = 0;
+    summary.sockets_closed = true;
+    summary.connect_diagnostic_ready = false;
+    summary.serverinfo_diagnostic_ready = false;
+    summary.serverinfo_response_ready = false;
+    summary.remote_address_source = "diagnostic_lifecycle_registration_stub";
+    summary.steam_auth_not_implemented = true;
+    summary.netchan_not_started = true;
+    summary.reliable_channel_not_started = true;
+    summary.resource_baselines_not_sent = true;
+    summary.signon_state_not_entered = true;
+    summary.client_not_put_in_server = true;
+    summary.auth = "disabled";
+    summary.signon = "disabled";
+    summary.gameplay_transport = "disabled";
+    summary.lifecycle_acceptance_enabled = false;
+    summary.lifecycle_acceptance_passed = false;
+    summary.lifecycle_gates_total = 0;
+    summary.lifecycle_gates_passed = 0;
+    summary.lifecycle_gates_failed = 0;
+    summary.lifecycle_gate_names = "<none>";
+    summary.registration_stub_surface_enabled = surface_enabled;
+    summary.registration_stub_enabled = true;
+    summary.registration_stub_disabled_by_default = true;
+    summary.registration_stub_installed = true;
+    summary.registration_requested = true;
+    summary.registration_performed = true;
+    summary.registration_public_bind_rejected = false;
+    summary.registered_component_name =
+        "hlds_production_loopback_connectionless_socket_pump_lifecycle_registration";
+    summary.registered_component_owner = "HlServerModule::EngineShimState";
+    summary.registered_lifecycle_phase = "FinalizeServerBootstrapStep";
+    summary.registered_lifecycle_phase_source = "prompt274_integration_inventory";
+    summary.selected_integration_point = "FinalizeServerBootstrapStep";
+    summary.cleanup_owner =
+        "HlServerModule::EngineShimState diagnostic lifecycle registration";
+    summary.cleanup_registered = true;
+    summary.cleanup_performed = false;
+    summary.source_changes_made = true;
+    summary.normal_host_behavior_changed = false;
+    summary.socket_open_attempted = false;
+    summary.sockets_not_opened = true;
+    summary.bind_policy = "loopback_only_registration_stub_no_socket_open";
+    summary.bind_address_requested = "<none>";
+    summary.bind_address_effective = "<none>";
+    summary.loopback_only_policy_preserved = true;
+    summary.disabled_by_default_preserved = true;
+    summary.prompt273_gates_preserved = true;
+    summary.no_socket_open_on_registration_gate_passed = true;
+    summary.no_frame_pump_wiring_gate_passed = true;
+    summary.frame_pump_wired = false;
+    summary.socket_pump_started = false;
+    summary.socket_pump_steps = 0;
+    summary.socket_pump_datagrams_received = 0;
+    summary.socket_pump_datagrams_dispatched = 0;
+    summary.socket_pump_responses_sent = 0;
+    summary.lifecycle_acceptance_invoked = false;
+    summary.recommended_next_prompt_id =
+        std::string(kHldsProductionLoopbackSocketPumpRegistrationNextPrompt);
+    summary.recommended_next_task =
+        std::string(kHldsProductionLoopbackSocketPumpRegistrationNextTask);
+    summary.detail =
+        "diagnostic-only lifecycle registration metadata recorded without socket open frame pump auth netchan signon baselines or admission";
+
+    if (summary.scenario == "gate_disabled_by_default")
+    {
+        summary.accepted = 0;
+        summary.rejected = 1;
+        summary.last_reject_reason = "lifecycle_registration_disabled";
+        summary.registration_stub_enabled = false;
+        summary.registration_requested = false;
+        summary.registration_performed = false;
+        summary.cleanup_registered = false;
+        summary.bind_policy = "disabled_by_default";
+        summary.detail =
+            "lifecycle registration remained disabled without explicit diagnostic registration enablement";
+        return summary;
+    }
+
+    if (summary.scenario == "gate_public_socket_blocked")
+    {
+        summary.accepted = 0;
+        summary.rejected = 1;
+        summary.last_reject_reason = "public_socket_blocked";
+        summary.registration_requested = true;
+        summary.registration_performed = false;
+        summary.registration_public_bind_rejected = true;
+        summary.cleanup_registered = false;
+        summary.bind_policy = "public_socket_blocked";
+        summary.bind_address_requested = "0.0.0.0";
+        summary.bind_address_effective = "<none>";
+        summary.detail =
+            "registration public socket request was blocked before any socket open or pump start";
+        return summary;
+    }
+
+    if (summary.scenario == "gate_no_socket_open_on_registration")
+    {
+        summary.detail =
+            "registration metadata completed and no socket open was attempted";
+        return summary;
+    }
+
+    if (summary.scenario == "gate_no_frame_pump_wiring")
+    {
+        summary.detail =
+            "registration metadata completed and no frame pump wiring was activated";
+        return summary;
+    }
+
+    return summary;
+}
+
 bool PumpOneLoopbackConnectAdmissionAttempt(
     EngineShimState& state,
     SOCKET server_socket,
@@ -210369,6 +210632,42 @@ void PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate()
         &probe);
 }
 
+void PerformHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStub()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& registration_stub =
+        state.hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+    auto& registration_probe =
+        state.hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
+    if (!state.server_state.dedicated || !registration_stub.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario;
+
+    const auto result =
+        BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary(
+            mode,
+            scenario,
+            registration_stub.enabled);
+    registration_stub = result;
+
+    if (!registration_probe.enabled)
+    {
+        return;
+    }
+
+    registration_probe = result;
+}
+
 void PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -242031,6 +242330,12 @@ void PopulateBootstrapSummary(
         {};
     summary.hlds_production_loopback_connectionless_socket_pump_diagnostic_probe =
         {};
+    summary
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub =
+        {};
+    summary
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe =
+        {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -243121,6 +243426,14 @@ void PopulateBootstrapSummary(
             state.hlds_production_loopback_connectionless_socket_pump_diagnostic_surface;
         summary.hlds_production_loopback_connectionless_socket_pump_diagnostic_probe =
             state.hlds_production_loopback_connectionless_socket_pump_diagnostic_probe;
+        summary
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub =
+            state
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+        summary
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe =
+            state
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -249581,6 +249894,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsAddressScopedChallengeCacheDiagnosticSurface();
     PerformHldsUserinfoValidationPolicyDiagnosticSurface();
     PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate();
+    PerformHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStub();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
@@ -251500,6 +251814,12 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         {};
     impl_->summary.hlds_production_loopback_connectionless_socket_pump_diagnostic_probe =
         {};
+    impl_->summary
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub =
+        {};
+    impl_->summary
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe =
+        {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -251887,6 +252207,41 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                   .hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario
                 == "gate_unsafe_userinfo"
         ? "gate_unsafe_userinfo"
+        : "happy";
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub =
+        {};
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub
+        .enabled =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub_enabled;
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe =
+        {};
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe
+        .enabled =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled;
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
+        options
+                .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario
+            == "gate_disabled_by_default"
+        ? "gate_disabled_by_default"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario
+                == "gate_no_socket_open_on_registration"
+        ? "gate_no_socket_open_on_registration"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario
+                == "gate_no_frame_pump_wiring"
+        ? "gate_no_frame_pump_wiring"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario
+                == "gate_public_socket_blocked"
+        ? "gate_public_socket_blocked"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -255805,6 +256160,148 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_production_socket_pump_gate_unsafe_userinfo
                 ? !hlds_production_socket_pump_unsafe_userinfo_ok
                 : !hlds_production_socket_pump_happy_ok);
+    const auto& hlds_production_socket_pump_registration_probe =
+        impl_->summary
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
+    const std::string& hlds_production_socket_pump_registration_scenario =
+        impl_->shim_state
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario;
+    const bool hlds_production_socket_pump_registration_gate_disabled =
+        hlds_production_socket_pump_registration_scenario
+        == "gate_disabled_by_default";
+    const bool hlds_production_socket_pump_registration_gate_no_socket_open =
+        hlds_production_socket_pump_registration_scenario
+        == "gate_no_socket_open_on_registration";
+    const bool hlds_production_socket_pump_registration_gate_no_frame_pump =
+        hlds_production_socket_pump_registration_scenario
+        == "gate_no_frame_pump_wiring";
+    const bool hlds_production_socket_pump_registration_gate_public =
+        hlds_production_socket_pump_registration_scenario
+        == "gate_public_socket_blocked";
+    const bool hlds_production_socket_pump_registration_base_ok =
+        hlds_production_socket_pump_registration_probe.enabled
+        && hlds_production_socket_pump_registration_probe
+               .registration_stub_surface_enabled
+        && hlds_production_socket_pump_registration_probe
+               .registration_stub_installed
+        && hlds_production_socket_pump_registration_probe
+               .registration_stub_disabled_by_default
+        && hlds_production_socket_pump_registration_probe.diagnostic_only
+        && hlds_production_socket_pump_registration_probe.bounded_loopback
+        && !hlds_production_socket_pump_registration_probe
+                .normal_host_behavior_changed
+        && !hlds_production_socket_pump_registration_probe.socket_open_attempted
+        && !hlds_production_socket_pump_registration_probe.public_socket_opened
+        && !hlds_production_socket_pump_registration_probe.loopback_udp_socket_opened
+        && hlds_production_socket_pump_registration_probe.sockets_not_opened
+        && hlds_production_socket_pump_registration_probe.sockets_closed
+        && hlds_production_socket_pump_registration_probe
+               .loopback_only_policy_preserved
+        && hlds_production_socket_pump_registration_probe
+               .disabled_by_default_preserved
+        && hlds_production_socket_pump_registration_probe
+               .prompt273_gates_preserved
+        && !hlds_production_socket_pump_registration_probe.frame_pump_wired
+        && !hlds_production_socket_pump_registration_probe.socket_pump_started
+        && hlds_production_socket_pump_registration_probe.socket_pump_steps == 0
+        && hlds_production_socket_pump_registration_probe
+               .socket_pump_datagrams_received == 0
+        && hlds_production_socket_pump_registration_probe
+               .socket_pump_datagrams_dispatched == 0
+        && hlds_production_socket_pump_registration_probe
+               .socket_pump_responses_sent == 0
+        && !hlds_production_socket_pump_registration_probe
+                .lifecycle_acceptance_invoked
+        && !hlds_production_socket_pump_registration_probe
+                .lifecycle_acceptance_passed
+        && !hlds_production_socket_pump_registration_probe
+                .connect_diagnostic_ready
+        && !hlds_production_socket_pump_registration_probe
+                .serverinfo_response_ready
+        && hlds_production_socket_pump_registration_probe
+               .steam_auth_not_implemented
+        && hlds_production_socket_pump_registration_probe.netchan_not_started
+        && hlds_production_socket_pump_registration_probe
+               .reliable_channel_not_started
+        && hlds_production_socket_pump_registration_probe
+               .resource_baselines_not_sent
+        && hlds_production_socket_pump_registration_probe
+               .signon_state_not_entered
+        && hlds_production_socket_pump_registration_probe.client_not_put_in_server
+        && hlds_production_socket_pump_registration_probe
+               .compatibility_claim_level
+            == "diagnostic-lifecycle-registration-stub-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    const bool hlds_production_socket_pump_registration_happy_ok =
+        hlds_production_socket_pump_registration_base_ok
+        && hlds_production_socket_pump_registration_probe.accepted == 1
+        && hlds_production_socket_pump_registration_probe.rejected == 0
+        && hlds_production_socket_pump_registration_probe
+               .registration_stub_enabled
+        && hlds_production_socket_pump_registration_probe.registration_requested
+        && hlds_production_socket_pump_registration_probe.registration_performed
+        && !hlds_production_socket_pump_registration_probe
+                .registration_public_bind_rejected
+        && hlds_production_socket_pump_registration_probe.cleanup_registered
+        && hlds_production_socket_pump_registration_probe.registered_component_name
+            != "disabled"
+        && hlds_production_socket_pump_registration_probe.registered_component_owner
+            != "disabled"
+        && hlds_production_socket_pump_registration_probe.registered_lifecycle_phase
+            == "FinalizeServerBootstrapStep"
+        && hlds_production_socket_pump_registration_probe.cleanup_owner
+            != "disabled"
+        && hlds_production_socket_pump_registration_probe
+               .no_socket_open_on_registration_gate_passed
+        && hlds_production_socket_pump_registration_probe
+               .no_frame_pump_wiring_gate_passed;
+    const bool hlds_production_socket_pump_registration_disabled_ok =
+        hlds_production_socket_pump_registration_base_ok
+        && hlds_production_socket_pump_registration_probe.accepted == 0
+        && hlds_production_socket_pump_registration_probe.rejected == 1
+        && !hlds_production_socket_pump_registration_probe
+                .registration_stub_enabled
+        && !hlds_production_socket_pump_registration_probe.registration_requested
+        && !hlds_production_socket_pump_registration_probe.registration_performed
+        && hlds_production_socket_pump_registration_probe.last_reject_reason
+            == "lifecycle_registration_disabled";
+    const bool hlds_production_socket_pump_registration_no_socket_ok =
+        hlds_production_socket_pump_registration_happy_ok
+        && hlds_production_socket_pump_registration_probe
+               .no_socket_open_on_registration_gate_passed;
+    const bool hlds_production_socket_pump_registration_no_frame_ok =
+        hlds_production_socket_pump_registration_happy_ok
+        && hlds_production_socket_pump_registration_probe
+               .no_frame_pump_wiring_gate_passed;
+    const bool hlds_production_socket_pump_registration_public_ok =
+        hlds_production_socket_pump_registration_base_ok
+        && hlds_production_socket_pump_registration_probe.accepted == 0
+        && hlds_production_socket_pump_registration_probe.rejected == 1
+        && hlds_production_socket_pump_registration_probe
+               .registration_stub_enabled
+        && hlds_production_socket_pump_registration_probe.registration_requested
+        && !hlds_production_socket_pump_registration_probe.registration_performed
+        && hlds_production_socket_pump_registration_probe
+               .registration_public_bind_rejected
+        && hlds_production_socket_pump_registration_probe.bind_policy
+            == "public_socket_blocked"
+        && hlds_production_socket_pump_registration_probe.bind_address_requested
+            == "0.0.0.0"
+        && hlds_production_socket_pump_registration_probe.bind_address_effective
+            == "<none>"
+        && hlds_production_socket_pump_registration_probe.last_reject_reason
+            == "public_socket_blocked";
+    const bool hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_failed =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled
+        && (hlds_production_socket_pump_registration_gate_disabled
+                ? !hlds_production_socket_pump_registration_disabled_ok
+                : hlds_production_socket_pump_registration_gate_no_socket_open
+                ? !hlds_production_socket_pump_registration_no_socket_ok
+                : hlds_production_socket_pump_registration_gate_no_frame_pump
+                ? !hlds_production_socket_pump_registration_no_frame_ok
+                : hlds_production_socket_pump_registration_gate_public
+                ? !hlds_production_socket_pump_registration_public_ok
+                : !hlds_production_socket_pump_registration_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -265959,6 +266456,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_userinfo_validation_policy_diagnostic_probe_failed
         && !hlds_connectionless_diagnostic_lifecycle_acceptance_probe_failed
         && !hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_failed
+        && !hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed
