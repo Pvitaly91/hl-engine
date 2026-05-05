@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_020059",
+  "runInstanceId": "20260506_020059_076_pid18960",
+  "runLabel": "p281-final-5-gate-missing-required-metadata",
+  "promptId": "HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "5f7e59742d761f43cd977929b2d132e17dda7bbd",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020059_076_pid18960__p281-final-5-gate-missing-required-metadata_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020059_076_pid18960__p281-final-5-gate-missing-required-metadata_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020059_076_pid18960__p281-final-5-gate-missing-required-metadata_part01.log"]
+}

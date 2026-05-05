@@ -1,0 +1,37 @@
+# Command Log
+
+Prompt: HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe
+
+Commands run:
+- git status --short --branch
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- git diff --check
+- MSBuild hlhost.vcxproj /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1
+- runtime proofs: happy, gate_disabled_by_default, gate_no_real_client_used, gate_unresolved_claims_compatible, gate_missing_required_metadata, gate_invalid_fixture_missing_reject_reason, gate_family_mixing, gate_unsafe_safe_preview, gate_public_socket_blocked
+- descendant merge-base gates for required commits
+- ConvertFrom-Json validation for serverinfo fixture contract and fixture JSON files
+- git grep search for fixture/serverinfo/contract/schema/JSON/diagnostic validator/real client/Steam client/socket
+- git add exact source files; git commit -m "Add HLDS serverinfo fixture validator probe"
+- cleanup of failed first-pass p281 proof files generated before validator vocabulary patch
+
+Build result:
+- Rebuild passed after source implementation.
+- Incremental build passed after validator expected-result vocabulary patch.
+- Warnings observed: two pre-existing C4127 constant-condition warnings in unrelated signon resume code at src/game_api/hl_server_module.cpp:222105 and src/game_api/hl_server_module.cpp:222400.
+
+Runtime proof labels:
+- happy: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020055_724_pid19200__p281-final-1-happy_summary.log
+- gate_disabled_by_default: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020056_574_pid35168__p281-final-2-gate-disabled-by-default_summary.log
+- gate_no_real_client_used: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020057_350_pid12712__p281-final-3-gate-no-real-client-used_summary.log
+- gate_unresolved_claims_compatible: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020058_267_pid41852__p281-final-4-gate-unresolved-claims-compatible_summary.log
+- gate_missing_required_metadata: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020059_076_pid18960__p281-final-5-gate-missing-required-metadata_summary.log
+- gate_invalid_fixture_missing_reject_reason: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020059_914_pid31800__p281-final-6-gate-invalid-fixture-missing-reject-reason_summary.log
+- gate_family_mixing: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020100_807_pid41440__p281-final-7-gate-family-mixing_summary.log
+- gate_unsafe_safe_preview: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020101_679_pid2992__p281-final-8-gate-unsafe-safe-preview_summary.log
+- gate_public_socket_blocked: logs/latest/HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe/runtime/hlhost_20260506_020102_512_pid23996__p281-final-9-gate-public-socket-blocked_summary.log
+
+Descendant gates:
+All required locally present commits were verified as ancestors of current HEAD before the source commit. The source commit is a descendant of prompt 280 artifact commit $pre.
+
+JSON validation:
+PowerShell ConvertFrom-Json validated serverinfo_fixture_contract.schema.json and all 9 fixture JSON files.
