@@ -7286,6 +7286,73 @@ struct HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness
 {
 };
 
+struct HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool validator_probe_enabled = false;
+    bool validator_disabled_by_default = true;
+    bool fixture_contract_loaded = false;
+    std::string fixture_contract_path = "disabled";
+    std::string fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    int fixture_files_loaded = 0;
+    int fixture_files_expected = 9;
+    bool fixture_validation_attempted = false;
+    bool fixture_validation_passed = false;
+    int fixture_validation_error_count = 0;
+    int fixtures_total = 0;
+    int fixtures_valid = 0;
+    int fixtures_invalid_cases = 0;
+    int fixtures_unresolved = 0;
+    std::string fixture_families = "<none>";
+    bool serverinfo_concepts_separated = false;
+    bool connectionless_query_fixture_present = false;
+    bool diagnostic_post_connect_fixture_present = false;
+    bool post_connect_real_fixture_present = false;
+    bool signon_time_fixture_present = false;
+    bool required_metadata_present = false;
+    std::string missing_metadata_field = "<none>";
+    bool invalid_fixtures_have_reject_reasons = false;
+    bool unresolved_fixtures_claim_compatibility = false;
+    int real_compatibility_claims_count = 0;
+    bool safe_preview_policy_passed = false;
+    int safe_preview_max_bytes = 240;
+    bool safe_preview_unsafe_chars_detected = false;
+    bool safe_preview_overlong_detected = false;
+    int known_byte_level_candidates_count = 0;
+    int synthetic_placeholder_count = 0;
+    int unresolved_fields_count = 0;
+    bool corpus_sufficient_for_next_diagnostic_builder = false;
+    bool validator_mutation_mode = false;
+    std::string mutation_case = "<none>";
+    bool no_real_client_gate_passed = false;
+    bool real_client_smoke_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool public_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool socket_open_attempted = false;
+    bool normal_host_behavior_changed = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21844,6 +21911,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario =
             "happy";
+    bool hlds_serverinfo_fixture_contract_validator_diagnostic_probe_enabled =
+        false;
+    std::string
+        hlds_serverinfo_fixture_contract_validator_diagnostic_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22688,6 +22760,8 @@ struct HlServerModuleSummary
         hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness;
     HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary
         hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
+    HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary
+        hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;

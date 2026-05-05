@@ -89,6 +89,9 @@ struct LaunchOptions
     std::string
         hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario =
             "happy";
+    bool hlds_serverinfo_fixture_contract_validator_diagnostic_probe_enabled = false;
+    std::string hlds_serverinfo_fixture_contract_validator_diagnostic_probe_scenario =
+        "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
