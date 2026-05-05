@@ -1,0 +1,29 @@
+PROMPT-ID: HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton
+
+Before artifact creation:
+- Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+- HEAD: c000ada08b15cc8499b63263eab5254e1ed5e55a
+- Required descendant gates: pass for all required commits through c000ada08b15cc8499b63263eab5254e1ed5e55a.
+- Pre-existing dirty files: build32 outputs and older logs were present before this prompt and preserved.
+
+After artifact creation, before staging:
+- Source changed: false
+- Prompt 279 artifact directory status: untracked
+- New prompt 279 files:
+  - HL-CL-20260504-279__full_handoff.txt
+  - serverinfo_wire_format_inventory.md
+  - serverinfo_candidate_matrix.md
+  - serverinfo_diagnostic_skeleton_report.md
+  - serverinfo_current_vs_candidate_comparison.md
+  - serverinfo_wire_format_summary.json
+  - command_log.txt
+  - git_state.txt
+
+Staging policy:
+- Stage only files under logs/latest/HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton/codex/.
+- Do not stage pre-existing build outputs, older logs, prompt 277 untracked runtime artifacts, or source files.
+
+Build/runtime state:
+- Build not run because source_changed=false.
+- Runtime diagnostic skeleton proofs not run because skeleton_implemented=0.
+- Runtime real-client proof not run because this prompt is diagnostic planning only and real-client execution is prohibited.

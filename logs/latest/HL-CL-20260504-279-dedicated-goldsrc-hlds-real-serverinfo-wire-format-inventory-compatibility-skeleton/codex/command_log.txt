@@ -1,0 +1,72 @@
+PROMPT-ID: HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton
+
+Command log summary:
+
+1. git status --short --branch --untracked-files=no
+   Result: branch codex/HL-CL-20260401-081-target-runtime-completion-state; pre-existing dirty build outputs and older logs present. These were preserved and not staged.
+
+2. git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+   Result: branch codex/HL-CL-20260401-081-target-runtime-completion-state, HEAD c000ada08b15cc8499b63263eab5254e1ed5e55a.
+
+3. Test-Path prompt 279 artifact directory
+   Result: false before creation.
+
+4. Descendant gates with git merge-base --is-ancestor against required commits:
+   88b4ea5affae71a1ac014e63694e8771a562bb0a: pass
+   a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea: pass
+   2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e: pass
+   87a0915d9c07634606576ea54a9e91cb78d11743: pass
+   353f2076f54dd14427e76fc08ec3aa3c5bf7b003: pass
+   8d44f3d5a96a727d716cfbe341b992bf74940706: pass
+   4f9c20288a2b751d124b30dce3482f0b7a72f132: pass
+   e73814fabe2cae06fa058872ff1f9e6080cc112b: pass
+   10c1bad3d830a3561fdaca6702c63ab94798372b: pass
+   9bac937b6fb62c77911b22432b9502f1d97f4d40: pass
+   efa5dde9a8728e3f9a87f8a6dcaadf573882d630: pass
+   4024a2673e1c67177ac449d9448972e5411b214f: pass
+   552fee1682bad180d8010ab6bbd7e5b14b34c8ba: pass
+   2b5e8d707e319c19877fc3809b934c4636e36759: pass
+   4a0299b5fdac68ff384ba2fa5be9d24c166b6cad: pass
+   b038470f98f7b82833754b4c21aa18ebc0902188: pass
+   7845839e1e30b170faca2ceaceab2faeab357dff: pass
+   286b041e572f5843fd190958bbc272afc1812ba4: pass
+   5529ce1a00c70a0557d3648d8bddd009eb410f53: pass
+   c79afd45f4abc24c4bf956fee43b107a84cfffd7: pass
+   d3691e7122a7e87a85552f2ed8efa707443d8822: pass
+   5794bf6ea59319f28313b6d14827b3f6eeccc23e: pass
+   8f07fff570c9640349f2b14b42c182b881ccbb38: pass
+   180a9a7ffee25678d33a19c300168b26d81279ed: pass
+   1db48247ab962540ffe0c3af39cfb02ea656eae1: pass
+   c000ada08b15cc8499b63263eab5254e1ed5e55a: pass
+
+5. git show --stat --oneline --decorate for relevant source commits:
+   8d44f3d5a96a727d716cfbe341b992bf74940706: Add HLDS serverinfo diagnostic surface.
+   180a9a7ffee25678d33a19c300168b26d81279ed: Add HLDS socket pump localhost client smoke harness.
+   5794bf6ea59319f28313b6d14827b3f6eeccc23e: Add HLDS socket pump diagnostic frame wiring.
+
+6. rg --version
+   Result: failed with WindowsApps access denied. git grep was used as fallback.
+
+7. git grep searches:
+   Searched expected source areas for serverinfo, server_info, svc_serverinfo, SVC, signon, connectionless, query, challenge, protocol, packet, message, datagram, baseline, netchan, info string, and userinfo.
+   Result: found existing byte-level connectionless query/info builder/parser and diagnostic text-shaped serverinfo response. No local post-connect or signon-time byte-level serverinfo contract was found.
+   Note: one broad repository-wide git grep timed out; narrower source/artifact searches were used for final evidence.
+
+8. Get-Content artifact/source inspections:
+   Read prompt 267 serverinfo diagnostic report and summary.
+   Read prompt 277 localhost client harness report and summary.
+   Read prompt 278 real-client readiness gap matrix and planning summary.
+   Read prompt 264 signon wire-contract inventory.
+   Read relevant source windows around BuildGoldSrcInfoRequest/Response, BuildConnectionlessTextPacket, BuildHldsServerinfoDiagnosticResultFromConnect, and prompt 277 mapping logic.
+
+9. New-Item -ItemType Directory -Force prompt 279 artifact directory
+   Result: prompt-local artifact directory created.
+
+10. Artifact writes:
+   Created prompt 279 handoff, wire-format inventory, candidate matrix, diagnostic skeleton report, current-vs-candidate comparison, JSON summary, command log, and git state.
+
+11. Build/runtime validation:
+   Not run. Source changed=false and no diagnostic skeleton/probe was implemented. No real-client runtime proof was run because this prompt prohibits real-client execution.
+
+12. Pending after this log was written:
+   ConvertFrom-Json validation, git status after artifact creation, stage prompt 279 files only, commit artifact/report commit, push branch.

@@ -1,0 +1,72 @@
+PROMPT-ID: HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: c000ada08b15cc8499b63263eab5254e1ed5e55a
+Source changed: false
+Source/final commit: n/a, source unchanged
+Compatibility claim level: diagnostic-real-serverinfo-wire-format-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+This prompt created a report-only serverinfo wire-format inventory and compatibility skeleton boundary. It did not launch Steam, invoke a real Steam Half-Life client, invoke any real client binary, open public sockets, run runtime client/server proofs, change normal host behavior, or modify source.
+
+Concepts separated:
+1. Connectionless query/info response: local byte-level builder/parser exists in `BuildGoldSrcInfoRequest`, `BuildGoldSrcInfoResponse`, and `ParseGoldSrcInfoResponse`.
+2. Post-connect diagnostic serverinfo response: prompts 267/277 use text-shaped `FF FF FF FF serverinfo protocol=48 ... 00` diagnostic response only.
+3. Signon-time serverinfo service/message: no local byte-level `svc_serverinfo` or equivalent real signon contract found.
+4. Real HLDS/GoldSrc serverinfo wire contract: no sufficient local post-connect or signon serverinfo evidence found.
+
+Decision:
+- wire_format_inventory_complete: 1
+- wire_format_evidence_sufficient: 0
+- selected_serverinfo_candidate: no_post_connect_or_signon_real_serverinfo_candidate_found_locally
+- selected_serverinfo_stage: connect_response_or_signon_unresolved
+- selected_candidate_confidence: low
+- skeleton_implemented: 0
+
+Why no source skeleton was added:
+The only local byte-level candidate is query/info scoped and not equivalent to the prompt 267/277 diagnostic post-connect response or signon-time serverinfo. Implementing a new builder/parser would have encoded an invented real compatibility shape.
+
+Safety:
+- real_client_smoke_allowed_now: 0
+- real_steam_client_used: 0
+- real_client_binary_invoked: 0
+- public_socket_opened: 0
+- normal_host_behavior_changed: 0
+- steam_auth_not_implemented: 1
+- netchan_not_started: 1
+- reliable_channel_not_started: 1
+- resource_baselines_not_sent: 1
+- signon_state_not_entered: 1
+- client_not_put_in_server: 1
+
+Proofs:
+Runtime skeleton proofs were not run because no source skeleton/probe was implemented and no real-client execution is allowed in this prompt.
+
+Recommended next prompt:
+HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition
+
+Recommended next task:
+Create a checked-in diagnostic fixture corpus and contract definition for GoldSrc/HLDS serverinfo candidates, explicitly separating connectionless query, post-connect, and signon-time serverinfo before any builder/probe or real client invocation.
+
+Artifacts:
+- serverinfo_wire_format_inventory.md
+- serverinfo_candidate_matrix.md
+- serverinfo_diagnostic_skeleton_report.md
+- serverinfo_current_vs_candidate_comparison.md
+- serverinfo_wire_format_summary.json
+- command_log.txt
+- git_state.txt
+
+Validation performed:
+- git status before artifact creation
+- branch and pre-change HEAD verification
+- required descendant gates through c000ada08b15cc8499b63263eab5254e1ed5e55a
+- git show --stat inspection for relevant source commits
+- source and artifact searches for serverinfo, svc_serverinfo, SVC, signon, connectionless, query, challenge, protocol, packet, message, datagram, baseline, netchan, info string
+- prior artifact summary inspection for prompts 264, 267, 277, and 278
+- JSON parse validation for the prompt 279 summary
+- no source build because source_changed=false
+- no runtime proof because this prompt is report-only and real-client execution is prohibited
+
+PROMPT-ID: HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton
