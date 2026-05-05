@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_020058",
+  "runInstanceId": "20260506_020058_267_pid41852",
+  "runLabel": "p281-final-4-gate-unresolved-claims-compatible",
+  "promptId": "HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "5f7e59742d761f43cd977929b2d132e17dda7bbd",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020058_267_pid41852__p281-final-4-gate-unresolved-claims-compatible_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020058_267_pid41852__p281-final-4-gate-unresolved-claims-compatible_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe\\runtime\\hlhost_20260506_020058_267_pid41852__p281-final-4-gate-unresolved-claims-compatible_part01.log"]
+}

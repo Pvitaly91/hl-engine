@@ -1,0 +1,68 @@
+PROMPT-ID: HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 5f7e59742d761f43cd977929b2d132e17dda7bbd
+Source commit: e79942c657fc88b3a3fdd6419eccefe49d55a187
+Compatibility claim level: diagnostic-serverinfo-fixture-contract-validator-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility or HLDS-compatible client compatibility is claimed. No real client binary was invoked. No sockets were opened. The validator only reads/references the checked-in fixture corpus under $(@{enabled=1; mode=dedicated; scenario=happy; accepted=1; rejected=0; lastRejectReason=<none>; compatibility_claim_level=diagnostic-serverinfo-fixture-contract-validator-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed; diagnostic_only=1; validator_probe_enabled=1; validator_disabled_by_default=1; fixture_contract_loaded=1; fixture_contract_path=fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json; fixture_root=fixtures/diagnostic/hlds/serverinfo; fixture_files_loaded=9; fixture_files_expected=9; fixture_validation_attempted=1; fixture_validation_passed=1; fixture_validation_error_count=0; fixtures_total=9; fixtures_valid=2; fixtures_invalid_cases=5; fixtures_unresolved=2; fixture_families=connectionless_query_info_candidate|diagnostic_post_connect_serverinfo_current|post_connect_real_serverinfo_unresolved|signon_time_serverinfo_unresolved|invalid_mutation; serverinfo_concepts_separated=1; connectionless_query_fixture_present=1; diagnostic_post_connect_fixture_present=1; post_connect_real_fixture_present=1; signon_time_fixture_present=1; required_metadata_present=1; missing_metadata_field=<none>; invalid_fixtures_have_reject_reasons=1; unresolved_fixtures_claim_compatibility=0; real_compatibility_claims_count=0; safe_preview_policy_passed=1; safe_preview_max_bytes=240; safe_preview_unsafe_chars_detected=0; safe_preview_overlong_detected=0; known_byte_level_candidates_count=1; synthetic_placeholder_count=5; unresolved_fields_count=26; corpus_sufficient_for_next_diagnostic_builder=1; validator_mutation_mode=0; mutation_case=<none>; no_real_client_gate_passed=0; real_client_smoke_allowed_now=0; real_steam_client_used=0; real_client_binary_invoked=0; public_socket_opened=0; loopback_udp_socket_opened=0; socket_open_attempted=0; normal_host_behavior_changed=0; steam_auth_not_implemented=1; netchan_not_started=1; reliable_channel_not_started=1; resource_baselines_not_sent=1; signon_state_not_entered=1; client_not_put_in_server=1; recommended_next_prompt_id=HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser; recommended_next_task=add a contract-backed diagnostic serverinfo builder/parser using the checked-in fixture corpus without real clients or sockets; auth=not_implemented; signon=not_entered; gameplay_transport=not_started; detail=diagnostic-only serverinfo fixture contract validator read checked-in corpus; no sockets or real client}.fixture_root) and contract path $(@{enabled=1; mode=dedicated; scenario=happy; accepted=1; rejected=0; lastRejectReason=<none>; compatibility_claim_level=diagnostic-serverinfo-fixture-contract-validator-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed; diagnostic_only=1; validator_probe_enabled=1; validator_disabled_by_default=1; fixture_contract_loaded=1; fixture_contract_path=fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json; fixture_root=fixtures/diagnostic/hlds/serverinfo; fixture_files_loaded=9; fixture_files_expected=9; fixture_validation_attempted=1; fixture_validation_passed=1; fixture_validation_error_count=0; fixtures_total=9; fixtures_valid=2; fixtures_invalid_cases=5; fixtures_unresolved=2; fixture_families=connectionless_query_info_candidate|diagnostic_post_connect_serverinfo_current|post_connect_real_serverinfo_unresolved|signon_time_serverinfo_unresolved|invalid_mutation; serverinfo_concepts_separated=1; connectionless_query_fixture_present=1; diagnostic_post_connect_fixture_present=1; post_connect_real_fixture_present=1; signon_time_fixture_present=1; required_metadata_present=1; missing_metadata_field=<none>; invalid_fixtures_have_reject_reasons=1; unresolved_fixtures_claim_compatibility=0; real_compatibility_claims_count=0; safe_preview_policy_passed=1; safe_preview_max_bytes=240; safe_preview_unsafe_chars_detected=0; safe_preview_overlong_detected=0; known_byte_level_candidates_count=1; synthetic_placeholder_count=5; unresolved_fields_count=26; corpus_sufficient_for_next_diagnostic_builder=1; validator_mutation_mode=0; mutation_case=<none>; no_real_client_gate_passed=0; real_client_smoke_allowed_now=0; real_steam_client_used=0; real_client_binary_invoked=0; public_socket_opened=0; loopback_udp_socket_opened=0; socket_open_attempted=0; normal_host_behavior_changed=0; steam_auth_not_implemented=1; netchan_not_started=1; reliable_channel_not_started=1; resource_baselines_not_sent=1; signon_state_not_entered=1; client_not_put_in_server=1; recommended_next_prompt_id=HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser; recommended_next_task=add a contract-backed diagnostic serverinfo builder/parser using the checked-in fixture corpus without real clients or sockets; auth=not_implemented; signon=not_entered; gameplay_transport=not_started; detail=diagnostic-only serverinfo fixture contract validator read checked-in corpus; no sockets or real client}.fixture_contract_path).
+
+What changed:
+- Added launch option plumbing for --hlds-serverinfo-fixture-contract-validator-diagnostic-probe and scenario selection.
+- Added a diagnostic-only validator summary to HlServerModuleSummary.
+- Added a file-backed corpus validator that checks required metadata, concept separation, unresolved compatibility claims, invalid reject reasons, safe preview bounds, and no real compatibility claims.
+- Added in-memory mutation gates for unresolved compatibility claims, missing metadata, invalid fixtures without reject reasons, family mixing, unsafe previews, and public socket requests.
+
+Fixture counts from happy proof:
+- fixture_files_loaded: 9
+- fixtures_total: 9
+- fixtures_valid: 2
+- fixtures_invalid_cases: 5
+- fixtures_unresolved: 2
+- serverinfo_concepts_separated: 1
+- real_compatibility_claims_count: 0
+
+Runtime proofs run:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_no_real_client_used: pass
+- gate_unresolved_claims_compatible: pass
+- gate_missing_required_metadata: pass
+- gate_invalid_fixture_missing_reject_reason: pass
+- gate_family_mixing: pass
+- gate_unsafe_safe_preview: pass
+- gate_public_socket_blocked: pass
+
+Safety boundaries preserved:
+- real_client_smoke_allowed_now: 0
+- real_steam_client_used: 0
+- real_client_binary_invoked: 0
+- public_socket_opened: 0
+- loopback_udp_socket_opened: 0
+- normal_host_behavior_changed: 0
+- steam_auth_not_implemented: 1
+- netchan_not_started: 1
+- reliable_channel_not_started: 1
+- resource_baselines_not_sent: 1
+- signon_state_not_entered: 1
+- client_not_put_in_server: 1
+
+Why this still does not imply real compatibility:
+The validator checks local fixture metadata and policy only. The post-connect and signon-time real serverinfo contracts remain unresolved placeholders, and there is still no real serverinfo encoder, no auth, no netchan sequencing/ack, no reliable channel setup, no resource/model/sound/event baselines, no signon state machine, and no client admission path.
+
+Remaining before any real client smoke:
+- contract-backed diagnostic builder/parser
+- real serverinfo wire format validation against known local fixtures
+- post-connect/signon unresolved fields reduction
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt: HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser
+Recommended next task: add a contract-backed diagnostic serverinfo builder/parser using the checked-in fixture corpus without real clients or sockets
