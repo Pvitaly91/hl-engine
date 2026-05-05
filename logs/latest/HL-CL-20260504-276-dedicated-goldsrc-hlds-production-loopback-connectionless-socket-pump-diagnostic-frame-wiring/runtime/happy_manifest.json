@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_150916",
+  "runInstanceId": "20260505_150916_715_pid34904",
+  "runLabel": "p276-1",
+  "promptId": "HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "5794bf6ea59319f28313b6d14827b3f6eeccc23e",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring\\runtime\\hlhost_20260505_150916_715_pid34904__p276-1_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring\\runtime\\hlhost_20260505_150916_715_pid34904__p276-1_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring\\runtime\\hlhost_20260505_150916_715_pid34904__p276-1_part01.log"]
+}

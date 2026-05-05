@@ -1,0 +1,43 @@
+PROMPT-ID: HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring
+
+Command log summary:
+1. git status --short --branch
+2. git rev-parse --abbrev-ref HEAD
+3. git rev-parse HEAD
+4. git merge-base --is-ancestor for all required ancestry hashes: all required hashes were descendants before source changes.
+5. git show --stat 7845839e1e30b170faca2ceaceab2faeab357dff
+6. git show --stat c79afd45f4abc24c4bf956fee43b107a84cfffd7
+7. Search for frame pump, host tick/update, lifecycle registration, shutdown, cleanup, socket pump, udp, and diagnostic launch flags. rg was unavailable due WindowsApps access denied, so git grep was used.
+8. Read prompt 273, 274, and 275 reports/summaries and source files in include/app, src/app, include/game_api, and src/game_api.
+9. apply_patch source edits for launch options, host application option propagation, server module summary types, and diagnostic frame wiring implementation.
+10. git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp: passed with CRLF warnings.
+11. MSBuild Rebuild Debug Win32 initially caught source compile issues. Fixed repeated start/stop aggregate type conversion and response preview access.
+12. One MSBuild run timed out and left stale MSBuild/CL processes holding PDB files. Stopped only those stale build-tool processes and reran.
+13. Final MSBuild Rebuild Debug Win32 succeeded with 2 C4127 warnings and 0 errors.
+14. git add source files only.
+15. git commit -m "Add HLDS socket pump diagnostic frame wiring" -> 5794bf6ea59319f28313b6d14827b3f6eeccc23e.
+16. First runtime proof matrix with long labels showed Windows path-length file-open failure for generated summary/manifest names.
+17. Runtime proof matrix rerun with short labels p276-1 through p276-12.
+18. Runtime proof scenarios passed: happy, gate_disabled_by_default, gate_registration_required, gate_non_loopback_bind_denied, gate_public_socket_blocked, gate_frame_budget_enforced, gate_shutdown_cleanup, gate_repeated_start_stop, gate_bad_marker, gate_connect_without_cached_challenge, gate_wrong_protocol, gate_unsafe_userinfo.
+19. Canonical summary and manifest files copied into logs\latest\HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring/runtime.
+20. Created codex artifacts: full handoff, frame wiring report, JSON summary, command log, git state.
+
+Build command:
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" "G:\DEV\СPP\HLengine\host\build32\host\hlhost.vcxproj" /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1
+
+Runtime proof scenarios:
+- happy
+- gate_disabled_by_default
+- gate_registration_required
+- gate_non_loopback_bind_denied
+- gate_public_socket_blocked
+- gate_frame_budget_enforced
+- gate_shutdown_cleanup
+- gate_repeated_start_stop
+- gate_bad_marker
+- gate_connect_without_cached_challenge
+- gate_wrong_protocol
+- gate_unsafe_userinfo
+
+Final artifact commit and push are recorded in the final Codex response.
+21. Removed duplicate raw prompt-276 runtime part logs and duplicate raw run-named summary/manifest files from the prompt-276 directory; canonical summaries/manifests remain.
