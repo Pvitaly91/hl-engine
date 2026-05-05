@@ -1,0 +1,108 @@
+# Command Log
+
+Prompt ID: HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory
+
+Working directory used after repository discovery: `G:\DEV\СPP\HLengine\host`
+
+## Repository Discovery
+
+- `git status --short --branch` from `G:\DEV\СPP\HLengine` failed because that directory is not the git repository root.
+- `Get-ChildItem -Path G:\DEV\СPP\HLengine -Force -Recurse -Directory -Filter .git` found `G:\DEV\СPP\HLengine\host\.git`.
+
+## Git State And Ancestry
+
+- `git status --short --branch`
+  - branch: `codex/HL-CL-20260401-081-target-runtime-completion-state`
+  - preexisting dirty files were present under `build32/` and older `logs/latest/` paths before this prompt.
+- `git rev-parse --abbrev-ref HEAD`
+  - `codex/HL-CL-20260401-081-target-runtime-completion-state`
+- `git rev-parse HEAD`
+  - `286b041e572f5843fd190958bbc272afc1812ba4`
+- `git remote -v`
+  - origin fetch/push: `https://github.com/Pvitaly91/hl-engine.git`
+- `git merge-base --is-ancestor <required_hash> HEAD`
+  - all required hashes were present and ancestors of HEAD:
+    - 88b4ea5affae71a1ac014e63694e8771a562bb0a
+    - a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea
+    - 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e
+    - 87a0915d9c07634606576ea54a9e91cb78d11743
+    - 353f2076f54dd14427e76fc08ec3aa3c5bf7b003
+    - 8d44f3d5a96a727d716cfbe341b992bf74940706
+    - 4f9c20288a2b751d124b30dce3482f0b7a72f132
+    - e73814fabe2cae06fa058872ff1f9e6080cc112b
+    - 10c1bad3d830a3561fdaca6702c63ab94798372b
+    - 9bac937b6fb62c77911b22432b9502f1d97f4d40
+    - efa5dde9a8728e3f9a87f8a6dcaadf573882d630
+    - 4024a2673e1c67177ac449d9448972e5411b214f
+    - 552fee1682bad180d8010ab6bbd7e5b14b34c8ba
+    - 2b5e8d707e319c19877fc3809b934c4636e36759
+    - 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad
+    - b038470f98f7b82833754b4c21aa18ebc0902188
+    - 7845839e1e30b170faca2ceaceab2faeab357dff
+    - 286b041e572f5843fd190958bbc272afc1812ba4
+
+## Prompt 273 Inspection
+
+- `git show --stat --oneline --decorate --name-status 7845839e1e30b170faca2ceaceab2faeab357dff`
+  - showed source commit `7845839 Add HLDS production loopback socket pump diagnostic surface`
+  - modified:
+    - `include/app/launch_options.h`
+    - `include/game_api/hl_server_module.h`
+    - `src/app/host_application.cpp`
+    - `src/app/launch_options.cpp`
+    - `src/game_api/hl_server_module.cpp`
+- `git show --stat --oneline --decorate --name-status 286b041e572f5843fd190958bbc272afc1812ba4`
+  - showed prompt 273 artifact commit.
+- `git show --patch --find-renames --stat 7845839e1e30b170faca2ceaceab2faeab357dff -- <prompt273 source files>`
+  - inspected launch options, host application propagation, summary fields, pump implementation, bootstrap hook, and probe validation.
+
+## Search And File Reads
+
+- `rg` searches were attempted first, but `rg.exe` failed with Windows app path access denied.
+- Fallback searches used `git grep -n -E` for:
+  - socket pump, connectionless, datagram, UDP, loopback, diagnostic
+  - run/frame/tick/update/shutdown/start/init/loop/lifecycle/proof
+  - prompt 273 flag names and summary fields
+  - socket helpers: `ScopedUdpSocket`, `BindLoopbackQuerySocket`, `SendUdpDiagnosticDatagram`, `ReceiveUdpDiagnosticDatagram`
+  - dedicated mode and lifecycle boundaries
+- Targeted `Get-Content` line-range reads inspected:
+  - `include/app/launch_options.h`
+  - `src/app/launch_options.cpp`
+  - `src/app/host_application.cpp`
+  - `include/game_api/hl_server_module.h`
+  - `src/game_api/hl_server_module.cpp`
+  - `src/game_api/server_frame_loop.cpp`
+  - `src/app/main.cpp`
+  - `src/common/logger.cpp`
+  - `CMakeLists.txt`
+
+## Prior Artifact Reads
+
+- `Get-Content -Raw logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/socket_pump_diagnostic_summary.json`
+- `Get-Content -Raw logs/latest/HL-CL-20260504-273-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-surface/codex/socket_pump_diagnostic_report.md`
+- `Get-Content -Raw logs/latest/HL-CL-20260504-272-dedicated-goldsrc-hlds-production-connectionless-receive-path-diagnostic-readiness/codex/receive_path_readiness_report.md`
+- `Get-Content -Raw logs/latest/HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate/codex/connectionless_diagnostic_lifecycle_acceptance_summary.json`
+
+## Artifact Creation
+
+- `New-Item -ItemType Directory -Force -Path logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory/codex`
+- `apply_patch` added the prompt 274 handoff, inventory, risk matrix, safety gate matrix, JSON summary, command log, and git state files.
+- The first patch landed under the outer workspace directory, so the prompt-specific files were moved into the git checkout under `G:\DEV\СPP\HLengine\host\logs\latest\...` with `Move-Item`. No repository files outside the prompt 274 artifact directory were moved or staged.
+
+## Validation Decision
+
+No source code changed. Build/compile and prompt 273 proof reruns were not required because no launch plumbing or pump code was modified.
+
+## Artifact Validation And Staging
+
+- `ConvertFrom-Json` validated `socket_pump_integration_summary.json`.
+- `git status --short --branch -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory`
+  - showed only prompt 274 artifact files for this path.
+- `git add -f -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory`
+  - forced prompt artifacts under ignored `logs/**` into the index.
+- `git diff --cached --stat -- logs/latest/HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory`
+  - 7 files changed, 642 insertions.
+- `git diff --cached --name-only`
+  - confirmed only prompt 274 artifact files were staged.
+
+Commit and push commands are expected after this file is staged; final response records their actual results.
