@@ -1,0 +1,84 @@
+PROMPT-ID: HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 8f07fff570c9640349f2b14b42c182b881ccbb38
+Source/final commit: 180a9a7ffee25678d33a19c300168b26d81279ed
+Artifact commit: pending_artifact_commit
+Compatibility claim level: diagnostic-localhost-client-smoke-harness-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility or HLDS-compatible client compatibility is claimed.
+
+What changed:
+- Added explicit diagnostic launch/probe flags for a localhost UDP client smoke harness.
+- Added a bounded diagnostic localhost UDP client around the prompt 276 frame-wired socket pump.
+- Added summary/probe fields for real-client denial, client socket lifecycle, loopback policy, diagnostic request/response observations, and cleanup.
+- Added validation gates for happy, disabled-by-default, no-real-client, non-loopback denial, public-socket block, bounded timeout, wrong challenge, wrong protocol, unsafe userinfo, and shutdown cleanup.
+
+What did not change:
+- Normal host behavior remains unchanged.
+- No public socket binding is allowed.
+- No non-loopback client target or bind is allowed.
+- No real Steam client binary is invoked.
+- No Steam auth, netchan, reliable channel, signon state, resource/model/sound/event baselines, or client admission are started.
+
+Exact loopback behavior:
+- Happy path server bind policy: loopback_only_explicit_diagnostic
+- Server bind effective: 127.0.0.1
+- Client bind requested: 127.0.0.1
+- Client bind effective: 127.0.0.1:59321
+- Client target: 127.0.0.1:59320
+
+Exact diagnostic sequence:
+- client_getchallenge_sent=1
+- pump_getchallenge_received=1
+- client_challenge_response_received=1
+- client_challenge_value_observed=1
+- client_connect_sent=1
+- pump_connect_received=1
+- client_serverinfo_response_received=1
+- client_serverinfo_shape_valid=1
+
+Timeout behavior:
+- gate_client_timeout_bounded terminates with lastRejectReason=client_timeout_bounded
+- client_wait_started=1
+- client_timeout_bounded=1
+- client_timeout_ticks=1
+
+Cleanup behavior:
+- happy sockets_closed=1
+- happy client_socket_closed=1
+- happy server_sockets_closed=1
+- gate_shutdown_cleanup shutdown_cleanup_performed=1
+
+Gates run:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_no_real_client_used: pass
+- gate_non_loopback_client_denied: pass
+- gate_public_socket_blocked: pass
+- gate_client_timeout_bounded: pass
+- gate_wrong_challenge: pass
+- gate_wrong_protocol: pass
+- gate_unsafe_userinfo: pass
+- gate_shutdown_cleanup: pass
+
+Why this still does not imply real HLDS/Steam client compatibility:
+The observed client is a small diagnostic localhost UDP datagram harness, not a real game client. It only proves diagnostic request/response shape over localhost against an explicitly enabled bounded frame-wired pump. Auth, netchan, reliable/unreliable channels, signon, resources/baselines, and client admission remain intentionally absent.
+
+Recommended next prompt: HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review
+Recommended next task: plan real-client smoke policy and compatibility boundaries before invoking any real Steam Half-Life client
+
+Remaining before any real client smoke:
+- explicit production policy review
+- durable challenge cache for real endpoints
+- final protocol/version compatibility policy
+- production userinfo policy
+- real serverinfo wire format validation against known GoldSrc expectations
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+- separate real-client-smoke planning prompt before running any real client
