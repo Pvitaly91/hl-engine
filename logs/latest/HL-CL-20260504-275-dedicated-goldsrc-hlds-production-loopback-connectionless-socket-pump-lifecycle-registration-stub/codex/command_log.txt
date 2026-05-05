@@ -1,0 +1,56 @@
+Prompt: HL-CL-20260504-275-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub
+
+Commands run, summarized in execution order:
+
+1. git status --short --branch
+2. git rev-parse --abbrev-ref HEAD
+3. git rev-parse HEAD
+4. git remote -v
+5. git merge-base --is-ancestor <required_hash> HEAD for each required ancestor:
+   88b4ea5affae71a1ac014e63694e8771a562bb0a
+   a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea
+   2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e
+   87a0915d9c07634606576ea54a9e91cb78d11743
+   353f2076f54dd14427e76fc08ec3aa3c5bf7b003
+   8d44f3d5a96a727d716cfbe341b992bf74940706
+   4f9c20288a2b751d124b30dce3482f0b7a72f132
+   e73814fabe2cae06fa058872ff1f9e6080cc112b
+   10c1bad3d830a3561fdaca6702c63ab94798372b
+   9bac937b6fb62c77911b22432b9502f1d97f4d40
+   efa5dde9a8728e3f9a87f8a6dcaadf573882d630
+   4024a2673e1c67177ac449d9448972e5411b214f
+   552fee1682bad180d8010ab6bbd7e5b14b34c8ba
+   2b5e8d707e319c19877fc3809b934c4636e36759
+   4a0299b5fdac68ff384ba2fa5be9d24c166b6cad
+   b038470f98f7b82833754b4c21aa18ebc0902188
+   7845839e1e30b170faca2ceaceab2faeab357dff
+   286b041e572f5843fd190958bbc272afc1812ba4
+   5529ce1a00c70a0557d3648d8bddd009eb410f53
+6. Get-Content prompt 274 integration inventory, risk matrix, and prompt 273 command log artifacts.
+7. git grep -n for FinalizeServerBootstrapStep, socket pump, lifecycle registration, startup, shutdown, cleanup, frame pump, udp, and diagnostic flag patterns.
+8. git show --stat --oneline --decorate 7845839e1e30b170faca2ceaceab2faeab357dff.
+9. git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp.
+10. MSBuild.exe build32/host/hlhost.vcxproj /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1.
+11. Runtime proof: lifecycle registration happy.
+12. Runtime proof: lifecycle registration gate_disabled_by_default.
+13. Runtime proof: lifecycle registration gate_no_socket_open_on_registration.
+14. Runtime proof: lifecycle registration gate_no_frame_pump_wiring.
+15. Runtime proof: lifecycle registration gate_public_socket_blocked.
+16. Runtime regression spotcheck: prompt 273 gate_disabled_by_default.
+17. Runtime regression spotcheck: prompt 273 gate_non_loopback_bind_denied.
+18. git add -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp.
+19. git commit -m "Add HLDS socket pump lifecycle registration stub".
+20. Reran proof set after source commit so manifests report c79afd45f4abc24c4bf956fee43b107a84cfffd7.
+21. Copied prompt-specific runtime summaries/manifests into logs/latest/HL-CL-20260504-275-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub/runtime.
+
+Build result:
+- Rebuild passed.
+- MSBuild warnings: two existing C4127 constant conditional warnings in src/game_api/hl_server_module.cpp around unrelated template paths.
+
+Proof result:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_no_socket_open_on_registration: pass
+- gate_no_frame_pump_wiring: pass
+- gate_public_socket_blocked: pass
+- prompt273 regression spotcheck: pass
