@@ -1,0 +1,48 @@
+PROMPT-ID: HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 1db48247ab962540ffe0c3af39cfb02ea656eae1
+Source changed: false
+Source/final commit: n/a, source unchanged
+Compatibility claim level: real-client-smoke-planning-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+This prompt created a report-only real-client smoke planning and policy review after the diagnostic localhost client harness from prompt 277. It did not launch Steam, invoke a real Steam Half-Life client, invoke any real client binary, open public sockets, run runtime client/server proofs, change normal host behavior, or modify source.
+
+What is already proven:
+The prompt 265 through 277 diagnostic stack proves a shaped connectionless getchallenge/connect/serverinfo diagnostic path, loopback UDP diagnostics, address-scoped challenge cache checks, userinfo policy checks, lifecycle acceptance gates, a production-style loopback socket pump, lifecycle registration, bounded diagnostic frame wiring, and a diagnostic localhost UDP client harness. Prompt 277 specifically proves a diagnostic localhost client can send getchallenge/connect-shaped datagrams through the explicit frame-wired pump and receive challenge/serverinfo-shaped diagnostic responses with sockets closed and no auth/netchan/signon/resource/admission.
+
+What is not proven:
+No real Steam Half-Life client compatibility is proven. No HLDS-compatible client admission is proven. Real serverinfo wire format, production challenge behavior, final protocol/userinfo policy, production receive path, netchan sequencing/ack, reliable/unreliable channels, resource/model/sound/event baselines, signon state, Steam auth or explicit no-auth LAN diagnostic mode, reject messaging, and put-in-server remain missing.
+
+Policy decision:
+A real-client smoke attempt is not allowed now. The expected failure stage if attempted now is serverinfo_wire_format_or_post_connect_netchan_signon_transition.
+
+Recommended next prompt:
+HL-CL-20260504-279-dedicated-goldsrc-hlds-real-serverinfo-wire-format-inventory-compatibility-skeleton
+
+Recommended next task:
+Inventory and validate the real GoldSrc/HLDS serverinfo response wire format in a diagnostic-only compatibility skeleton before any real client invocation.
+
+Artifacts:
+- real_client_smoke_policy_review.md
+- diagnostic_evidence_inventory.md
+- real_client_readiness_gap_matrix.md
+- future_real_client_smoke_design.md
+- real_client_smoke_planning_summary.json
+- command_log.txt
+- git_state.txt
+
+Validation performed:
+- git status before artifact creation
+- branch and pre-change HEAD verification
+- required descendant gates through 1db48247ab962540ffe0c3af39cfb02ea656eae1
+- git show --stat inspection for relevant source commits
+- source searches for Steam client, real client, netchan, signon, resource, baseline, serverinfo, challenge, userinfo, disconnect, reject, packet capture, and diagnostic flags using git grep after rg was unavailable
+- prior artifact summary inspection for prompts 264 through 277
+- JSON parse validation for the prompt 278 summary
+- no source build because source_changed=false
+- no runtime proof because this prompt is planning-only and real-client execution is prohibited
+
+PROMPT-ID: HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review
