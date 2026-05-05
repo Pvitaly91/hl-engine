@@ -1,0 +1,69 @@
+PROMPT-ID: HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition
+
+Command log, condensed:
+
+1. git status --short --branch
+   Result: branch codex/HL-CL-20260401-081-target-runtime-completion-state; worktree had pre-existing dirty build/log outputs. Prompt 280 files were staged separately only.
+
+2. git rev-parse --abbrev-ref HEAD
+   Result: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+3. git rev-parse HEAD
+   Initial result: 46d19be2641cae3846b2a69498680e1c36746e51 before prompt 280 changes.
+   Source/data result after fixture corpus commit: 215e9665415b5d064d5fe95e6e708d9000fbf578.
+
+4. git merge-base --is-ancestor <required_commit> HEAD
+   Result: pass for all 27 required commits through 46d19be2641cae3846b2a69498680e1c36746e51.
+
+5. git ls-files and git grep searches for serverinfo, fixture, contract, schema, svc_serverinfo, signon, connectionless, query, protocol, packet, info string.
+   Result: local evidence still separates connectionless query/info, current diagnostic post-connect text, unresolved post-connect real serverinfo, and unresolved signon-time serverinfo.
+
+6. Read prompt artifacts:
+   - prompt 267 serverinfo diagnostic summary/report
+   - prompt 277 localhost client smoke harness summary/report
+   - prompt 278 real-client readiness gap matrix
+   - prompt 279 wire-format inventory, candidate matrix, diagnostic skeleton report, current-vs-candidate comparison, and JSON summary
+   Result: prompt 279 evidence gap confirmed; only connectionless query/info had a byte-level local candidate.
+
+7. Created stable fixture/data files under fixtures/diagnostic/hlds/serverinfo:
+   - README.md
+   - contract/serverinfo_fixture_contract.schema.json
+   - contract/serverinfo_fixture_contract.md
+   - fixtures/connectionless_query_info_candidate.json
+   - fixtures/diagnostic_post_connect_serverinfo_current.json
+   - fixtures/post_connect_real_serverinfo_unresolved.json
+   - fixtures/signon_time_serverinfo_unresolved.json
+   - fixtures/invalid_missing_required_field.json
+   - fixtures/invalid_field_order_mismatch.json
+   - fixtures/invalid_unsafe_string.json
+   - fixtures/invalid_overlong_response.json
+   - fixtures/invalid_unknown_opcode_or_marker.json
+
+8. Get-ChildItem fixtures/diagnostic/hlds/serverinfo -Recurse -Filter *.json | ConvertFrom-Json
+   Result: json_validation=pass.
+
+9. Manual PowerShell fixture metadata and safety validation.
+   Result: fixture_metadata_validation=pass; fixture_files_validated=9.
+
+10. git add fixtures/diagnostic/hlds/serverinfo
+    Result: staged only prompt 280 stable fixture/data files.
+
+11. git commit -m "Add HLDS serverinfo diagnostic fixture corpus"
+    Result: source/data commit 215e9665415b5d064d5fe95e6e708d9000fbf578.
+
+12. Created prompt artifacts under logs/latest/HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition/codex.
+
+13. JSON validation over stable fixtures plus serverinfo_fixture_contract_summary.json.
+    Result:
+    json_validation=pass
+    fixture_metadata_validation=pass
+    json_files_parsed=11
+    fixture_files_validated=9
+
+14. git status --short --branch -- fixtures/diagnostic/hlds/serverinfo logs/latest/HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition/codex
+    Result: stable fixture root clean after data commit; prompt artifact directory untracked before artifact commit.
+
+15. Build/runtime decisions:
+    Lightweight build: not run because no compiled source changed.
+    Runtime real-client proof: not run and prohibited.
+    Public socket proof: not run because no socket behavior was added.
