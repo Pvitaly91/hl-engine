@@ -1,0 +1,88 @@
+PROMPT-ID: HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 46d19be2641cae3846b2a69498680e1c36746e51
+Source/data commit: 215e9665415b5d064d5fe95e6e708d9000fbf578
+Compatibility claim level: diagnostic-serverinfo-fixture-contract-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Scope completed:
+- Added a checked-in diagnostic fixture corpus under fixtures/diagnostic/hlds/serverinfo.
+- Added a machine-readable contract schema and human-readable contract definition.
+- Created explicit fixture families for connectionless query/info, current diagnostic post-connect serverinfo, unresolved post-connect real serverinfo, unresolved signon-time serverinfo, and invalid/mutated cases.
+- Preserved conceptual separation between connectionless query/info, diagnostic post-connect, signon-time, and unresolved serverinfo-like shapes.
+- Added no runtime networking, no sockets, no launch flags, no real client invocation, and no host behavior changes.
+
+Fixture root:
+- fixtures/diagnostic/hlds/serverinfo
+
+Contract files:
+- fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json
+- fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.md
+
+Fixture files:
+- fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/diagnostic_post_connect_serverinfo_current.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/post_connect_real_serverinfo_unresolved.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/signon_time_serverinfo_unresolved.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_missing_required_field.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_field_order_mismatch.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unsafe_string.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_overlong_response.json
+- fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unknown_opcode_or_marker.json
+
+Validation:
+- JSON parse validation passed for the contract schema and all fixture files.
+- Manual fixture metadata validation passed for required fields, safety policy fields, compatibility claim taxonomy, conceptual stage taxonomy, and stable invalid-fixture reject reasons.
+- No source-code validator was implemented in this prompt; fixture_validator_implemented=0.
+- No build was run because no compiled source changed.
+- No runtime real-client proof was run.
+- No public socket proof was run because no socket behavior was added.
+
+Corpus metrics:
+- fixtures_total: 9
+- fixtures_valid: 2
+- fixtures_invalid_cases: 5
+- fixtures_unresolved: 2
+- known_byte_level_candidates_count: 1
+- synthetic_placeholder_count: 5
+- unresolved_fields_count: 26
+- real_compatibility_claims_count: 0
+
+Safety state:
+- real_client_smoke_allowed_now: 0
+- real_steam_client_used: 0
+- real_client_binary_invoked: 0
+- public_socket_opened: 0
+- normal_host_behavior_changed: 0
+- steam_auth_not_implemented: 1
+- netchan_not_started: 1
+- reliable_channel_not_started: 1
+- resource_baselines_not_sent: 1
+- signon_state_not_entered: 1
+- client_not_put_in_server: 1
+
+Current comparison:
+- Prompt 267 and prompt 277 current diagnostic serverinfo maps to diagnostic_post_connect_serverinfo_current.json only.
+- The connectionless query/info candidate remains byte-level local-code evidence, but it is not evidence for post-connect or signon-time real client compatibility.
+- The post-connect real serverinfo and signon-time serverinfo fixtures remain unresolved placeholders with compatibility blocked by evidence gaps.
+
+What remains before any real client smoke:
+- Contract-backed diagnostic fixture validator/probe.
+- Diagnostic builder/parser using only fixture-backed fields.
+- Real serverinfo byte contract evidence for post-connect or signon-time stages.
+- Protocol/version compatibility policy.
+- Production userinfo policy.
+- Netchan sequencing/ack and reliable/unreliable channel setup.
+- Resource/model/sound/event baselines.
+- Signon state machine.
+- Client spawn / put-in-server path.
+- Steam auth or explicit no-auth LAN diagnostic mode.
+
+Recommended next prompt:
+HL-CL-20260504-281-dedicated-goldsrc-hlds-serverinfo-fixture-contract-validator-diagnostic-probe
+
+Recommended next task:
+Add a diagnostic-only fixture contract validator/probe that reads the checked-in serverinfo corpus, validates metadata/safety/concept separation, and produces bounded summaries without sockets or real clients.
+
+PROMPT-ID: HL-CL-20260504-280-dedicated-goldsrc-hlds-serverinfo-wire-format-fixture-corpus-contract-definition
