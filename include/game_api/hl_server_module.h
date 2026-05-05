@@ -7208,6 +7208,41 @@ struct HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeS
 {
 };
 
+struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurfaceSummary
+{
+    bool registration_stub_installed = false;
+    bool registration_stub_enabled = false;
+    bool registration_performed = false;
+    std::string registered_component_name = "disabled";
+    std::string registered_lifecycle_phase = "disabled";
+    std::string cleanup_owner = "disabled";
+    bool cleanup_registered = false;
+    bool frame_pump_surface_enabled = false;
+    bool frame_pump_enabled = false;
+    bool frame_pump_disabled_by_default = true;
+    bool frame_pump_wired = false;
+    bool frame_pump_registration_required = true;
+    int frame_pump_frames_run = 0;
+    bool frame_pump_budget_enforced = false;
+    int frame_pump_max_datagrams_per_frame = 0;
+    int datagrams_queued = 0;
+    int datagrams_processed_first_frame = 0;
+    int datagrams_left_after_first_frame = 0;
+    bool socket_open_attempted = false;
+    bool shutdown_cleanup_requested = false;
+    bool shutdown_cleanup_performed = false;
+    int repeated_start_stop_cycles = 0;
+    bool repeated_start_stop_passed = false;
+    bool normal_host_behavior_changed = false;
+    std::string response_bytes_or_text_safe_preview = "<none>";
+};
+
+struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21748,6 +21783,15 @@ struct HlServerModuleInitOptions
     std::string
         hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
             "happy";
+    bool
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_enabled =
+            false;
+    bool
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_enabled =
+            false;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22584,6 +22628,10 @@ struct HlServerModuleSummary
         hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
     HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
         hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring;
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
