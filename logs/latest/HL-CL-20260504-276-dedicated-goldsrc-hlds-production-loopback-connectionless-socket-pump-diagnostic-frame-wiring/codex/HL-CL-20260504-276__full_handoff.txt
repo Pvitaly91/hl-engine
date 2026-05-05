@@ -1,0 +1,100 @@
+PROMPT-ID: HL-CL-20260504-276-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-diagnostic-frame-wiring
+
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: d3691e7122a7e87a85552f2ed8efa707443d8822
+source/final_commit: 5794bf6ea59319f28313b6d14827b3f6eeccc23e
+artifact_commit: pending_artifact_commit_recorded_in_final_response
+compatibility_claim_level: diagnostic-bounded-frame-pump-wiring-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility, HLDS-compatible client compatibility, production networking, Steam auth, netchan, reliable channel, signon, resource baseline emission, or client admission is claimed.
+
+What changed:
+- Added explicit diagnostic-only bounded frame wiring for the registered production-style loopback connectionless socket pump.
+- Added launch flags for the frame wiring surface and scenario probe.
+- Reused prompt-275 lifecycle registration metadata.
+- Kept frame wiring disabled by default.
+- Kept normal host behavior unchanged.
+- Did not modify the existing host/server frame loop.
+- Did not modify client code, HUD, renderer, gameplay logic, or unrelated systems.
+
+Exact frame target:
+- selected_integration_point: FinalizeServerBootstrapStep
+- frame target: diagnostic bounded frame step adjacent to lifecycle registration
+- registered_component_name: hlds_production_loopback_connectionless_socket_pump_lifecycle_registration
+- registered_lifecycle_phase: FinalizeServerBootstrapStep
+- cleanup_owner: HlServerModule::EngineShimState diagnostic lifecycle registration
+
+Exact per-frame budget:
+- frame_pump_max_datagrams_per_frame: 1
+- frame_pump_budget_enforced: 1
+
+Exact bind policy:
+- bind_policy: loopback_only_explicit_diagnostic
+- bind_address_effective: 127.0.0.1
+- public_socket_opened: 0
+- loopback_udp_socket_opened in happy: 1
+- non-loopback/public requests reject before socket open.
+
+Shutdown cleanup behavior:
+- happy shutdown_cleanup_performed: 1
+- happy sockets_closed: 1
+- shutdown gate cleanup_performed: 1
+- shutdown gate sockets_closed: 1
+- socket_pump_started after shutdown gate cleanup: 0
+
+Repeated start/stop behavior:
+- repeated_start_stop_cycles: 2
+- repeated_start_stop_passed: 1
+- sockets_closed after repeated gate: 1
+
+Proof gates run:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_registration_required: pass
+- gate_non_loopback_bind_denied: pass
+- gate_public_socket_blocked: pass
+- gate_frame_budget_enforced: pass
+- gate_shutdown_cleanup: pass
+- gate_repeated_start_stop: pass
+- gate_bad_marker: pass
+- gate_connect_without_cached_challenge: pass
+- gate_wrong_protocol: pass
+- gate_unsafe_userinfo: pass
+
+Key happy proof evidence:
+- frame_pump_wired: 1
+- frame_pump_frames_run: 2
+- socket_pump_started: 1
+- socket_pump_steps: 2
+- socket_pump_datagrams_received: 2
+- socket_pump_datagrams_dispatched: 2
+- socket_pump_responses_sent: 2
+- lifecycle_acceptance_passed: 1
+- protocol_version_accepted: 1
+- userinfo_policy_passed: 1
+- connect_diagnostic_ready: 1
+- serverinfo_response_ready: 1
+
+Why this still does not imply real HLDS/Steam client compatibility:
+- It is an explicit diagnostic-only localhost UDP proof path.
+- It uses bounded proof frames, not production frame-loop admission.
+- It does not start Steam auth, netchan, reliable/unreliable channel state, signon state, resource/model/sound/event baselines, or client spawn/put-in-server.
+- It only validates a narrow connectionless diagnostic lifecycle surface.
+
+What remains before real client smoke:
+- production policy review
+- durable challenge cache for real endpoints
+- final protocol/version compatibility policy
+- production userinfo policy
+- real serverinfo wire format validation
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt:
+- recommended_next_prompt_id: HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness
+- recommended_next_task: add a diagnostic localhost client smoke harness after policy review while preserving no auth netchan signon baselines or client admission claims
