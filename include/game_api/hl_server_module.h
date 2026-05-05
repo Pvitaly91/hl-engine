@@ -7162,6 +7162,52 @@ struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeSummary
 {
 };
 
+struct HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary
+    : HldsConnectionlessDiagnosticLifecycleAcceptanceGateSummary
+{
+    bool registration_stub_surface_enabled = false;
+    bool registration_stub_enabled = false;
+    bool registration_stub_disabled_by_default = true;
+    bool registration_stub_installed = false;
+    bool registration_requested = false;
+    bool registration_performed = false;
+    bool registration_public_bind_rejected = false;
+    std::string registered_component_name = "disabled";
+    std::string registered_component_owner = "disabled";
+    std::string registered_lifecycle_phase = "disabled";
+    std::string registered_lifecycle_phase_source = "disabled";
+    std::string selected_integration_point = "disabled";
+    std::string cleanup_owner = "disabled";
+    bool cleanup_registered = false;
+    bool cleanup_performed = false;
+    bool source_changes_made = true;
+    bool normal_host_behavior_changed = false;
+    bool socket_open_attempted = false;
+    bool sockets_not_opened = true;
+    std::string bind_policy = "disabled";
+    std::string bind_address_requested = "disabled";
+    std::string bind_address_effective = "disabled";
+    bool loopback_only_policy_preserved = true;
+    bool disabled_by_default_preserved = true;
+    bool prompt273_gates_preserved = true;
+    bool no_socket_open_on_registration_gate_passed = false;
+    bool no_frame_pump_wiring_gate_passed = false;
+    bool frame_pump_wired = false;
+    bool socket_pump_started = false;
+    int socket_pump_steps = 0;
+    int socket_pump_datagrams_received = 0;
+    int socket_pump_datagrams_dispatched = 0;
+    int socket_pump_responses_sent = 0;
+    bool lifecycle_acceptance_invoked = false;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+};
+
+struct HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21693,6 +21739,15 @@ struct HlServerModuleInitOptions
     std::string
         hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_scenario =
             "happy";
+    bool
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub_enabled =
+            false;
+    bool
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_enabled =
+            false;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22525,6 +22580,10 @@ struct HlServerModuleSummary
         hlds_production_loopback_connectionless_socket_pump_diagnostic_surface;
     HldsProductionLoopbackConnectionlessSocketPumpDiagnosticProbeSummary
         hlds_production_loopback_connectionless_socket_pump_diagnostic_probe;
+    HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+    HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
