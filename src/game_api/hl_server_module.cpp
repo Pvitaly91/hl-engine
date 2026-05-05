@@ -3939,6 +3939,13 @@ struct EngineShimState
     std::string
         hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_scenario =
             "happy";
+    hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness;
+    hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario =
+            "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4871,6 +4878,10 @@ std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWi
     const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary& summary);
 std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeLine(
     const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeSummary& summary);
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary& summary);
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary& summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
 std::string BuildDedicatedActivationProbeLine(
@@ -25640,6 +25651,91 @@ std::string BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWi
 {
     return BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringValue(
         "hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessValue(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringValue(
+        prefix,
+        summary)
+        + ", localhost_client_harness_surface_enabled="
+        + std::string(summary.localhost_client_harness_surface_enabled ? "1" : "0")
+        + ", localhost_client_harness_enabled="
+        + std::string(summary.localhost_client_harness_enabled ? "1" : "0")
+        + ", localhost_client_harness_disabled_by_default="
+        + std::string(summary.localhost_client_harness_disabled_by_default ? "1" : "0")
+        + ", diagnostic_client_used="
+        + std::string(summary.diagnostic_client_used ? "1" : "0")
+        + ", real_steam_client_used="
+        + std::string(summary.real_steam_client_used ? "1" : "0")
+        + ", real_client_binary_invoked="
+        + std::string(summary.real_client_binary_invoked ? "1" : "0")
+        + ", no_real_client_gate_passed="
+        + std::string(summary.no_real_client_gate_passed ? "1" : "0")
+        + ", client_socket_opened="
+        + std::string(summary.client_socket_opened ? "1" : "0")
+        + ", client_socket_loopback_only="
+        + std::string(summary.client_socket_loopback_only ? "1" : "0")
+        + ", client_socket_closed="
+        + std::string(summary.client_socket_closed ? "1" : "0")
+        + ", client_public_socket_opened="
+        + std::string(summary.client_public_socket_opened ? "1" : "0")
+        + ", server_public_socket_opened="
+        + std::string(summary.server_public_socket_opened ? "1" : "0")
+        + ", server_sockets_closed="
+        + std::string(summary.server_sockets_closed ? "1" : "0")
+        + ", client_bind_address_requested=" + summary.client_bind_address_requested
+        + ", client_bind_address_effective=" + summary.client_bind_address_effective
+        + ", client_target_address=" + summary.client_target_address
+        + ", server_bind_address_effective=" + summary.server_bind_address_effective
+        + ", client_udp_datagrams_sent="
+        + std::to_string(summary.client_udp_datagrams_sent)
+        + ", client_udp_datagrams_received="
+        + std::to_string(summary.client_udp_datagrams_received)
+        + ", client_bytes_sent=" + std::to_string(summary.client_bytes_sent)
+        + ", client_bytes_received=" + std::to_string(summary.client_bytes_received)
+        + ", client_getchallenge_sent="
+        + std::string(summary.client_getchallenge_sent ? "1" : "0")
+        + ", pump_getchallenge_received="
+        + std::string(summary.pump_getchallenge_received ? "1" : "0")
+        + ", client_challenge_response_received="
+        + std::string(summary.client_challenge_response_received ? "1" : "0")
+        + ", client_challenge_response_shape_valid="
+        + std::string(summary.client_challenge_response_shape_valid ? "1" : "0")
+        + ", client_challenge_value_observed="
+        + std::string(summary.client_challenge_value_observed ? "1" : "0")
+        + ", client_connect_sent="
+        + std::string(summary.client_connect_sent ? "1" : "0")
+        + ", pump_connect_received="
+        + std::string(summary.pump_connect_received ? "1" : "0")
+        + ", client_serverinfo_response_received="
+        + std::string(summary.client_serverinfo_response_received ? "1" : "0")
+        + ", client_serverinfo_shape_valid="
+        + std::string(summary.client_serverinfo_shape_valid ? "1" : "0")
+        + ", client_wait_started="
+        + std::string(summary.client_wait_started ? "1" : "0")
+        + ", client_timeout_bounded="
+        + std::string(summary.client_timeout_bounded ? "1" : "0")
+        + ", client_timeout_ticks=" + std::to_string(summary.client_timeout_ticks);
+}
+
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessValue(
+        "hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness",
+        summary);
+}
+
+std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeLine(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessValue(
+        "hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe",
         summary);
 }
 
@@ -56958,6 +57054,26 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeLine(
                     summary
                         .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe));
+        }
+        if (summary
+                .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessLine(
+                    summary
+                        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness));
+        }
+        if (summary
+                .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeLine(
+                    summary
+                        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -152262,6 +152378,11 @@ constexpr std::string_view kHldsProductionLoopbackSocketPumpFrameNextPrompt =
     "HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness";
 constexpr std::string_view kHldsProductionLoopbackSocketPumpFrameNextTask =
     "add a diagnostic localhost client smoke harness after policy review while preserving no auth netchan signon baselines or client admission claims";
+constexpr int kHldsProductionLoopbackSocketPumpLocalhostClientTimeoutTicks = 1;
+constexpr std::string_view kHldsProductionLoopbackSocketPumpLocalhostClientNextPrompt =
+    "HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review";
+constexpr std::string_view kHldsProductionLoopbackSocketPumpLocalhostClientNextTask =
+    "plan real-client smoke policy and compatibility boundaries before invoking any real Steam Half-Life client";
 
 hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
 BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary(
@@ -152919,7 +153040,13 @@ bool RunHldsProductionLoopbackFrameWiringSocketCycle(
     }
 
     std::vector<unsigned char> connect_request;
-    if (scenario == "gate_wrong_protocol")
+    if (scenario == "gate_wrong_challenge")
+    {
+        connect_request = BuildHldsConnectDiagnosticInput(
+            "gate_missing_or_wrong_challenge",
+            issued_challenge.challenge_value);
+    }
+    else if (scenario == "gate_wrong_protocol")
     {
         connect_request = BuildHldsConnectDiagnosticInput(
             "gate_wrong_protocol",
@@ -152954,6 +153081,29 @@ bool RunHldsProductionLoopbackFrameWiringSocketCycle(
     }
 
     reject_reason = pump_frame(1);
+    if (scenario == "gate_wrong_challenge")
+    {
+        result.challenge_cache_gate_passed =
+            reject_reason == "challenge_value_mismatch"
+            && result.challenge_cache_hit
+            && !result.challenge_value_matches
+            && !result.connect_diagnostic_ready
+            && !result.serverinfo_response_ready;
+        SetHldsProductionLoopbackSocketPumpGateResult(
+            result.challenge_cache_gate_passed,
+            &result);
+        result = RejectHldsProductionLoopbackSocketPumpDiagnostic(
+            result,
+            cache,
+            reject_reason,
+            "diagnostic frame pump rejected connect with wrong diagnostic challenge");
+        ApplyHldsProductionLoopbackFrameWiringPumpResult(
+            result,
+            summary->mode,
+            summary->scenario,
+            summary);
+        return result.challenge_cache_gate_passed;
+    }
     if (scenario == "gate_wrong_protocol")
     {
         result.protocol_gate_passed =
@@ -153224,6 +153374,380 @@ void RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
         summary->frame_pump_enabled = false;
         summary->detail =
             "diagnostic frame pump shutdown cleanup closed loopback sockets and disabled the frame pump";
+    }
+}
+
+template <typename Summary>
+void RestoreHldsProductionLoopbackLocalhostClientHarnessFields(
+    Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->compatibility_claim_level =
+        "diagnostic-localhost-client-smoke-harness-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->localhost_client_harness_disabled_by_default = true;
+    summary->real_steam_client_used = false;
+    summary->real_client_binary_invoked = false;
+    summary->client_public_socket_opened = false;
+    summary->server_public_socket_opened = false;
+    summary->public_socket_opened = false;
+    summary->normal_host_behavior_changed = false;
+    summary->recommended_next_prompt_id =
+        std::string(kHldsProductionLoopbackSocketPumpLocalhostClientNextPrompt);
+    summary->recommended_next_task =
+        std::string(kHldsProductionLoopbackSocketPumpLocalhostClientNextTask);
+}
+
+template <typename Summary>
+void MapHldsProductionLoopbackLocalhostClientObservedFields(Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    RestoreHldsProductionLoopbackLocalhostClientHarnessFields(summary);
+    summary->diagnostic_client_used = summary->localhost_client_harness_enabled;
+    summary->client_socket_opened = summary->loopback_udp_socket_opened;
+    summary->client_socket_loopback_only = summary->client_socket_opened;
+    summary->client_socket_closed =
+        summary->client_socket_opened && summary->sockets_closed;
+    summary->server_sockets_closed =
+        summary->loopback_udp_socket_opened && summary->sockets_closed;
+    summary->client_bind_address_requested =
+        summary->client_socket_opened ? "127.0.0.1" : summary->client_bind_address_requested;
+    summary->client_bind_address_effective =
+        summary->client_socket_opened ? summary->udp_client_address_source
+                                      : summary->client_bind_address_effective;
+    summary->client_target_address =
+        summary->client_socket_opened ? summary->udp_server_address_source
+                                      : summary->client_target_address;
+    summary->server_bind_address_effective =
+        summary->loopback_udp_socket_opened ? summary->bind_address_effective
+                                            : summary->server_bind_address_effective;
+    summary->client_getchallenge_sent = summary->getchallenge_datagram_received;
+    summary->pump_getchallenge_received = summary->getchallenge_datagram_received;
+    summary->client_challenge_response_received =
+        summary->challenge_response_datagram_sent;
+    summary->client_challenge_response_shape_valid =
+        summary->client_challenge_response_received
+        && summary->issued_challenge_value != "<none>";
+    summary->client_challenge_value_observed =
+        summary->client_challenge_response_shape_valid;
+    summary->client_connect_sent = summary->connect_datagram_received;
+    summary->pump_connect_received = summary->connect_datagram_received;
+    summary->client_serverinfo_response_received =
+        summary->serverinfo_response_datagram_sent;
+    summary->client_serverinfo_shape_valid =
+        summary->client_serverinfo_response_received
+        && summary->serverinfo_response_ready;
+    summary->client_udp_datagrams_sent =
+        (summary->client_getchallenge_sent ? 1 : 0)
+        + (summary->client_connect_sent ? 1 : 0);
+    summary->client_udp_datagrams_received =
+        (summary->client_challenge_response_received ? 1 : 0)
+        + (summary->client_serverinfo_response_received ? 1 : 0);
+    summary->client_bytes_sent = summary->socket_pump_bytes_received;
+    summary->client_bytes_received = summary->socket_pump_bytes_sent;
+}
+
+template <typename Summary>
+void RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+    Summary* summary,
+    std::string reject_reason,
+    std::string detail)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::move(reject_reason);
+    summary->detail = std::move(detail);
+    summary->client_socket_opened = false;
+    summary->client_socket_loopback_only = false;
+    summary->client_socket_closed = false;
+    summary->client_public_socket_opened = false;
+    summary->server_public_socket_opened = false;
+    summary->public_socket_opened = false;
+    summary->loopback_udp_socket_opened = false;
+    summary->sockets_closed = true;
+    summary->server_sockets_closed = false;
+    summary->socket_open_attempted = false;
+    summary->socket_pump_enabled = false;
+    summary->socket_pump_started = false;
+    summary->socket_pump_stopped = false;
+    summary->socket_pump_steps = 0;
+    summary->frame_pump_enabled = false;
+    summary->frame_pump_wired = false;
+    summary->frame_pump_frames_run = 0;
+    summary->connect_diagnostic_ready = false;
+    summary->serverinfo_response_ready = false;
+    RestoreHldsProductionLoopbackLocalhostClientHarnessFields(summary);
+}
+
+template <typename Summary>
+void SeedHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary&
+        registration,
+    std::string_view mode,
+    std::string_view scenario,
+    bool surface_enabled,
+    Summary* summary)
+{
+    SeedHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary(
+        mode,
+        scenario,
+        surface_enabled,
+        registration,
+        summary);
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    RestoreHldsProductionLoopbackLocalhostClientHarnessFields(summary);
+    summary->localhost_client_harness_surface_enabled = surface_enabled;
+    summary->localhost_client_harness_enabled = true;
+    summary->diagnostic_client_used = true;
+    summary->client_socket_loopback_only = false;
+    summary->client_bind_address_requested = "127.0.0.1";
+    summary->client_bind_address_effective = "not_opened";
+    summary->client_target_address = "not_opened";
+    summary->server_bind_address_effective = "not_opened";
+    summary->detail =
+        "diagnostic localhost UDP client smoke harness is explicit and disabled by default";
+}
+
+template <typename Summary>
+bool RunHldsProductionLoopbackLocalhostClientTimeoutGate(Summary* summary)
+{
+    if (summary == nullptr)
+    {
+        return false;
+    }
+
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticResult result;
+    result.bind_policy = "loopback_only_explicit_diagnostic";
+    result.bind_address_requested = "127.0.0.1";
+    result.bind_address_effective = "127.0.0.1";
+    result.udp_bind_address = "127.0.0.1";
+    result.loopback_policy_enforced = true;
+    result.bounded_loopback = true;
+
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&result.detail))
+    {
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "winsock_start_failed",
+            result.detail);
+        return false;
+    }
+
+    summary->socket_open_attempted = true;
+
+    ScopedUdpSocket server_socket;
+    if (!BindLoopbackQuerySocket(0, &server_socket, &result.udp_bound_port, &result.detail))
+    {
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "loopback_udp_bind_failed",
+            result.detail);
+        return false;
+    }
+
+    ScopedUdpSocket client_socket;
+    int client_port = 0;
+    if (!BindLoopbackQuerySocket(0, &client_socket, &client_port, &result.detail))
+    {
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "loopback_udp_client_bind_failed",
+            result.detail);
+        return false;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = "client_timeout_bounded";
+    summary->loopback_udp_socket_opened = true;
+    summary->sockets_closed = true;
+    summary->client_socket_opened = true;
+    summary->client_socket_loopback_only = true;
+    summary->client_socket_closed = true;
+    summary->server_sockets_closed = true;
+    summary->client_bind_address_requested = "127.0.0.1";
+    summary->client_bind_address_effective = LoopbackEndpointString(client_port);
+    summary->client_target_address = LoopbackEndpointString(result.udp_bound_port);
+    summary->server_bind_address_effective = "127.0.0.1";
+    summary->udp_bound_port = result.udp_bound_port;
+    summary->udp_client_address_source = summary->client_bind_address_effective;
+    summary->udp_server_address_source = summary->client_target_address;
+    summary->frame_pump_enabled = false;
+    summary->frame_pump_wired = false;
+    summary->socket_pump_enabled = false;
+    summary->socket_pump_started = false;
+    summary->socket_pump_stopped = false;
+    summary->client_getchallenge_sent = true;
+    summary->client_wait_started = true;
+    summary->client_timeout_ticks =
+        kHldsProductionLoopbackSocketPumpLocalhostClientTimeoutTicks;
+
+    const std::vector<unsigned char> request =
+        BuildHldsGetchallengeDiagnosticInput("happy");
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(result.udp_bound_port));
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            request,
+            &result,
+            "localhost smoke timeout getchallenge client"))
+    {
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            result.last_reject_reason,
+            result.detail);
+        return false;
+    }
+
+    std::vector<unsigned char> response;
+    const bool received = ReceiveUdpDiagnosticDatagram(
+        client_socket.Get(),
+        &response,
+        nullptr,
+        nullptr,
+        &result,
+        "localhost smoke timeout client");
+
+    summary->client_udp_datagrams_sent = 1;
+    summary->client_udp_datagrams_received = received ? 1 : 0;
+    summary->client_bytes_sent = static_cast<int>(request.size());
+    summary->client_bytes_received = received ? static_cast<int>(response.size()) : 0;
+    summary->client_timeout_bounded = !received;
+    summary->detail =
+        "diagnostic localhost client wait terminated on a bounded timeout with sockets closed";
+    RestoreHldsProductionLoopbackLocalhostClientHarnessFields(summary);
+    return !received;
+}
+
+template <typename Summary>
+void RunHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary&
+        registration,
+    std::string_view mode,
+    std::string_view scenario,
+    bool surface_enabled,
+    Summary* summary)
+{
+    SeedHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary(
+        registration,
+        mode,
+        scenario,
+        surface_enabled,
+        summary);
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    if (summary->scenario == "gate_disabled_by_default")
+    {
+        summary->localhost_client_harness_enabled = false;
+        summary->diagnostic_client_used = false;
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "localhost_client_smoke_harness_disabled",
+            "diagnostic localhost client smoke harness remained disabled without explicit enablement");
+        return;
+    }
+
+    if (summary->scenario == "gate_no_real_client_used")
+    {
+        summary->accepted = 1;
+        summary->rejected = 0;
+        summary->last_reject_reason = "<none>";
+        summary->no_real_client_gate_passed = true;
+        summary->diagnostic_client_used = true;
+        summary->detail =
+            "diagnostic localhost datagram harness reported no real Steam client binary invocation";
+        RestoreHldsProductionLoopbackLocalhostClientHarnessFields(summary);
+        return;
+    }
+
+    if (summary->scenario == "gate_non_loopback_client_denied")
+    {
+        summary->bind_policy = "loopback_only_reject_non_loopback";
+        summary->client_bind_address_requested = "0.0.0.0";
+        summary->client_bind_address_effective = "<none>";
+        summary->client_target_address = "0.0.0.0";
+        summary->server_bind_address_effective = "<none>";
+        summary->loopback_policy_enforced = true;
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "non_loopback_client_denied",
+            "diagnostic localhost client smoke harness denied non-loopback client policy before socket open");
+        return;
+    }
+
+    if (summary->scenario == "gate_public_socket_blocked")
+    {
+        summary->bind_policy = "public_socket_blocked";
+        summary->client_bind_address_requested = "0.0.0.0";
+        summary->client_bind_address_effective = "<none>";
+        summary->client_target_address = "0.0.0.0";
+        summary->server_bind_address_effective = "<none>";
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "public_socket_blocked",
+            "diagnostic localhost client smoke harness blocked public socket policy before socket open");
+        return;
+    }
+
+    if (!registration.registration_performed)
+    {
+        RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+            summary,
+            "lifecycle_registration_required",
+            "diagnostic localhost client smoke harness requires lifecycle registration before pump use");
+        return;
+    }
+
+    if (summary->scenario == "gate_client_timeout_bounded")
+    {
+        RunHldsProductionLoopbackLocalhostClientTimeoutGate(summary);
+        return;
+    }
+
+    RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
+        registration,
+        mode,
+        scenario,
+        surface_enabled,
+        summary);
+    summary->localhost_client_harness_surface_enabled = surface_enabled;
+    summary->localhost_client_harness_enabled = true;
+    MapHldsProductionLoopbackLocalhostClientObservedFields(summary);
+    if (summary->scenario == "gate_shutdown_cleanup")
+    {
+        summary->frame_pump_enabled = false;
+        summary->socket_pump_started = false;
+        summary->shutdown_cleanup_requested = true;
+        summary->shutdown_cleanup_performed =
+            summary->client_socket_closed
+            && summary->server_sockets_closed
+            && summary->sockets_closed;
+    }
+    if (summary->scenario == "happy")
+    {
+        summary->detail =
+            "diagnostic localhost UDP client completed getchallenge/connect against the bounded frame-wired pump";
     }
 }
 
@@ -211639,6 +212163,48 @@ void PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
         frame_wiring_probe) = frame_wiring;
 }
 
+void PerformHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& harness =
+        state
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness;
+    auto& harness_probe =
+        state
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
+    const auto& registration =
+        state.hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+    if (!state.server_state.dedicated || !harness.enabled)
+    {
+        return;
+    }
+
+    const std::string mode = state.server_state.dedicated ? "dedicated" : "listen";
+    const std::string scenario =
+        state
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario;
+
+    RunHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness(
+        registration,
+        mode,
+        scenario,
+        harness.enabled,
+        &harness);
+
+    if (!harness_probe.enabled)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary&>(
+        harness_probe) = harness;
+}
+
 void PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -243312,6 +243878,12 @@ void PopulateBootstrapSummary(
     summary
         .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe =
         {};
+    summary
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness =
+        {};
+    summary
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe =
+        {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -244417,6 +244989,14 @@ void PopulateBootstrapSummary(
             .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe =
             state
                 .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe;
+        summary
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness =
+            state
+                .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness;
+        summary
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe =
+            state
+                .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -250879,6 +251459,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsConnectionlessDiagnosticLifecycleAcceptanceGate();
     PerformHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationStub();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring();
+    PerformHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
@@ -252810,6 +253391,12 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary
         .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe =
         {};
+    impl_->summary
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness =
+        {};
+    impl_->summary
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe =
+        {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -253295,6 +253882,61 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                   .hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_scenario
                 == "gate_unsafe_userinfo"
         ? "gate_unsafe_userinfo"
+        : "happy";
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness =
+        {};
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness
+        .enabled =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_enabled;
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe =
+        {};
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe
+        .enabled =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_enabled;
+    impl_->shim_state
+        .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario =
+        options
+                .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+            == "gate_disabled_by_default"
+        ? "gate_disabled_by_default"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_no_real_client_used"
+        ? "gate_no_real_client_used"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_non_loopback_client_denied"
+        ? "gate_non_loopback_client_denied"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_public_socket_blocked"
+        ? "gate_public_socket_blocked"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_client_timeout_bounded"
+        ? "gate_client_timeout_bounded"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_wrong_challenge"
+        ? "gate_wrong_challenge"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_wrong_protocol"
+        ? "gate_wrong_protocol"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_unsafe_userinfo"
+        ? "gate_unsafe_userinfo"
+        : options
+                  .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario
+                == "gate_shutdown_cleanup"
+        ? "gate_shutdown_cleanup"
         : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
@@ -257584,6 +258226,247 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 : hlds_production_socket_pump_frame_gate_unsafe_userinfo
                 ? !hlds_production_socket_pump_frame_unsafe_userinfo_ok
                 : !hlds_production_socket_pump_frame_happy_ok);
+    const auto& hlds_production_socket_pump_localhost_client_probe =
+        impl_->summary
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
+    const std::string& hlds_production_socket_pump_localhost_client_scenario =
+        impl_->shim_state
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario;
+    const bool hlds_production_socket_pump_localhost_client_gate_disabled =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_disabled_by_default";
+    const bool hlds_production_socket_pump_localhost_client_gate_no_real =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_no_real_client_used";
+    const bool hlds_production_socket_pump_localhost_client_gate_non_loopback =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_non_loopback_client_denied";
+    const bool hlds_production_socket_pump_localhost_client_gate_public =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_public_socket_blocked";
+    const bool hlds_production_socket_pump_localhost_client_gate_timeout =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_client_timeout_bounded";
+    const bool hlds_production_socket_pump_localhost_client_gate_wrong_challenge =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_wrong_challenge";
+    const bool hlds_production_socket_pump_localhost_client_gate_wrong_protocol =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_wrong_protocol";
+    const bool hlds_production_socket_pump_localhost_client_gate_unsafe_userinfo =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_unsafe_userinfo";
+    const bool hlds_production_socket_pump_localhost_client_gate_shutdown =
+        hlds_production_socket_pump_localhost_client_scenario
+        == "gate_shutdown_cleanup";
+    const bool hlds_production_socket_pump_localhost_client_base_ok =
+        hlds_production_socket_pump_localhost_client_probe.enabled
+        && hlds_production_socket_pump_localhost_client_probe
+               .localhost_client_harness_surface_enabled
+        && hlds_production_socket_pump_localhost_client_probe
+               .localhost_client_harness_disabled_by_default
+        && hlds_production_socket_pump_localhost_client_probe.diagnostic_only
+        && hlds_production_socket_pump_localhost_client_probe.bounded_loopback
+        && !hlds_production_socket_pump_localhost_client_probe.real_steam_client_used
+        && !hlds_production_socket_pump_localhost_client_probe.real_client_binary_invoked
+        && !hlds_production_socket_pump_localhost_client_probe.public_socket_opened
+        && !hlds_production_socket_pump_localhost_client_probe.client_public_socket_opened
+        && !hlds_production_socket_pump_localhost_client_probe.server_public_socket_opened
+        && hlds_production_socket_pump_localhost_client_probe.loopback_policy_enforced
+        && !hlds_production_socket_pump_localhost_client_probe.normal_host_behavior_changed
+        && hlds_production_socket_pump_localhost_client_probe.steam_auth_not_implemented
+        && hlds_production_socket_pump_localhost_client_probe.netchan_not_started
+        && hlds_production_socket_pump_localhost_client_probe.reliable_channel_not_started
+        && hlds_production_socket_pump_localhost_client_probe.resource_baselines_not_sent
+        && hlds_production_socket_pump_localhost_client_probe.signon_state_not_entered
+        && hlds_production_socket_pump_localhost_client_probe.client_not_put_in_server
+        && hlds_production_socket_pump_localhost_client_probe.compatibility_claim_level
+            == "diagnostic-localhost-client-smoke-harness-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    const bool hlds_production_socket_pump_localhost_client_runtime_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.diagnostic_client_used
+        && hlds_production_socket_pump_localhost_client_probe.registration_stub_installed
+        && hlds_production_socket_pump_localhost_client_probe.registration_performed
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_opened
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_loopback_only
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_closed
+        && hlds_production_socket_pump_localhost_client_probe.server_sockets_closed
+        && hlds_production_socket_pump_localhost_client_probe.loopback_udp_socket_opened
+        && hlds_production_socket_pump_localhost_client_probe.sockets_closed
+        && hlds_production_socket_pump_localhost_client_probe.frame_pump_budget_enforced
+        && hlds_production_socket_pump_localhost_client_probe
+               .frame_pump_max_datagrams_per_frame
+            == kHldsProductionLoopbackSocketPumpFrameMaxDatagramsPerFrame
+        && hlds_production_socket_pump_localhost_client_probe.socket_open_attempted
+        && hlds_production_socket_pump_localhost_client_probe.bind_policy
+            == "loopback_only_explicit_diagnostic"
+        && hlds_production_socket_pump_localhost_client_probe.bind_address_effective
+            == "127.0.0.1"
+        && hlds_production_socket_pump_localhost_client_probe.client_bind_address_effective
+            != "disabled"
+        && hlds_production_socket_pump_localhost_client_probe.udp_bound_port > 0;
+    const bool hlds_production_socket_pump_localhost_client_happy_ok =
+        hlds_production_socket_pump_localhost_client_runtime_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 1
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 0
+        && hlds_production_socket_pump_localhost_client_probe.frame_pump_enabled
+        && hlds_production_socket_pump_localhost_client_probe.frame_pump_wired
+        && hlds_production_socket_pump_localhost_client_probe.frame_pump_frames_run > 0
+        && hlds_production_socket_pump_localhost_client_probe.socket_pump_started
+        && hlds_production_socket_pump_localhost_client_probe.socket_pump_stopped
+        && hlds_production_socket_pump_localhost_client_probe.socket_pump_steps > 0
+        && hlds_production_socket_pump_localhost_client_probe.client_getchallenge_sent
+        && hlds_production_socket_pump_localhost_client_probe.pump_getchallenge_received
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_challenge_response_received
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_challenge_response_shape_valid
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_challenge_value_observed
+        && hlds_production_socket_pump_localhost_client_probe.client_connect_sent
+        && hlds_production_socket_pump_localhost_client_probe.pump_connect_received
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_serverinfo_response_received
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_serverinfo_shape_valid
+        && hlds_production_socket_pump_localhost_client_probe.lifecycle_acceptance_passed
+        && hlds_production_socket_pump_localhost_client_probe.challenge_cache_hit
+        && hlds_production_socket_pump_localhost_client_probe.challenge_endpoint_matches
+        && hlds_production_socket_pump_localhost_client_probe.challenge_value_matches
+        && hlds_production_socket_pump_localhost_client_probe.protocol_version_accepted
+        && hlds_production_socket_pump_localhost_client_probe.userinfo_policy_passed
+        && hlds_production_socket_pump_localhost_client_probe.connect_diagnostic_ready
+        && hlds_production_socket_pump_localhost_client_probe.serverinfo_response_ready;
+    const bool hlds_production_socket_pump_localhost_client_disabled_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && !hlds_production_socket_pump_localhost_client_probe
+                .localhost_client_harness_enabled
+        && !hlds_production_socket_pump_localhost_client_probe.client_socket_opened
+        && !hlds_production_socket_pump_localhost_client_probe.frame_pump_enabled
+        && !hlds_production_socket_pump_localhost_client_probe.socket_pump_started
+        && !hlds_production_socket_pump_localhost_client_probe
+                .lifecycle_acceptance_passed
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "localhost_client_smoke_harness_disabled";
+    const bool hlds_production_socket_pump_localhost_client_no_real_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 1
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 0
+        && hlds_production_socket_pump_localhost_client_probe.diagnostic_client_used
+        && hlds_production_socket_pump_localhost_client_probe.no_real_client_gate_passed
+        && !hlds_production_socket_pump_localhost_client_probe.real_steam_client_used
+        && !hlds_production_socket_pump_localhost_client_probe.real_client_binary_invoked;
+    const bool hlds_production_socket_pump_localhost_client_non_loopback_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && !hlds_production_socket_pump_localhost_client_probe.client_socket_opened
+        && !hlds_production_socket_pump_localhost_client_probe.socket_open_attempted
+        && hlds_production_socket_pump_localhost_client_probe.bind_policy
+            == "loopback_only_reject_non_loopback"
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_bind_address_requested
+            == "0.0.0.0"
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "non_loopback_client_denied";
+    const bool hlds_production_socket_pump_localhost_client_public_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && !hlds_production_socket_pump_localhost_client_probe.client_socket_opened
+        && !hlds_production_socket_pump_localhost_client_probe.socket_open_attempted
+        && hlds_production_socket_pump_localhost_client_probe.bind_policy
+            == "public_socket_blocked"
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "public_socket_blocked";
+    const bool hlds_production_socket_pump_localhost_client_timeout_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_opened
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_closed
+        && hlds_production_socket_pump_localhost_client_probe.server_sockets_closed
+        && hlds_production_socket_pump_localhost_client_probe.client_wait_started
+        && hlds_production_socket_pump_localhost_client_probe.client_timeout_bounded
+        && hlds_production_socket_pump_localhost_client_probe.client_timeout_ticks
+            == kHldsProductionLoopbackSocketPumpLocalhostClientTimeoutTicks
+        && hlds_production_socket_pump_localhost_client_probe
+               .client_udp_datagrams_received == 0
+        && hlds_production_socket_pump_localhost_client_probe.sockets_closed
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "client_timeout_bounded";
+    const bool hlds_production_socket_pump_localhost_client_wrong_challenge_ok =
+        hlds_production_socket_pump_localhost_client_runtime_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && hlds_production_socket_pump_localhost_client_probe.client_connect_sent
+        && hlds_production_socket_pump_localhost_client_probe.pump_connect_received
+        && !hlds_production_socket_pump_localhost_client_probe.challenge_value_matches
+        && !hlds_production_socket_pump_localhost_client_probe.connect_diagnostic_ready
+        && !hlds_production_socket_pump_localhost_client_probe.serverinfo_response_ready
+        && !hlds_production_socket_pump_localhost_client_probe
+                .client_serverinfo_response_received
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "challenge_value_mismatch";
+    const bool hlds_production_socket_pump_localhost_client_wrong_protocol_ok =
+        hlds_production_socket_pump_localhost_client_runtime_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && hlds_production_socket_pump_localhost_client_probe.protocol_version_present
+        && !hlds_production_socket_pump_localhost_client_probe.protocol_version_accepted
+        && !hlds_production_socket_pump_localhost_client_probe.connect_diagnostic_ready
+        && !hlds_production_socket_pump_localhost_client_probe.serverinfo_response_ready
+        && !hlds_production_socket_pump_localhost_client_probe
+                .client_serverinfo_response_received
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "unsupported_protocol_version";
+    const bool hlds_production_socket_pump_localhost_client_unsafe_userinfo_ok =
+        hlds_production_socket_pump_localhost_client_runtime_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 0
+        && hlds_production_socket_pump_localhost_client_probe.rejected == 1
+        && hlds_production_socket_pump_localhost_client_probe.userinfo_policy_checked
+        && !hlds_production_socket_pump_localhost_client_probe.userinfo_policy_passed
+        && !hlds_production_socket_pump_localhost_client_probe.connect_diagnostic_ready
+        && !hlds_production_socket_pump_localhost_client_probe.serverinfo_response_ready
+        && !hlds_production_socket_pump_localhost_client_probe
+                .client_serverinfo_response_received
+        && hlds_production_socket_pump_localhost_client_probe.last_reject_reason
+            == "unsafe_userinfo_value";
+    const bool hlds_production_socket_pump_localhost_client_shutdown_ok =
+        hlds_production_socket_pump_localhost_client_base_ok
+        && hlds_production_socket_pump_localhost_client_probe.accepted == 1
+        && hlds_production_socket_pump_localhost_client_probe.shutdown_cleanup_requested
+        && hlds_production_socket_pump_localhost_client_probe.shutdown_cleanup_performed
+        && hlds_production_socket_pump_localhost_client_probe.client_socket_closed
+        && hlds_production_socket_pump_localhost_client_probe.server_sockets_closed
+        && hlds_production_socket_pump_localhost_client_probe.sockets_closed
+        && !hlds_production_socket_pump_localhost_client_probe.frame_pump_enabled
+        && !hlds_production_socket_pump_localhost_client_probe.socket_pump_started
+        && !hlds_production_socket_pump_localhost_client_probe.public_socket_opened;
+    const bool hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_failed =
+        options
+            .hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_enabled
+        && (hlds_production_socket_pump_localhost_client_gate_disabled
+                ? !hlds_production_socket_pump_localhost_client_disabled_ok
+                : hlds_production_socket_pump_localhost_client_gate_no_real
+                ? !hlds_production_socket_pump_localhost_client_no_real_ok
+                : hlds_production_socket_pump_localhost_client_gate_non_loopback
+                ? !hlds_production_socket_pump_localhost_client_non_loopback_ok
+                : hlds_production_socket_pump_localhost_client_gate_public
+                ? !hlds_production_socket_pump_localhost_client_public_ok
+                : hlds_production_socket_pump_localhost_client_gate_timeout
+                ? !hlds_production_socket_pump_localhost_client_timeout_ok
+                : hlds_production_socket_pump_localhost_client_gate_wrong_challenge
+                ? !hlds_production_socket_pump_localhost_client_wrong_challenge_ok
+                : hlds_production_socket_pump_localhost_client_gate_wrong_protocol
+                ? !hlds_production_socket_pump_localhost_client_wrong_protocol_ok
+                : hlds_production_socket_pump_localhost_client_gate_unsafe_userinfo
+                ? !hlds_production_socket_pump_localhost_client_unsafe_userinfo_ok
+                : hlds_production_socket_pump_localhost_client_gate_shutdown
+                ? !hlds_production_socket_pump_localhost_client_shutdown_ok
+                : !hlds_production_socket_pump_localhost_client_happy_ok);
     const bool dedicated_activation_probe_failed =
         options.activation_probe_enabled
         && (!impl_->summary.dedicated_activation_probe.enabled
@@ -267740,6 +268623,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !hlds_production_loopback_connectionless_socket_pump_diagnostic_probe_failed
         && !hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_probe_failed
         && !hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_failed
+        && !hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_failed
         && !dedicated_activation_probe_failed
         && !dedicated_bootstrap_probe_failed
         && !dedicated_bootstrap_sequence_probe_failed

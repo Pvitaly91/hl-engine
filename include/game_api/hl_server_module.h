@@ -7243,6 +7243,49 @@ struct HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeS
 {
 };
 
+struct HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary
+{
+    bool localhost_client_harness_surface_enabled = false;
+    bool localhost_client_harness_enabled = false;
+    bool localhost_client_harness_disabled_by_default = true;
+    bool diagnostic_client_used = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool client_socket_opened = false;
+    bool client_socket_loopback_only = false;
+    bool client_socket_closed = false;
+    bool client_public_socket_opened = false;
+    bool server_public_socket_opened = false;
+    bool server_sockets_closed = false;
+    std::string client_bind_address_requested = "disabled";
+    std::string client_bind_address_effective = "disabled";
+    std::string client_target_address = "disabled";
+    std::string server_bind_address_effective = "disabled";
+    int client_udp_datagrams_sent = 0;
+    int client_udp_datagrams_received = 0;
+    int client_bytes_sent = 0;
+    int client_bytes_received = 0;
+    bool client_getchallenge_sent = false;
+    bool pump_getchallenge_received = false;
+    bool client_challenge_response_received = false;
+    bool client_challenge_response_shape_valid = false;
+    bool client_challenge_value_observed = false;
+    bool client_connect_sent = false;
+    bool pump_connect_received = false;
+    bool client_serverinfo_response_received = false;
+    bool client_serverinfo_shape_valid = false;
+    bool client_wait_started = false;
+    bool client_timeout_bounded = false;
+    int client_timeout_ticks = 0;
+};
+
+struct HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21792,6 +21835,15 @@ struct HlServerModuleInitOptions
     std::string
         hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe_scenario =
             "happy";
+    bool
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_enabled =
+            false;
+    bool
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_enabled =
+            false;
+    std::string
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22632,6 +22684,10 @@ struct HlServerModuleSummary
         hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring;
     HldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringProbeSummary
         hlds_production_loopback_connectionless_socket_pump_diagnostic_frame_wiring_probe;
+    HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness;
+    HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessProbeSummary
+        hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
