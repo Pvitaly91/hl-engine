@@ -1,0 +1,28 @@
+PROMPT-ID: HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review
+
+Before artifact creation:
+- Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+- HEAD: 1db48247ab962540ffe0c3af39cfb02ea656eae1
+- Required descendant gates: pass for all required commits through 1db48247ab962540ffe0c3af39cfb02ea656eae1.
+- Pre-existing dirty files: build32 outputs, older logs, and untracked prompt 277 runtime/log artifacts were present before this prompt and preserved.
+
+After artifact creation, before staging:
+- Source changed: false
+- Prompt 278 artifact directory status: untracked
+- New prompt 278 files:
+  - HL-CL-20260504-278__full_handoff.txt
+  - real_client_smoke_policy_review.md
+  - diagnostic_evidence_inventory.md
+  - real_client_readiness_gap_matrix.md
+  - future_real_client_smoke_design.md
+  - real_client_smoke_planning_summary.json
+  - command_log.txt
+  - git_state.txt
+
+Staging policy:
+- Stage only files under logs/latest/HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review/codex/.
+- Do not stage pre-existing build outputs, older logs, prompt 277 untracked runtime artifacts, or source files.
+
+Build/runtime state:
+- Build not run because source_changed=false.
+- Runtime real-client proof not run because this prompt is planning-only and real-client execution is prohibited.
