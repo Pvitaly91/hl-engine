@@ -1,0 +1,43 @@
+PROMPT-ID: HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate
+
+This handoff is diagnostic-only. No real Steam Half-Life client compatibility is claimed, no real query client was used, no real client binary was invoked, no public/LAN/loopback sockets were opened by this drift gate, and normal host behavior was unchanged.
+
+## Boundary
+- Query/info diagnostic boundary 287-292 is now CI-manifested.
+- Fixture drift is guarded by a stable manifest and an explicit disabled-by-default drift-gate probe.
+- Only connectionless query/info remains in scope.
+- Connectionless query/info is not post-connect serverinfo and is not signon-time serverinfo.
+- Real post-connect and real signon builders remain blocked.
+- Public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission remain blocked.
+
+## Exact Inputs
+- fixture_root: fixtures/diagnostic/hlds/serverinfo
+- selected_fixture: fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json
+- selected_fixture_id: connectionless_query_info_candidate
+- selected_fixture_stage: connectionless_query
+- manifest_path: fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+- hash_policy: SHA-256 hashes are recorded in the manifest for review; FNV1a64 hashes are recorded and checked in-process by the drift gate.
+
+## Proofs Run
+- happy
+- gate_disabled_by_default
+- gate_fixture_hash_drift
+- gate_selected_fixture_changed
+- gate_stage_changed
+- gate_real_compatibility_claim_added
+- gate_post_connect_unresolved_made_buildable
+- gate_signon_unresolved_made_buildable
+- gate_public_socket_policy_removed
+- gate_real_client_policy_removed
+- gate_connect_path_allowed
+- gate_no_real_client_used
+- gate_public_socket_blocked
+
+## Compatibility Boundary
+This still does not imply real HLDS or Steam client compatibility. The gate validates fixture-backed diagnostic query/info evidence and policy blockers only; it does not run a real client, does not expose sockets, and does not exercise connect, post-connect, signon, auth, netchan, resources, baselines, or admission.
+
+## Recommended Next Step
+recommended_next_prompt_id: HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper
+recommended_next_task: add a small wrapper/documented command that reruns the query/info regression boundary and drift gate
+
+PROMPT-ID: HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate

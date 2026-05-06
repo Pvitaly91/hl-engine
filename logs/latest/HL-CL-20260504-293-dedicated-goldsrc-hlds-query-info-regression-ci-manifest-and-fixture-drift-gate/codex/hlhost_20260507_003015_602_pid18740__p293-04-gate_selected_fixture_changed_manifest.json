@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260507_003015",
+  "runInstanceId": "20260507_003015_602_pid18740",
+  "runLabel": "p293-04-gate_selected_fixture_changed",
+  "promptId": "HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "8c2b3493a96c9bc57cf85e54a95d4eace36bf4a4",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate\\runtime\\hlhost_20260507_003015_602_pid18740__p293-04-gate_selected_fixture_changed_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate\\runtime\\hlhost_20260507_003015_602_pid18740__p293-04-gate_selected_fixture_changed_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate\\runtime\\hlhost_20260507_003015_602_pid18740__p293-04-gate_selected_fixture_changed_part01.log"]
+}

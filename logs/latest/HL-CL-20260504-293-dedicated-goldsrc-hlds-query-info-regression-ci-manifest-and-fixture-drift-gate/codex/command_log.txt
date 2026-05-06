@@ -1,0 +1,16 @@
+# Command Log
+
+prompt_id: HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate
+source_commit: 17839836b97dea9c75050deb61a869fa60750bf2
+
+## Commands
+- git rev-parse --show-toplevel; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD; git status --short
+- git diff -- prompt 293 source/data files
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /v:minimal /nologo
+- runtime proofs for happy and 12 drift/policy gate scenarios with --hlds-query-info-regression-ci-manifest-drift-gate-probe
+- parsed p293-final runtime summaries
+- git merge-base --is-ancestor for prompt 287-292 source/artifact commits
+- node JSON.parse over serverinfo fixture JSON files and query_info_regression_ci_manifest.json
+- Select-String searches for query_info_regression, fixture, manifest, drift, public_socket, lan_socket, real_client, connect_path, post_connect, signon
+- git diff --check over prompt 293 source/data files
+- git add prompt 293 source/data files and git commit -m "Add query info regression CI drift gate"
