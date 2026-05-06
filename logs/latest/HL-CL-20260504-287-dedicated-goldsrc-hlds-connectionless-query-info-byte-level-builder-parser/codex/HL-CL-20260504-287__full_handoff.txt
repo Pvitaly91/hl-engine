@@ -1,0 +1,17 @@
+PROMPT-ID: HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser
+
+This is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. No sockets were opened by this builder/parser probe.
+
+The implementation adds a disabled-by-default diagnostic probe for only the checked-in connectionless_query_info_candidate fixture under ixtures/diagnostic/hlds/serverinfo. The probe invokes the prompt 281 fixture validator and prompt 286 evidence-gap guard before building bytes. It then builds the connectionless info response bytes with marker f ff ff ff, response tag m, ordered NUL-terminated fields, and uint8 tail fields, and parses those bytes back against the declared fixture contract policies.
+
+The selected fixture is connectionless_query_info_candidate, family connectionless_query_info_candidate, stage connectionless_query. Byte-level build is complete for this connectionless query/info candidate: missing_byte_fields_count=0, output_bytes=67.
+
+Connectionless query/info remains explicitly separate from post-connect serverinfo and signon-time serverinfo. The probe rejects attempts to promote query bytes to post-connect or signon evidence, rejects unresolved real-stage fixtures, rejects malformed byte variants, and rejects compatibility claim escalation. Real post-connect and signon builders remain blocked: post_connect_byte_evidence_sufficient=0, signon_time_byte_evidence_sufficient=0, real_post_connect_builder_complete=0, real_signon_builder_complete=0, real_wire_builder_complete=0.
+
+Runtime gates run: happy, gate_disabled_by_default, gate_validator_required, gate_evidence_gap_guard_required, gate_wrong_fixture_family_rejected, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_missing_marker_or_header, gate_wrong_opcode_or_tag, gate_field_order_mismatch, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_public_socket_blocked.
+
+Why this still does not imply real HLDS/Steam client compatibility: the only local byte-level evidence is connectionless query/info. Prompt 285 found no sufficient post-connect or signon-time serverinfo byte evidence, and prompt 286 guards against stage confusion. Real client smoke remains blocked until the correct-stage byte contract, protocol/version policy, userinfo policy, netchan sequencing/ack, reliable/unreliable channel setup, resource/model/sound/event baselines, signon state machine, client spawn/put-in-server path, and Steam auth or explicit no-auth LAN diagnostic mode are handled.
+
+Recommended next prompt: HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration
+Recommended next task: integrate the connectionless query/info byte-level builder/parser into an explicit diagnostic query/info response path without changing post-connect or signon serverinfo boundaries
+PROMPT-ID: HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser

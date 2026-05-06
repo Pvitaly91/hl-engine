@@ -1,0 +1,12 @@
+# Command Log
+
+git status --short --branch
+git diff -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+Select-String searches for connectionless query, serverinfo, info response, fixture, builder, parser, validator, evidence gap, byte, opcode, marker, packet, real client, Steam client, socket
+Get-ChildItem fixtures/diagnostic/hlds/serverinfo/fixtures/*.json | ConvertFrom-Json
+MSBuild build32/host/hlhost.vcxproj /t:Build /p:Configuration=Debug /p:Platform=Win32 /m:1 /nologo
+git merge-base --is-ancestor descendant gates for required prompt chain commits
+Runtime proof matrix command shape:
+.\\build32\\host\\Debug\\hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --maxclients 4 --frames 1 --run-label p287-committed-NN-SCENARIO --prompt-id HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser --log-dir logs/latest/HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser/runtime --log-summary-file 1 --log-console-level error --hlds-connectionless-query-info-byte-level-builder-parser-probe --hlds-connectionless-query-info-byte-level-builder-parser-probe-scenario SCENARIO
+Scenarios: happy, gate_disabled_by_default, gate_validator_required, gate_evidence_gap_guard_required, gate_wrong_fixture_family_rejected, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_missing_marker_or_header, gate_wrong_opcode_or_tag, gate_field_order_mismatch, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_public_socket_blocked
+Source commit: ef7d69a929b16f5f55b03f932ed46fd0594adbb4
