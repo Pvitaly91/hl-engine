@@ -3965,6 +3965,11 @@ struct EngineShimState
     std::string
         hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario =
             "happy";
+    hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
+    std::string
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+            "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -4923,6 +4928,9 @@ std::string BuildHldsServerinfoUnresolvedFixtureEvidenceGapGuardLine(
         summary);
 std::string BuildHldsConnectionlessQueryInfoByteLevelBuilderParserLine(
     const hl::game_api::HldsConnectionlessQueryInfoByteLevelBuilderParserSummary&
+        summary);
+std::string BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
+    const hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary&
         summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
@@ -26385,6 +26393,34 @@ std::string BuildHldsConnectionlessQueryInfoByteLevelBuilderParserLine(
         + ", signon=" + summary.signon
         + ", gameplay_transport=" + summary.gameplay_transport
         + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
+    const hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary&
+        summary)
+{
+    const std::string base =
+        BuildHldsConnectionlessQueryInfoByteLevelBuilderParserLine(summary);
+    const std::size_t fields_begin = base.find(": ");
+    const std::string base_fields = fields_begin == std::string::npos
+        ? base
+        : base.substr(fields_begin + 2);
+    return "hlds_connectionless_query_info_byte_level_diagnostic_path_integration: "
+        + base_fields
+        + ", query_info_path_integration_probe_enabled="
+        + std::string(
+            summary.query_info_path_integration_probe_enabled ? "1" : "0")
+        + ", query_info_path_integration_disabled_by_default="
+        + std::string(
+            summary.query_info_path_integration_disabled_by_default ? "1" : "0")
+        + ", query_info_response_path_enabled="
+        + std::string(summary.query_info_response_path_enabled ? "1" : "0")
+        + ", query_info_request_detected="
+        + std::string(summary.query_info_request_detected ? "1" : "0")
+        + ", query_info_byte_builder_invoked="
+        + std::string(summary.query_info_byte_builder_invoked ? "1" : "0")
+        + ", query_info_response_ready="
+        + std::string(summary.query_info_response_ready ? "1" : "0");
 }
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
@@ -57893,6 +57929,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsConnectionlessQueryInfoByteLevelBuilderParserLine(
                     summary
                         .hlds_connectionless_query_info_byte_level_builder_parser));
+        }
+        if (summary
+                .hlds_connectionless_query_info_byte_level_diagnostic_path_integration
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
+                    summary
+                        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -215223,6 +215269,387 @@ void PerformHldsConnectionlessQueryInfoByteLevelBuilderParser()
         probe.enabled);
 }
 
+void RejectHldsConnectionlessQueryInfoPathIntegration(
+    hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary*
+        summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+    summary->query_info_response_ready = false;
+    summary->roundtrip_validation_passed = false;
+}
+
+void CopyHldsConnectionlessQueryInfoByteBuilderToPathIntegration(
+    const hl::game_api::HldsConnectionlessQueryInfoByteLevelBuilderParserSummary&
+        builder,
+    hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsConnectionlessQueryInfoByteLevelBuilderParserSummary&>(
+        *summary) = builder;
+    summary->compatibility_claim_level =
+        "diagnostic-connectionless-query-info-byte-level-path-integration-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->query_info_path_integration_disabled_by_default = true;
+    summary->query_info_response_path_enabled = true;
+    summary->query_info_byte_builder_invoked = true;
+    summary->query_info_response_ready =
+        summary->accepted == 1
+        && summary->build_succeeded
+        && summary->parse_succeeded
+        && summary->roundtrip_validation_passed;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap";
+    summary->recommended_next_task =
+        "optionally route a diagnostic loopback query/info response through the byte-level connectionless query/info path while keeping post-connect and signon serverinfo blocked";
+}
+
+bool ValidateHldsConnectionlessQueryInfoDiagnosticRequest(
+    const std::vector<unsigned char>& request,
+    hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return false;
+    }
+
+    summary->marker_or_header_valid =
+        request.size() >= 5
+        && request[0] == 0xFFu
+        && request[1] == 0xFFu
+        && request[2] == 0xFFu
+        && request[3] == 0xFFu;
+    if (!summary->marker_or_header_valid)
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            summary,
+            "connectionless_query_missing_marker_or_header");
+        return false;
+    }
+
+    summary->opcode_or_tag_valid =
+        IsGoldSrcInfoRequest(
+            request.data(),
+            static_cast<int>(request.size()));
+    summary->query_info_request_detected = summary->opcode_or_tag_valid;
+    if (!summary->opcode_or_tag_valid)
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            summary,
+            "unsupported_connectionless_query_command");
+        return false;
+    }
+
+    return true;
+}
+
+hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+RunHldsConnectionlessQueryInfoByteLevelPathIntegration(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+        summary;
+    summary.enabled = true;
+    summary.mode = std::string(mode);
+    summary.scenario = std::string(scenario);
+    summary.compatibility_claim_level =
+        "diagnostic-connectionless-query-info-byte-level-path-integration-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary.diagnostic_only = true;
+    summary.query_info_path_integration_probe_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.query_info_path_integration_disabled_by_default = true;
+    summary.query_info_response_path_enabled =
+        summary.query_info_path_integration_probe_enabled
+        && scenario != "gate_query_info_mode_required";
+    summary.query_info_byte_builder_invoked = false;
+    summary.query_info_response_ready = false;
+    summary.fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    summary.connectionless_query_not_post_connect = true;
+    summary.connectionless_query_not_signon = true;
+    summary.diagnostic_preview_not_byte_evidence = true;
+    summary.post_connect_byte_evidence_sufficient = false;
+    summary.signon_time_byte_evidence_sufficient = false;
+    summary.unresolved_real_stage_not_buildable = true;
+    summary.byte_level_builder_allowed_next_for_real_stages = false;
+    summary.real_post_connect_builder_complete = false;
+    summary.real_signon_builder_complete = false;
+    summary.real_wire_builder_complete = false;
+    summary.real_client_smoke_allowed_now = false;
+    summary.real_steam_client_used = false;
+    summary.real_client_binary_invoked = false;
+    summary.public_socket_opened = false;
+    summary.loopback_udp_socket_opened = false;
+    summary.socket_open_attempted = false;
+    summary.normal_host_behavior_changed = false;
+    summary.steam_auth_not_implemented = true;
+    summary.netchan_not_started = true;
+    summary.reliable_channel_not_started = true;
+    summary.resource_baselines_not_sent = true;
+    summary.signon_state_not_entered = true;
+    summary.client_not_put_in_server = true;
+    summary.recommended_next_prompt_id =
+        "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap";
+    summary.recommended_next_task =
+        "optionally route a diagnostic loopback query/info response through the byte-level connectionless query/info path while keeping post-connect and signon serverinfo blocked";
+    summary.auth = "not_implemented";
+    summary.signon = "not_entered";
+    summary.gameplay_transport = "not_started";
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "connectionless_query_info_path_integration_disabled");
+        summary.detail =
+            "connectionless query/info path integration stayed disabled without explicit diagnostic query/info mode";
+        return summary;
+    }
+
+    if (scenario == "gate_query_info_mode_required")
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "connectionless_query_info_mode_required");
+        summary.detail =
+            "connectionless diagnostic mode was present, but query/info byte response path integration was not enabled";
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "public_socket_blocked");
+        summary.detail =
+            "connectionless query/info path integration rejected public socket behavior before any socket open; probe is in-memory only";
+        return summary;
+    }
+
+    std::vector<unsigned char> request = BuildGoldSrcInfoRequest();
+    if (scenario == "gate_bad_marker_or_header" && !request.empty())
+    {
+        request[0] = 0x00u;
+    }
+    else if (scenario == "gate_wrong_command_or_query" && request.size() >= 5)
+    {
+        request[4] = static_cast<unsigned char>('U');
+    }
+
+    if (!ValidateHldsConnectionlessQueryInfoDiagnosticRequest(
+            request,
+            &summary))
+    {
+        summary.detail =
+            "connectionless query/info path integration rejected malformed diagnostic query request before invoking byte builder";
+        return summary;
+    }
+
+    if (scenario == "gate_validator_required")
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "fixture_validator_required");
+        summary.detail =
+            "connectionless query/info path integration stopped before byte builder because fixture validator was not invoked";
+        return summary;
+    }
+
+    const auto validator = RunHldsServerinfoFixtureContractValidatorDiagnosticProbe(
+        file_system,
+        mode,
+        "happy",
+        true);
+    summary.fixture_validator_invoked = true;
+    summary.fixture_validation_passed = validator.fixture_validation_passed;
+    summary.fixture_contract_loaded = validator.fixture_contract_loaded;
+    summary.fixture_files_loaded = validator.fixture_files_loaded;
+    summary.real_compatibility_claims_count =
+        validator.real_compatibility_claims_count;
+    if (!summary.fixture_validation_passed)
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "fixture_validator_required");
+        summary.detail =
+            "connectionless query/info path integration stopped because checked-in fixture validator did not pass";
+        return summary;
+    }
+
+    if (scenario == "gate_evidence_gap_guard_required")
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "serverinfo_evidence_gap_guard_required");
+        summary.detail =
+            "connectionless query/info path integration stopped before byte builder because evidence-gap guard was not invoked";
+        return summary;
+    }
+
+    const auto guard = RunHldsServerinfoUnresolvedFixtureEvidenceGapGuard(
+        file_system,
+        mode,
+        "happy",
+        true);
+    summary.evidence_gap_guard_invoked = true;
+    summary.evidence_gap_guard_passed = guard.accepted == 1;
+    summary.connectionless_query_not_post_connect =
+        guard.connectionless_query_not_post_connect;
+    summary.connectionless_query_not_signon =
+        guard.connectionless_query_not_signon;
+    summary.diagnostic_preview_not_byte_evidence =
+        guard.diagnostic_preview_not_byte_evidence;
+    summary.post_connect_byte_evidence_sufficient =
+        guard.post_connect_byte_evidence_sufficient;
+    summary.signon_time_byte_evidence_sufficient =
+        guard.signon_time_byte_evidence_sufficient;
+    summary.unresolved_real_stage_not_buildable =
+        guard.unresolved_real_stage_not_buildable;
+    if (!summary.evidence_gap_guard_passed)
+    {
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "serverinfo_evidence_gap_guard_required");
+        summary.detail =
+            "connectionless query/info path integration stopped because evidence-gap guard did not pass";
+        return summary;
+    }
+
+    std::string builder_scenario = "happy";
+    if (scenario == "gate_wrong_opcode_or_tag")
+    {
+        builder_scenario = "gate_wrong_opcode_or_tag";
+    }
+    else if (scenario == "gate_missing_required_field")
+    {
+        builder_scenario = "gate_missing_required_field";
+    }
+    else if (scenario == "gate_unsafe_string")
+    {
+        builder_scenario = "gate_unsafe_string";
+    }
+    else if (scenario == "gate_overlong_response")
+    {
+        builder_scenario = "gate_overlong_response";
+    }
+    else if (scenario == "gate_post_connect_stage_confusion_rejected")
+    {
+        builder_scenario = "gate_post_connect_stage_confusion_rejected";
+    }
+    else if (scenario == "gate_signon_stage_confusion_rejected")
+    {
+        builder_scenario = "gate_signon_stage_confusion_rejected";
+    }
+    else if (scenario == "gate_unresolved_post_connect_rejected")
+    {
+        builder_scenario = "gate_unresolved_post_connect_rejected";
+    }
+    else if (scenario == "gate_unresolved_signon_rejected")
+    {
+        builder_scenario = "gate_unresolved_signon_rejected";
+    }
+    else if (scenario == "gate_real_compatibility_claim_rejected")
+    {
+        builder_scenario = "gate_real_compatibility_claim_rejected";
+    }
+    else if (scenario == "gate_no_real_client_used")
+    {
+        builder_scenario = "gate_no_real_client_used";
+    }
+
+    const auto builder = RunHldsConnectionlessQueryInfoByteLevelBuilderParser(
+        file_system,
+        mode,
+        builder_scenario,
+        true);
+    CopyHldsConnectionlessQueryInfoByteBuilderToPathIntegration(
+        builder,
+        &summary);
+    summary.scenario = std::string(scenario);
+    summary.query_info_path_integration_probe_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.query_info_response_path_enabled = true;
+    summary.query_info_request_detected = true;
+
+    if (scenario == "gate_builder_roundtrip_required")
+    {
+        summary.parse_succeeded = false;
+        summary.roundtrip_validation_passed = false;
+        RejectHldsConnectionlessQueryInfoPathIntegration(
+            &summary,
+            "connectionless_query_info_builder_roundtrip_required");
+        summary.detail =
+            "connectionless query/info path integration refused to mark response ready without byte builder parser roundtrip";
+        return summary;
+    }
+
+    if (summary.accepted != 1)
+    {
+        summary.query_info_response_ready = false;
+        summary.detail =
+            "connectionless query/info path integration propagated byte builder/parser rejection; no response was marked ready";
+        return summary;
+    }
+
+    summary.query_info_response_ready =
+        summary.build_succeeded
+        && summary.parse_succeeded
+        && summary.roundtrip_validation_passed;
+    summary.accepted = summary.query_info_response_ready ? 1 : 0;
+    summary.rejected = summary.query_info_response_ready ? 0 : 1;
+    summary.last_reject_reason =
+        summary.query_info_response_ready
+            ? "<none>"
+            : "connectionless_query_info_builder_roundtrip_required";
+    summary.no_real_client_gate_passed =
+        scenario == "gate_no_real_client_used"
+        && !summary.real_steam_client_used
+        && !summary.real_client_binary_invoked;
+    summary.detail =
+        "connectionless query/info path integration recognized an in-memory query/info request, invoked validator, evidence-gap guard, and byte builder/parser, then marked only the query/info response ready";
+    return summary;
+}
+
+void PerformHldsConnectionlessQueryInfoByteLevelPathIntegration()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe =
+        state.hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario;
+
+    probe = RunHldsConnectionlessQueryInfoByteLevelPathIntegration(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
 void CopyHldsServerinfoBuilderParserToPathIntegration(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
         builder,
@@ -247621,6 +248048,9 @@ void PopulateBootstrapSummary(
     summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser = {};
     summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard = {};
     summary.hlds_connectionless_query_info_byte_level_builder_parser = {};
+    summary
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration =
+        {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -248746,6 +249176,10 @@ void PopulateBootstrapSummary(
             state.hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
         summary.hlds_connectionless_query_info_byte_level_builder_parser =
             state.hlds_connectionless_query_info_byte_level_builder_parser;
+        summary
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration =
+            state
+                .hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -255221,6 +255655,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsServerinfoContractBackedDiagnosticBuilderParser();
     PerformHldsServerinfoUnresolvedFixtureEvidenceGapGuard();
     PerformHldsConnectionlessQueryInfoByteLevelBuilderParser();
+    PerformHldsConnectionlessQueryInfoByteLevelPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -257901,6 +258336,64 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : query_info_byte_builder_scenario == "gate_no_real_client_used"
             ? "gate_no_real_client_used"
         : query_info_byte_builder_scenario == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration =
+        {};
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration
+        .enabled =
+        options
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled;
+    const std::string& query_info_path_integration_scenario =
+        options
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario;
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+        query_info_path_integration_scenario == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : query_info_path_integration_scenario == "gate_query_info_mode_required"
+            ? "gate_query_info_mode_required"
+        : query_info_path_integration_scenario == "gate_validator_required"
+            ? "gate_validator_required"
+        : query_info_path_integration_scenario
+                == "gate_evidence_gap_guard_required"
+            ? "gate_evidence_gap_guard_required"
+        : query_info_path_integration_scenario
+                == "gate_builder_roundtrip_required"
+            ? "gate_builder_roundtrip_required"
+        : query_info_path_integration_scenario
+                == "gate_wrong_command_or_query"
+            ? "gate_wrong_command_or_query"
+        : query_info_path_integration_scenario == "gate_bad_marker_or_header"
+            ? "gate_bad_marker_or_header"
+        : query_info_path_integration_scenario == "gate_wrong_opcode_or_tag"
+            ? "gate_wrong_opcode_or_tag"
+        : query_info_path_integration_scenario == "gate_missing_required_field"
+            ? "gate_missing_required_field"
+        : query_info_path_integration_scenario == "gate_unsafe_string"
+            ? "gate_unsafe_string"
+        : query_info_path_integration_scenario == "gate_overlong_response"
+            ? "gate_overlong_response"
+        : query_info_path_integration_scenario
+                == "gate_post_connect_stage_confusion_rejected"
+            ? "gate_post_connect_stage_confusion_rejected"
+        : query_info_path_integration_scenario
+                == "gate_signon_stage_confusion_rejected"
+            ? "gate_signon_stage_confusion_rejected"
+        : query_info_path_integration_scenario
+                == "gate_unresolved_post_connect_rejected"
+            ? "gate_unresolved_post_connect_rejected"
+        : query_info_path_integration_scenario
+                == "gate_unresolved_signon_rejected"
+            ? "gate_unresolved_signon_rejected"
+        : query_info_path_integration_scenario
+                == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : query_info_path_integration_scenario == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : query_info_path_integration_scenario == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
             : "happy";
     impl_->shim_state

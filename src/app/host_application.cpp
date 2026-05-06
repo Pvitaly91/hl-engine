@@ -22579,6 +22579,14 @@ bool HostApplication::RunServerEngineShim(
         options
             .hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario;
     init_options
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled =
+        options
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled;
+    init_options
+        .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+        options
+            .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario;
+    init_options
         .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         options
             .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled;
@@ -24068,6 +24076,15 @@ bool HostApplication::RunServerEngineShim(
         + ", hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario="
         + init_options
               .hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario
+        + ", hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe="
+        + std::string(
+            init_options
+                    .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled
+                ? "1"
+                : "0")
+        + ", hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario="
+        + init_options
+              .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario
         + ", hlds_serverinfo_contract_backed_diagnostic_path_integration_probe="
         + std::string(
             init_options
