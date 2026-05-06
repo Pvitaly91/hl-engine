@@ -68,6 +68,33 @@
     "normal_host_behavior_changed": false,
     "real_client_smoke_allowed_now": false
   },
+  "evidence_gap_guard": {
+    "evidence_gap_guard_enabled": true,
+    "stage_confusion_guard_enabled": true,
+    "diagnostic_preview_not_byte_evidence": true,
+    "connectionless_query_not_post_connect": true,
+    "connectionless_query_not_signon": true,
+    "unresolved_real_stage_not_buildable": true,
+    "byte_level_evidence_required_for_real_stage": true,
+    "real_stage_buildable": false,
+    "real_stage_parseable": false,
+    "byte_level_evidence_status": "connectionless_only",
+    "forbidden_promotions": [
+      "connectionless_query_to_post_connect",
+      "connectionless_query_to_signon",
+      "diagnostic_preview_to_real_wire",
+      "unresolved_to_compatible"
+    ],
+    "required_before_promotion": [
+      "local_byte_level_fixture",
+      "local_field_order_evidence",
+      "local_opcode_or_message_id_evidence",
+      "local_string_encoding_evidence",
+      "local_numeric_encoding_evidence",
+      "validator_promotion_gate"
+    ],
+    "expected_guard_reject_reason": "connectionless_query_not_post_connect_evidence"
+  },
   "expected_parse_result": "valid_fixture_only",
   "expected_reject_reason": "<none>",
   "unresolved_fields": [

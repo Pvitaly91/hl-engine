@@ -3955,6 +3955,11 @@ struct EngineShimState
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
+        hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
+    std::string
+        hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+            "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -4907,6 +4912,9 @@ std::string BuildHldsServerinfoFixtureContractValidatorDiagnosticProbeLine(
     const hl::game_api::HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary& summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
+        summary);
+std::string BuildHldsServerinfoUnresolvedFixtureEvidenceGapGuardLine(
+    const hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary&
         summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
@@ -26051,6 +26059,131 @@ std::string BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
             summary.corpus_sufficient_for_next_diagnostic_builder ? "1" : "0")
         + ", corpus_sufficient_for_real_compatibility="
         + std::string(summary.corpus_sufficient_for_real_compatibility ? "1" : "0")
+        + ", real_client_smoke_allowed_now="
+        + std::string(summary.real_client_smoke_allowed_now ? "1" : "0")
+        + ", real_steam_client_used="
+        + std::string(summary.real_steam_client_used ? "1" : "0")
+        + ", real_client_binary_invoked="
+        + std::string(summary.real_client_binary_invoked ? "1" : "0")
+        + ", no_real_client_gate_passed="
+        + std::string(summary.no_real_client_gate_passed ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", loopback_udp_socket_opened="
+        + std::string(summary.loopback_udp_socket_opened ? "1" : "0")
+        + ", socket_open_attempted="
+        + std::string(summary.socket_open_attempted ? "1" : "0")
+        + ", normal_host_behavior_changed="
+        + std::string(summary.normal_host_behavior_changed ? "1" : "0")
+        + ", steam_auth_not_implemented="
+        + std::string(summary.steam_auth_not_implemented ? "1" : "0")
+        + ", netchan_not_started="
+        + std::string(summary.netchan_not_started ? "1" : "0")
+        + ", reliable_channel_not_started="
+        + std::string(summary.reliable_channel_not_started ? "1" : "0")
+        + ", resource_baselines_not_sent="
+        + std::string(summary.resource_baselines_not_sent ? "1" : "0")
+        + ", signon_state_not_entered="
+        + std::string(summary.signon_state_not_entered ? "1" : "0")
+        + ", client_not_put_in_server="
+        + std::string(summary.client_not_put_in_server ? "1" : "0")
+        + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
+        + ", recommended_next_task=" + summary.recommended_next_task
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsServerinfoUnresolvedFixtureEvidenceGapGuardLine(
+    const hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary&
+        summary)
+{
+    return "hlds_serverinfo_unresolved_fixture_evidence_gap_guard: enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                               : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", evidence_gap_guard_enabled="
+        + std::string(summary.evidence_gap_guard_enabled ? "1" : "0")
+        + ", evidence_gap_guard_disabled_by_default="
+        + std::string(summary.evidence_gap_guard_disabled_by_default ? "1" : "0")
+        + ", fixture_contract_loaded="
+        + std::string(summary.fixture_contract_loaded ? "1" : "0")
+        + ", fixture_root=" + summary.fixture_root
+        + ", fixture_files_loaded=" + std::to_string(summary.fixture_files_loaded)
+        + ", fixture_validator_invoked="
+        + std::string(summary.fixture_validator_invoked ? "1" : "0")
+        + ", fixture_validation_passed="
+        + std::string(summary.fixture_validation_passed ? "1" : "0")
+        + ", fixtures_total=" + std::to_string(summary.fixtures_total)
+        + ", fixtures_unresolved=" + std::to_string(summary.fixtures_unresolved)
+        + ", unresolved_fixtures_count="
+        + std::to_string(summary.unresolved_fixtures_count)
+        + ", serverinfo_concepts_separated="
+        + std::string(summary.serverinfo_concepts_separated ? "1" : "0")
+        + ", stage_confusion_guard_enabled="
+        + std::string(summary.stage_confusion_guard_enabled ? "1" : "0")
+        + ", evidence_gap_guard_metadata_present="
+        + std::string(summary.evidence_gap_guard_metadata_present ? "1" : "0")
+        + ", connectionless_query_not_post_connect="
+        + std::string(summary.connectionless_query_not_post_connect ? "1" : "0")
+        + ", connectionless_query_not_signon="
+        + std::string(summary.connectionless_query_not_signon ? "1" : "0")
+        + ", diagnostic_preview_not_byte_evidence="
+        + std::string(summary.diagnostic_preview_not_byte_evidence ? "1" : "0")
+        + ", unresolved_real_stage_not_buildable="
+        + std::string(summary.unresolved_real_stage_not_buildable ? "1" : "0")
+        + ", byte_level_evidence_required_for_real_stage="
+        + std::string(
+            summary.byte_level_evidence_required_for_real_stage ? "1" : "0")
+        + ", post_connect_byte_evidence_sufficient="
+        + std::string(
+            summary.post_connect_byte_evidence_sufficient ? "1" : "0")
+        + ", signon_time_byte_evidence_sufficient="
+        + std::string(summary.signon_time_byte_evidence_sufficient ? "1" : "0")
+        + ", byte_level_builder_requested="
+        + std::string(summary.byte_level_builder_requested ? "1" : "0")
+        + ", byte_level_builder_allowed_next="
+        + std::string(summary.byte_level_builder_allowed_next ? "1" : "0")
+        + ", connectionless_query_promoted_to_post_connect_attempted="
+        + std::string(
+            summary.connectionless_query_promoted_to_post_connect_attempted
+                ? "1"
+                : "0")
+        + ", connectionless_query_promoted_to_signon_attempted="
+        + std::string(
+            summary.connectionless_query_promoted_to_signon_attempted ? "1" : "0")
+        + ", diagnostic_preview_promoted_to_real_wire_attempted="
+        + std::string(
+            summary.diagnostic_preview_promoted_to_real_wire_attempted ? "1" : "0")
+        + ", unresolved_post_connect_build_attempted="
+        + std::string(summary.unresolved_post_connect_build_attempted ? "1" : "0")
+        + ", unresolved_signon_build_attempted="
+        + std::string(summary.unresolved_signon_build_attempted ? "1" : "0")
+        + ", build_attempted="
+        + std::string(summary.build_attempted ? "1" : "0")
+        + ", build_succeeded="
+        + std::string(summary.build_succeeded ? "1" : "0")
+        + ", build_rejected="
+        + std::string(summary.build_rejected ? "1" : "0")
+        + ", stage_confusion_detected="
+        + std::string(summary.stage_confusion_detected ? "1" : "0")
+        + ", compatibility_claim_escalation_detected="
+        + std::string(
+            summary.compatibility_claim_escalation_detected ? "1" : "0")
+        + ", real_compatibility_claims_count="
+        + std::to_string(summary.real_compatibility_claims_count)
+        + ", unresolved_fields_count="
+        + std::to_string(summary.unresolved_fields_count)
+        + ", unresolved_byte_areas_count="
+        + std::to_string(summary.unresolved_byte_areas_count)
         + ", real_client_smoke_allowed_now="
         + std::string(summary.real_client_smoke_allowed_now ? "1" : "0")
         + ", real_steam_client_used="
@@ -57577,6 +57710,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
                     summary
                         .hlds_serverinfo_contract_backed_diagnostic_builder_parser));
+        }
+        if (summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoUnresolvedFixtureEvidenceGapGuardLine(
+                    summary
+                        .hlds_serverinfo_unresolved_fixture_evidence_gap_guard));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -212861,7 +213002,7 @@ constexpr std::array<HldsServerinfoFixtureExpected, 9> kHldsServerinfoFixtureCon
     },
 }};
 
-constexpr std::array<std::string_view, 19> kHldsServerinfoFixtureRequiredMetadata = {{
+constexpr std::array<std::string_view, 20> kHldsServerinfoFixtureRequiredMetadata = {{
     "fixture_id",
     "family",
     "stage",
@@ -212876,6 +213017,7 @@ constexpr std::array<std::string_view, 19> kHldsServerinfoFixtureRequiredMetadat
     "numeric_encoding_policy",
     "length_policy",
     "safety_policy",
+    "evidence_gap_guard",
     "expected_parse_result",
     "expected_reject_reason",
     "unresolved_fields",
@@ -213979,6 +214121,272 @@ void PerformHldsServerinfoContractBackedDiagnosticBuilderParser()
         state.server_state.dedicated ? "dedicated" : "listen",
         scenario,
         probe.enabled);
+}
+
+void RejectHldsServerinfoEvidenceGapGuard(
+    hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary*
+        summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+}
+
+hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
+RunHldsServerinfoUnresolvedFixtureEvidenceGapGuard(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary summary;
+    summary.enabled = true;
+    summary.mode = std::string(mode);
+    summary.scenario = std::string(scenario);
+    summary.compatibility_claim_level =
+        "diagnostic-serverinfo-unresolved-evidence-gap-guard-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary.diagnostic_only = true;
+    summary.evidence_gap_guard_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.evidence_gap_guard_disabled_by_default = true;
+    summary.fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    summary.stage_confusion_guard_enabled = true;
+    summary.connectionless_query_not_post_connect = true;
+    summary.connectionless_query_not_signon = true;
+    summary.diagnostic_preview_not_byte_evidence = true;
+    summary.unresolved_real_stage_not_buildable = true;
+    summary.byte_level_evidence_required_for_real_stage = true;
+    summary.post_connect_byte_evidence_sufficient = false;
+    summary.signon_time_byte_evidence_sufficient = false;
+    summary.byte_level_builder_allowed_next = false;
+    summary.unresolved_fields_count = 26;
+    summary.unresolved_byte_areas_count = 16;
+    summary.real_client_smoke_allowed_now = false;
+    summary.real_steam_client_used = false;
+    summary.real_client_binary_invoked = false;
+    summary.public_socket_opened = false;
+    summary.loopback_udp_socket_opened = false;
+    summary.socket_open_attempted = false;
+    summary.normal_host_behavior_changed = false;
+    summary.steam_auth_not_implemented = true;
+    summary.netchan_not_started = true;
+    summary.reliable_channel_not_started = true;
+    summary.resource_baselines_not_sent = true;
+    summary.signon_state_not_entered = true;
+    summary.client_not_put_in_server = true;
+    summary.recommended_next_prompt_id =
+        "HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser";
+    summary.recommended_next_task =
+        "build and parse only the connectionless query/info byte-level candidate without treating it as post-connect or signon serverinfo evidence";
+    summary.auth = "not_implemented";
+    summary.signon = "not_entered";
+    summary.gameplay_transport = "not_started";
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "serverinfo_evidence_gap_guard_disabled");
+        summary.detail =
+            "evidence-gap guard stayed disabled without explicit probe enablement";
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        RejectHldsServerinfoEvidenceGapGuard(&summary, "public_socket_blocked");
+        summary.detail =
+            "evidence-gap guard rejected public socket request before any socket open; guard has no networking path";
+        return summary;
+    }
+
+    const auto validator = RunHldsServerinfoFixtureContractValidatorDiagnosticProbe(
+        file_system,
+        mode,
+        "happy",
+        true);
+    summary.fixture_validator_invoked = true;
+    summary.fixture_validation_passed = validator.fixture_validation_passed;
+    summary.fixture_contract_loaded = validator.fixture_contract_loaded;
+    summary.fixture_files_loaded = validator.fixture_files_loaded;
+    summary.fixtures_total = validator.fixtures_total;
+    summary.fixtures_unresolved = validator.fixtures_unresolved;
+    summary.unresolved_fixtures_count = validator.fixtures_unresolved;
+    summary.serverinfo_concepts_separated =
+        validator.serverinfo_concepts_separated;
+    summary.real_compatibility_claims_count =
+        validator.real_compatibility_claims_count;
+
+    const std::vector<HldsServerinfoFixtureText> fixtures =
+        LoadHldsServerinfoFixtureTexts(file_system);
+    summary.evidence_gap_guard_metadata_present =
+        fixtures.size() == kHldsServerinfoFixtureContractFiles.size()
+        && std::all_of(
+            fixtures.begin(),
+            fixtures.end(),
+            [](const HldsServerinfoFixtureText& fixture)
+            {
+                return FixtureTextContainsKey(fixture.text, "evidence_gap_guard")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "stage_confusion_guard_enabled")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "diagnostic_preview_not_byte_evidence")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "connectionless_query_not_post_connect")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "connectionless_query_not_signon")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "unresolved_real_stage_not_buildable")
+                    && FixtureTextContainsKey(
+                        fixture.text,
+                        "byte_level_evidence_required_for_real_stage");
+            });
+
+    if (!summary.fixture_validation_passed
+        || !summary.evidence_gap_guard_metadata_present)
+    {
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "serverinfo_evidence_gap_guard_metadata_missing");
+        summary.detail =
+            "evidence-gap guard stopped because checked-in guard metadata was missing or fixture validation failed";
+        return summary;
+    }
+
+    if (scenario == "gate_connectionless_query_promoted_to_post_connect")
+    {
+        summary.connectionless_query_promoted_to_post_connect_attempted = true;
+        summary.stage_confusion_detected = true;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "connectionless_query_not_post_connect_evidence");
+        summary.detail =
+            "guard rejected connectionless query/info bytes as post-connect serverinfo evidence";
+        return summary;
+    }
+
+    if (scenario == "gate_connectionless_query_promoted_to_signon")
+    {
+        summary.connectionless_query_promoted_to_signon_attempted = true;
+        summary.stage_confusion_detected = true;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "connectionless_query_not_signon_evidence");
+        summary.detail =
+            "guard rejected connectionless query/info bytes as signon-time serverinfo evidence";
+        return summary;
+    }
+
+    if (scenario == "gate_diagnostic_preview_promoted_to_real_wire")
+    {
+        summary.diagnostic_preview_promoted_to_real_wire_attempted = true;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "diagnostic_preview_not_byte_level_evidence");
+        summary.detail =
+            "guard rejected diagnostic preview text as real byte-level serverinfo evidence";
+        return summary;
+    }
+
+    if (scenario == "gate_unresolved_post_connect_build_attempt")
+    {
+        summary.unresolved_post_connect_build_attempted = true;
+        summary.build_attempted = true;
+        summary.build_rejected = true;
+        summary.build_succeeded = false;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "unresolved_post_connect_serverinfo_not_buildable");
+        summary.detail =
+            "guard blocked real post-connect serverinfo build while byte-level evidence is insufficient";
+        return summary;
+    }
+
+    if (scenario == "gate_unresolved_signon_build_attempt")
+    {
+        summary.unresolved_signon_build_attempted = true;
+        summary.build_attempted = true;
+        summary.build_rejected = true;
+        summary.build_succeeded = false;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "unresolved_signon_serverinfo_not_buildable");
+        summary.detail =
+            "guard blocked real signon-time serverinfo build while byte-level evidence is insufficient";
+        return summary;
+    }
+
+    if (scenario == "gate_real_compatibility_claim_escalation")
+    {
+        summary.compatibility_claim_escalation_detected = true;
+        summary.real_compatibility_claims_count = 1;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "real_compatibility_claim_rejected");
+        summary.detail =
+            "guard rejected in-memory unresolved fixture compatibility claim escalation";
+        return summary;
+    }
+
+    if (scenario == "gate_byte_level_builder_blocked")
+    {
+        summary.byte_level_builder_requested = true;
+        summary.build_attempted = true;
+        summary.build_rejected = true;
+        RejectHldsServerinfoEvidenceGapGuard(
+            &summary,
+            "byte_level_serverinfo_builder_blocked_by_evidence_gap");
+        summary.detail =
+            "guard blocked byte-level post-connect/signon serverinfo builder until local evidence exists";
+        return summary;
+    }
+
+    summary.no_real_client_gate_passed =
+        scenario == "gate_no_real_client_used"
+        && !summary.real_steam_client_used
+        && !summary.real_client_binary_invoked;
+    summary.accepted = 1;
+    summary.rejected = 0;
+    summary.last_reject_reason = "<none>";
+    summary.detail =
+        "evidence-gap guard enforced unresolved post-connect/signon boundaries using fixture metadata only; no sockets or real client";
+    return summary;
+}
+
+void PerformHldsServerinfoUnresolvedFixtureEvidenceGapGuard()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& guard =
+        state.hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
+    if (!state.server_state.dedicated || !guard.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+            .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario;
+
+    guard = RunHldsServerinfoUnresolvedFixtureEvidenceGapGuard(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        guard.enabled);
 }
 
 void CopyHldsServerinfoBuilderParserToPathIntegration(
@@ -246377,6 +246785,7 @@ void PopulateBootstrapSummary(
         {};
     summary.hlds_serverinfo_fixture_contract_validator_diagnostic_probe = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser = {};
+    summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -247498,6 +247907,8 @@ void PopulateBootstrapSummary(
             state.hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
         summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser =
             state.hlds_serverinfo_contract_backed_diagnostic_builder_parser;
+        summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard =
+            state.hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -253971,6 +254382,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness();
     PerformHldsServerinfoFixtureContractValidatorDiagnosticProbe();
     PerformHldsServerinfoContractBackedDiagnosticBuilderParser();
+    PerformHldsServerinfoUnresolvedFixtureEvidenceGapGuard();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -255914,6 +256326,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser =
         {};
+    impl_->summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard = {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
         {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -256546,6 +256959,55 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             ? "gate_no_real_client_used"
         : options
                     .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario
+                == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state.hlds_serverinfo_unresolved_fixture_evidence_gap_guard =
+        {};
+    impl_->shim_state.hlds_serverinfo_unresolved_fixture_evidence_gap_guard
+        .enabled =
+        options
+            .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled;
+    impl_->shim_state
+        .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+        options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_connectionless_query_promoted_to_post_connect"
+            ? "gate_connectionless_query_promoted_to_post_connect"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_connectionless_query_promoted_to_signon"
+            ? "gate_connectionless_query_promoted_to_signon"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_diagnostic_preview_promoted_to_real_wire"
+            ? "gate_diagnostic_preview_promoted_to_real_wire"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_unresolved_post_connect_build_attempt"
+            ? "gate_unresolved_post_connect_build_attempt"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_unresolved_signon_build_attempt"
+            ? "gate_unresolved_signon_build_attempt"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_real_compatibility_claim_escalation"
+            ? "gate_real_compatibility_claim_escalation"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_byte_level_builder_blocked"
+            ? "gate_byte_level_builder_blocked"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
+                == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
                 == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
             : "happy";

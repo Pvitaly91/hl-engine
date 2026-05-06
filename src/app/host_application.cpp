@@ -22563,6 +22563,14 @@ bool HostApplication::RunServerEngineShim(
         options
             .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario;
     init_options
+        .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled =
+        options
+            .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled;
+    init_options
+        .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+        options
+            .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario;
+    init_options
         .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         options
             .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled;
@@ -24034,6 +24042,15 @@ bool HostApplication::RunServerEngineShim(
         + ", hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario="
         + init_options
               .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario
+        + ", hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe="
+        + std::string(
+            init_options
+                    .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled
+                ? "1"
+                : "0")
+        + ", hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario="
+        + init_options
+              .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario
         + ", hlds_serverinfo_contract_backed_diagnostic_path_integration_probe="
         + std::string(
             init_options
