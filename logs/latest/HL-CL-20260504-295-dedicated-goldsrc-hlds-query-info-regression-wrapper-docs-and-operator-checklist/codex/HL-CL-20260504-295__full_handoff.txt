@@ -1,0 +1,36 @@
+PROMPT-ID: HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 63a8e670ee0f6b64d3965cef6c84a8001afdb1ab
+Source/final commit: 9f659b68ee53a9af8f2c325631c8ebe3b5298efd
+Compatibility claim level: diagnostic-query-info-wrapper-operator-docs-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+This prompt is documentation and artifact focused. It added stable operator docs for the diagnostic query/info regression wrapper and did not change runtime behavior.
+Docs created:
+- docs/diagnostic/hlds/query_info_regression_operator_checklist.md
+- docs/diagnostic/hlds/query_info_regression_quickstart.md
+Wrapper doc updated:
+- docs/diagnostic/hlds/query_info_regression_rerun_wrapper.md
+Wrapper script:
+- scripts/run_hlds_query_info_regression.ps1
+Verification:
+- wrapper_diagnostic_only: 1
+- wrapper_dry_run_executed: 1
+- wrapper_dry_run_passed: 1
+- wrapper_full_run_executed: 1
+- wrapper_full_run_passed: 1
+- acceptance_gate_included: 1
+- drift_gate_included: 1
+- selected_fixture_id: connectionless_query_info_candidate
+- selected_fixture_stage: connectionless_query
+- public_socket_opened: 0
+- lan_socket_opened: 0
+- real_client_binary_invoked: 0
+- connect_path_invoked: 0
+- post_connect_serverinfo_path_invoked: 0
+- signon_serverinfo_path_invoked: 0
+- normal_host_behavior_changed: 0
+No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. Public/LAN exposure, connect, post-connect serverinfo, signon serverinfo, auth, netchan, resources, baselines, and client admission remain outside this diagnostic wrapper boundary.
+Recommended next prompt:
+HL-CL-20260504-296-dedicated-goldsrc-hlds-query-info-wrapper-release-boundary-summary
+Recommended next task:
+summarize the release boundary for the diagnostic query/info regression wrapper while preserving real-client, public/LAN, connect, post-connect, signon, auth, netchan, resources, and admission blockers
