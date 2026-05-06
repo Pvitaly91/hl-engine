@@ -3960,6 +3960,13 @@ struct EngineShimState
     std::string
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
             "happy";
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap;
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeSummary
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario =
+            "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4903,6 +4910,12 @@ std::string BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
         summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
+        summary);
+std::string BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary&
+        summary);
+std::string BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeSummary&
         summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
@@ -25758,6 +25771,89 @@ std::string BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSm
 {
     return BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessValue(
         "hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe",
+        summary);
+}
+
+template <typename Summary>
+std::string BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapValue(
+    std::string_view prefix,
+    const Summary& summary)
+{
+    return BuildHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessValue(
+        prefix,
+        summary)
+        + ", smoke_swap_probe_enabled="
+        + std::string(summary.smoke_swap_probe_enabled ? "1" : "0")
+        + ", smoke_swap_disabled_by_default="
+        + std::string(summary.smoke_swap_disabled_by_default ? "1" : "0")
+        + ", contract_backed_serverinfo_enabled="
+        + std::string(summary.contract_backed_serverinfo_enabled ? "1" : "0")
+        + ", serverinfo_diagnostic_surface_enabled="
+        + std::string(summary.serverinfo_diagnostic_surface_enabled ? "1" : "0")
+        + ", existing_serverinfo_path_preserved="
+        + std::string(summary.existing_serverinfo_path_preserved ? "1" : "0")
+        + ", old_skeleton_serverinfo_response_used="
+        + std::string(summary.old_skeleton_serverinfo_response_used ? "1" : "0")
+        + ", contract_backed_response_selected="
+        + std::string(summary.contract_backed_response_selected ? "1" : "0")
+        + ", client_serverinfo_contract_backed="
+        + std::string(summary.client_serverinfo_contract_backed ? "1" : "0")
+        + ", fixture_validator_invoked="
+        + std::string(summary.fixture_validator_invoked ? "1" : "0")
+        + ", fixture_validation_passed="
+        + std::string(summary.fixture_validation_passed ? "1" : "0")
+        + ", fixture_contract_loaded="
+        + std::string(summary.fixture_contract_loaded ? "1" : "0")
+        + ", fixture_root=" + summary.fixture_root
+        + ", fixture_files_loaded=" + std::to_string(summary.fixture_files_loaded)
+        + ", builder_parser_invoked="
+        + std::string(summary.builder_parser_invoked ? "1" : "0")
+        + ", build_attempted=" + std::string(summary.build_attempted ? "1" : "0")
+        + ", build_succeeded=" + std::string(summary.build_succeeded ? "1" : "0")
+        + ", parse_attempted=" + std::string(summary.parse_attempted ? "1" : "0")
+        + ", parse_succeeded=" + std::string(summary.parse_succeeded ? "1" : "0")
+        + ", roundtrip_validation_passed="
+        + std::string(summary.roundtrip_validation_passed ? "1" : "0")
+        + ", selected_fixture_id=" + summary.selected_fixture_id
+        + ", selected_fixture_family=" + summary.selected_fixture_family
+        + ", selected_fixture_stage=" + summary.selected_fixture_stage
+        + ", selected_fixture_compatibility_claim="
+        + summary.selected_fixture_compatibility_claim
+        + ", diagnostic_preview_builder_complete="
+        + std::string(summary.diagnostic_preview_builder_complete ? "1" : "0")
+        + ", byte_level_builder_complete="
+        + std::string(summary.byte_level_builder_complete ? "1" : "0")
+        + ", real_wire_builder_complete="
+        + std::string(summary.real_wire_builder_complete ? "1" : "0")
+        + ", unresolved_fixture_build_attempted="
+        + std::string(summary.unresolved_fixture_build_attempted ? "1" : "0")
+        + ", unresolved_fixture_rejected="
+        + std::string(summary.unresolved_fixture_rejected ? "1" : "0")
+        + ", invalid_fixture_build_attempted="
+        + std::string(summary.invalid_fixture_build_attempted ? "1" : "0")
+        + ", invalid_fixture_rejected="
+        + std::string(summary.invalid_fixture_rejected ? "1" : "0")
+        + ", compatibility_claim_escalation_detected="
+        + std::string(summary.compatibility_claim_escalation_detected ? "1" : "0")
+        + ", real_compatibility_claims_count="
+        + std::to_string(summary.real_compatibility_claims_count)
+        + ", real_client_smoke_allowed_now="
+        + std::string(summary.real_client_smoke_allowed_now ? "1" : "0");
+}
+
+std::string BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary& summary)
+{
+    return BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapValue(
+        "hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap",
+        summary);
+}
+
+std::string BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeSummary& summary)
+{
+    return BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapValue(
+        "hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe",
         summary);
 }
 
@@ -57489,6 +57585,22 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
                     summary
                         .hlds_serverinfo_contract_backed_diagnostic_path_integration));
+        }
+        if (summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapLine(
+                    summary
+                        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap));
+        }
+        if (summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeLine(
+                    summary
+                        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -152105,6 +152217,9 @@ void ApplyHldsConnectionlessDiagnosticLifecycleAcceptanceResult(
 }
 
 constexpr int kHldsProductionLoopbackSocketPumpMaxDatagramsPerStep = 4;
+constexpr std::string_view kHldsDiagnosticServerinfoPreviewText =
+    "serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire"
+    " game=valve maxplayers=4 slot=diagnostic-client-slot-1";
 constexpr std::string_view kHldsProductionLoopbackSocketPumpNextPrompt =
     "HL-CL-20260504-274-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-integration-inventory";
 constexpr std::string_view kHldsProductionLoopbackSocketPumpNextTask =
@@ -152206,7 +152321,9 @@ std::string PumpHldsProductionLoopbackSocketPumpStep(
     SOCKET server_socket,
     HldsAddressScopedChallengeCache& cache,
     HldsGetchallengeDiagnosticResult* issued_challenge,
-    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticResult* result)
+    HldsProductionLoopbackConnectionlessSocketPumpDiagnosticResult* result,
+    std::string_view serverinfo_response_text =
+        kHldsDiagnosticServerinfoPreviewText)
 {
     if (result == nullptr)
     {
@@ -152360,9 +152477,7 @@ std::string PumpHldsProductionLoopbackSocketPumpStep(
     }
 
     const std::vector<unsigned char> response =
-        BuildConnectionlessTextPacket(
-            "serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire"
-            " game=valve maxplayers=4 slot=diagnostic-client-slot-1");
+        BuildConnectionlessTextPacket(serverinfo_response_text);
     if (!SendSocketPumpDiagnosticResponse(
             server_socket,
             client_address,
@@ -152374,7 +152489,7 @@ std::string PumpHldsProductionLoopbackSocketPumpStep(
         return result->last_reject_reason;
     }
     result->serverinfo_response_datagram_sent = true;
-    result->response_preview = serverinfo_result.response_preview;
+    result->response_preview = SafePacketPreview(response);
     return "<none>";
 }
 
@@ -152798,6 +152913,10 @@ constexpr std::string_view kHldsProductionLoopbackSocketPumpLocalhostClientNextP
     "HL-CL-20260504-278-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-real-client-smoke-planning-policy-review";
 constexpr std::string_view kHldsProductionLoopbackSocketPumpLocalhostClientNextTask =
     "plan real-client smoke policy and compatibility boundaries before invoking any real Steam Half-Life client";
+constexpr std::string_view kHldsServerinfoContractBackedLocalhostSmokeSwapNextPrompt =
+    "HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory";
+constexpr std::string_view kHldsServerinfoContractBackedLocalhostSmokeSwapNextTask =
+    "inventory byte-level post-connect and signon serverinfo evidence before any real wire builder or real client smoke";
 
 hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationProbeSummary
 BuildHldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary(
@@ -153124,7 +153243,9 @@ void RejectHldsProductionLoopbackFrameWiringBeforeSocket(
 template <typename Summary>
 bool RunHldsProductionLoopbackFrameWiringSocketCycle(
     std::string_view scenario,
-    Summary* summary)
+    Summary* summary,
+    std::string_view serverinfo_response_text =
+        kHldsDiagnosticServerinfoPreviewText)
 {
     if (summary == nullptr)
     {
@@ -153267,7 +153388,8 @@ bool RunHldsProductionLoopbackFrameWiringSocketCycle(
                 server_socket.Get(),
                 cache,
                 &issued_challenge,
-                &result);
+                &result,
+                serverinfo_response_text);
             if (reject_reason != "<none>")
             {
                 return reject_reason;
@@ -153633,7 +153755,9 @@ void RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
     std::string_view mode,
     std::string_view scenario,
     bool surface_enabled,
-    Summary* summary)
+    Summary* summary,
+    std::string_view serverinfo_response_text =
+        kHldsDiagnosticServerinfoPreviewText)
 {
     SeedHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiringSummary(
         mode,
@@ -153729,7 +153853,8 @@ void RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
             cycle_summary.scenario = "happy";
             if (!RunHldsProductionLoopbackFrameWiringSocketCycle(
                     "happy",
-                    &cycle_summary)
+                    &cycle_summary,
+                    serverinfo_response_text)
                 || !cycle_summary.sockets_closed
                 || cycle_summary.public_socket_opened)
             {
@@ -153775,7 +153900,8 @@ void RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
 
     const bool passed = RunHldsProductionLoopbackFrameWiringSocketCycle(
         summary->scenario,
-        summary);
+        summary,
+        serverinfo_response_text);
     summary->shutdown_cleanup_requested = true;
     summary->shutdown_cleanup_performed = summary->sockets_closed;
     if (summary->scenario == "gate_shutdown_cleanup")
@@ -214148,6 +214274,428 @@ void PerformHldsServerinfoContractBackedDiagnosticPathIntegration()
         probe.enabled);
 }
 
+void RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->compatibility_claim_level =
+        "diagnostic-contract-backed-localhost-smoke-swap-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->smoke_swap_disabled_by_default = true;
+    summary->existing_serverinfo_path_preserved = true;
+    summary->old_skeleton_serverinfo_response_used = false;
+    summary->real_client_smoke_allowed_now = false;
+    summary->real_steam_client_used = false;
+    summary->real_client_binary_invoked = false;
+    summary->public_socket_opened = false;
+    summary->client_public_socket_opened = false;
+    summary->server_public_socket_opened = false;
+    summary->normal_host_behavior_changed = false;
+    summary->steam_auth_not_implemented = true;
+    summary->netchan_not_started = true;
+    summary->reliable_channel_not_started = true;
+    summary->resource_baselines_not_sent = true;
+    summary->signon_state_not_entered = true;
+    summary->client_not_put_in_server = true;
+    summary->auth = "not_implemented";
+    summary->signon = "not_entered";
+    summary->gameplay_transport = "diagnostic_connectionless_only";
+    summary->recommended_next_prompt_id =
+        std::string(kHldsServerinfoContractBackedLocalhostSmokeSwapNextPrompt);
+    summary->recommended_next_task =
+        std::string(kHldsServerinfoContractBackedLocalhostSmokeSwapNextTask);
+}
+
+void CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
+        path,
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->contract_backed_serverinfo_enabled =
+        path.contract_backed_serverinfo_enabled;
+    summary->serverinfo_diagnostic_surface_enabled =
+        path.serverinfo_diagnostic_surface_enabled;
+    summary->existing_serverinfo_path_preserved =
+        path.existing_serverinfo_path_preserved;
+    summary->fixture_validator_invoked = path.fixture_validator_invoked;
+    summary->fixture_validation_passed = path.fixture_validation_passed;
+    summary->fixture_contract_loaded = path.fixture_contract_loaded;
+    summary->fixture_root = path.fixture_root;
+    summary->fixture_files_loaded = path.fixture_files_loaded;
+    summary->builder_parser_invoked = path.builder_parser_invoked;
+    summary->build_attempted = path.build_attempted;
+    summary->build_succeeded = path.build_succeeded;
+    summary->parse_attempted = path.parse_attempted;
+    summary->parse_succeeded = path.parse_succeeded;
+    summary->roundtrip_validation_passed = path.roundtrip_validation_passed;
+    summary->selected_fixture_id = path.selected_fixture_id;
+    summary->selected_fixture_family = path.selected_fixture_family;
+    summary->selected_fixture_stage = path.selected_fixture_stage;
+    summary->selected_fixture_compatibility_claim =
+        path.selected_fixture_compatibility_claim;
+    summary->diagnostic_preview_builder_complete =
+        path.diagnostic_preview_builder_complete;
+    summary->byte_level_builder_complete = path.byte_level_builder_complete;
+    summary->real_wire_builder_complete = path.real_wire_builder_complete;
+    summary->unresolved_fixture_build_attempted =
+        path.unresolved_fixture_build_attempted;
+    summary->unresolved_fixture_rejected = path.unresolved_fixture_rejected;
+    summary->invalid_fixture_build_attempted =
+        path.invalid_fixture_build_attempted;
+    summary->invalid_fixture_rejected = path.invalid_fixture_rejected;
+    summary->compatibility_claim_escalation_detected =
+        path.compatibility_claim_escalation_detected;
+    summary->real_compatibility_claims_count =
+        path.real_compatibility_claims_count;
+    summary->connect_diagnostic_ready = path.connect_diagnostic_ready;
+    summary->serverinfo_diagnostic_ready = path.serverinfo_diagnostic_ready;
+    summary->serverinfo_response_ready = path.serverinfo_response_ready;
+    summary->protocol_version_present = path.protocol_version_present;
+    summary->protocol_version_accepted = path.protocol_version_accepted;
+}
+
+void RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary*
+        summary,
+    std::string reject_reason,
+    std::string detail)
+{
+    RejectHldsProductionLoopbackLocalhostClientBeforeSocket(
+        summary,
+        std::move(reject_reason),
+        std::move(detail));
+    RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(summary);
+}
+
+void RunHldsServerinfoContractBackedLocalhostSmokeSwapWithContractResponse(
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary&
+        registration,
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
+        path,
+    std::string_view mode,
+    std::string_view scenario,
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    const std::string frame_scenario =
+        scenario == "gate_shutdown_cleanup" ? "happy" : std::string(scenario);
+    RunHldsProductionLoopbackConnectionlessSocketPumpDiagnosticFrameWiring(
+        registration,
+        mode,
+        frame_scenario,
+        true,
+        summary,
+        path.build_output_safe_preview);
+    summary->scenario = std::string(scenario);
+    summary->localhost_client_harness_surface_enabled = true;
+    summary->localhost_client_harness_enabled = true;
+    MapHldsProductionLoopbackLocalhostClientObservedFields(summary);
+    const bool socket_serverinfo_ready = summary->serverinfo_response_ready;
+    const bool socket_serverinfo_received =
+        summary->client_serverinfo_response_received;
+    const bool socket_serverinfo_shape_valid =
+        summary->client_serverinfo_shape_valid;
+    RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(summary);
+    CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(path, summary);
+    summary->serverinfo_response_ready =
+        path.serverinfo_response_ready
+        && socket_serverinfo_ready
+        && socket_serverinfo_received;
+    summary->smoke_swap_probe_enabled = true;
+    summary->contract_backed_serverinfo_enabled = true;
+    summary->serverinfo_diagnostic_surface_enabled = true;
+    summary->contract_backed_response_selected =
+        summary->client_serverinfo_response_received
+        && path.serverinfo_response_ready;
+    summary->client_serverinfo_contract_backed =
+        summary->contract_backed_response_selected
+        && socket_serverinfo_shape_valid;
+    summary->client_serverinfo_response_received = socket_serverinfo_received;
+    summary->client_serverinfo_shape_valid = socket_serverinfo_shape_valid;
+    summary->old_skeleton_serverinfo_response_used = false;
+    summary->response_bytes_or_text_safe_preview =
+        summary->client_serverinfo_contract_backed
+        ? path.build_output_safe_preview
+        : summary->response_bytes_or_text_safe_preview;
+    if (scenario == "gate_shutdown_cleanup")
+    {
+        summary->shutdown_cleanup_requested = true;
+        summary->shutdown_cleanup_performed =
+            summary->client_socket_closed
+            && summary->server_sockets_closed
+            && summary->sockets_closed;
+        summary->frame_pump_enabled = false;
+        summary->socket_pump_started = false;
+        summary->accepted = summary->shutdown_cleanup_performed ? 1 : 0;
+        summary->rejected = summary->accepted ? 0 : 1;
+        summary->last_reject_reason =
+            summary->accepted ? "<none>" : "shutdown_cleanup_failed";
+    }
+    if (summary->accepted == 1)
+    {
+        summary->detail =
+            "diagnostic localhost UDP client received a contract-backed diagnostic serverinfo preview through the smoke-swap path";
+    }
+}
+
+hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+RunHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap(
+    const hl::filesystem::FileSystem& file_system,
+    const hl::game_api::HldsProductionLoopbackConnectionlessSocketPumpLifecycleRegistrationSummary&
+        registration,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+        summary;
+    SeedHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary(
+        registration,
+        mode,
+        scenario,
+        probe_enabled,
+        &summary);
+    RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(&summary);
+    summary.smoke_swap_probe_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.contract_backed_serverinfo_enabled =
+        summary.smoke_swap_probe_enabled
+        && scenario != "gate_contract_path_required";
+    summary.serverinfo_diagnostic_surface_enabled =
+        scenario != "gate_disabled_by_default";
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        summary.smoke_swap_probe_enabled = false;
+        summary.localhost_client_harness_enabled = false;
+        summary.contract_backed_serverinfo_enabled = false;
+        summary.diagnostic_client_used = false;
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "contract_backed_localhost_smoke_swap_disabled",
+            "contract-backed localhost smoke-swap stayed disabled without explicit diagnostic probe enablement");
+        return summary;
+    }
+
+    if (scenario == "gate_smoke_harness_required")
+    {
+        const auto path = RunHldsServerinfoContractBackedDiagnosticPathIntegration(
+            file_system,
+            mode,
+            "happy",
+            true);
+        CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(path, &summary);
+        summary.localhost_client_harness_enabled = false;
+        summary.diagnostic_client_used = false;
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "localhost_client_smoke_harness_required",
+            "contract-backed serverinfo path was available but localhost client smoke harness was not enabled");
+        CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(path, &summary);
+        summary.contract_backed_serverinfo_enabled = true;
+        return summary;
+    }
+
+    if (scenario == "gate_contract_path_required")
+    {
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = false;
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "contract_backed_serverinfo_path_required",
+            "localhost smoke harness was available but contract-backed serverinfo path was not enabled");
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = false;
+        return summary;
+    }
+
+    if (scenario == "gate_validator_required")
+    {
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "fixture_validator_required",
+            "smoke-swap refused contract-backed response without fixture validation");
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = true;
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        summary.bind_policy = "public_socket_blocked";
+        summary.client_bind_address_requested = "0.0.0.0";
+        summary.client_target_address = "0.0.0.0";
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "public_socket_blocked",
+            "smoke-swap blocked public socket policy before opening any client or server socket");
+        summary.contract_backed_serverinfo_enabled = true;
+        return summary;
+    }
+
+    if (scenario == "gate_non_loopback_client_denied")
+    {
+        summary.bind_policy = "loopback_only_reject_non_loopback";
+        summary.client_bind_address_requested = "0.0.0.0";
+        summary.client_target_address = "0.0.0.0";
+        summary.loopback_policy_enforced = true;
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            "non_loopback_client_denied",
+            "smoke-swap denied non-loopback diagnostic client policy before socket open");
+        summary.contract_backed_serverinfo_enabled = true;
+        summary.loopback_policy_enforced = true;
+        return summary;
+    }
+
+    if (scenario == "gate_client_timeout_bounded")
+    {
+        RunHldsProductionLoopbackLocalhostClientTimeoutGate(&summary);
+        RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(&summary);
+        summary.smoke_swap_probe_enabled = true;
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = true;
+        summary.serverinfo_diagnostic_surface_enabled = true;
+        summary.client_serverinfo_contract_backed = false;
+        summary.contract_backed_response_selected = false;
+        summary.detail =
+            "smoke-swap client wait terminated on bounded timeout before any contract-backed serverinfo response";
+        return summary;
+    }
+
+    if (scenario == "gate_wrong_challenge"
+        || scenario == "gate_wrong_protocol"
+        || scenario == "gate_unsafe_userinfo")
+    {
+        RunHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness(
+            registration,
+            mode,
+            scenario,
+            true,
+            &summary);
+        RestoreHldsServerinfoContractBackedLocalhostSmokeSwapFields(&summary);
+        summary.smoke_swap_probe_enabled = true;
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = true;
+        summary.serverinfo_diagnostic_surface_enabled = true;
+        summary.contract_backed_response_selected = false;
+        summary.client_serverinfo_contract_backed = false;
+        summary.builder_parser_invoked = false;
+        summary.detail =
+            "smoke-swap preserved localhost client rejection gate before contract-backed serverinfo response";
+        return summary;
+    }
+
+    const std::string path_scenario =
+        scenario == "gate_builder_roundtrip_required"
+            ? "gate_builder_roundtrip_required"
+        : scenario == "gate_unresolved_fixture_rejected"
+            ? "gate_unresolved_fixture_rejected"
+        : scenario == "gate_invalid_fixture_rejected"
+            ? "gate_invalid_fixture_rejected"
+        : scenario == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+            : "happy";
+    const auto path = RunHldsServerinfoContractBackedDiagnosticPathIntegration(
+        file_system,
+        mode,
+        path_scenario,
+        true);
+    CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(path, &summary);
+
+    if (scenario == "gate_builder_roundtrip_required"
+        || scenario == "gate_unresolved_fixture_rejected"
+        || scenario == "gate_invalid_fixture_rejected"
+        || scenario == "gate_real_compatibility_claim_rejected")
+    {
+        RejectHldsServerinfoContractBackedLocalhostSmokeSwapBeforeSocket(
+            &summary,
+            path.last_reject_reason,
+            "smoke-swap blocked localhost response because contract-backed serverinfo path did not produce a valid roundtrip response");
+        CopyHldsServerinfoPathIntegrationToLocalhostSmokeSwap(path, &summary);
+        summary.contract_backed_serverinfo_enabled = true;
+        return summary;
+    }
+
+    if (scenario == "gate_no_real_client_used")
+    {
+        summary.accepted = 1;
+        summary.rejected = 0;
+        summary.last_reject_reason = "<none>";
+        summary.diagnostic_client_used = true;
+        summary.no_real_client_gate_passed =
+            !summary.real_steam_client_used && !summary.real_client_binary_invoked;
+        summary.localhost_client_harness_enabled = true;
+        summary.contract_backed_serverinfo_enabled = true;
+        summary.detail =
+            "smoke-swap safety gate used only the diagnostic client harness and invoked no real client binary";
+        return summary;
+    }
+
+    RunHldsServerinfoContractBackedLocalhostSmokeSwapWithContractResponse(
+        registration,
+        path,
+        mode,
+        scenario,
+        &summary);
+    return summary;
+}
+
+void PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& smoke_swap =
+        state.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap;
+    auto& smoke_swap_probe =
+        state
+            .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe;
+    const auto& registration =
+        state.hlds_production_loopback_connectionless_socket_pump_lifecycle_registration_stub;
+    if (!state.server_state.dedicated || !smoke_swap.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+            .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario;
+
+    smoke_swap = RunHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap(
+        state.file_system,
+        registration,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        smoke_swap.enabled);
+
+    if (!smoke_swap_probe.enabled)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary&>(
+        smoke_swap_probe) = smoke_swap;
+}
+
 void PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -245830,6 +246378,9 @@ void PopulateBootstrapSummary(
     summary.hlds_serverinfo_fixture_contract_validator_diagnostic_probe = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
+    summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
+    summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
+        {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -246949,6 +247500,12 @@ void PopulateBootstrapSummary(
             state.hlds_serverinfo_contract_backed_diagnostic_builder_parser;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
+        summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
+            state.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap;
+        summary
+            .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
+            state
+                .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -253415,6 +253972,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsServerinfoFixtureContractValidatorDiagnosticProbe();
     PerformHldsServerinfoContractBackedDiagnosticBuilderParser();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
+    PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
@@ -255358,6 +255916,11 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
         {};
+    impl_->summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
+        {};
+    impl_->summary
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
+        {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -256044,6 +256607,89 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                     .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
                 == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
+        {};
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap
+        .enabled =
+        options
+            .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_enabled;
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
+        {};
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe
+        .enabled =
+        options
+            .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_enabled;
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario =
+        options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_smoke_harness_required"
+            ? "gate_smoke_harness_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_contract_path_required"
+            ? "gate_contract_path_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_validator_required"
+            ? "gate_validator_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_builder_roundtrip_required"
+            ? "gate_builder_roundtrip_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_client_timeout_bounded"
+            ? "gate_client_timeout_bounded"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_wrong_challenge"
+            ? "gate_wrong_challenge"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_wrong_protocol"
+            ? "gate_wrong_protocol"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_unsafe_userinfo"
+            ? "gate_unsafe_userinfo"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_unresolved_fixture_rejected"
+            ? "gate_unresolved_fixture_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_invalid_fixture_rejected"
+            ? "gate_invalid_fixture_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_non_loopback_client_denied"
+            ? "gate_non_loopback_client_denied"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario
+                == "gate_shutdown_cleanup"
+            ? "gate_shutdown_cleanup"
             : "happy";
     impl_->shim_state.dedicated_activation_surface = {};
     impl_->shim_state.dedicated_activation_surface.enabled = options.activation_surface_enabled;
