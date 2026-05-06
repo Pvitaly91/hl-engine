@@ -14,6 +14,11 @@ scripts/run_hlds_query_info_regression.ps1
 Default behavior is diagnostic-only. The wrapper emits a command plan, command
 log, and machine-readable summary under its output directory.
 
+Operator docs:
+
+- `docs/diagnostic/hlds/query_info_regression_operator_checklist.md`
+- `docs/diagnostic/hlds/query_info_regression_quickstart.md`
+
 ## Common Usage
 
 Generate a command plan without running hlhost:
