@@ -3970,6 +3970,12 @@ struct EngineShimState
     std::string
         hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
             "happy";
+    hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+            hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
+    std::string
+        hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
+            "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -4932,6 +4938,11 @@ std::string BuildHldsConnectionlessQueryInfoByteLevelBuilderParserLine(
 std::string BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
     const hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary&
         summary);
+std::string
+BuildHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapLine(
+    const hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary&
+            summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
         summary);
@@ -26421,6 +26432,63 @@ std::string BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
         + std::string(summary.query_info_byte_builder_invoked ? "1" : "0")
         + ", query_info_response_ready="
         + std::string(summary.query_info_response_ready ? "1" : "0");
+}
+
+std::string
+BuildHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapLine(
+    const hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary&
+            summary)
+{
+    const std::string base =
+        BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(summary);
+    const std::size_t fields_begin = base.find(": ");
+    const std::string base_fields = fields_begin == std::string::npos
+        ? base
+        : base.substr(fields_begin + 2);
+    return "hlds_connectionless_query_info_byte_level_loopback_query_response_swap: "
+        + base_fields
+        + ", loopback_query_info_swap_enabled="
+        + std::string(summary.loopback_query_info_swap_enabled ? "1" : "0")
+        + ", loopback_query_info_swap_disabled_by_default="
+        + std::string(
+            summary.loopback_query_info_swap_disabled_by_default ? "1" : "0")
+        + ", query_info_path_integration_invoked="
+        + std::string(summary.query_info_path_integration_invoked ? "1" : "0")
+        + ", query_info_request_datagram_received="
+        + std::string(summary.query_info_request_datagram_received ? "1" : "0")
+        + ", query_info_response_datagram_sent="
+        + std::string(summary.query_info_response_datagram_sent ? "1" : "0")
+        + ", client_query_info_request_sent="
+        + std::string(summary.client_query_info_request_sent ? "1" : "0")
+        + ", client_query_info_response_received="
+        + std::string(summary.client_query_info_response_received ? "1" : "0")
+        + ", client_query_info_response_shape_valid="
+        + std::string(
+            summary.client_query_info_response_shape_valid ? "1" : "0")
+        + ", diagnostic_client_used="
+        + std::string(summary.diagnostic_client_used ? "1" : "0")
+        + ", client_public_socket_opened="
+        + std::string(summary.client_public_socket_opened ? "1" : "0")
+        + ", server_public_socket_opened="
+        + std::string(summary.server_public_socket_opened ? "1" : "0")
+        + ", sockets_closed=" + std::string(summary.sockets_closed ? "1" : "0")
+        + ", client_socket_closed="
+        + std::string(summary.client_socket_closed ? "1" : "0")
+        + ", server_sockets_closed="
+        + std::string(summary.server_sockets_closed ? "1" : "0")
+        + ", loopback_policy_enforced="
+        + std::string(summary.loopback_policy_enforced ? "1" : "0")
+        + ", client_wait_started="
+        + std::string(summary.client_wait_started ? "1" : "0")
+        + ", client_timeout_bounded="
+        + std::string(summary.client_timeout_bounded ? "1" : "0")
+        + ", client_timeout_ticks="
+        + std::to_string(summary.client_timeout_ticks)
+        + ", shutdown_cleanup_requested="
+        + std::string(summary.shutdown_cleanup_requested ? "1" : "0")
+        + ", shutdown_cleanup_performed="
+        + std::string(summary.shutdown_cleanup_performed ? "1" : "0");
 }
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
@@ -57939,6 +58007,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsConnectionlessQueryInfoByteLevelPathIntegrationLine(
                     summary
                         .hlds_connectionless_query_info_byte_level_diagnostic_path_integration));
+        }
+        if (summary
+                .hlds_connectionless_query_info_byte_level_loopback_query_response_swap
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapLine(
+                    summary
+                        .hlds_connectionless_query_info_byte_level_loopback_query_response_swap));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -215650,6 +215728,523 @@ void PerformHldsConnectionlessQueryInfoByteLevelPathIntegration()
         probe.enabled);
 }
 
+void RejectHldsConnectionlessQueryInfoLoopbackSwap(
+    hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary*
+            summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+    summary->query_info_response_datagram_sent = false;
+    summary->query_info_response_ready = false;
+    summary->client_query_info_response_received = false;
+    summary->client_query_info_response_shape_valid = false;
+}
+
+void SeedHldsConnectionlessQueryInfoLoopbackSwapSummary(
+    hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary*
+            summary,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->enabled = true;
+    summary->mode = std::string(mode);
+    summary->scenario = std::string(scenario);
+    summary->compatibility_claim_level =
+        "diagnostic-connectionless-query-info-byte-level-loopback-response-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->diagnostic_only = true;
+    summary->loopback_query_info_swap_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary->loopback_query_info_swap_disabled_by_default = true;
+    summary->fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    summary->connectionless_query_not_post_connect = true;
+    summary->connectionless_query_not_signon = true;
+    summary->diagnostic_preview_not_byte_evidence = true;
+    summary->post_connect_byte_evidence_sufficient = false;
+    summary->signon_time_byte_evidence_sufficient = false;
+    summary->unresolved_real_stage_not_buildable = true;
+    summary->byte_level_builder_allowed_next_for_real_stages = false;
+    summary->real_post_connect_builder_complete = false;
+    summary->real_signon_builder_complete = false;
+    summary->real_wire_builder_complete = false;
+    summary->real_client_smoke_allowed_now = false;
+    summary->real_steam_client_used = false;
+    summary->real_client_binary_invoked = false;
+    summary->no_real_client_gate_passed = false;
+    summary->public_socket_opened = false;
+    summary->client_public_socket_opened = false;
+    summary->server_public_socket_opened = false;
+    summary->loopback_udp_socket_opened = false;
+    summary->socket_open_attempted = false;
+    summary->sockets_closed = false;
+    summary->client_socket_closed = false;
+    summary->server_sockets_closed = false;
+    summary->loopback_policy_enforced = true;
+    summary->normal_host_behavior_changed = false;
+    summary->steam_auth_not_implemented = true;
+    summary->netchan_not_started = true;
+    summary->reliable_channel_not_started = true;
+    summary->resource_baselines_not_sent = true;
+    summary->signon_state_not_entered = true;
+    summary->client_not_put_in_server = true;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-290-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-policy-review";
+    summary->recommended_next_task =
+        "review the diagnostic connectionless query/info byte-level loopback response policy before any real query client or public socket exposure while post-connect and signon remain blocked";
+    summary->auth = "not_implemented";
+    summary->signon = "not_entered";
+    summary->gameplay_transport = "not_started";
+}
+
+void CopyHldsConnectionlessQueryInfoPathIntegrationToLoopbackSwap(
+    const hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary&
+        path,
+    hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary*
+            summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary&>(
+        *summary) = path;
+    summary->compatibility_claim_level =
+        "diagnostic-connectionless-query-info-byte-level-loopback-response-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->query_info_path_integration_invoked = true;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-290-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-policy-review";
+    summary->recommended_next_task =
+        "review the diagnostic connectionless query/info byte-level loopback response policy before any real query client or public socket exposure while post-connect and signon remain blocked";
+}
+
+std::string HldsConnectionlessQueryInfoLoopbackPathScenario(
+    std::string_view scenario)
+{
+    if (scenario == "gate_validator_required"
+        || scenario == "gate_evidence_gap_guard_required"
+        || scenario == "gate_builder_roundtrip_required"
+        || scenario == "gate_wrong_command_or_query"
+        || scenario == "gate_bad_marker_or_header"
+        || scenario == "gate_wrong_opcode_or_tag"
+        || scenario == "gate_missing_required_field"
+        || scenario == "gate_unsafe_string"
+        || scenario == "gate_overlong_response"
+        || scenario == "gate_post_connect_stage_confusion_rejected"
+        || scenario == "gate_signon_stage_confusion_rejected"
+        || scenario == "gate_unresolved_post_connect_rejected"
+        || scenario == "gate_unresolved_signon_rejected"
+        || scenario == "gate_real_compatibility_claim_rejected"
+        || scenario == "gate_no_real_client_used")
+    {
+        return std::string(scenario);
+    }
+
+    return "happy";
+}
+
+hl::game_api::
+    HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+RunHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::
+        HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+            summary;
+    SeedHldsConnectionlessQueryInfoLoopbackSwapSummary(
+        &summary,
+        mode,
+        scenario,
+        probe_enabled);
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "connectionless_query_info_loopback_swap_disabled");
+        summary.detail =
+            "connectionless query/info loopback response swap stayed disabled without explicit diagnostic probe mode";
+        return summary;
+    }
+
+    if (scenario == "gate_query_info_path_required")
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "connectionless_query_info_path_required");
+        summary.detail =
+            "loopback query/info swap refused to run without the diagnostic query/info byte-level path integration";
+        return summary;
+    }
+
+    if (scenario == "gate_non_loopback_bind_denied")
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "non_loopback_bind_denied");
+        summary.loopback_policy_enforced = true;
+        summary.public_socket_opened = false;
+        summary.loopback_udp_socket_opened = false;
+        summary.socket_open_attempted = false;
+        summary.detail =
+            "loopback query/info swap rejected non-loopback bind policy before opening any socket";
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "public_socket_blocked");
+        summary.public_socket_opened = false;
+        summary.client_public_socket_opened = false;
+        summary.server_public_socket_opened = false;
+        summary.loopback_udp_socket_opened = false;
+        summary.socket_open_attempted = false;
+        summary.detail =
+            "loopback query/info swap rejected public socket behavior before opening any socket";
+        return summary;
+    }
+
+#if defined(_WIN32)
+    ScopedWinsockSession winsock;
+    if (!winsock.Start(&summary.detail))
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "winsock_start_failed");
+        return summary;
+    }
+
+    HldsConnectionlessLoopbackUdpDiagnosticResult udp_result;
+    ScopedUdpSocket server_socket;
+    ScopedUdpSocket client_socket;
+    int server_port = 0;
+    int client_port = 0;
+    summary.socket_open_attempted = true;
+    if (!BindLoopbackQuerySocket(
+            0,
+            &server_socket,
+            &server_port,
+            &summary.detail)
+        || !BindLoopbackQuerySocket(
+            0,
+            &client_socket,
+            &client_port,
+            &summary.detail))
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "loopback_socket_bind_failed");
+        summary.client_socket_closed = true;
+        summary.server_sockets_closed = true;
+        summary.sockets_closed = true;
+        return summary;
+    }
+
+    summary.loopback_udp_socket_opened = true;
+    summary.diagnostic_client_used = true;
+    summary.loopback_policy_enforced = true;
+    const auto close_sockets =
+        [&summary, &client_socket, &server_socket]()
+        {
+            client_socket.Close();
+            server_socket.Close();
+            summary.client_socket_closed = true;
+            summary.server_sockets_closed = true;
+            summary.sockets_closed = true;
+        };
+
+    std::vector<unsigned char> request = BuildGoldSrcInfoRequest();
+    if (scenario == "gate_bad_marker_or_header" && !request.empty())
+    {
+        request[0] = 0x00u;
+    }
+    else if (scenario == "gate_wrong_command_or_query" && request.size() >= 5)
+    {
+        request[4] = static_cast<unsigned char>('U');
+    }
+
+    const sockaddr_in server_address =
+        MakeLoopbackAddress(static_cast<unsigned short>(server_port));
+    if (!SendUdpDiagnosticDatagram(
+            client_socket.Get(),
+            server_address,
+            request,
+            &udp_result,
+            "loopback query/info client request"))
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "udp_send_failed");
+        close_sockets();
+        return summary;
+    }
+    summary.client_query_info_request_sent = true;
+
+    std::vector<unsigned char> received_request;
+    sockaddr_in client_address{};
+    int client_address_size = sizeof(client_address);
+    if (!ReceiveUdpDiagnosticDatagram(
+            server_socket.Get(),
+            &received_request,
+            &client_address,
+            &client_address_size,
+            &udp_result,
+            "loopback query/info server request"))
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            udp_result.last_reject_reason.empty()
+                ? "udp_receive_failed"
+                : udp_result.last_reject_reason);
+        close_sockets();
+        return summary;
+    }
+    summary.query_info_request_datagram_received = true;
+    summary.marker_or_header_valid =
+        received_request.size() >= 5
+        && received_request[0] == 0xFFu
+        && received_request[1] == 0xFFu
+        && received_request[2] == 0xFFu
+        && received_request[3] == 0xFFu;
+    summary.opcode_or_tag_valid =
+        IsGoldSrcInfoRequest(
+            received_request.data(),
+            static_cast<int>(received_request.size()));
+    summary.query_info_request_detected =
+        summary.marker_or_header_valid && summary.opcode_or_tag_valid;
+
+    const auto path = RunHldsConnectionlessQueryInfoByteLevelPathIntegration(
+        file_system,
+        mode,
+        HldsConnectionlessQueryInfoLoopbackPathScenario(scenario),
+        true);
+    CopyHldsConnectionlessQueryInfoPathIntegrationToLoopbackSwap(
+        path,
+        &summary);
+    summary.scenario = std::string(scenario);
+    summary.loopback_query_info_swap_enabled = true;
+    summary.loopback_query_info_swap_disabled_by_default = true;
+    summary.query_info_path_integration_invoked = true;
+    summary.query_info_request_datagram_received = true;
+    summary.client_query_info_request_sent = true;
+    summary.marker_or_header_valid =
+        received_request.size() >= 5
+        && received_request[0] == 0xFFu
+        && received_request[1] == 0xFFu
+        && received_request[2] == 0xFFu
+        && received_request[3] == 0xFFu;
+    summary.opcode_or_tag_valid =
+        IsGoldSrcInfoRequest(
+            received_request.data(),
+            static_cast<int>(received_request.size()));
+    summary.query_info_request_detected =
+        summary.marker_or_header_valid && summary.opcode_or_tag_valid;
+    summary.socket_open_attempted = true;
+    summary.loopback_udp_socket_opened = true;
+    summary.loopback_policy_enforced = true;
+    summary.diagnostic_client_used = true;
+    summary.public_socket_opened = false;
+    summary.client_public_socket_opened = false;
+    summary.server_public_socket_opened = false;
+    summary.client_socket_closed = false;
+    summary.server_sockets_closed = false;
+    summary.sockets_closed = false;
+    summary.real_steam_client_used = false;
+    summary.real_client_binary_invoked = false;
+
+    if (!summary.query_info_request_detected)
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            summary.marker_or_header_valid
+                ? "unsupported_connectionless_query_command"
+                : "connectionless_query_missing_marker_or_header");
+        summary.query_info_path_integration_invoked = false;
+        summary.query_info_byte_builder_invoked = false;
+        summary.detail =
+            "loopback query/info swap received a malformed query datagram and refused to route it to the byte builder path";
+        close_sockets();
+        return summary;
+    }
+
+    if (path.accepted != 1 || !summary.query_info_response_ready)
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            path.last_reject_reason.empty()
+                ? "connectionless_query_info_builder_roundtrip_required"
+                : path.last_reject_reason);
+        summary.detail =
+            "loopback query/info swap propagated diagnostic query/info path rejection; no response datagram was sent";
+        close_sockets();
+        return summary;
+    }
+
+    std::vector<unsigned char> response;
+    if (!TryDecodeUpperHex(summary.build_output_safe_hex_preview, &response)
+        || response.empty())
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "connectionless_query_info_builder_roundtrip_required");
+        summary.detail =
+            "loopback query/info swap could not decode byte builder safe hex preview; no response datagram was sent";
+        close_sockets();
+        return summary;
+    }
+
+    if (scenario == "gate_client_timeout_bounded")
+    {
+        summary.client_wait_started = true;
+        std::vector<unsigned char> dropped_response;
+        ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &dropped_response,
+            nullptr,
+            nullptr,
+            &udp_result,
+            "loopback query/info bounded timeout");
+        summary.client_timeout_bounded = true;
+        summary.client_timeout_ticks = 1;
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "client_timeout_bounded");
+        summary.detail =
+            "loopback query/info swap bounded the diagnostic client wait after response send was intentionally disabled";
+        close_sockets();
+        return summary;
+    }
+
+    if (!SendUdpDiagnosticDatagram(
+            server_socket.Get(),
+            client_address,
+            response,
+            &udp_result,
+            "loopback query/info server response"))
+    {
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "udp_send_failed");
+        close_sockets();
+        return summary;
+    }
+    summary.query_info_response_datagram_sent = true;
+
+    std::vector<unsigned char> client_response;
+    summary.client_wait_started = true;
+    if (!ReceiveUdpDiagnosticDatagram(
+            client_socket.Get(),
+            &client_response,
+            nullptr,
+            nullptr,
+            &udp_result,
+            "loopback query/info client response"))
+    {
+        summary.client_timeout_bounded = true;
+        summary.client_timeout_ticks = 1;
+        RejectHldsConnectionlessQueryInfoLoopbackSwap(
+            &summary,
+            "client_timeout_bounded");
+        close_sockets();
+        return summary;
+    }
+    summary.client_query_info_response_received = true;
+    summary.client_query_info_response_shape_valid =
+        client_response == response
+        && client_response.size() >= 5
+        && client_response[0] == 0xFFu
+        && client_response[1] == 0xFFu
+        && client_response[2] == 0xFFu
+        && client_response[3] == 0xFFu
+        && client_response[4] == static_cast<unsigned char>('m');
+
+    summary.accepted = summary.client_query_info_response_shape_valid ? 1 : 0;
+    summary.rejected = summary.client_query_info_response_shape_valid ? 0 : 1;
+    summary.last_reject_reason =
+        summary.client_query_info_response_shape_valid
+            ? "<none>"
+            : "connectionless_query_response_shape_invalid";
+    summary.no_real_client_gate_passed =
+        scenario == "gate_no_real_client_used"
+        && !summary.real_steam_client_used
+        && !summary.real_client_binary_invoked;
+    if (scenario == "gate_shutdown_cleanup")
+    {
+        summary.shutdown_cleanup_requested = true;
+    }
+    close_sockets();
+    summary.shutdown_cleanup_performed =
+        scenario == "gate_shutdown_cleanup"
+        && summary.client_socket_closed
+        && summary.server_sockets_closed
+        && summary.sockets_closed;
+    if (scenario == "gate_shutdown_cleanup")
+    {
+        summary.accepted = summary.shutdown_cleanup_performed ? 1 : 0;
+        summary.rejected = summary.shutdown_cleanup_performed ? 0 : 1;
+        summary.last_reject_reason =
+            summary.shutdown_cleanup_performed ? "<none>" : "shutdown_cleanup_failed";
+    }
+    summary.detail =
+        "loopback query/info swap sent a byte-level connectionless query/info diagnostic response over localhost only; post-connect and signon serverinfo remain blocked";
+    return summary;
+#else
+    RejectHldsConnectionlessQueryInfoLoopbackSwap(
+        &summary,
+        "loopback_udp_not_supported_on_this_platform");
+    summary.detail =
+        "loopback query/info swap has a Windows-only diagnostic UDP harness in this build";
+    return summary;
+#endif
+}
+
+void PerformHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe =
+        state
+            .hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+            .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario;
+
+    probe = RunHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
 void CopyHldsServerinfoBuilderParserToPathIntegration(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
         builder,
@@ -248051,6 +248646,9 @@ void PopulateBootstrapSummary(
     summary
         .hlds_connectionless_query_info_byte_level_diagnostic_path_integration =
         {};
+    summary
+        .hlds_connectionless_query_info_byte_level_loopback_query_response_swap =
+        {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -249180,6 +249778,10 @@ void PopulateBootstrapSummary(
             .hlds_connectionless_query_info_byte_level_diagnostic_path_integration =
             state
                 .hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
+        summary
+            .hlds_connectionless_query_info_byte_level_loopback_query_response_swap =
+            state
+                .hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -255656,6 +256258,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsServerinfoUnresolvedFixtureEvidenceGapGuard();
     PerformHldsConnectionlessQueryInfoByteLevelBuilderParser();
     PerformHldsConnectionlessQueryInfoByteLevelPathIntegration();
+    PerformHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -258395,6 +258998,69 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             ? "gate_no_real_client_used"
         : query_info_path_integration_scenario == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_loopback_query_response_swap =
+        {};
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_loopback_query_response_swap
+        .enabled =
+        options
+            .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_enabled;
+    const std::string& query_info_loopback_swap_scenario =
+        options
+            .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario;
+    impl_->shim_state
+        .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
+        query_info_loopback_swap_scenario == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : query_info_loopback_swap_scenario == "gate_query_info_path_required"
+            ? "gate_query_info_path_required"
+        : query_info_loopback_swap_scenario == "gate_validator_required"
+            ? "gate_validator_required"
+        : query_info_loopback_swap_scenario
+                == "gate_evidence_gap_guard_required"
+            ? "gate_evidence_gap_guard_required"
+        : query_info_loopback_swap_scenario
+                == "gate_builder_roundtrip_required"
+            ? "gate_builder_roundtrip_required"
+        : query_info_loopback_swap_scenario == "gate_wrong_command_or_query"
+            ? "gate_wrong_command_or_query"
+        : query_info_loopback_swap_scenario == "gate_bad_marker_or_header"
+            ? "gate_bad_marker_or_header"
+        : query_info_loopback_swap_scenario == "gate_wrong_opcode_or_tag"
+            ? "gate_wrong_opcode_or_tag"
+        : query_info_loopback_swap_scenario == "gate_missing_required_field"
+            ? "gate_missing_required_field"
+        : query_info_loopback_swap_scenario == "gate_unsafe_string"
+            ? "gate_unsafe_string"
+        : query_info_loopback_swap_scenario == "gate_overlong_response"
+            ? "gate_overlong_response"
+        : query_info_loopback_swap_scenario
+                == "gate_post_connect_stage_confusion_rejected"
+            ? "gate_post_connect_stage_confusion_rejected"
+        : query_info_loopback_swap_scenario
+                == "gate_signon_stage_confusion_rejected"
+            ? "gate_signon_stage_confusion_rejected"
+        : query_info_loopback_swap_scenario
+                == "gate_unresolved_post_connect_rejected"
+            ? "gate_unresolved_post_connect_rejected"
+        : query_info_loopback_swap_scenario
+                == "gate_unresolved_signon_rejected"
+            ? "gate_unresolved_signon_rejected"
+        : query_info_loopback_swap_scenario
+                == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : query_info_loopback_swap_scenario == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : query_info_loopback_swap_scenario == "gate_non_loopback_bind_denied"
+            ? "gate_non_loopback_bind_denied"
+        : query_info_loopback_swap_scenario == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+        : query_info_loopback_swap_scenario == "gate_client_timeout_bounded"
+            ? "gate_client_timeout_bounded"
+        : query_info_loopback_swap_scenario == "gate_shutdown_cleanup"
+            ? "gate_shutdown_cleanup"
             : "happy";
     impl_->shim_state
         .hlds_serverinfo_contract_backed_diagnostic_path_integration =
