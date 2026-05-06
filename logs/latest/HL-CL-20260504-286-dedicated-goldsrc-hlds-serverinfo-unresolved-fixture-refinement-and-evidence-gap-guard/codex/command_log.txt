@@ -1,0 +1,31 @@
+# Command Log
+
+Prompt: HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard
+
+- git status --short
+- git branch --show-current
+- git rev-parse HEAD
+- descendant gates against all required checkpoint commits: pass
+- repo search fallback with Select-String for fixture/serverinfo/unresolved/evidence gap/builder/parser/validator/connectionless/post-connect/signon/real client/Steam/socket terms
+- fixture JSON/schema validation with ConvertFrom-Json: pass
+- git diff --check for prompt source/data files: pass, CRLF warnings only
+- cmake --build build32 --target hlhost --config Debug: not available, cmake missing from PATH
+- MSBuild Rebuild build32/host/hlhost.vcxproj Debug Win32: timed out in wrapper, process completed and produced executable
+- MSBuild Build build32/host/hlhost.vcxproj Debug Win32: pass, 0 warnings, 0 errors
+- runtime proof happy: pass
+- runtime proof gate_disabled_by_default: pass
+- runtime proof gate_connectionless_query_promoted_to_post_connect: pass
+- runtime proof gate_connectionless_query_promoted_to_signon: pass
+- runtime proof gate_diagnostic_preview_promoted_to_real_wire: pass
+- runtime proof gate_unresolved_post_connect_build_attempt: pass
+- runtime proof gate_unresolved_signon_build_attempt: pass
+- runtime proof gate_real_compatibility_claim_escalation: pass
+- runtime proof gate_byte_level_builder_blocked: pass
+- runtime proof gate_no_real_client_used: pass
+- runtime proof gate_public_socket_blocked: pass
+- prompt 281 validator happy rerun: pass
+- prompt 282 builder/parser happy rerun: pass
+- prompt 282 builder/parser unresolved fixture gate rerun: pass
+- git add prompt source/data files
+- git commit -m "Add serverinfo unresolved evidence gap guard": 370babe012f568ba14c6a40df6e17df45cc3ebcb
+- generated prompt 286 report artifacts
