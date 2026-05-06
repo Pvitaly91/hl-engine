@@ -105,6 +105,28 @@ bool IsHldsConnectionlessQueryInfoLoopbackSwapScenario(
         || normalized == L"gate_shutdown_cleanup";
 }
 
+bool IsHldsQueryInfoLoopbackQueryClientSmokeScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked"
+        || normalized == L"gate_lan_socket_blocked"
+        || normalized == L"gate_non_loopback_client_denied"
+        || normalized == L"gate_wrong_query_command"
+        || normalized == L"gate_bad_marker_or_header"
+        || normalized == L"gate_wrong_opcode_or_tag"
+        || normalized == L"gate_response_timeout_bounded"
+        || normalized == L"gate_connect_attempt_blocked"
+        || normalized == L"gate_post_connect_stage_confusion_rejected"
+        || normalized == L"gate_signon_stage_confusion_rejected"
+        || normalized == L"gate_unresolved_post_connect_rejected"
+        || normalized == L"gate_unresolved_signon_rejected"
+        || normalized == L"gate_real_compatibility_claim_rejected"
+        || normalized == L"gate_shutdown_cleanup";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -2913,6 +2935,107 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
+                == L"--hlds-query-info-byte-level-loopback-query-client-smoke"
+            || argument
+                == L"--hlds-query-info-byte-level-loopback-query-client-smoke-probe")
+        {
+            result.options
+                .hlds_query_info_byte_level_loopback_query_client_smoke_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_loopback_query_client_smoke_prefix =
+                L"--hlds-query-info-byte-level-loopback-query-client-smoke=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_loopback_query_client_smoke_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_query_info_loopback_query_client_smoke_prefix
+                            .size()),
+                    &result.options
+                         .hlds_query_info_byte_level_loopback_query_client_smoke_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-query-info-byte-level-loopback-query-client-smoke"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_loopback_query_client_smoke_probe_prefix =
+                L"--hlds-query-info-byte-level-loopback-query-client-smoke-probe=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_loopback_query_client_smoke_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_query_info_loopback_query_client_smoke_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_query_info_byte_level_loopback_query_client_smoke_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-query-info-byte-level-loopback-query-client-smoke-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-query-info-byte-level-loopback-query-client-smoke-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-query-info-byte-level-loopback-query-client-smoke-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQueryInfoLoopbackQueryClientSmokeScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-query-info-byte-level-loopback-query-client-smoke-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_query_info_byte_level_loopback_query_client_smoke_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_loopback_query_client_smoke_probe_scenario_prefix =
+                L"--hlds-query-info-byte-level-loopback-query-client-smoke-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_loopback_query_client_smoke_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_query_info_loopback_query_client_smoke_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQueryInfoLoopbackQueryClientSmokeScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-query-info-byte-level-loopback-query-client-smoke-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_query_info_byte_level_loopback_query_client_smoke_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
