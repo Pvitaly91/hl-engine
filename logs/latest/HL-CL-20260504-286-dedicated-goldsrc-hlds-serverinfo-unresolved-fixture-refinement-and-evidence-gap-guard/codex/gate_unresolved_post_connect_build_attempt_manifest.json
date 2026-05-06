@@ -1,0 +1,24 @@
+{
+  "prompt_id": "HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard",
+  "scenario": "gate_unresolved_post_connect_build_attempt",
+  "proof_status": "pass",
+  "runtime_summary_log": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard\\runtime\\hlhost_20260506_172529_148_pid20180__p286-06_summary.log",
+  "runtime_part_log": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard\\runtime\\hlhost_20260506_172529_148_pid20180__p286-06_part01.log",
+  "summary_artifact": "logs\\latest\\HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard\\codex\\gate_unresolved_post_connect_build_attempt_summary.json",
+  "no_real_client": {
+    "real_steam_client_used": "0",
+    "real_client_binary_invoked": "0"
+  },
+  "socket_policy": {
+    "public_socket_opened": "0",
+    "loopback_udp_socket_opened": "0",
+    "socket_open_attempted": "0"
+  },
+  "evidence_gap_guard": {
+    "connectionless_query_not_post_connect": "1",
+    "connectionless_query_not_signon": "1",
+    "diagnostic_preview_not_byte_evidence": "1",
+    "unresolved_real_stage_not_buildable": "1",
+    "byte_level_builder_allowed_next": "0"
+  }
+}

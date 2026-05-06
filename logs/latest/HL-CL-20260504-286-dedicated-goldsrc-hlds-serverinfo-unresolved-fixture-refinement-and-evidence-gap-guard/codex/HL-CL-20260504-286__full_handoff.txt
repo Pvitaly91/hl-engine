@@ -1,0 +1,51 @@
+Prompt: HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 563627a48bb6b2f90f56b8689e39eced835ee2b4
+Source/final commit: 370babe012f568ba14c6a40df6e17df45cc3ebcb
+Artifact commit: pending
+Compatibility claim level: diagnostic-serverinfo-unresolved-evidence-gap-guard-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. No Steam process was launched. No sockets were opened by the guard runtime proofs. Normal host behavior remains unchanged outside explicit diagnostic probe mode.
+
+What changed:
+- Added explicit vidence_gap_guard metadata to the fixture contract and all 9 serverinfo fixtures.
+- Added guard documentation to the fixture contract docs and README.
+- Added a disabled-by-default diagnostic source probe for unresolved post-connect/signon serverinfo evidence-gap enforcement.
+- Extended the fixture metadata validator surface so future builders/parsers must see the guard metadata.
+
+Rules enforced:
+- connectionless query/info bytes are not post-connect evidence.
+- connectionless query/info bytes are not signon evidence.
+- diagnostic preview text is not byte-level real wire evidence.
+- unresolved real post-connect and signon stages are not buildable.
+- byte-level real builder remains blocked while evidence is insufficient.
+- unresolved real compatibility escalation is rejected.
+
+Proofs:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_connectionless_query_promoted_to_post_connect: pass
+- gate_connectionless_query_promoted_to_signon: pass
+- gate_diagnostic_preview_promoted_to_real_wire: pass
+- gate_unresolved_post_connect_build_attempt: pass
+- gate_unresolved_signon_build_attempt: pass
+- gate_real_compatibility_claim_escalation: pass
+- gate_byte_level_builder_blocked: pass
+- gate_no_real_client_used: pass
+- gate_public_socket_blocked: pass
+
+Reruns:
+- prompt 281 validator happy rerun: pass
+- prompt 282 builder/parser happy rerun: pass
+- prompt 282 unresolved fixture gate rerun: pass
+
+Still not real compatibility:
+The repo still has no sufficient local byte-level evidence for post-connect or signon-time serverinfo. The current contract-backed localhost smoke path remains diagnostic-preview-only. Real-client smoke is still blocked by missing byte-level post-connect/signon evidence, netchan sequencing/ack, reliable/unreliable channel setup, resource/model/sound/event baselines, signon state machine, client spawn/put-in-server, and Steam auth or explicit no-auth LAN diagnostic policy.
+
+Recommended next prompt:
+HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser
+
+Recommended next task:
+build and parse only the connectionless query/info byte-level candidate without treating it as post-connect or signon serverinfo evidence.
