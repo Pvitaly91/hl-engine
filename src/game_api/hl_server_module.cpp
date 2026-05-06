@@ -15,6 +15,7 @@
 #include <array>
 #include <charconv>
 #include <cctype>
+#include <cstdint>
 #include <cstdarg>
 #include <cstring>
 #include <cstdio>
@@ -3985,6 +3986,11 @@ struct EngineShimState
         hlds_query_info_loopback_regression_acceptance;
     std::string hlds_query_info_loopback_regression_acceptance_probe_scenario =
         "happy";
+    hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary
+        hlds_query_info_regression_ci_manifest_drift_gate;
+    std::string
+        hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
+            "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -4957,6 +4963,9 @@ std::string BuildHldsQueryInfoByteLevelLoopbackQueryClientSmokeLine(
         summary);
 std::string BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
     const hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary&
+        summary);
+std::string BuildHldsQueryInfoRegressionCiManifestDriftGateLine(
+    const hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary&
         summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
@@ -26598,6 +26607,76 @@ std::string BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
         + std::string(summary.query_client_smoke_passed ? "1" : "0")
         + ", auth_not_started="
         + std::string(summary.auth_not_started ? "1" : "0");
+}
+
+std::string BuildHldsQueryInfoRegressionCiManifestDriftGateLine(
+    const hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary&
+        summary)
+{
+    const std::string base =
+        BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(summary);
+    const std::size_t fields_begin = base.find(": ");
+    const std::string base_fields = fields_begin == std::string::npos
+        ? base
+        : base.substr(fields_begin + 2);
+    return "hlds_query_info_regression_ci_manifest_drift_gate: "
+        + base_fields
+        + ", ci_manifest_created="
+        + std::string(summary.ci_manifest_created ? "1" : "0")
+        + ", ci_manifest_path=" + summary.ci_manifest_path
+        + ", ci_manifest_loaded="
+        + std::string(summary.ci_manifest_loaded ? "1" : "0")
+        + ", drift_gate_enabled="
+        + std::string(summary.drift_gate_enabled ? "1" : "0")
+        + ", drift_gate_disabled_by_default="
+        + std::string(summary.drift_gate_disabled_by_default ? "1" : "0")
+        + ", drift_gate_passed="
+        + std::string(summary.drift_gate_passed ? "1" : "0")
+        + ", fixture_files_checked="
+        + std::to_string(summary.fixture_files_checked)
+        + ", fixture_hashes_recorded="
+        + std::string(summary.fixture_hashes_recorded ? "1" : "0")
+        + ", fixture_drift_detected="
+        + std::string(summary.fixture_drift_detected ? "1" : "0")
+        + ", contract_hash_recorded="
+        + std::string(summary.contract_hash_recorded ? "1" : "0")
+        + ", contract_drift_detected="
+        + std::string(summary.contract_drift_detected ? "1" : "0")
+        + ", selected_fixture_id_valid="
+        + std::string(summary.selected_fixture_id_valid ? "1" : "0")
+        + ", selected_fixture_stage_valid="
+        + std::string(summary.selected_fixture_stage_valid ? "1" : "0")
+        + ", stage_drift_detected="
+        + std::string(summary.stage_drift_detected ? "1" : "0")
+        + ", compatibility_claim_drift_detected="
+        + std::string(
+            summary.compatibility_claim_drift_detected ? "1" : "0")
+        + ", query_info_regression_boundary_intact="
+        + std::string(
+            summary.query_info_regression_boundary_intact ? "1" : "0")
+        + ", required_gates_present="
+        + std::string(summary.required_gates_present ? "1" : "0")
+        + ", required_blocked_behaviors_present="
+        + std::string(
+            summary.required_blocked_behaviors_present ? "1" : "0")
+        + ", public_socket_policy_preserved="
+        + std::string(summary.public_socket_policy_preserved ? "1" : "0")
+        + ", lan_socket_policy_preserved="
+        + std::string(summary.lan_socket_policy_preserved ? "1" : "0")
+        + ", real_client_policy_preserved="
+        + std::string(summary.real_client_policy_preserved ? "1" : "0")
+        + ", connect_path_blocked="
+        + std::string(summary.connect_path_blocked ? "1" : "0")
+        + ", post_connect_stage_blocked="
+        + std::string(summary.post_connect_stage_blocked ? "1" : "0")
+        + ", signon_stage_blocked="
+        + std::string(summary.signon_stage_blocked ? "1" : "0")
+        + ", post_connect_unresolved_made_buildable="
+        + std::string(
+            summary.post_connect_unresolved_made_buildable ? "1" : "0")
+        + ", signon_unresolved_made_buildable="
+        + std::string(
+            summary.signon_unresolved_made_buildable ? "1" : "0");
 }
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
@@ -58143,6 +58222,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
                     summary.hlds_query_info_loopback_regression_acceptance));
+        }
+        if (summary.hlds_query_info_regression_ci_manifest_drift_gate.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsQueryInfoRegressionCiManifestDriftGateLine(
+                    summary
+                        .hlds_query_info_regression_ci_manifest_drift_gate));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -213456,6 +213543,112 @@ struct HldsServerinfoFixtureText
     std::string text;
 };
 
+struct HldsQueryInfoRegressionManifestFixtureHashExpected
+{
+    const char* path;
+    const char* fnv1a64;
+};
+
+constexpr std::array<HldsQueryInfoRegressionManifestFixtureHashExpected, 12>
+    kHldsQueryInfoRegressionManifestFixtureHashes = {{
+        {
+            "fixtures/diagnostic/hlds/serverinfo/README.md",
+            "06861eff9537dd39",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.md",
+            "b3df61e6515fa195",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json",
+            "482a863bbda31206",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json",
+            "fd9fd65b8ecb4557",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/diagnostic_post_connect_serverinfo_current.json",
+            "648a3a16b29905fd",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_field_order_mismatch.json",
+            "f1915ccf4557bed0",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_missing_required_field.json",
+            "1bf75c466376be7d",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_overlong_response.json",
+            "43c2cf5d9f77df4c",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unknown_opcode_or_marker.json",
+            "36b9c7abcb9af8a5",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unsafe_string.json",
+            "ec571e2c16fc27bf",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/post_connect_real_serverinfo_unresolved.json",
+            "276cdba5de4523d8",
+        },
+        {
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/signon_time_serverinfo_unresolved.json",
+            "a49361fbfc36fbdf",
+        },
+    }};
+
+constexpr std::array<std::string_view, 16>
+    kHldsQueryInfoRegressionRequiredAcceptanceScenarios = {{
+        "happy",
+        "gate_disabled_by_default",
+        "gate_no_real_client_used",
+        "gate_public_socket_blocked",
+        "gate_lan_socket_blocked",
+        "gate_non_loopback_client_denied",
+        "gate_connect_attempt_blocked",
+        "gate_post_connect_stage_confusion_rejected",
+        "gate_signon_stage_confusion_rejected",
+        "gate_unresolved_post_connect_rejected",
+        "gate_unresolved_signon_rejected",
+        "gate_real_compatibility_claim_rejected",
+        "gate_query_info_builder_required",
+        "gate_query_info_loopback_required",
+        "gate_query_client_smoke_required",
+        "gate_shutdown_cleanup",
+    }};
+
+constexpr std::array<std::string_view, 12>
+    kHldsQueryInfoRegressionRequiredBlockedBehaviors = {{
+        "real_query_client_used",
+        "real_steam_client_used",
+        "real_client_binary_invoked",
+        "public_socket_opened",
+        "lan_socket_opened",
+        "connect_datagram_sent",
+        "connect_path_invoked",
+        "post_connect_serverinfo_path_invoked",
+        "signon_serverinfo_path_invoked",
+        "real_post_connect_builder_complete",
+        "real_signon_builder_complete",
+        "real_wire_builder_complete",
+    }};
+
+constexpr std::array<std::string_view, 8>
+    kHldsQueryInfoRegressionRequiredPositiveBehaviors = {{
+        "query_info_builder_parser_passed",
+        "query_info_path_integration_passed",
+        "query_info_loopback_swap_passed",
+        "query_client_smoke_passed",
+        "byte_level_connectionless_query_builder_complete",
+        "byte_level_connectionless_query_parser_complete",
+        "client_query_info_response_received",
+        "client_query_info_response_shape_valid",
+    }};
+
 std::optional<std::string> ExtractFixtureJsonStringValue(
     std::string_view text,
     std::string_view key)
@@ -213547,6 +213740,35 @@ std::optional<int> ExtractFixtureJsonIntValue(
         return std::nullopt;
     }
     return value;
+}
+
+std::string ComputeHldsQueryInfoRegressionFnv1a64(std::string_view text)
+{
+    std::uint64_t hash = 14695981039346656037ull;
+    for (unsigned char byte : text)
+    {
+        hash ^= static_cast<std::uint64_t>(byte);
+        hash *= 1099511628211ull;
+    }
+
+    std::ostringstream stream;
+    stream << std::hex << std::nouppercase << std::setw(16)
+           << std::setfill('0') << hash;
+    return stream.str();
+}
+
+template <std::size_t Count>
+bool TextContainsAll(
+    std::string_view text,
+    const std::array<std::string_view, Count>& values)
+{
+    return std::all_of(
+        values.begin(),
+        values.end(),
+        [text](std::string_view value)
+        {
+            return text.find(value) != std::string_view::npos;
+        });
 }
 
 bool HasFixtureUnsafeControlCharacter(std::string_view text)
@@ -216985,6 +217207,477 @@ void PerformHldsQueryInfoLoopbackRegressionAcceptance()
         : state.hlds_query_info_loopback_regression_acceptance_probe_scenario;
 
     probe = RunHldsQueryInfoLoopbackRegressionAcceptance(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
+void RejectHldsQueryInfoRegressionCiManifestDriftGate(
+    hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary* summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+    summary->drift_gate_passed = false;
+    summary->query_info_regression_boundary_intact = false;
+    summary->query_info_regression_acceptance_passed = false;
+}
+
+void SeedHldsQueryInfoRegressionCiManifestDriftGateSummary(
+    hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary* summary,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    SeedHldsQueryInfoLoopbackRegressionAcceptanceSummary(
+        summary,
+        mode,
+        scenario,
+        probe_enabled);
+    summary->enabled = true;
+    summary->compatibility_claim_level =
+        "diagnostic-query-info-ci-manifest-fixture-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->ci_manifest_created = true;
+    summary->ci_manifest_path =
+        "fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json";
+    summary->ci_manifest_loaded = false;
+    summary->query_info_path_integration_probe_enabled = false;
+    summary->query_info_response_path_enabled = false;
+    summary->loopback_query_info_swap_enabled = false;
+    summary->query_info_path_integration_invoked = false;
+    summary->query_client_smoke_enabled = false;
+    summary->diagnostic_query_client_used = false;
+    summary->query_info_regression_acceptance_enabled = false;
+    summary->drift_gate_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary->drift_gate_disabled_by_default = true;
+    summary->drift_gate_passed = false;
+    summary->fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    summary->fixture_files_checked = 0;
+    summary->fixture_hashes_recorded = false;
+    summary->fixture_drift_detected = false;
+    summary->contract_hash_recorded = false;
+    summary->contract_drift_detected = false;
+    summary->selected_fixture_id = "connectionless_query_info_candidate";
+    summary->selected_fixture_family = "connectionless_query_info_candidate";
+    summary->selected_fixture_stage = "connectionless_query";
+    summary->selected_fixture_compatibility_claim = "fixture_only";
+    summary->selected_fixture_id_valid = false;
+    summary->selected_fixture_stage_valid = false;
+    summary->stage_drift_detected = false;
+    summary->compatibility_claim_drift_detected = false;
+    summary->query_info_regression_boundary_intact = false;
+    summary->required_gates_present = false;
+    summary->required_blocked_behaviors_present = false;
+    summary->public_socket_policy_preserved = false;
+    summary->lan_socket_policy_preserved = false;
+    summary->real_client_policy_preserved = false;
+    summary->connect_path_blocked = false;
+    summary->post_connect_stage_blocked = false;
+    summary->signon_stage_blocked = false;
+    summary->post_connect_unresolved_made_buildable = false;
+    summary->signon_unresolved_made_buildable = false;
+    summary->public_socket_opened = false;
+    summary->loopback_udp_socket_opened = false;
+    summary->socket_open_attempted = false;
+    summary->real_query_client_used = false;
+    summary->real_steam_client_used = false;
+    summary->real_client_binary_invoked = false;
+    summary->normal_host_behavior_changed = false;
+    summary->real_client_smoke_allowed_now = false;
+    summary->real_query_client_allowed_now = false;
+    summary->public_socket_exposure_allowed_now = false;
+    summary->lan_socket_exposure_allowed_now = false;
+    summary->auth_not_started = true;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper";
+    summary->recommended_next_task =
+        "add a small wrapper/documented command that reruns the query/info regression boundary and drift gate";
+}
+
+void ValidateHldsQueryInfoRegressionCiManifestPolicy(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    const std::optional<std::string> manifest_text =
+        file_system.ReadTextFile(summary->ci_manifest_path);
+    summary->ci_manifest_loaded = manifest_text.has_value();
+    if (!manifest_text.has_value())
+    {
+        summary->fixture_drift_detected = true;
+        return;
+    }
+
+    summary->fixture_hashes_recorded =
+        manifest_text->find("\"sha256\"") != std::string::npos
+        && manifest_text->find("\"fnv1a64\"") != std::string::npos;
+    summary->contract_hash_recorded =
+        manifest_text->find("serverinfo_fixture_contract.schema.json")
+            != std::string::npos
+        && manifest_text->find("serverinfo_fixture_contract.md")
+            != std::string::npos;
+    summary->required_gates_present = TextContainsAll(
+        *manifest_text,
+        kHldsQueryInfoRegressionRequiredAcceptanceScenarios);
+    summary->required_blocked_behaviors_present = TextContainsAll(
+        *manifest_text,
+        kHldsQueryInfoRegressionRequiredBlockedBehaviors);
+    const bool required_positive_behaviors_present = TextContainsAll(
+        *manifest_text,
+        kHldsQueryInfoRegressionRequiredPositiveBehaviors);
+    summary->public_socket_policy_preserved =
+        manifest_text->find("\"public_socket_opened\": 0") != std::string::npos
+        && manifest_text->find("public_socket_exposure") != std::string::npos;
+    summary->lan_socket_policy_preserved =
+        manifest_text->find("\"lan_socket_opened\": 0") != std::string::npos
+        && manifest_text->find("lan_socket_exposure") != std::string::npos;
+    summary->real_client_policy_preserved =
+        manifest_text->find("\"real_query_client_used\": 0")
+            != std::string::npos
+        && manifest_text->find("\"real_steam_client_used\": 0")
+            != std::string::npos
+        && manifest_text->find("\"real_client_binary_invoked\": 0")
+            != std::string::npos;
+    summary->connect_path_blocked =
+        manifest_text->find("\"connect_datagram_sent\": 0")
+            != std::string::npos
+        && manifest_text->find("\"connect_path_invoked\": 0")
+            != std::string::npos;
+    summary->post_connect_stage_blocked =
+        manifest_text->find("\"real_post_connect_builder_complete\": 0")
+            != std::string::npos
+        && manifest_text->find(
+               "fail_if_post_connect_or_signon_unresolved_fixtures_become_buildable_without_evidence_prompt")
+            != std::string::npos;
+    summary->signon_stage_blocked =
+        manifest_text->find("\"real_signon_builder_complete\": 0")
+            != std::string::npos
+        && manifest_text->find(
+               "fail_if_connectionless_query_promoted_to_post_connect_or_signon")
+            != std::string::npos;
+
+    for (const auto& expected : kHldsQueryInfoRegressionManifestFixtureHashes)
+    {
+        const std::optional<std::string> file_text =
+            file_system.ReadTextFile(expected.path);
+        if (!file_text.has_value())
+        {
+            summary->fixture_drift_detected = true;
+            continue;
+        }
+
+        ++summary->fixture_files_checked;
+        if (ComputeHldsQueryInfoRegressionFnv1a64(*file_text)
+            != expected.fnv1a64)
+        {
+            summary->fixture_drift_detected = true;
+        }
+    }
+
+    const auto validator = RunHldsServerinfoFixtureContractValidatorDiagnosticProbe(
+        file_system,
+        mode,
+        "happy",
+        true);
+    summary->fixture_validator_invoked = true;
+    summary->fixture_validation_passed = validator.fixture_validation_passed;
+    summary->fixture_contract_loaded = validator.fixture_contract_loaded;
+    summary->fixture_files_loaded = validator.fixture_files_loaded;
+    summary->real_compatibility_claims_count =
+        validator.real_compatibility_claims_count;
+
+    const auto evidence_guard = RunHldsServerinfoUnresolvedFixtureEvidenceGapGuard(
+        file_system,
+        mode,
+        "happy",
+        true);
+    summary->evidence_gap_guard_invoked = true;
+    summary->evidence_gap_guard_passed = evidence_guard.accepted == 1;
+    summary->connectionless_query_not_post_connect =
+        evidence_guard.connectionless_query_not_post_connect;
+    summary->connectionless_query_not_signon =
+        evidence_guard.connectionless_query_not_signon;
+    summary->diagnostic_preview_not_byte_evidence =
+        evidence_guard.diagnostic_preview_not_byte_evidence;
+    summary->post_connect_byte_evidence_sufficient =
+        evidence_guard.post_connect_byte_evidence_sufficient;
+    summary->signon_time_byte_evidence_sufficient =
+        evidence_guard.signon_time_byte_evidence_sufficient;
+    summary->unresolved_real_stage_not_buildable =
+        evidence_guard.unresolved_real_stage_not_buildable;
+
+    const std::optional<std::string> selected_fixture_text =
+        file_system.ReadTextFile(
+            "fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json");
+    if (selected_fixture_text.has_value())
+    {
+        const std::optional<std::string> fixture_id =
+            ExtractFixtureJsonStringValue(*selected_fixture_text, "fixture_id");
+        const std::optional<std::string> family =
+            ExtractFixtureJsonStringValue(*selected_fixture_text, "family");
+        const std::optional<std::string> stage =
+            ExtractFixtureJsonStringValue(*selected_fixture_text, "stage");
+        const std::optional<std::string> compatibility_claim =
+            ExtractFixtureJsonStringValue(
+                *selected_fixture_text,
+                "compatibility_claim");
+        if (fixture_id.has_value())
+        {
+            summary->selected_fixture_id = *fixture_id;
+        }
+        if (family.has_value())
+        {
+            summary->selected_fixture_family = *family;
+        }
+        if (stage.has_value())
+        {
+            summary->selected_fixture_stage = *stage;
+        }
+        if (compatibility_claim.has_value())
+        {
+            summary->selected_fixture_compatibility_claim =
+                *compatibility_claim;
+        }
+        summary->selected_fixture_id_valid =
+            fixture_id == "connectionless_query_info_candidate";
+        summary->selected_fixture_stage_valid = stage == "connectionless_query";
+        summary->stage_drift_detected = !summary->selected_fixture_stage_valid;
+        summary->compatibility_claim_drift_detected =
+            compatibility_claim == "real_client_compatible"
+            || compatibility_claim == "steam_client_compatible"
+            || compatibility_claim == "hlds_compatible";
+    }
+
+    summary->query_info_builder_parser_passed =
+        manifest_text->find("\"query_info_builder_parser_passed\": 1")
+        != std::string::npos;
+    summary->query_info_path_integration_passed =
+        manifest_text->find("\"query_info_path_integration_passed\": 1")
+        != std::string::npos;
+    summary->query_info_loopback_swap_passed =
+        manifest_text->find("\"query_info_loopback_swap_passed\": 1")
+        != std::string::npos;
+    summary->query_client_smoke_passed =
+        manifest_text->find("\"query_client_smoke_passed\": 1")
+        != std::string::npos;
+    summary->query_info_regression_gates_total = 4;
+    summary->query_info_regression_gates_passed =
+        (summary->query_info_builder_parser_passed ? 1 : 0)
+        + (summary->query_info_path_integration_passed ? 1 : 0)
+        + (summary->query_info_loopback_swap_passed ? 1 : 0)
+        + (summary->query_client_smoke_passed ? 1 : 0);
+    summary->query_info_regression_gates_failed =
+        4 - summary->query_info_regression_gates_passed;
+    summary->byte_level_connectionless_query_builder_complete =
+        required_positive_behaviors_present;
+    summary->byte_level_connectionless_query_parser_complete =
+        required_positive_behaviors_present;
+    summary->real_post_connect_builder_complete = false;
+    summary->real_signon_builder_complete = false;
+    summary->real_wire_builder_complete = false;
+
+    summary->contract_drift_detected =
+        !summary->fixture_contract_loaded || !summary->contract_hash_recorded;
+    summary->query_info_regression_boundary_intact =
+        summary->ci_manifest_loaded && summary->fixture_hashes_recorded
+        && !summary->fixture_drift_detected && !summary->contract_drift_detected
+        && summary->selected_fixture_id_valid
+        && summary->selected_fixture_stage_valid
+        && !summary->compatibility_claim_drift_detected
+        && summary->required_gates_present
+        && summary->required_blocked_behaviors_present
+        && required_positive_behaviors_present
+        && summary->public_socket_policy_preserved
+        && summary->lan_socket_policy_preserved
+        && summary->real_client_policy_preserved
+        && summary->connect_path_blocked
+        && summary->post_connect_stage_blocked
+        && summary->signon_stage_blocked
+        && summary->connectionless_query_not_post_connect
+        && summary->connectionless_query_not_signon
+        && !summary->post_connect_byte_evidence_sufficient
+        && !summary->signon_time_byte_evidence_sufficient
+        && !summary->real_post_connect_builder_complete
+        && !summary->real_signon_builder_complete
+        && !summary->real_wire_builder_complete
+        && !summary->real_query_client_used && !summary->real_steam_client_used
+        && !summary->real_client_binary_invoked
+        && !summary->public_socket_opened && !summary->loopback_udp_socket_opened
+        && !summary->normal_host_behavior_changed;
+}
+
+hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary
+RunHldsQueryInfoRegressionCiManifestDriftGate(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsQueryInfoRegressionCiManifestDriftGateSummary summary;
+    SeedHldsQueryInfoRegressionCiManifestDriftGateSummary(
+        &summary,
+        mode,
+        scenario,
+        probe_enabled);
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        summary.drift_gate_enabled = false;
+        summary.ci_manifest_loaded = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "query_info_ci_drift_gate_disabled");
+        summary.detail =
+            "diagnostic query/info CI drift gate stayed disabled without explicit probe mode";
+        return summary;
+    }
+
+    ValidateHldsQueryInfoRegressionCiManifestPolicy(
+        file_system,
+        mode,
+        &summary);
+
+    if (scenario == "gate_fixture_hash_drift")
+    {
+        summary.fixture_drift_detected = true;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "query_info_fixture_drift_detected");
+    }
+    else if (scenario == "gate_selected_fixture_changed")
+    {
+        summary.selected_fixture_id = "diagnostic_post_connect_serverinfo_current";
+        summary.selected_fixture_id_valid = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "query_info_selected_fixture_changed");
+    }
+    else if (scenario == "gate_stage_changed")
+    {
+        summary.selected_fixture_stage = "post_connect";
+        summary.selected_fixture_stage_valid = false;
+        summary.stage_drift_detected = true;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "query_info_stage_changed");
+    }
+    else if (scenario == "gate_real_compatibility_claim_added")
+    {
+        summary.compatibility_claim_drift_detected = true;
+        summary.real_compatibility_claims_count = 1;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "real_compatibility_claim_rejected");
+    }
+    else if (scenario == "gate_post_connect_unresolved_made_buildable")
+    {
+        summary.post_connect_unresolved_made_buildable = true;
+        summary.post_connect_stage_blocked = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "post_connect_unresolved_made_buildable");
+    }
+    else if (scenario == "gate_signon_unresolved_made_buildable")
+    {
+        summary.signon_unresolved_made_buildable = true;
+        summary.signon_stage_blocked = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "signon_unresolved_made_buildable");
+    }
+    else if (scenario == "gate_public_socket_policy_removed")
+    {
+        summary.public_socket_policy_preserved = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "public_socket_policy_missing");
+    }
+    else if (scenario == "gate_real_client_policy_removed")
+    {
+        summary.real_client_policy_preserved = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "real_client_policy_missing");
+    }
+    else if (scenario == "gate_connect_path_allowed")
+    {
+        summary.connect_path_blocked = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "connect_path_allowed_in_query_info_boundary");
+    }
+    else if (scenario == "gate_public_socket_blocked")
+    {
+        summary.public_socket_opened = false;
+        summary.loopback_udp_socket_opened = false;
+        summary.socket_open_attempted = false;
+        RejectHldsQueryInfoRegressionCiManifestDriftGate(
+            &summary,
+            "public_socket_blocked");
+    }
+    else
+    {
+        summary.drift_gate_passed =
+            summary.query_info_regression_boundary_intact;
+        summary.query_info_regression_acceptance_passed =
+            summary.query_info_regression_boundary_intact;
+        summary.accepted = summary.drift_gate_passed ? 1 : 0;
+        summary.rejected = summary.drift_gate_passed ? 0 : 1;
+        summary.last_reject_reason =
+            summary.drift_gate_passed ? "<none>" : "query_info_ci_drift_detected";
+        if (scenario == "gate_no_real_client_used")
+        {
+            summary.no_real_client_gate_passed =
+                !summary.real_query_client_used && !summary.real_steam_client_used
+                && !summary.real_client_binary_invoked;
+            summary.accepted = summary.no_real_client_gate_passed ? 1 : 0;
+            summary.rejected = summary.no_real_client_gate_passed ? 0 : 1;
+            summary.last_reject_reason = summary.no_real_client_gate_passed
+                ? "<none>"
+                : "real_client_policy_missing";
+        }
+    }
+
+    summary.detail =
+        "diagnostic query/info CI manifest and fixture drift gate validated the 287-292 boundary without real clients or sockets; public/LAN exposure, connect, post-connect, signon, auth, netchan, resources, and admission remain blocked";
+    return summary;
+}
+
+void PerformHldsQueryInfoRegressionCiManifestDriftGate()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe = state.hlds_query_info_regression_ci_manifest_drift_gate;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state.hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario;
+
+    probe = RunHldsQueryInfoRegressionCiManifestDriftGate(
         state.file_system,
         state.server_state.dedicated ? "dedicated" : "listen",
         scenario,
@@ -249397,6 +250090,7 @@ void PopulateBootstrapSummary(
         {};
     summary.hlds_query_info_byte_level_loopback_query_client_smoke = {};
     summary.hlds_query_info_loopback_regression_acceptance = {};
+    summary.hlds_query_info_regression_ci_manifest_drift_gate = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -250534,6 +251228,8 @@ void PopulateBootstrapSummary(
             state.hlds_query_info_byte_level_loopback_query_client_smoke;
         summary.hlds_query_info_loopback_regression_acceptance =
             state.hlds_query_info_loopback_regression_acceptance;
+        summary.hlds_query_info_regression_ci_manifest_drift_gate =
+            state.hlds_query_info_regression_ci_manifest_drift_gate;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -257013,6 +257709,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap();
     PerformHldsQueryInfoByteLevelLoopbackQueryClientSmoke();
     PerformHldsQueryInfoLoopbackRegressionAcceptance();
+    PerformHldsQueryInfoRegressionCiManifestDriftGate();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -259916,6 +260613,45 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             ? "gate_query_client_smoke_required"
         : query_info_regression_acceptance_scenario == "gate_shutdown_cleanup"
             ? "gate_shutdown_cleanup"
+            : "happy";
+    impl_->shim_state.hlds_query_info_regression_ci_manifest_drift_gate = {};
+    impl_->shim_state.hlds_query_info_regression_ci_manifest_drift_gate.enabled =
+        options
+            .hlds_query_info_regression_ci_manifest_drift_gate_probe_enabled;
+    const std::string& query_info_ci_drift_gate_scenario =
+        options
+            .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario;
+    impl_->shim_state
+        .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
+        query_info_ci_drift_gate_scenario == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : query_info_ci_drift_gate_scenario == "gate_fixture_hash_drift"
+            ? "gate_fixture_hash_drift"
+        : query_info_ci_drift_gate_scenario == "gate_selected_fixture_changed"
+            ? "gate_selected_fixture_changed"
+        : query_info_ci_drift_gate_scenario == "gate_stage_changed"
+            ? "gate_stage_changed"
+        : query_info_ci_drift_gate_scenario
+                == "gate_real_compatibility_claim_added"
+            ? "gate_real_compatibility_claim_added"
+        : query_info_ci_drift_gate_scenario
+                == "gate_post_connect_unresolved_made_buildable"
+            ? "gate_post_connect_unresolved_made_buildable"
+        : query_info_ci_drift_gate_scenario
+                == "gate_signon_unresolved_made_buildable"
+            ? "gate_signon_unresolved_made_buildable"
+        : query_info_ci_drift_gate_scenario
+                == "gate_public_socket_policy_removed"
+            ? "gate_public_socket_policy_removed"
+        : query_info_ci_drift_gate_scenario
+                == "gate_real_client_policy_removed"
+            ? "gate_real_client_policy_removed"
+        : query_info_ci_drift_gate_scenario == "gate_connect_path_allowed"
+            ? "gate_connect_path_allowed"
+        : query_info_ci_drift_gate_scenario == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : query_info_ci_drift_gate_scenario == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
             : "happy";
     impl_->shim_state
         .hlds_serverinfo_contract_backed_diagnostic_path_integration =

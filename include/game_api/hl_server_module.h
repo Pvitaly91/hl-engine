@@ -7658,6 +7658,38 @@ struct HldsQueryInfoLoopbackRegressionAcceptanceSummary
     bool auth_not_started = true;
 };
 
+struct HldsQueryInfoRegressionCiManifestDriftGateSummary
+    : HldsQueryInfoLoopbackRegressionAcceptanceSummary
+{
+    bool ci_manifest_created = false;
+    std::string ci_manifest_path =
+        "fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json";
+    bool ci_manifest_loaded = false;
+    bool drift_gate_enabled = false;
+    bool drift_gate_disabled_by_default = true;
+    bool drift_gate_passed = false;
+    int fixture_files_checked = 0;
+    bool fixture_hashes_recorded = false;
+    bool fixture_drift_detected = false;
+    bool contract_hash_recorded = false;
+    bool contract_drift_detected = false;
+    bool selected_fixture_id_valid = false;
+    bool selected_fixture_stage_valid = false;
+    bool stage_drift_detected = false;
+    bool compatibility_claim_drift_detected = false;
+    bool query_info_regression_boundary_intact = false;
+    bool required_gates_present = false;
+    bool required_blocked_behaviors_present = false;
+    bool public_socket_policy_preserved = false;
+    bool lan_socket_policy_preserved = false;
+    bool real_client_policy_preserved = false;
+    bool connect_path_blocked = false;
+    bool post_connect_stage_blocked = false;
+    bool signon_stage_blocked = false;
+    bool post_connect_unresolved_made_buildable = false;
+    bool signon_unresolved_made_buildable = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22325,6 +22357,11 @@ struct HlServerModuleInitOptions
     bool hlds_query_info_loopback_regression_acceptance_probe_enabled = false;
     std::string hlds_query_info_loopback_regression_acceptance_probe_scenario =
         "happy";
+    bool hlds_query_info_regression_ci_manifest_drift_gate_probe_enabled =
+        false;
+    std::string
+        hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23197,6 +23234,8 @@ struct HlServerModuleSummary
         hlds_query_info_byte_level_loopback_query_client_smoke;
     HldsQueryInfoLoopbackRegressionAcceptanceSummary
         hlds_query_info_loopback_regression_acceptance;
+    HldsQueryInfoRegressionCiManifestDriftGateSummary
+        hlds_query_info_regression_ci_manifest_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

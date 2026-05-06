@@ -1,0 +1,189 @@
+{
+  "prompt_id": "HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate",
+  "boundary_name": "diagnostic_query_info_loopback_regression_boundary",
+  "compatibility_claim_level": "diagnostic-query-info-ci-manifest-fixture-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "diagnostic_only": true,
+  "covered_prompts": [
+    287,
+    288,
+    289,
+    290,
+    291,
+    292
+  ],
+  "expected_fixture_root": "fixtures/diagnostic/hlds/serverinfo",
+  "selected_fixture_id": "connectionless_query_info_candidate",
+  "selected_fixture_stage": "connectionless_query",
+  "selected_fixture_compatibility_claim": "fixture_only",
+  "expected_commits": {
+    "287": {
+      "source": "ef7d69a929b16f5f55b03f932ed46fd0594adbb4",
+      "artifact": "d332394b52faedfec4e0be52499a4c59ce0be2da"
+    },
+    "288": {
+      "source": "ddd65ea5886d28cf0f51ffd5fdbc19e4be3b74cd",
+      "artifact": "9866d3e1e3f6ccfe00120b75bc89081d66606cdf"
+    },
+    "289": {
+      "source": "b02c8d81946d827a740353c332aba8bd584d0ffc",
+      "artifact": "f397488a5e47419f510930635285a46c75945e3d"
+    },
+    "290": {
+      "source": null,
+      "artifact": "a250e0defc59894a26c00e96d81aff160c20a61e"
+    },
+    "291": {
+      "source": "9e9027b381c6813c63d33e243de1f86ad27d03c2",
+      "artifact": "b11c45537492c5f0e87ab891522a9375853cf6a5"
+    },
+    "292": {
+      "source": "4b286595663162008f80d63945529c04c6d16aed",
+      "artifact": "8c2b3493a96c9bc57cf85e54a95d4eace36bf4a4"
+    }
+  },
+  "required_proof_scenarios_from_292": [
+    "happy",
+    "gate_disabled_by_default",
+    "gate_no_real_client_used",
+    "gate_public_socket_blocked",
+    "gate_lan_socket_blocked",
+    "gate_non_loopback_client_denied",
+    "gate_connect_attempt_blocked",
+    "gate_post_connect_stage_confusion_rejected",
+    "gate_signon_stage_confusion_rejected",
+    "gate_unresolved_post_connect_rejected",
+    "gate_unresolved_signon_rejected",
+    "gate_real_compatibility_claim_rejected",
+    "gate_query_info_builder_required",
+    "gate_query_info_loopback_required",
+    "gate_query_client_smoke_required",
+    "gate_shutdown_cleanup"
+  ],
+  "required_blocked_behaviors": {
+    "real_query_client_used": 0,
+    "real_steam_client_used": 0,
+    "real_client_binary_invoked": 0,
+    "public_socket_opened": 0,
+    "lan_socket_opened": 0,
+    "connect_datagram_sent": 0,
+    "connect_path_invoked": 0,
+    "post_connect_serverinfo_path_invoked": 0,
+    "signon_serverinfo_path_invoked": 0,
+    "real_post_connect_builder_complete": 0,
+    "real_signon_builder_complete": 0,
+    "real_wire_builder_complete": 0
+  },
+  "required_positive_behaviors": {
+    "query_info_builder_parser_passed": 1,
+    "query_info_path_integration_passed": 1,
+    "query_info_loopback_swap_passed": 1,
+    "query_client_smoke_passed": 1,
+    "byte_level_connectionless_query_builder_complete": 1,
+    "byte_level_connectionless_query_parser_complete": 1,
+    "client_query_info_response_received": 1,
+    "client_query_info_response_shape_valid": 1
+  },
+  "fixture_drift_inputs": {
+    "fixture_files": [
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/README.md",
+        "bytes": 2258,
+        "sha256": "e2f61d786ef0670159a9917d4bcf37c7462788048c0e5ab821abce3e28d49e5b",
+        "fnv1a64": "06861eff9537dd39"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.md",
+        "bytes": 3369,
+        "sha256": "359b50bd326380af8714843bf588668331ed9a5f2a3661c707bd77578f370d8f",
+        "fnv1a64": "b3df61e6515fa195"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json",
+        "bytes": 5762,
+        "sha256": "f865425cff5277753418db2bf6fec600b0c43ab021b57028d19d85e8f267de87",
+        "fnv1a64": "482a863bbda31206"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json",
+        "bytes": 3472,
+        "sha256": "3103d1265e0b1482ae72088a432c36c1a63996fd050b6b5aca012291b812c3d0",
+        "fnv1a64": "fd9fd65b8ecb4557"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/diagnostic_post_connect_serverinfo_current.json",
+        "bytes": 3099,
+        "sha256": "ed0daf7be31513ba71f46770bb13bcfaad419581e46d605f221d328be395a555",
+        "fnv1a64": "648a3a16b29905fd"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_field_order_mismatch.json",
+        "bytes": 2841,
+        "sha256": "9c8b4c435c578a1a8d253b85989e3bbe7a6b1326820808ad979ca17c7bf6239c",
+        "fnv1a64": "f1915ccf4557bed0"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_missing_required_field.json",
+        "bytes": 2794,
+        "sha256": "c9d00f00fa542becfb4ecb9ef09bbbddf38b24bd65cc4cf9d0fb53a63ae01636",
+        "fnv1a64": "1bf75c466376be7d"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_overlong_response.json",
+        "bytes": 2895,
+        "sha256": "c58bf4b70aa2f178ba11cba2cf0367de5b323e90225d644c5f2afe7b2052c1ed",
+        "fnv1a64": "43c2cf5d9f77df4c"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unknown_opcode_or_marker.json",
+        "bytes": 2723,
+        "sha256": "6b7cd46afc69b3e8147918d64317a5e375720441b96a663048ad56ded961d888",
+        "fnv1a64": "36b9c7abcb9af8a5"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/invalid_unsafe_string.json",
+        "bytes": 2969,
+        "sha256": "9c5ec12e1789ff56b2e39f70b2e7039ddc14f89b02a5ad339bda8691c27ed7b4",
+        "fnv1a64": "ec571e2c16fc27bf"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/post_connect_real_serverinfo_unresolved.json",
+        "bytes": 2641,
+        "sha256": "a1da5403d83b628907bd7509a1de9854d502e167ae84201789f0e4283204ec22",
+        "fnv1a64": "276cdba5de4523d8"
+      },
+      {
+        "path": "fixtures/diagnostic/hlds/serverinfo/fixtures/signon_time_serverinfo_unresolved.json",
+        "bytes": 2687,
+        "sha256": "45d9db0224c64563c950090f46ea1fe506286bbd9a7f2b802bbf66efe779be0e",
+        "fnv1a64": "a49361fbfc36fbdf"
+      }
+    ],
+    "contract_schema_path": "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json",
+    "contract_doc_path": "fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.md",
+    "query_info_fixture_allowlist": [
+      "fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json"
+    ]
+  },
+  "drift_policy": {
+    "fail_if_selected_fixture_id_changes": true,
+    "fail_if_selected_fixture_stage_changes": true,
+    "fail_if_selected_fixture_claims_real_compatibility": true,
+    "fail_if_post_connect_or_signon_unresolved_fixtures_become_buildable_without_evidence_prompt": true,
+    "fail_if_public_lan_or_real_client_gates_disappear": true,
+    "fail_if_connectionless_query_promoted_to_post_connect_or_signon": true,
+    "fail_if_diagnostic_preview_treated_as_byte_level_post_connect_or_signon_evidence": true
+  },
+  "blocked_until_separate_policy_prompt": [
+    "public_socket_exposure",
+    "lan_socket_exposure",
+    "real_query_client_binary",
+    "real_steam_client",
+    "connect_path",
+    "post_connect_serverinfo_path",
+    "signon_serverinfo_path",
+    "auth",
+    "netchan",
+    "resource_baselines",
+    "client_admission"
+  ]
+}
