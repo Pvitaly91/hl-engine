@@ -78,6 +78,33 @@ std::string NarrowAscii(std::wstring_view value)
     return text;
 }
 
+bool IsHldsConnectionlessQueryInfoLoopbackSwapScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_query_info_path_required"
+        || normalized == L"gate_validator_required"
+        || normalized == L"gate_evidence_gap_guard_required"
+        || normalized == L"gate_builder_roundtrip_required"
+        || normalized == L"gate_wrong_command_or_query"
+        || normalized == L"gate_bad_marker_or_header"
+        || normalized == L"gate_wrong_opcode_or_tag"
+        || normalized == L"gate_missing_required_field"
+        || normalized == L"gate_unsafe_string"
+        || normalized == L"gate_overlong_response"
+        || normalized == L"gate_post_connect_stage_confusion_rejected"
+        || normalized == L"gate_signon_stage_confusion_rejected"
+        || normalized == L"gate_unresolved_post_connect_rejected"
+        || normalized == L"gate_unresolved_signon_rejected"
+        || normalized == L"gate_real_compatibility_claim_rejected"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_non_loopback_bind_denied"
+        || normalized == L"gate_public_socket_blocked"
+        || normalized == L"gate_client_timeout_bounded"
+        || normalized == L"gate_shutdown_cleanup";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -2785,6 +2812,107 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
+                == L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap"
+            || argument
+                == L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe")
+        {
+            result.options
+                .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_connectionless_query_info_loopback_swap_prefix =
+                L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap=";
+        if (StartsWith(
+                argument,
+                hlds_connectionless_query_info_loopback_swap_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_connectionless_query_info_loopback_swap_prefix
+                            .size()),
+                    &result.options
+                         .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_connectionless_query_info_loopback_swap_probe_prefix =
+                L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe=";
+        if (StartsWith(
+                argument,
+                hlds_connectionless_query_info_loopback_swap_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_connectionless_query_info_loopback_swap_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsConnectionlessQueryInfoLoopbackSwapScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_connectionless_query_info_loopback_swap_probe_scenario_prefix =
+                L"--hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_connectionless_query_info_loopback_swap_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_connectionless_query_info_loopback_swap_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsConnectionlessQueryInfoLoopbackSwapScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }

@@ -7594,6 +7594,31 @@ struct HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
     bool query_info_response_ready = false;
 };
 
+struct HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+    : HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+{
+    bool loopback_query_info_swap_enabled = false;
+    bool loopback_query_info_swap_disabled_by_default = true;
+    bool query_info_path_integration_invoked = false;
+    bool query_info_request_datagram_received = false;
+    bool query_info_response_datagram_sent = false;
+    bool client_query_info_request_sent = false;
+    bool client_query_info_response_received = false;
+    bool client_query_info_response_shape_valid = false;
+    bool diagnostic_client_used = false;
+    bool client_public_socket_opened = false;
+    bool server_public_socket_opened = false;
+    bool sockets_closed = false;
+    bool client_socket_closed = false;
+    bool server_sockets_closed = false;
+    bool loopback_policy_enforced = true;
+    bool client_wait_started = false;
+    bool client_timeout_bounded = false;
+    int client_timeout_ticks = 0;
+    bool shutdown_cleanup_requested = false;
+    bool shutdown_cleanup_performed = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22247,6 +22272,12 @@ struct HlServerModuleInitOptions
         hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
             "happy";
     bool
+        hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_enabled =
+            false;
+    std::string
+        hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -23112,6 +23143,8 @@ struct HlServerModuleSummary
         hlds_connectionless_query_info_byte_level_builder_parser;
     HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
         hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
+    HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+        hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
