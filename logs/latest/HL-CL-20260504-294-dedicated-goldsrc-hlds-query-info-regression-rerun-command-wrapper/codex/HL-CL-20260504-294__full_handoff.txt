@@ -1,0 +1,54 @@
+PROMPT-ID: HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 22a1133f59c195066a8f55fdbac495cf8eb607f6
+Source/final commit: 424ee9da370f22fc3d85956c7931450f6ac010c0
+Compatibility claim level: diagnostic-query-info-rerun-wrapper-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No real query client was used. No real client binary was invoked. Public and LAN sockets were not opened.
+
+Wrapper script: scripts/run_hlds_query_info_regression.ps1
+Wrapper documentation: docs/diagnostic/hlds/query_info_regression_rerun_wrapper.md
+
+The wrapper reruns only:
+- prompt 292 query/info loopback regression acceptance happy scenario
+- prompt 293 query/info CI manifest/fixture drift gate happy scenario
+
+The wrapper blocks public, LAN, real client, connect, post-connect, and signon modes before command execution.
+
+Selected fixture: connectionless_query_info_candidate
+Selected fixture stage: connectionless_query
+
+Proof results:
+- happy: pass
+- gate_public_socket_blocked: pass
+- gate_lan_socket_blocked: pass
+- gate_real_client_blocked: pass
+- gate_connect_mode_blocked: pass
+- gate_drift_gate_required: pass
+
+Full wrapper run:
+- executed: 1
+- passed: 1
+- not_run_with_reason: <none>
+
+Boundary fields:
+- acceptance_gate_included: 1
+- drift_gate_included: 1
+- public_socket_opened: 0
+- lan_socket_opened: 0
+- real_client_binary_invoked: 0
+- connect_path_invoked: 0
+- post_connect_serverinfo_path_invoked: 0
+- signon_serverinfo_path_invoked: 0
+- normal_host_behavior_changed: 0
+
+Why this still does not imply real HLDS/Steam client compatibility:
+The wrapper reruns only existing diagnostic probes over in-repo harnesses and manifest checks. It does not exercise a real query client binary, Steam, public/LAN networking, connect, post-connect serverinfo, signon serverinfo, auth, netchan, resources, baselines, or client admission.
+
+Recommended next prompt:
+HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist
+
+Recommended next task:
+document operator checklist for the query/info regression wrapper and keep diagnostic-only/public-LAN/real-client blockers explicit

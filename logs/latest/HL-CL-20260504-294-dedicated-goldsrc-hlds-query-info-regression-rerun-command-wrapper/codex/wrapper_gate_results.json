@@ -1,0 +1,37 @@
+[
+  {
+    "scenario": "gate_public_socket_blocked",
+    "exit_code": 1,
+    "expected_reason": "public_socket_blocked",
+    "passed": true,
+    "output_file": "logs\\latest\\HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper\\wrapper_gate_tests\\gate_public_socket_blocked.txt"
+  },
+  {
+    "scenario": "gate_lan_socket_blocked",
+    "exit_code": 1,
+    "expected_reason": "lan_socket_blocked",
+    "passed": true,
+    "output_file": "logs\\latest\\HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper\\wrapper_gate_tests\\gate_lan_socket_blocked.txt"
+  },
+  {
+    "scenario": "gate_real_client_blocked",
+    "exit_code": 1,
+    "expected_reason": "real_client_mode_blocked",
+    "passed": true,
+    "output_file": "logs\\latest\\HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper\\wrapper_gate_tests\\gate_real_client_blocked.txt"
+  },
+  {
+    "scenario": "gate_connect_mode_blocked",
+    "exit_code": 1,
+    "expected_reason": "query_info_only_wrapper",
+    "passed": true,
+    "output_file": "logs\\latest\\HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper\\wrapper_gate_tests\\gate_connect_mode_blocked.txt"
+  },
+  {
+    "scenario": "gate_drift_gate_required",
+    "exit_code": 1,
+    "expected_reason": "drift_gate_required",
+    "passed": true,
+    "output_file": "logs\\latest\\HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper\\wrapper_gate_tests\\gate_drift_gate_required.txt"
+  }
+]
