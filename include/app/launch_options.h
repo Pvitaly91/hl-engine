@@ -97,6 +97,11 @@ struct LaunchOptions
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    bool hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled =
+        false;
+    std::string
+        hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+            "happy";
     bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         false;
     std::string

@@ -64,11 +64,34 @@ Each fixture must define:
 - `numeric_encoding_policy`
 - `length_policy`
 - `safety_policy`
+- `evidence_gap_guard`
 - `expected_parse_result`
 - `expected_reject_reason`
 - `unresolved_fields`
 - `safe_preview`
 - `notes`
+
+## Evidence Gap Guard
+
+Every fixture must carry an `evidence_gap_guard` object. This guard is required because prompt HL-CL-20260504-285 found byte-level evidence only for the connectionless query/info candidate, not for real post-connect or signon-time serverinfo.
+
+The guard must state:
+
+- `evidence_gap_guard_enabled: true`
+- `stage_confusion_guard_enabled: true`
+- `diagnostic_preview_not_byte_evidence: true`
+- `connectionless_query_not_post_connect: true`
+- `connectionless_query_not_signon: true`
+- `unresolved_real_stage_not_buildable: true`
+- `byte_level_evidence_required_for_real_stage: true`
+- `real_stage_buildable: false`
+- `real_stage_parseable: false`
+- `byte_level_evidence_status`
+- `forbidden_promotions`
+- `required_before_promotion`
+- `expected_guard_reject_reason`
+
+Connectionless query/info bytes must not be promoted into post-connect or signon-time evidence. Diagnostic preview text must not be promoted into real wire evidence. Unresolved real-stage fixtures must remain non-buildable until a local byte-level fixture, local field order evidence, local opcode/message-id evidence, string and numeric encoding evidence, and a validator promotion gate are all present.
 
 ## Unknown Field Policy
 

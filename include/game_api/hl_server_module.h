@@ -7429,6 +7429,73 @@ struct HldsServerinfoContractBackedDiagnosticBuilderParserSummary
     std::string detail;
 };
 
+struct HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool evidence_gap_guard_enabled = false;
+    bool evidence_gap_guard_disabled_by_default = true;
+    bool fixture_contract_loaded = false;
+    std::string fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    int fixture_files_loaded = 0;
+    bool fixture_validator_invoked = false;
+    bool fixture_validation_passed = false;
+    int fixtures_total = 0;
+    int fixtures_unresolved = 0;
+    int unresolved_fixtures_count = 0;
+    bool serverinfo_concepts_separated = false;
+    bool stage_confusion_guard_enabled = false;
+    bool evidence_gap_guard_metadata_present = false;
+    bool connectionless_query_not_post_connect = false;
+    bool connectionless_query_not_signon = false;
+    bool diagnostic_preview_not_byte_evidence = false;
+    bool unresolved_real_stage_not_buildable = false;
+    bool byte_level_evidence_required_for_real_stage = false;
+    bool post_connect_byte_evidence_sufficient = false;
+    bool signon_time_byte_evidence_sufficient = false;
+    bool byte_level_builder_requested = false;
+    bool byte_level_builder_allowed_next = false;
+    bool connectionless_query_promoted_to_post_connect_attempted = false;
+    bool connectionless_query_promoted_to_signon_attempted = false;
+    bool diagnostic_preview_promoted_to_real_wire_attempted = false;
+    bool unresolved_post_connect_build_attempted = false;
+    bool unresolved_signon_build_attempted = false;
+    bool build_attempted = false;
+    bool build_succeeded = false;
+    bool build_rejected = false;
+    bool stage_confusion_detected = false;
+    bool compatibility_claim_escalation_detected = false;
+    int real_compatibility_claims_count = 0;
+    int unresolved_fields_count = 26;
+    int unresolved_byte_areas_count = 16;
+    bool real_client_smoke_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool public_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool socket_open_attempted = false;
+    bool normal_host_behavior_changed = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22064,6 +22131,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    bool hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled =
+        false;
+    std::string
+        hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -22924,6 +22996,8 @@ struct HlServerModuleSummary
         hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
     HldsServerinfoContractBackedDiagnosticBuilderParserSummary
         hlds_serverinfo_contract_backed_diagnostic_builder_parser;
+    HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
+        hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

@@ -2402,6 +2402,123 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
         }
 
         if (argument
+            == L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard"
+            || argument
+                == L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe")
+        {
+            result.options
+                .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_evidence_gap_guard_prefix =
+                L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard=";
+        if (StartsWith(argument, hlds_serverinfo_evidence_gap_guard_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_serverinfo_evidence_gap_guard_prefix.size()),
+                    &result.options
+                         .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_evidence_gap_guard_probe_prefix =
+                L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe=";
+        if (StartsWith(
+                argument,
+                hlds_serverinfo_evidence_gap_guard_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_serverinfo_evidence_gap_guard_probe_prefix.size()),
+                    &result.options
+                         .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_connectionless_query_promoted_to_post_connect"
+                && normalized != L"gate_connectionless_query_promoted_to_signon"
+                && normalized != L"gate_diagnostic_preview_promoted_to_real_wire"
+                && normalized != L"gate_unresolved_post_connect_build_attempt"
+                && normalized != L"gate_unresolved_signon_build_attempt"
+                && normalized != L"gate_real_compatibility_claim_escalation"
+                && normalized != L"gate_byte_level_builder_blocked"
+                && normalized != L"gate_no_real_client_used"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe-scenario. Expected happy, gate_disabled_by_default, gate_connectionless_query_promoted_to_post_connect, gate_connectionless_query_promoted_to_signon, gate_diagnostic_preview_promoted_to_real_wire, gate_unresolved_post_connect_build_attempt, gate_unresolved_signon_build_attempt, gate_real_compatibility_claim_escalation, gate_byte_level_builder_blocked, gate_no_real_client_used, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_evidence_gap_guard_probe_scenario_prefix =
+                L"--hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_serverinfo_evidence_gap_guard_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_serverinfo_evidence_gap_guard_probe_scenario_prefix
+                        .size()));
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_connectionless_query_promoted_to_post_connect"
+                && normalized != L"gate_connectionless_query_promoted_to_signon"
+                && normalized != L"gate_diagnostic_preview_promoted_to_real_wire"
+                && normalized != L"gate_unresolved_post_connect_build_attempt"
+                && normalized != L"gate_unresolved_signon_build_attempt"
+                && normalized != L"gate_real_compatibility_claim_escalation"
+                && normalized != L"gate_byte_level_builder_blocked"
+                && normalized != L"gate_no_real_client_used"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-serverinfo-unresolved-fixture-evidence-gap-guard-probe-scenario. Expected happy, gate_disabled_by_default, gate_connectionless_query_promoted_to_post_connect, gate_connectionless_query_promoted_to_signon, gate_diagnostic_preview_promoted_to_real_wire, gate_unresolved_post_connect_build_attempt, gate_unresolved_signon_build_attempt, gate_real_compatibility_claim_escalation, gate_byte_level_builder_blocked, gate_no_real_client_used, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
             == L"--hlds-serverinfo-contract-backed-diagnostic-path-integration"
             || argument
                 == L"--hlds-serverinfo-contract-backed-diagnostic-path-integration-probe")

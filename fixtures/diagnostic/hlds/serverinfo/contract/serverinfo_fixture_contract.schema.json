@@ -18,6 +18,7 @@
     "numeric_encoding_policy",
     "length_policy",
     "safety_policy",
+    "evidence_gap_guard",
     "expected_parse_result",
     "expected_reject_reason",
     "unresolved_fields",
@@ -90,6 +91,73 @@
         "normal_host_behavior_changed": { "type": "boolean", "const": false },
         "real_client_smoke_allowed_now": { "type": "boolean", "const": false }
       }
+    },
+    "evidence_gap_guard": {
+      "type": "object",
+      "required": [
+        "evidence_gap_guard_enabled",
+        "stage_confusion_guard_enabled",
+        "diagnostic_preview_not_byte_evidence",
+        "connectionless_query_not_post_connect",
+        "connectionless_query_not_signon",
+        "unresolved_real_stage_not_buildable",
+        "byte_level_evidence_required_for_real_stage",
+        "real_stage_buildable",
+        "real_stage_parseable",
+        "byte_level_evidence_status",
+        "forbidden_promotions",
+        "required_before_promotion",
+        "expected_guard_reject_reason"
+      ],
+      "properties": {
+        "evidence_gap_guard_enabled": { "type": "boolean", "const": true },
+        "stage_confusion_guard_enabled": { "type": "boolean", "const": true },
+        "diagnostic_preview_not_byte_evidence": { "type": "boolean", "const": true },
+        "connectionless_query_not_post_connect": { "type": "boolean", "const": true },
+        "connectionless_query_not_signon": { "type": "boolean", "const": true },
+        "unresolved_real_stage_not_buildable": { "type": "boolean", "const": true },
+        "byte_level_evidence_required_for_real_stage": { "type": "boolean", "const": true },
+        "real_stage_buildable": { "type": "boolean", "const": false },
+        "real_stage_parseable": { "type": "boolean", "const": false },
+        "byte_level_evidence_status": {
+          "type": "string",
+          "enum": [
+            "connectionless_only",
+            "diagnostic_preview_only",
+            "insufficient",
+            "synthetic_placeholder",
+            "unresolved"
+          ]
+        },
+        "forbidden_promotions": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "connectionless_query_to_post_connect",
+              "connectionless_query_to_signon",
+              "diagnostic_preview_to_real_wire",
+              "unresolved_to_compatible"
+            ]
+          }
+        },
+        "required_before_promotion": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "local_byte_level_fixture",
+              "local_field_order_evidence",
+              "local_opcode_or_message_id_evidence",
+              "local_string_encoding_evidence",
+              "local_numeric_encoding_evidence",
+              "validator_promotion_gate"
+            ]
+          }
+        },
+        "expected_guard_reject_reason": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
     },
     "expected_parse_result": {
       "type": "string",
