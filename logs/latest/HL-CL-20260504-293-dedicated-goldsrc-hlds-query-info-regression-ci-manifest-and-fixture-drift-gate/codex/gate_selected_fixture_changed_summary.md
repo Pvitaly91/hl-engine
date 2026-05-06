@@ -1,0 +1,31 @@
+# gate_selected_fixture_changed
+
+prompt_id: HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate
+proof: pass
+accepted: 0
+rejected: 1
+last_reject_reason: query_info_selected_fixture_changed
+compatibility_claim_level: diagnostic-query-info-ci-manifest-fixture-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+drift_gate_passed: 0
+query_info_regression_boundary_intact: 0
+selected_fixture_id: diagnostic_post_connect_serverinfo_current
+selected_fixture_stage: connectionless_query
+fixture_files_checked: 12
+fixture_hashes_recorded: 1
+fixture_drift_detected: 0
+required_gates_present: 1
+required_blocked_behaviors_present: 1
+public_socket_policy_preserved: 1
+lan_socket_policy_preserved: 1
+real_client_policy_preserved: 1
+connect_path_blocked: 1
+post_connect_stage_blocked: 1
+signon_stage_blocked: 1
+real_compatibility_claims_count: 0
+public_socket_opened: 0
+loopback_udp_socket_opened: 0
+socket_open_attempted: 0
+real_client_binary_invoked: 0
+normal_host_behavior_changed: 0
+runtime_summary_log: logs\latest\HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate\runtime\hlhost_20260507_003521_148_pid6964__p293-final-04-gate_selected_fixture_changed_summary.log
+runtime_part_log: logs\latest\HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate\runtime\hlhost_20260507_003521_148_pid6964__p293-final-04-gate_selected_fixture_changed_part01.log
