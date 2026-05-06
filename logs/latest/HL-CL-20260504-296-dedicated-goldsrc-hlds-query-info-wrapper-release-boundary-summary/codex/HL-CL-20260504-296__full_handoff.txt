@@ -1,0 +1,39 @@
+PROMPT-ID: HL-CL-20260504-296-dedicated-goldsrc-hlds-query-info-wrapper-release-boundary-summary
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: ae4bfe410e5f7b82314bc05ce76f5027df60fb64
+Source/final commit: 4a451bec590514cc55a889d9ede6f3f6e43819f3
+Compatibility claim level: diagnostic-query-info-wrapper-release-boundary-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Stable release boundary doc: docs/diagnostic/hlds/query_info_release_boundary_summary.md
+Wrapper script: scripts/run_hlds_query_info_regression.ps1
+CI manifest: fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+Operator checklist: docs/diagnostic/hlds/query_info_regression_operator_checklist.md
+Quickstart: docs/diagnostic/hlds/query_info_regression_quickstart.md
+
+This is a diagnostic-only release boundary summary. It does not expand runtime behavior. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. No public or LAN sockets were opened.
+
+Selected fixture: connectionless_query_info_candidate
+Selected stage: connectionless_query
+Query/info boundary closed: 1
+
+Dry-run executed: 1
+Dry-run passed: 1
+Full-run executed: 0
+Not-run reason: not_run; prompt 295 full-run already passed and prompt 296 is release-summary docs/artifact-only
+
+Blocked now:
+- real_client_smoke_allowed_now=0
+- real_query_client_allowed_now=0
+- public_socket_exposure_allowed_now=0
+- lan_socket_exposure_allowed_now=0
+- connect_path_allowed_now=0
+- post_connect_serverinfo_allowed_now=0
+- signon_serverinfo_allowed_now=0
+
+Recommended next prompt:
+HL-CL-20260504-297-dedicated-goldsrc-hlds-post-connect-signon-evidence-acquisition-plan
+
+Recommended next task:
+Plan post-connect and signon-time serverinfo byte-level evidence acquisition, because the connectionless query/info diagnostic boundary is closed and the next larger blocker remains missing post-connect/signon byte-level evidence.
