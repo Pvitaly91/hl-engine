@@ -7496,6 +7496,93 @@ struct HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
     std::string detail;
 };
 
+struct HldsConnectionlessQueryInfoByteLevelBuilderParserSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool query_info_byte_builder_probe_enabled = false;
+    bool query_info_byte_builder_disabled_by_default = true;
+    bool fixture_validator_invoked = false;
+    bool fixture_validation_passed = false;
+    bool evidence_gap_guard_invoked = false;
+    bool evidence_gap_guard_passed = false;
+    bool fixture_contract_loaded = false;
+    std::string fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    int fixture_files_loaded = 0;
+    std::string selected_fixture_id = "<none>";
+    std::string selected_fixture_family = "<none>";
+    std::string selected_fixture_stage = "<none>";
+    std::string selected_fixture_compatibility_claim = "<none>";
+    bool connectionless_query_info_selected = false;
+    bool wrong_fixture_family_selected = false;
+    bool build_attempted = false;
+    bool byte_build_attempted = false;
+    bool build_succeeded = false;
+    bool build_rejected = false;
+    bool parse_attempted = false;
+    bool parse_succeeded = false;
+    bool roundtrip_validation_passed = false;
+    bool byte_level_connectionless_query_builder_complete = false;
+    bool byte_level_connectionless_query_partial_builder = false;
+    bool byte_level_connectionless_query_parser_complete = false;
+    int missing_byte_fields_count = 0;
+    std::string missing_byte_fields = "<none>";
+    int build_output_bytes = 0;
+    std::string build_output_safe_hex_preview = "<none>";
+    std::string build_output_safe_text_preview = "<none>";
+    bool marker_or_header_valid = false;
+    bool opcode_or_tag_valid = false;
+    bool field_order_valid = false;
+    bool required_fields_present = false;
+    bool safe_string_policy_passed = false;
+    bool response_length_within_limit = false;
+    bool numeric_encoding_policy_checked = false;
+    bool string_encoding_policy_checked = false;
+    bool connectionless_query_not_post_connect = false;
+    bool connectionless_query_not_signon = false;
+    bool diagnostic_preview_not_byte_evidence = false;
+    bool post_connect_byte_evidence_sufficient = false;
+    bool signon_time_byte_evidence_sufficient = false;
+    bool unresolved_real_stage_not_buildable = false;
+    bool byte_level_builder_allowed_next_for_real_stages = false;
+    bool real_post_connect_builder_complete = false;
+    bool real_signon_builder_complete = false;
+    bool real_wire_builder_complete = false;
+    bool connectionless_query_promoted_to_post_connect_attempted = false;
+    bool connectionless_query_promoted_to_signon_attempted = false;
+    bool unresolved_post_connect_build_attempted = false;
+    bool unresolved_signon_build_attempted = false;
+    bool stage_confusion_detected = false;
+    bool compatibility_claim_escalation_detected = false;
+    int real_compatibility_claims_count = 0;
+    bool real_client_smoke_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool public_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool socket_open_attempted = false;
+    bool normal_host_behavior_changed = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22137,6 +22224,12 @@ struct HlServerModuleInitOptions
         hlds_serverinfo_unresolved_fixture_evidence_gap_guard_probe_scenario =
             "happy";
     bool
+        hlds_connectionless_query_info_byte_level_builder_parser_probe_enabled =
+            false;
+    std::string
+        hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -22998,6 +23091,8 @@ struct HlServerModuleSummary
         hlds_serverinfo_contract_backed_diagnostic_builder_parser;
     HldsServerinfoUnresolvedFixtureEvidenceGapGuardSummary
         hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
+    HldsConnectionlessQueryInfoByteLevelBuilderParserSummary
+        hlds_connectionless_query_info_byte_level_builder_parser;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
