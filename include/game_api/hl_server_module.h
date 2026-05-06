@@ -7583,6 +7583,17 @@ struct HldsConnectionlessQueryInfoByteLevelBuilderParserSummary
     std::string detail;
 };
 
+struct HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+    : HldsConnectionlessQueryInfoByteLevelBuilderParserSummary
+{
+    bool query_info_path_integration_probe_enabled = false;
+    bool query_info_path_integration_disabled_by_default = true;
+    bool query_info_response_path_enabled = false;
+    bool query_info_request_detected = false;
+    bool query_info_byte_builder_invoked = false;
+    bool query_info_response_ready = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22230,6 +22241,12 @@ struct HlServerModuleInitOptions
         hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario =
             "happy";
     bool
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled =
+            false;
+    std::string
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -23093,6 +23110,8 @@ struct HlServerModuleSummary
         hlds_serverinfo_unresolved_fixture_evidence_gap_guard;
     HldsConnectionlessQueryInfoByteLevelBuilderParserSummary
         hlds_connectionless_query_info_byte_level_builder_parser;
+    HldsConnectionlessQueryInfoByteLevelPathIntegrationSummary
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

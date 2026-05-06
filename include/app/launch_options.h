@@ -107,6 +107,12 @@ struct LaunchOptions
     std::string
         hlds_connectionless_query_info_byte_level_builder_parser_probe_scenario =
             "happy";
+    bool
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_enabled =
+            false;
+    std::string
+        hlds_connectionless_query_info_byte_level_diagnostic_path_integration_probe_scenario =
+            "happy";
     bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         false;
     std::string
