@@ -18,6 +18,7 @@ Operator docs:
 
 - `docs/diagnostic/hlds/query_info_regression_operator_checklist.md`
 - `docs/diagnostic/hlds/query_info_regression_quickstart.md`
+- `docs/diagnostic/hlds/query_info_release_boundary_summary.md`
 
 ## Common Usage
 
