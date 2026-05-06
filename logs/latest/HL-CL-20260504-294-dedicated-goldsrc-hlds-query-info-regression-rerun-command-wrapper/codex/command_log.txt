@@ -1,0 +1,37 @@
+# Command Log
+Working directory: G:\DEV\СPP\HLengine\host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change/source state checks:
+- git rev-parse --show-toplevel
+- git branch --show-current
+- git rev-parse HEAD
+- git status --short
+- descendant gates against prompt 287 through 293 source/artifact commits
+- searches for query_info_regression, rerun wrapper, fixture drift, public socket, LAN socket, real client, connect path, post-connect, signon
+Source/script validation:
+- PowerShell parser syntax check for scripts/run_hlds_query_info_regression.ps1
+- git diff --check -- scripts/run_hlds_query_info_regression.ps1 docs/diagnostic/hlds/query_info_regression_rerun_wrapper.md
+Wrapper dry run:
+`powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -OutDir logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_dry_run -RunLabelPrefix p294-dryrun
+`
+Wrapper full run:
+`powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -NoBuild -OutDir logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_full_run -RunLabelPrefix p294-full
+`
+Wrapper blocker selftests:
+- scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -Public
+- scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -LAN
+- scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -RealClient
+- scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -Connect
+- scripts/run_hlds_query_info_regression.ps1 -Mode acceptance -DryRun -NoBuild -RequireDriftGate
+JSON validation:
+- fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_dry_run/query_info_rerun_command_plan.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_dry_run/query_info_rerun_wrapper_summary.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_full_run/query_info_rerun_command_plan.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_full_run/query_info_rerun_wrapper_summary.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/wrapper_gate_tests/gate_results.json
+Commits:
+- source/script commit: 424ee9da370f22fc3d85956c7931450f6ac010c0
+- artifact commit: pending
