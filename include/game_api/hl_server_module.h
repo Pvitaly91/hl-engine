@@ -7642,6 +7642,22 @@ struct HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary
     bool lan_socket_exposure_allowed_now = false;
 };
 
+struct HldsQueryInfoLoopbackRegressionAcceptanceSummary
+    : HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary
+{
+    bool query_info_regression_acceptance_enabled = false;
+    bool query_info_regression_acceptance_disabled_by_default = true;
+    bool query_info_regression_acceptance_passed = false;
+    int query_info_regression_gates_total = 0;
+    int query_info_regression_gates_passed = 0;
+    int query_info_regression_gates_failed = 0;
+    bool query_info_builder_parser_passed = false;
+    bool query_info_path_integration_passed = false;
+    bool query_info_loopback_swap_passed = false;
+    bool query_client_smoke_passed = false;
+    bool auth_not_started = true;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22306,6 +22322,9 @@ struct HlServerModuleInitOptions
     std::string
         hlds_query_info_byte_level_loopback_query_client_smoke_probe_scenario =
             "happy";
+    bool hlds_query_info_loopback_regression_acceptance_probe_enabled = false;
+    std::string hlds_query_info_loopback_regression_acceptance_probe_scenario =
+        "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23176,6 +23195,8 @@ struct HlServerModuleSummary
         hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
     HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary
         hlds_query_info_byte_level_loopback_query_client_smoke;
+    HldsQueryInfoLoopbackRegressionAcceptanceSummary
+        hlds_query_info_loopback_regression_acceptance;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

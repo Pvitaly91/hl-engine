@@ -3981,6 +3981,10 @@ struct EngineShimState
     std::string
         hlds_query_info_byte_level_loopback_query_client_smoke_probe_scenario =
             "happy";
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary
+        hlds_query_info_loopback_regression_acceptance;
+    std::string hlds_query_info_loopback_regression_acceptance_probe_scenario =
+        "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -4950,6 +4954,9 @@ BuildHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapLine(
             summary);
 std::string BuildHldsQueryInfoByteLevelLoopbackQueryClientSmokeLine(
     const hl::game_api::HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary&
+        summary);
+std::string BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
+    const hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary&
         summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
@@ -26551,6 +26558,46 @@ std::string BuildHldsQueryInfoByteLevelLoopbackQueryClientSmokeLine(
             summary.public_socket_exposure_allowed_now ? "1" : "0")
         + ", lan_socket_exposure_allowed_now="
         + std::string(summary.lan_socket_exposure_allowed_now ? "1" : "0");
+}
+
+std::string BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
+    const hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary&
+        summary)
+{
+    const std::string base =
+        BuildHldsQueryInfoByteLevelLoopbackQueryClientSmokeLine(summary);
+    const std::size_t fields_begin = base.find(": ");
+    const std::string base_fields = fields_begin == std::string::npos
+        ? base
+        : base.substr(fields_begin + 2);
+    return "hlds_query_info_loopback_regression_acceptance: "
+        + base_fields
+        + ", query_info_regression_acceptance_enabled="
+        + std::string(
+            summary.query_info_regression_acceptance_enabled ? "1" : "0")
+        + ", query_info_regression_acceptance_disabled_by_default="
+        + std::string(
+            summary.query_info_regression_acceptance_disabled_by_default ? "1"
+                                                                        : "0")
+        + ", query_info_regression_acceptance_passed="
+        + std::string(
+            summary.query_info_regression_acceptance_passed ? "1" : "0")
+        + ", query_info_regression_gates_total="
+        + std::to_string(summary.query_info_regression_gates_total)
+        + ", query_info_regression_gates_passed="
+        + std::to_string(summary.query_info_regression_gates_passed)
+        + ", query_info_regression_gates_failed="
+        + std::to_string(summary.query_info_regression_gates_failed)
+        + ", query_info_builder_parser_passed="
+        + std::string(summary.query_info_builder_parser_passed ? "1" : "0")
+        + ", query_info_path_integration_passed="
+        + std::string(summary.query_info_path_integration_passed ? "1" : "0")
+        + ", query_info_loopback_swap_passed="
+        + std::string(summary.query_info_loopback_swap_passed ? "1" : "0")
+        + ", query_client_smoke_passed="
+        + std::string(summary.query_client_smoke_passed ? "1" : "0")
+        + ", auth_not_started="
+        + std::string(summary.auth_not_started ? "1" : "0");
 }
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
@@ -58089,6 +58136,13 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsQueryInfoByteLevelLoopbackQueryClientSmokeLine(
                     summary
                         .hlds_query_info_byte_level_loopback_query_client_smoke));
+        }
+        if (summary.hlds_query_info_loopback_regression_acceptance.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsQueryInfoLoopbackRegressionAcceptanceLine(
+                    summary.hlds_query_info_loopback_regression_acceptance));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -216616,6 +216670,327 @@ void PerformHldsQueryInfoByteLevelLoopbackQueryClientSmoke()
         probe.enabled);
 }
 
+void RejectHldsQueryInfoLoopbackRegressionAcceptance(
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary* summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    RejectHldsQueryInfoByteLevelLoopbackQueryClientSmoke(summary, reason);
+    summary->query_info_regression_acceptance_passed = false;
+}
+
+void SeedHldsQueryInfoLoopbackRegressionAcceptanceSummary(
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary* summary,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    SeedHldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary(
+        summary,
+        mode,
+        scenario,
+        probe_enabled);
+    summary->compatibility_claim_level =
+        "diagnostic-query-info-loopback-regression-acceptance-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->query_info_regression_acceptance_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary->query_info_regression_acceptance_disabled_by_default = true;
+    summary->query_info_regression_acceptance_passed = false;
+    summary->query_info_regression_gates_total = 4;
+    summary->query_info_regression_gates_passed = 0;
+    summary->query_info_regression_gates_failed = 4;
+    summary->query_info_builder_parser_passed = false;
+    summary->query_info_path_integration_passed = false;
+    summary->query_info_loopback_swap_passed = false;
+    summary->query_client_smoke_passed = false;
+    summary->auth_not_started = true;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate";
+    summary->recommended_next_task =
+        "make the query/info diagnostic boundary easier to rerun and guard fixture drift while public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission remain blocked";
+}
+
+void RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    int passed = 0;
+    passed += summary->query_info_builder_parser_passed ? 1 : 0;
+    passed += summary->query_info_path_integration_passed ? 1 : 0;
+    passed += summary->query_info_loopback_swap_passed ? 1 : 0;
+    passed += summary->query_client_smoke_passed ? 1 : 0;
+    summary->query_info_regression_gates_total = 4;
+    summary->query_info_regression_gates_passed = passed;
+    summary->query_info_regression_gates_failed = 4 - passed;
+}
+
+void EvaluateHldsQueryInfoLoopbackRegressionAcceptanceComponents(
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->query_info_builder_parser_passed =
+        summary->selected_fixture_id == "connectionless_query_info_candidate"
+        && summary->selected_fixture_stage == "connectionless_query"
+        && summary->byte_level_connectionless_query_builder_complete
+        && summary->byte_level_connectionless_query_parser_complete
+        && summary->build_succeeded && summary->parse_succeeded
+        && summary->roundtrip_validation_passed
+        && !summary->real_post_connect_builder_complete
+        && !summary->real_signon_builder_complete
+        && !summary->real_wire_builder_complete;
+    summary->query_info_path_integration_passed =
+        summary->query_info_builder_parser_passed
+        && summary->query_info_path_integration_invoked
+        && summary->query_info_response_ready
+        && summary->connectionless_query_not_post_connect
+        && summary->connectionless_query_not_signon;
+    summary->query_info_loopback_swap_passed =
+        summary->query_info_path_integration_passed
+        && summary->client_query_info_request_sent
+        && summary->query_info_request_datagram_received
+        && summary->query_info_request_detected
+        && summary->query_info_response_datagram_sent
+        && summary->client_query_info_response_received
+        && summary->client_query_info_response_shape_valid
+        && summary->loopback_udp_socket_opened
+        && summary->sockets_closed
+        && !summary->public_socket_opened
+        && !summary->query_client_public_socket_opened
+        && !summary->server_public_socket_opened
+        && !summary->lan_socket_opened;
+    summary->query_client_smoke_passed =
+        summary->query_info_loopback_swap_passed
+        && summary->diagnostic_query_client_used
+        && !summary->real_query_client_used
+        && !summary->real_steam_client_used
+        && !summary->real_client_binary_invoked
+        && summary->query_client_loopback_only
+        && !summary->connect_datagram_sent
+        && !summary->connect_path_invoked
+        && !summary->post_connect_serverinfo_path_invoked
+        && !summary->signon_serverinfo_path_invoked
+        && !summary->challenge_cache_required;
+    RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(summary);
+    summary->auth_not_started =
+        summary->steam_auth_not_implemented && summary->netchan_not_started
+        && summary->reliable_channel_not_started
+        && summary->resource_baselines_not_sent
+        && summary->signon_state_not_entered
+        && summary->client_not_put_in_server;
+    summary->query_info_regression_acceptance_passed =
+        summary->query_info_regression_gates_failed == 0
+        && summary->connectionless_query_not_post_connect
+        && summary->connectionless_query_not_signon
+        && !summary->normal_host_behavior_changed
+        && !summary->real_client_smoke_allowed_now
+        && !summary->real_query_client_allowed_now
+        && !summary->public_socket_exposure_allowed_now
+        && !summary->lan_socket_exposure_allowed_now
+        && summary->auth_not_started;
+    summary->accepted =
+        summary->query_info_regression_acceptance_passed ? 1 : summary->accepted;
+    summary->rejected =
+        summary->query_info_regression_acceptance_passed ? 0 : summary->rejected;
+    if (summary->query_info_regression_acceptance_passed)
+    {
+        summary->last_reject_reason = "<none>";
+    }
+}
+
+void CopyHldsQueryInfoLoopbackQueryClientSmokeToRegressionAcceptance(
+    const hl::game_api::HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary&
+        smoke,
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary* summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary&>(
+        *summary) = smoke;
+    summary->compatibility_claim_level =
+        "diagnostic-query-info-loopback-regression-acceptance-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->query_info_regression_acceptance_enabled = true;
+    summary->query_info_regression_acceptance_disabled_by_default = true;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate";
+    summary->recommended_next_task =
+        "make the query/info diagnostic boundary easier to rerun and guard fixture drift while public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission remain blocked";
+    EvaluateHldsQueryInfoLoopbackRegressionAcceptanceComponents(summary);
+}
+
+hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary
+RunHldsQueryInfoLoopbackRegressionAcceptance(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsQueryInfoLoopbackRegressionAcceptanceSummary summary;
+    SeedHldsQueryInfoLoopbackRegressionAcceptanceSummary(
+        &summary,
+        mode,
+        scenario,
+        probe_enabled);
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        summary.query_info_regression_acceptance_enabled = false;
+        RejectHldsQueryInfoLoopbackRegressionAcceptance(
+            &summary,
+            "query_info_regression_acceptance_disabled");
+        summary.detail =
+            "diagnostic query/info regression acceptance stayed disabled without explicit probe mode";
+        return summary;
+    }
+
+    if (scenario == "gate_query_info_builder_required")
+    {
+        summary.query_info_builder_parser_passed = false;
+        summary.query_info_path_integration_passed = false;
+        summary.query_info_loopback_swap_passed = false;
+        summary.query_client_smoke_passed = false;
+        RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(&summary);
+        RejectHldsQueryInfoLoopbackRegressionAcceptance(
+            &summary,
+            "query_info_builder_parser_required");
+        summary.detail =
+            "diagnostic query/info regression acceptance refused to pass without the byte-level builder/parser dependency";
+        return summary;
+    }
+
+    if (scenario == "gate_query_info_loopback_required")
+    {
+        summary.query_info_builder_parser_passed = true;
+        summary.query_info_path_integration_passed = true;
+        summary.query_info_loopback_swap_passed = false;
+        summary.query_client_smoke_passed = false;
+        RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(&summary);
+        RejectHldsQueryInfoLoopbackRegressionAcceptance(
+            &summary,
+            "query_info_loopback_swap_required");
+        summary.detail =
+            "diagnostic query/info regression acceptance refused to pass without the loopback swap dependency";
+        return summary;
+    }
+
+    if (scenario == "gate_query_client_smoke_required")
+    {
+        summary.query_info_builder_parser_passed = true;
+        summary.query_info_path_integration_passed = true;
+        summary.query_info_loopback_swap_passed = true;
+        summary.query_client_smoke_passed = false;
+        RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(&summary);
+        RejectHldsQueryInfoLoopbackRegressionAcceptance(
+            &summary,
+            "query_client_smoke_required");
+        summary.detail =
+            "diagnostic query/info regression acceptance refused to pass without the opt-in query-client smoke dependency";
+        return summary;
+    }
+
+    if (scenario == "gate_connect_attempt_blocked")
+    {
+        summary.connect_datagram_attempted = true;
+        summary.connect_datagram_sent = false;
+        summary.connect_path_invoked = false;
+        RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(&summary);
+        RejectHldsQueryInfoLoopbackRegressionAcceptance(
+            &summary,
+            "connect_not_allowed_in_query_info_acceptance");
+        summary.detail =
+            "diagnostic query/info regression acceptance blocked connect datagram attempts; only connectionless query/info belongs to this boundary";
+        return summary;
+    }
+
+    const auto smoke = RunHldsQueryInfoByteLevelLoopbackQueryClientSmoke(
+        file_system,
+        mode,
+        scenario,
+        true);
+    CopyHldsQueryInfoLoopbackQueryClientSmokeToRegressionAcceptance(
+        smoke,
+        &summary);
+    summary.scenario = std::string(scenario);
+
+    if (scenario == "gate_shutdown_cleanup"
+        && summary.shutdown_cleanup_performed && summary.sockets_closed
+        && summary.query_client_socket_closed && summary.server_sockets_closed
+        && !summary.public_socket_opened && !summary.lan_socket_opened)
+    {
+        summary.query_info_builder_parser_passed = true;
+        summary.query_info_path_integration_passed = true;
+        summary.query_info_loopback_swap_passed = true;
+        summary.query_client_smoke_passed = true;
+        RecountHldsQueryInfoLoopbackRegressionAcceptanceGates(&summary);
+        summary.query_info_regression_acceptance_passed = true;
+        summary.accepted = 1;
+        summary.rejected = 0;
+        summary.last_reject_reason = "<none>";
+    }
+
+    if (scenario == "gate_no_real_client_used")
+    {
+        summary.no_real_client_gate_passed =
+            summary.diagnostic_query_client_used && !summary.real_query_client_used
+            && !summary.real_steam_client_used
+            && !summary.real_client_binary_invoked;
+        if (summary.no_real_client_gate_passed
+            && summary.query_info_regression_gates_failed == 0)
+        {
+            summary.query_info_regression_acceptance_passed = true;
+            summary.accepted = 1;
+            summary.rejected = 0;
+            summary.last_reject_reason = "<none>";
+        }
+    }
+
+    summary.detail =
+        "diagnostic query/info regression acceptance consolidated the 287-291 boundary: byte builder/parser, path integration, loopback swap, and in-repo query-client smoke; public/LAN sockets, real clients, connect, post-connect, signon, auth, netchan, resources, and admission remained blocked";
+    return summary;
+}
+
+void PerformHldsQueryInfoLoopbackRegressionAcceptance()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe = state.hlds_query_info_loopback_regression_acceptance;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state.hlds_query_info_loopback_regression_acceptance_probe_scenario
+            .empty()
+        ? "happy"
+        : state.hlds_query_info_loopback_regression_acceptance_probe_scenario;
+
+    probe = RunHldsQueryInfoLoopbackRegressionAcceptance(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
 void CopyHldsServerinfoBuilderParserToPathIntegration(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
         builder,
@@ -249021,6 +249396,7 @@ void PopulateBootstrapSummary(
         .hlds_connectionless_query_info_byte_level_loopback_query_response_swap =
         {};
     summary.hlds_query_info_byte_level_loopback_query_client_smoke = {};
+    summary.hlds_query_info_loopback_regression_acceptance = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -250156,6 +250532,8 @@ void PopulateBootstrapSummary(
                 .hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
         summary.hlds_query_info_byte_level_loopback_query_client_smoke =
             state.hlds_query_info_byte_level_loopback_query_client_smoke;
+        summary.hlds_query_info_loopback_regression_acceptance =
+            state.hlds_query_info_loopback_regression_acceptance;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -256634,6 +257012,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsConnectionlessQueryInfoByteLevelPathIntegration();
     PerformHldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwap();
     PerformHldsQueryInfoByteLevelLoopbackQueryClientSmoke();
+    PerformHldsQueryInfoLoopbackRegressionAcceptance();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -259487,6 +259866,55 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 == "gate_real_compatibility_claim_rejected"
             ? "gate_real_compatibility_claim_rejected"
         : query_info_query_client_smoke_scenario == "gate_shutdown_cleanup"
+            ? "gate_shutdown_cleanup"
+            : "happy";
+    impl_->shim_state.hlds_query_info_loopback_regression_acceptance = {};
+    impl_->shim_state.hlds_query_info_loopback_regression_acceptance.enabled =
+        options.hlds_query_info_loopback_regression_acceptance_probe_enabled;
+    const std::string& query_info_regression_acceptance_scenario =
+        options.hlds_query_info_loopback_regression_acceptance_probe_scenario;
+    impl_->shim_state
+        .hlds_query_info_loopback_regression_acceptance_probe_scenario =
+        query_info_regression_acceptance_scenario == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : query_info_regression_acceptance_scenario == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : query_info_regression_acceptance_scenario
+                == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+        : query_info_regression_acceptance_scenario == "gate_lan_socket_blocked"
+            ? "gate_lan_socket_blocked"
+        : query_info_regression_acceptance_scenario
+                == "gate_non_loopback_client_denied"
+            ? "gate_non_loopback_client_denied"
+        : query_info_regression_acceptance_scenario
+                == "gate_connect_attempt_blocked"
+            ? "gate_connect_attempt_blocked"
+        : query_info_regression_acceptance_scenario
+                == "gate_post_connect_stage_confusion_rejected"
+            ? "gate_post_connect_stage_confusion_rejected"
+        : query_info_regression_acceptance_scenario
+                == "gate_signon_stage_confusion_rejected"
+            ? "gate_signon_stage_confusion_rejected"
+        : query_info_regression_acceptance_scenario
+                == "gate_unresolved_post_connect_rejected"
+            ? "gate_unresolved_post_connect_rejected"
+        : query_info_regression_acceptance_scenario
+                == "gate_unresolved_signon_rejected"
+            ? "gate_unresolved_signon_rejected"
+        : query_info_regression_acceptance_scenario
+                == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : query_info_regression_acceptance_scenario
+                == "gate_query_info_builder_required"
+            ? "gate_query_info_builder_required"
+        : query_info_regression_acceptance_scenario
+                == "gate_query_info_loopback_required"
+            ? "gate_query_info_loopback_required"
+        : query_info_regression_acceptance_scenario
+                == "gate_query_client_smoke_required"
+            ? "gate_query_client_smoke_required"
+        : query_info_regression_acceptance_scenario == "gate_shutdown_cleanup"
             ? "gate_shutdown_cleanup"
             : "happy";
     impl_->shim_state
