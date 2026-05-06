@@ -1,0 +1,10 @@
+{
+  "prompt_id": "HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration",
+  "scenario": "gate_builder_roundtrip_required",
+  "summary_file": "logs/latest/HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration/codex/gate_builder_roundtrip_required_summary.json",
+  "runtime_summary_log": "logs/latest/HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration/runtime/hlhost_20260506_143511_980_pid27592__p283-5-gate-builder-roundtrip-required_summary.log",
+  "raw_proof_results": "logs/latest/HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration/runtime/proof_results_raw.json",
+  "proof_result": "pass",
+  "no_real_client_runtime_proof": true,
+  "no_socket_network_runtime_proof": true
+}
