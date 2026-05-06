@@ -1,0 +1,39 @@
+PROMPT-ID: HL-CL-20260504-291-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-client-policy-gated-smoke
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: a250e0defc59894a26c00e96d81aff160c20a61e
+Source commit: 9e9027b381c6813c63d33e243de1f86ad27d03c2
+Compatibility claim level: diagnostic-query-info-loopback-query-client-smoke-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This prompt implemented a stricter opt-in diagnostic query-client smoke harness for connectionless query/info only. The harness uses the in-repo diagnostic query client and the prompt 289 loopback query/info response swap, which itself invokes the prompt 288 path integration, prompt 287 byte-level builder/parser, prompt 286 evidence-gap guard, and prompt 281 fixture validator.
+
+Diagnostic-only boundaries:
+- no real Steam Half-Life client compatibility is claimed
+- no real query client was used
+- no real client binary was invoked
+- public and LAN sockets were not opened
+- only connectionless query/info was exercised
+- connect path was not exercised
+- post-connect serverinfo was not exercised
+- signon serverinfo was not exercised
+- query/info response is not post-connect serverinfo
+- query/info response is not signon-time serverinfo
+- real post-connect/signon builders remain blocked
+
+Loopback bind behavior: enabled scenarios use localhost-only UDP; policy gates for public, LAN, and non-loopback client attempts reject before opening those sockets.
+
+Selected fixture: connectionless_query_info_candidate
+Selected stage: connectionless_query
+Byte-level safe hex preview: FFFFFFFF6D3132372E302E302E313A3000484C656E67696E6520546573742053657276657200633061300076616C76650048616C662D4C696665000004306477000000
+Byte-level safe text preview: ....m127.0.0.1:0|HLengine Test Server|c0a0|valve|Half-Life||.0dw|||
+Timeout behavior: gate_response_timeout_bounded sets client_wait_started=1, client_timeout_bounded=1, client_timeout_ticks > 0, and sockets_closed=1.
+Cleanup behavior: happy closes client/server sockets; gate_shutdown_cleanup proves shutdown_cleanup_requested=1, shutdown_cleanup_performed=1, query_client_socket_closed=1, server_sockets_closed=1, sockets_closed=1.
+
+Gates run: happy, gate_disabled_by_default, gate_no_real_client_used, gate_public_socket_blocked, gate_lan_socket_blocked, gate_non_loopback_client_denied, gate_wrong_query_command, gate_bad_marker_or_header, gate_wrong_opcode_or_tag, gate_response_timeout_bounded, gate_connect_attempt_blocked, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_shutdown_cleanup
+
+Why this still does not imply real HLDS/Steam client compatibility: it is fixture-backed, diagnostic-only, loopback-only, uses no real client binary, does not exercise the real query ecosystem, connect, post-connect, signon, auth, netchan, resources, baselines, or client admission.
+
+Recommended next prompt: HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate
+Recommended next task: consolidate prompts 287-291 as the query/info diagnostic regression boundary while keeping public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission blocked.
+

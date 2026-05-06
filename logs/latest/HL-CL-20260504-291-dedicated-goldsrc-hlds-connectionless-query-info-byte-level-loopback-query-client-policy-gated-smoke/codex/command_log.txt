@@ -1,0 +1,13 @@
+Commands run for HL-CL-20260504-291-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-client-policy-gated-smoke
+
+- git branch --show-current; git rev-parse HEAD; git status --short
+- Get-Content/Select-String inspections for launch options, host application, and hl_server_module
+- apply_patch edits to source files
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /v:minimal /nologo via C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe
+- Runtime proofs: happy, gate_disabled_by_default, gate_no_real_client_used, gate_public_socket_blocked, gate_lan_socket_blocked, gate_non_loopback_client_denied, gate_wrong_query_command, gate_bad_marker_or_header, gate_wrong_opcode_or_tag, gate_response_timeout_bounded, gate_connect_attempt_blocked, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_shutdown_cleanup
+- Rerun short labels for gate_post_connect_stage_confusion_rejected and gate_real_compatibility_claim_rejected due Windows path length on long runtime summary filenames; targeted rerun for gate_wrong_opcode_or_tag after summary flag tightening
+- rg search attempted for query client/query info/socket/stage terms and failed with access denied to bundled rg.exe
+- Select-String fallback search over include, src, fixtures
+- node JSON parse validation for fixtures/diagnostic/hlds/serverinfo
+- git merge-base --is-ancestor gates for required checkpoint commits
+
