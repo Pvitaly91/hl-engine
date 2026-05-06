@@ -1,0 +1,20 @@
+PROMPT-ID: HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: b11c45537492c5f0e87ab891522a9375853cf6a5
+Source/final commit: 4b286595663162008f80d63945529c04c6d16aed
+Artifact commit: pending_artifact_commit_created_after_this_file
+Compatibility claim level: diagnostic-query-info-loopback-regression-acceptance-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. Query/info diagnostic stack 287-291 is now represented as one regression acceptance boundary. No real query client was used, no real client binary was invoked, public and LAN sockets were not opened, and only connectionless query/info was exercised. The connect path, post-connect serverinfo, signon serverinfo, auth, netchan, resources, baselines, and client admission were not exercised.
+
+Selected fixture: connectionless_query_info_candidate
+Selected stage: connectionless_query
+
+Gates run: happy, gate_disabled_by_default, gate_no_real_client_used, gate_public_socket_blocked, gate_lan_socket_blocked, gate_non_loopback_client_denied, gate_connect_attempt_blocked, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_query_info_builder_required, gate_query_info_loopback_required, gate_query_client_smoke_required, gate_shutdown_cleanup
+
+Why this is not real compatibility: the proof uses checked-in fixtures, explicit diagnostic launch options, loopback-only UDP, and an in-repo diagnostic client. It does not prove public query server behavior, LAN exposure, real Steam Half-Life client behavior, post-connect serverinfo, signon serverinfo, auth, netchan, resource baselines, or admission.
+
+Recommended next prompt: HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate
+Recommended next task: make the query/info diagnostic boundary easier to rerun and guard fixture drift while public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission remain blocked
