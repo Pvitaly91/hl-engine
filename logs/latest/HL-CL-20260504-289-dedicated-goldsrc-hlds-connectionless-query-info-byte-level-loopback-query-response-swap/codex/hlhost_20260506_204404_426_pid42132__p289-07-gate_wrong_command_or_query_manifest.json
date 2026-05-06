@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_204404",
+  "runInstanceId": "20260506_204404_426_pid42132",
+  "runLabel": "p289-07-gate_wrong_command_or_query",
+  "promptId": "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "9866d3e1e3f6ccfe00120b75bc89081d66606cdf",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204404_426_pid42132__p289-07-gate_wrong_command_or_query_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204404_426_pid42132__p289-07-gate_wrong_command_or_query_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204404_426_pid42132__p289-07-gate_wrong_command_or_query_part01.log"]
+}

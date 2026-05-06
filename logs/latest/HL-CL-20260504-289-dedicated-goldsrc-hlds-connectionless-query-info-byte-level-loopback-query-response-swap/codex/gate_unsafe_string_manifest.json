@@ -1,0 +1,12 @@
+{
+  "prompt_id": "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap",
+  "scenario": "gate_unsafe_string",
+  "status": "pass",
+  "command": "hlhost.exe --dedicated --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario gate_unsafe_string",
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204406_386_pid26420__p289-11-gate_unsafe_string_summary.log",
+  "artifact_summary_file": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\codex\\gate_unsafe_string_summary.json",
+  "source_commit": "b02c8d81946d827a740353c332aba8bd584d0ffc",
+  "no_real_client_binary_invoked": true,
+  "public_socket_opened": "0",
+  "loopback_udp_socket_opened": "1"
+}

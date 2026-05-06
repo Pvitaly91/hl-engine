@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_204405",
+  "runInstanceId": "20260506_204405_911_pid46076",
+  "runLabel": "p289-10-gate_missing_required_field",
+  "promptId": "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "9866d3e1e3f6ccfe00120b75bc89081d66606cdf",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204405_911_pid46076__p289-10-gate_missing_required_field_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204405_911_pid46076__p289-10-gate_missing_required_field_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204405_911_pid46076__p289-10-gate_missing_required_field_part01.log"]
+}
