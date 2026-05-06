@@ -1,0 +1,34 @@
+# Command Log
+Working directory: G:\DEV\СPP\HLengine\host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+State and ancestry:
+- git rev-parse --show-toplevel
+- git branch --show-current
+- git rev-parse HEAD
+- git status --short
+- git merge-base --is-ancestor 424ee9da370f22fc3d85956c7931450f6ac010c0 HEAD
+- git merge-base --is-ancestor 63a8e670ee0f6b64d3965cef6c84a8001afdb1ab HEAD
+- descendant gates for prompt 287 through 294 commits
+Search and docs validation:
+- rg attempted first, but rg.exe failed with access denied from the Codex app path
+- Get-ChildItem + Select-String for wrapper docs, query_info_regression, public socket, LAN socket, real client, connect path, post-connect, signon
+- git diff --check -- docs/diagnostic/hlds/query_info_regression_operator_checklist.md docs/diagnostic/hlds/query_info_regression_quickstart.md docs/diagnostic/hlds/query_info_regression_rerun_wrapper.md
+JSON validation:
+- fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/codex/query_info_rerun_command_plan.json
+- logs/latest/HL-CL-20260504-294-dedicated-goldsrc-hlds-query-info-regression-rerun-command-wrapper/codex/query_info_rerun_wrapper_summary.json
+- logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_dry_run/query_info_rerun_command_plan.json
+- logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_dry_run/query_info_rerun_wrapper_summary.json
+- logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_full_run/query_info_rerun_command_plan.json
+- logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_full_run/query_info_rerun_wrapper_summary.json
+PowerShell syntax:
+- PSParser tokenization for scripts/run_hlds_query_info_regression.ps1
+Wrapper dry-run:
+`powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -OutDir logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_dry_run -RunLabelPrefix p295-dryrun
+`
+Wrapper full-run:
+`powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -NoBuild -OutDir logs/latest/HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist/wrapper_full_run -RunLabelPrefix p295-full
+`
+No real-client runtime proof and no public/LAN socket runtime proof were run by policy.
