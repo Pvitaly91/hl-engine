@@ -2278,6 +2278,129 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument
+            == L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser"
+            || argument
+                == L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe")
+        {
+            result.options
+                .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_contract_backed_builder_parser_prefix =
+                L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser=";
+        if (StartsWith(
+                argument,
+                hlds_serverinfo_contract_backed_builder_parser_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_serverinfo_contract_backed_builder_parser_prefix
+                            .size()),
+                    &result.options
+                         .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_contract_backed_builder_parser_probe_prefix =
+                L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe=";
+        if (StartsWith(
+                argument,
+                hlds_serverinfo_contract_backed_builder_parser_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_serverinfo_contract_backed_builder_parser_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_validator_required"
+                && normalized != L"gate_unresolved_fixture_rejected"
+                && normalized != L"gate_invalid_fixture_rejected"
+                && normalized != L"gate_real_compatibility_claim_rejected"
+                && normalized != L"gate_field_order_mismatch"
+                && normalized != L"gate_missing_required_field"
+                && normalized != L"gate_unsafe_string"
+                && normalized != L"gate_overlong_response"
+                && normalized != L"gate_no_real_client_used"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe-scenario. Expected happy, gate_disabled_by_default, gate_validator_required, gate_unresolved_fixture_rejected, gate_invalid_fixture_rejected, gate_real_compatibility_claim_rejected, gate_field_order_mismatch, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_no_real_client_used, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_serverinfo_contract_backed_builder_parser_probe_scenario_prefix =
+                L"--hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_serverinfo_contract_backed_builder_parser_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_serverinfo_contract_backed_builder_parser_probe_scenario_prefix
+                        .size()));
+            if (normalized != L"happy"
+                && normalized != L"gate_disabled_by_default"
+                && normalized != L"gate_validator_required"
+                && normalized != L"gate_unresolved_fixture_rejected"
+                && normalized != L"gate_invalid_fixture_rejected"
+                && normalized != L"gate_real_compatibility_claim_rejected"
+                && normalized != L"gate_field_order_mismatch"
+                && normalized != L"gate_missing_required_field"
+                && normalized != L"gate_unsafe_string"
+                && normalized != L"gate_overlong_response"
+                && normalized != L"gate_no_real_client_used"
+                && normalized != L"gate_public_socket_blocked")
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe-scenario. Expected happy, gate_disabled_by_default, gate_validator_required, gate_unresolved_fixture_rejected, gate_invalid_fixture_rejected, gate_real_compatibility_claim_rejected, gate_field_order_mismatch, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_no_real_client_used, or gate_public_socket_blocked.";
+                return result;
+            }
+
+            result.options
+                .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
         if (argument == L"--activation-surface")
         {
             result.options.activation_surface_enabled = true;

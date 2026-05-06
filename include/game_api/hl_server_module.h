@@ -7353,6 +7353,82 @@ struct HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary
     std::string detail;
 };
 
+struct HldsServerinfoContractBackedDiagnosticBuilderParserSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool builder_parser_probe_enabled = false;
+    bool builder_parser_disabled_by_default = true;
+    bool fixture_validator_invoked = false;
+    bool fixture_validation_passed = false;
+    bool fixture_contract_loaded = false;
+    std::string fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    int fixture_files_loaded = 0;
+    int fixtures_total = 0;
+    int fixtures_valid = 0;
+    int fixtures_invalid_cases = 0;
+    int fixtures_unresolved = 0;
+    bool serverinfo_concepts_separated = false;
+    int allowed_buildable_fixtures_count = 0;
+    std::string selected_fixture_id = "<none>";
+    std::string selected_fixture_family = "<none>";
+    std::string selected_fixture_stage = "<none>";
+    std::string selected_fixture_compatibility_claim = "<none>";
+    bool build_attempted = false;
+    bool build_succeeded = false;
+    bool build_rejected = false;
+    bool parse_attempted = false;
+    bool parse_succeeded = false;
+    bool roundtrip_validation_passed = false;
+    bool diagnostic_preview_builder_complete = false;
+    bool byte_level_builder_complete = false;
+    bool real_wire_builder_complete = false;
+    int build_output_bytes = 0;
+    std::string build_output_safe_preview = "<none>";
+    bool marker_or_header_valid = false;
+    bool opcode_or_tag_valid = false;
+    bool field_order_valid = false;
+    bool required_fields_present = false;
+    bool safe_string_policy_passed = false;
+    bool response_length_within_limit = false;
+    bool numeric_encoding_policy_checked = false;
+    bool string_encoding_policy_checked = false;
+    bool unresolved_fixture_build_attempted = false;
+    bool unresolved_fixture_rejected = false;
+    bool invalid_fixture_build_attempted = false;
+    bool invalid_fixture_rejected = false;
+    bool compatibility_claim_escalation_detected = false;
+    int real_compatibility_claims_count = 0;
+    bool corpus_sufficient_for_next_diagnostic_builder = false;
+    bool corpus_sufficient_for_real_compatibility = false;
+    bool real_client_smoke_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool public_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool socket_open_attempted = false;
+    bool normal_host_behavior_changed = false;
+    bool steam_auth_not_implemented = true;
+    bool netchan_not_started = true;
+    bool reliable_channel_not_started = true;
+    bool resource_baselines_not_sent = true;
+    bool signon_state_not_entered = true;
+    bool client_not_put_in_server = true;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21916,6 +21992,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_serverinfo_fixture_contract_validator_diagnostic_probe_scenario =
             "happy";
+    bool hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_enabled =
+        false;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22762,6 +22843,8 @@ struct HlServerModuleSummary
         hlds_production_loopback_connectionless_socket_pump_localhost_client_smoke_harness_probe;
     HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary
         hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
+    HldsServerinfoContractBackedDiagnosticBuilderParserSummary
+        hlds_serverinfo_contract_backed_diagnostic_builder_parser;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
