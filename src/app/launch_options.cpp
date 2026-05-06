@@ -148,6 +148,24 @@ bool IsHldsQueryInfoLoopbackRegressionAcceptanceScenario(
         || normalized == L"gate_shutdown_cleanup";
 }
 
+bool IsHldsQueryInfoRegressionCiManifestDriftGateScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_fixture_hash_drift"
+        || normalized == L"gate_selected_fixture_changed"
+        || normalized == L"gate_stage_changed"
+        || normalized == L"gate_real_compatibility_claim_added"
+        || normalized == L"gate_post_connect_unresolved_made_buildable"
+        || normalized == L"gate_signon_unresolved_made_buildable"
+        || normalized == L"gate_public_socket_policy_removed"
+        || normalized == L"gate_real_client_policy_removed"
+        || normalized == L"gate_connect_path_allowed"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -3156,6 +3174,108 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_query_info_loopback_regression_acceptance_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument == L"--hlds-query-info-regression-ci-manifest-drift-gate"
+            || argument
+                == L"--hlds-query-info-regression-ci-manifest-drift-gate-probe")
+        {
+            result.options
+                .hlds_query_info_regression_ci_manifest_drift_gate_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_regression_ci_manifest_drift_gate_prefix =
+                L"--hlds-query-info-regression-ci-manifest-drift-gate=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_regression_ci_manifest_drift_gate_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_query_info_regression_ci_manifest_drift_gate_prefix
+                            .size()),
+                    &result.options
+                         .hlds_query_info_regression_ci_manifest_drift_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-query-info-regression-ci-manifest-drift-gate"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_regression_ci_manifest_drift_gate_probe_prefix =
+                L"--hlds-query-info-regression-ci-manifest-drift-gate-probe=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_regression_ci_manifest_drift_gate_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_query_info_regression_ci_manifest_drift_gate_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_query_info_regression_ci_manifest_drift_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-query-info-regression-ci-manifest-drift-gate-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-query-info-regression-ci-manifest-drift-gate-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-query-info-regression-ci-manifest-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQueryInfoRegressionCiManifestDriftGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-query-info-regression-ci-manifest-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario_prefix =
+                L"--hlds-query-info-regression-ci-manifest-drift-gate-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQueryInfoRegressionCiManifestDriftGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-query-info-regression-ci-manifest-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
