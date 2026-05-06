@@ -1,0 +1,58 @@
+PROMPT-ID: HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory
+
+Commands run:
+
+1. `git branch --show-current; git rev-parse HEAD`
+   - branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+   - HEAD: 7ddcae8f87d90646f298da436a598039a5ec754d
+
+2. `git status --short`
+   - Existing unrelated dirty build outputs and older logs were present before prompt 285.
+   - Prompt 285 changes were kept under `logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/`.
+
+3. `Get-ChildItem fixtures/diagnostic/hlds/serverinfo -Recurse -File`
+   - Confirmed contract files, README, and 9 fixture JSON files.
+
+4. `rg --version`
+   - `rg` unavailable: access denied.
+   - Used PowerShell `Select-String` fallback for required searches.
+
+5. Descendant gates with `git merge-base --is-ancestor <commit> HEAD`
+   - All required local commits through `7ddcae8f87d90646f298da436a598039a5ec754d` passed.
+
+6. Source and artifact search with `Select-String`
+   - Searched source, fixture contract, fixture JSON, and relevant prompt artifacts for:
+     `serverinfo`, `server_info`, `svc_serverinfo`, `SVC_SERVERINFO`, `svc`, `signon`, `signon buffer`, `baseline`, `resource`, `model`, `sound`, `event`, `netchan`, `connectionless`, `query info`, `info response`, `challenge`, `connect`, `protocol`, `message id`, `packet`, `datagram`, `bitstream`, `MSG_Write`, `SZ_Write`, `WriteByte`, `WriteShort`, `WriteLong`, `WriteString`, `info string`, `server data`, `client put-in-server`.
+   - `MSG_Write`, `SZ_Write`, `signon buffer`, `bitstream`, `server data`, and `client put-in-server` had zero scoped matches.
+   - Source matches for `WriteByte`/`WriteShort`/`WriteLong`/`WriteString` were generic engine shim callbacks, not serverinfo contract evidence.
+
+7. Function-focused source inspection
+   - Inspected current source snippets for `BuildGoldSrcInfoRequest`, `BuildGoldSrcInfoResponse`, `ParseGoldSrcInfoResponse`, `PumpOneLoopbackGoldSrcInfoQuery`, `BuildHldsServerinfoDiagnosticResultFromConnect`, and engine message writer stubs.
+   - Confirmed byte-level code is query/info-only.
+
+8. Fixture JSON validation
+   - `ConvertFrom-Json` passed for all 9 fixture JSON files.
+
+9. Fixture corpus audit
+   - Parsed every fixture and recorded family, stage, evidence confidence, compatibility claim, parse result, unresolved fields, and safe preview presence.
+   - No fixture metadata updates were justified.
+
+10. Prior prompt summary extraction
+   - Read prompt 280-284 summaries.
+   - Confirmed prompt 284 remains diagnostic preview only with byte-level and real-wire builders incomplete.
+
+11. Artifact path correction
+   - Moved prompt-owned draft artifacts from the workspace-level `logs/latest/HL-CL-20260504-285-.../codex` directory into the `host` git repository path:
+     `host/logs/latest/HL-CL-20260504-285-.../codex`.
+   - Removed the prompt-owned empty draft directory after verifying the source and target paths.
+
+12. Generated summary JSON validation
+   - `ConvertFrom-Json` passed for `serverinfo_byte_level_evidence_summary.json`.
+
+13. Formatting validation
+   - Removed trailing blank lines at EOF from report files after `git diff --cached --check` flagged only EOF formatting warnings.
+
+No runtime proof was run for prompt 285.
+No real-client runtime proof was run.
+No socket or network proof was run.
+No build was run because source code was unchanged.
