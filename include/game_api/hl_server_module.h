@@ -7453,6 +7453,49 @@ struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     bool protocol_version_accepted = false;
 };
 
+struct HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+    : HldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarnessSummary
+{
+    bool smoke_swap_probe_enabled = false;
+    bool smoke_swap_disabled_by_default = true;
+    bool contract_backed_serverinfo_enabled = false;
+    bool serverinfo_diagnostic_surface_enabled = false;
+    bool existing_serverinfo_path_preserved = true;
+    bool old_skeleton_serverinfo_response_used = false;
+    bool contract_backed_response_selected = false;
+    bool client_serverinfo_contract_backed = false;
+    bool fixture_validator_invoked = false;
+    bool fixture_validation_passed = false;
+    bool fixture_contract_loaded = false;
+    std::string fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    int fixture_files_loaded = 0;
+    bool builder_parser_invoked = false;
+    bool build_attempted = false;
+    bool build_succeeded = false;
+    bool parse_attempted = false;
+    bool parse_succeeded = false;
+    bool roundtrip_validation_passed = false;
+    std::string selected_fixture_id = "<none>";
+    std::string selected_fixture_family = "<none>";
+    std::string selected_fixture_stage = "<none>";
+    std::string selected_fixture_compatibility_claim = "<none>";
+    bool diagnostic_preview_builder_complete = false;
+    bool byte_level_builder_complete = false;
+    bool real_wire_builder_complete = false;
+    bool unresolved_fixture_build_attempted = false;
+    bool unresolved_fixture_rejected = false;
+    bool invalid_fixture_build_attempted = false;
+    bool invalid_fixture_rejected = false;
+    bool compatibility_claim_escalation_detected = false;
+    int real_compatibility_claims_count = 0;
+    bool real_client_smoke_allowed_now = false;
+};
+
+struct HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeSummary
+    : HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+{
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -22027,6 +22070,12 @@ struct HlServerModuleInitOptions
     std::string
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
             "happy";
+    bool
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_enabled =
+            false;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22877,6 +22926,10 @@ struct HlServerModuleSummary
         hlds_serverinfo_contract_backed_diagnostic_builder_parser;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
+    HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap;
+    HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapProbeSummary
+        hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;
