@@ -1,0 +1,25 @@
+# Command Log
+
+Working directory: G:\DEV\СPP\HLengine\host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Commands and checks:
+- git rev-parse --show-toplevel
+- git branch --show-current
+- git rev-parse HEAD
+- git status --short
+- descendant gates against prompt 287 through 295 source/artifact commits
+- rg search attempted for release boundary and blockers; rg failed with access denied from Codex Windows app path
+- PowerShell Select-String search fallback for release boundary docs, wrapper, query_info_regression, public socket, LAN socket, real client, connect path, post-connect, signon
+- JSON validation for fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json and prompt 295 wrapper summaries
+- JSON validation for prompt 296 dry-run summary and command plan
+
+Wrapper dry-run:
+`powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -OutDir logs/latest/HL-CL-20260504-296-dedicated-goldsrc-hlds-query-info-wrapper-release-boundary-summary/wrapper_dry_run -RunLabelPrefix p296-dryrun
+`
+
+Full wrapper run not executed:
+not_run; prompt 295 full-run already passed and prompt 296 is release-summary docs/artifact-only
+
+No real-client runtime proof and no public/LAN socket runtime proof were run by policy.
