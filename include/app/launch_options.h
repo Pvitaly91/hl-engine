@@ -97,6 +97,11 @@ struct LaunchOptions
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
+        false;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
