@@ -7429,6 +7429,30 @@ struct HldsServerinfoContractBackedDiagnosticBuilderParserSummary
     std::string detail;
 };
 
+struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
+    : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
+{
+    bool path_integration_probe_enabled = false;
+    bool path_integration_disabled_by_default = true;
+    bool serverinfo_diagnostic_surface_enabled = false;
+    bool contract_backed_serverinfo_enabled = false;
+    bool existing_serverinfo_path_preserved = true;
+    bool normal_serverinfo_behavior_changed = false;
+    bool builder_parser_invoked = false;
+    bool getchallenge_dependency_checked = false;
+    bool connect_dependency_checked = false;
+    bool prior_challenge_issued = false;
+    bool connect_diagnostic_ready = false;
+    bool serverinfo_diagnostic_ready = false;
+    bool serverinfo_response_ready = false;
+    bool hostname_present = false;
+    bool map_name_present = false;
+    bool game_dir_present = false;
+    bool maxplayers_present = false;
+    bool protocol_version_present = false;
+    bool protocol_version_accepted = false;
+};
+
 struct DedicatedActivationSurfaceSummary
 {
     bool enabled = false;
@@ -21997,6 +22021,12 @@ struct HlServerModuleInitOptions
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    bool
+        hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
+            false;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
+            "happy";
     bool activation_surface_enabled = false;
     bool activation_probe_enabled = false;
     std::string activation_probe_scenario = "happy";
@@ -22845,6 +22875,8 @@ struct HlServerModuleSummary
         hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
     HldsServerinfoContractBackedDiagnosticBuilderParserSummary
         hlds_serverinfo_contract_backed_diagnostic_builder_parser;
+    HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
+        hlds_serverinfo_contract_backed_diagnostic_path_integration;
     DedicatedActivationSurfaceSummary dedicated_activation_surface;
     DedicatedActivationProbeSummary dedicated_activation_probe;
     DedicatedBootstrapSurfaceSummary dedicated_bootstrap_surface;

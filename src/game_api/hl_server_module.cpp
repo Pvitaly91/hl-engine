@@ -3955,6 +3955,11 @@ struct EngineShimState
     std::string
         hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario =
             "happy";
+    hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
+        hlds_serverinfo_contract_backed_diagnostic_path_integration;
+    std::string
+        hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
+            "happy";
     hl::game_api::DedicatedActivationSurfaceSummary dedicated_activation_surface;
     hl::game_api::DedicatedActivationProbeSummary dedicated_activation_probe;
     std::string dedicated_activation_probe_scenario = "happy";
@@ -4895,6 +4900,9 @@ std::string BuildHldsServerinfoFixtureContractValidatorDiagnosticProbeLine(
     const hl::game_api::HldsServerinfoFixtureContractValidatorDiagnosticProbeSummary& summary);
 std::string BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
+        summary);
+std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
         summary);
 std::string BuildDedicatedActivationSurfaceLine(
     const hl::game_api::DedicatedActivationSurfaceSummary& summary);
@@ -25947,6 +25955,146 @@ std::string BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
             summary.corpus_sufficient_for_next_diagnostic_builder ? "1" : "0")
         + ", corpus_sufficient_for_real_compatibility="
         + std::string(summary.corpus_sufficient_for_real_compatibility ? "1" : "0")
+        + ", real_client_smoke_allowed_now="
+        + std::string(summary.real_client_smoke_allowed_now ? "1" : "0")
+        + ", real_steam_client_used="
+        + std::string(summary.real_steam_client_used ? "1" : "0")
+        + ", real_client_binary_invoked="
+        + std::string(summary.real_client_binary_invoked ? "1" : "0")
+        + ", no_real_client_gate_passed="
+        + std::string(summary.no_real_client_gate_passed ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", loopback_udp_socket_opened="
+        + std::string(summary.loopback_udp_socket_opened ? "1" : "0")
+        + ", socket_open_attempted="
+        + std::string(summary.socket_open_attempted ? "1" : "0")
+        + ", normal_host_behavior_changed="
+        + std::string(summary.normal_host_behavior_changed ? "1" : "0")
+        + ", steam_auth_not_implemented="
+        + std::string(summary.steam_auth_not_implemented ? "1" : "0")
+        + ", netchan_not_started="
+        + std::string(summary.netchan_not_started ? "1" : "0")
+        + ", reliable_channel_not_started="
+        + std::string(summary.reliable_channel_not_started ? "1" : "0")
+        + ", resource_baselines_not_sent="
+        + std::string(summary.resource_baselines_not_sent ? "1" : "0")
+        + ", signon_state_not_entered="
+        + std::string(summary.signon_state_not_entered ? "1" : "0")
+        + ", client_not_put_in_server="
+        + std::string(summary.client_not_put_in_server ? "1" : "0")
+        + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
+        + ", recommended_next_task=" + summary.recommended_next_task
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
+        summary)
+{
+    return "hlds_serverinfo_contract_backed_diagnostic_path_integration: enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", lastRejectReason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                               : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", path_integration_probe_enabled="
+        + std::string(summary.path_integration_probe_enabled ? "1" : "0")
+        + ", path_integration_disabled_by_default="
+        + std::string(summary.path_integration_disabled_by_default ? "1" : "0")
+        + ", serverinfo_diagnostic_surface_enabled="
+        + std::string(summary.serverinfo_diagnostic_surface_enabled ? "1" : "0")
+        + ", contract_backed_serverinfo_enabled="
+        + std::string(summary.contract_backed_serverinfo_enabled ? "1" : "0")
+        + ", existing_serverinfo_path_preserved="
+        + std::string(summary.existing_serverinfo_path_preserved ? "1" : "0")
+        + ", normal_serverinfo_behavior_changed="
+        + std::string(summary.normal_serverinfo_behavior_changed ? "1" : "0")
+        + ", fixture_validator_invoked="
+        + std::string(summary.fixture_validator_invoked ? "1" : "0")
+        + ", fixture_validation_passed="
+        + std::string(summary.fixture_validation_passed ? "1" : "0")
+        + ", fixture_contract_loaded="
+        + std::string(summary.fixture_contract_loaded ? "1" : "0")
+        + ", fixture_root=" + summary.fixture_root
+        + ", fixture_files_loaded=" + std::to_string(summary.fixture_files_loaded)
+        + ", builder_parser_invoked="
+        + std::string(summary.builder_parser_invoked ? "1" : "0")
+        + ", builder_parser_disabled_by_default="
+        + std::string(summary.builder_parser_disabled_by_default ? "1" : "0")
+        + ", allowed_buildable_fixtures_count="
+        + std::to_string(summary.allowed_buildable_fixtures_count)
+        + ", selected_fixture_id=" + summary.selected_fixture_id
+        + ", selected_fixture_family=" + summary.selected_fixture_family
+        + ", selected_fixture_stage=" + summary.selected_fixture_stage
+        + ", selected_fixture_compatibility_claim="
+        + summary.selected_fixture_compatibility_claim
+        + ", build_attempted=" + std::string(summary.build_attempted ? "1" : "0")
+        + ", build_succeeded=" + std::string(summary.build_succeeded ? "1" : "0")
+        + ", parse_attempted=" + std::string(summary.parse_attempted ? "1" : "0")
+        + ", parse_succeeded=" + std::string(summary.parse_succeeded ? "1" : "0")
+        + ", roundtrip_validation_passed="
+        + std::string(summary.roundtrip_validation_passed ? "1" : "0")
+        + ", diagnostic_preview_builder_complete="
+        + std::string(summary.diagnostic_preview_builder_complete ? "1" : "0")
+        + ", byte_level_builder_complete="
+        + std::string(summary.byte_level_builder_complete ? "1" : "0")
+        + ", real_wire_builder_complete="
+        + std::string(summary.real_wire_builder_complete ? "1" : "0")
+        + ", build_output_safe_preview=" + summary.build_output_safe_preview
+        + ", marker_or_header_valid="
+        + std::string(summary.marker_or_header_valid ? "1" : "0")
+        + ", opcode_or_tag_valid="
+        + std::string(summary.opcode_or_tag_valid ? "1" : "0")
+        + ", field_order_valid="
+        + std::string(summary.field_order_valid ? "1" : "0")
+        + ", required_fields_present="
+        + std::string(summary.required_fields_present ? "1" : "0")
+        + ", safe_string_policy_passed="
+        + std::string(summary.safe_string_policy_passed ? "1" : "0")
+        + ", response_length_within_limit="
+        + std::string(summary.response_length_within_limit ? "1" : "0")
+        + ", unresolved_fixture_build_attempted="
+        + std::string(summary.unresolved_fixture_build_attempted ? "1" : "0")
+        + ", unresolved_fixture_rejected="
+        + std::string(summary.unresolved_fixture_rejected ? "1" : "0")
+        + ", invalid_fixture_build_attempted="
+        + std::string(summary.invalid_fixture_build_attempted ? "1" : "0")
+        + ", invalid_fixture_rejected="
+        + std::string(summary.invalid_fixture_rejected ? "1" : "0")
+        + ", compatibility_claim_escalation_detected="
+        + std::string(summary.compatibility_claim_escalation_detected ? "1" : "0")
+        + ", real_compatibility_claims_count="
+        + std::to_string(summary.real_compatibility_claims_count)
+        + ", getchallenge_dependency_checked="
+        + std::string(summary.getchallenge_dependency_checked ? "1" : "0")
+        + ", connect_dependency_checked="
+        + std::string(summary.connect_dependency_checked ? "1" : "0")
+        + ", prior_challenge_issued="
+        + std::string(summary.prior_challenge_issued ? "1" : "0")
+        + ", connect_diagnostic_ready="
+        + std::string(summary.connect_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_diagnostic_ready="
+        + std::string(summary.serverinfo_diagnostic_ready ? "1" : "0")
+        + ", serverinfo_response_ready="
+        + std::string(summary.serverinfo_response_ready ? "1" : "0")
+        + ", hostname_present=" + std::string(summary.hostname_present ? "1" : "0")
+        + ", map_name_present=" + std::string(summary.map_name_present ? "1" : "0")
+        + ", game_dir_present=" + std::string(summary.game_dir_present ? "1" : "0")
+        + ", maxplayers_present="
+        + std::string(summary.maxplayers_present ? "1" : "0")
+        + ", protocol_version_present="
+        + std::string(summary.protocol_version_present ? "1" : "0")
+        + ", protocol_version_accepted="
+        + std::string(summary.protocol_version_accepted ? "1" : "0")
         + ", real_client_smoke_allowed_now="
         + std::string(summary.real_client_smoke_allowed_now ? "1" : "0")
         + ", real_steam_client_used="
@@ -57333,6 +57481,14 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsServerinfoContractBackedDiagnosticBuilderParserLine(
                     summary
                         .hlds_serverinfo_contract_backed_diagnostic_builder_parser));
+        }
+        if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
+                    summary
+                        .hlds_serverinfo_contract_backed_diagnostic_path_integration));
         }
         if (summary.dedicated_activation_surface.enabled)
         {
@@ -213699,6 +213855,299 @@ void PerformHldsServerinfoContractBackedDiagnosticBuilderParser()
         probe.enabled);
 }
 
+void CopyHldsServerinfoBuilderParserToPathIntegration(
+    const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
+        builder,
+    hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    static_cast<
+        hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&>(
+        *summary) = builder;
+    summary->compatibility_claim_level =
+        "diagnostic-contract-backed-serverinfo-path-integration-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->builder_parser_invoked = true;
+    summary->path_integration_disabled_by_default = true;
+    summary->existing_serverinfo_path_preserved = true;
+    summary->normal_serverinfo_behavior_changed = false;
+    summary->normal_host_behavior_changed = false;
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap";
+    summary->recommended_next_task =
+        "optionally swap the diagnostic localhost smoke harness serverinfo response to the contract-backed diagnostic path while keeping real clients and sockets gated";
+}
+
+void ApplyHldsServerinfoPathIntegrationPrerequisites(
+    const HldsServerinfoDiagnosticResult& diagnostic,
+    hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->getchallenge_dependency_checked =
+        diagnostic.getchallenge_dependency_checked;
+    summary->connect_dependency_checked = diagnostic.connect_dependency_checked;
+    summary->prior_challenge_issued = diagnostic.prior_challenge_issued;
+    summary->connect_diagnostic_ready = diagnostic.connect_diagnostic_ready;
+    summary->serverinfo_diagnostic_ready =
+        diagnostic.serverinfo_diagnostic_ready;
+    summary->hostname_present = diagnostic.hostname_present;
+    summary->map_name_present = diagnostic.map_name_present;
+    summary->game_dir_present = diagnostic.game_dir_present;
+    summary->maxplayers_present = diagnostic.maxplayers_present;
+    summary->protocol_version_present = diagnostic.protocol_version_present;
+    summary->protocol_version_accepted = diagnostic.protocol_version_accepted;
+}
+
+void RejectHldsServerinfoPathIntegration(
+    hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary*
+        summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+    summary->serverinfo_response_ready = false;
+}
+
+hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
+RunHldsServerinfoContractBackedDiagnosticPathIntegration(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
+        summary;
+    summary.enabled = true;
+    summary.mode = std::string(mode);
+    summary.scenario = std::string(scenario);
+    summary.compatibility_claim_level =
+        "diagnostic-contract-backed-serverinfo-path-integration-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary.diagnostic_only = true;
+    summary.path_integration_probe_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.path_integration_disabled_by_default = true;
+    summary.serverinfo_diagnostic_surface_enabled =
+        scenario != "gate_disabled_by_default";
+    summary.contract_backed_serverinfo_enabled =
+        summary.path_integration_probe_enabled
+        && scenario != "gate_integration_mode_required";
+    summary.existing_serverinfo_path_preserved = true;
+    summary.normal_serverinfo_behavior_changed = false;
+    summary.builder_parser_disabled_by_default = true;
+    summary.fixture_root = "fixtures/diagnostic/hlds/serverinfo";
+    summary.real_client_smoke_allowed_now = false;
+    summary.real_steam_client_used = false;
+    summary.real_client_binary_invoked = false;
+    summary.public_socket_opened = false;
+    summary.loopback_udp_socket_opened = false;
+    summary.socket_open_attempted = false;
+    summary.normal_host_behavior_changed = false;
+    summary.steam_auth_not_implemented = true;
+    summary.netchan_not_started = true;
+    summary.reliable_channel_not_started = true;
+    summary.resource_baselines_not_sent = true;
+    summary.signon_state_not_entered = true;
+    summary.client_not_put_in_server = true;
+    summary.auth = "not_implemented";
+    summary.signon = "not_entered";
+    summary.gameplay_transport = "not_started";
+    summary.recommended_next_prompt_id =
+        "HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap";
+    summary.recommended_next_task =
+        "optionally swap the diagnostic localhost smoke harness serverinfo response to the contract-backed diagnostic path while keeping real clients and sockets gated";
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "serverinfo_path_integration_disabled");
+        summary.detail =
+            "contract-backed diagnostic serverinfo path integration stayed disabled without explicit probe enablement";
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        RejectHldsServerinfoPathIntegration(&summary, "public_socket_blocked");
+        summary.detail =
+            "path integration rejected public socket behavior before opening any socket; integration has no networking path";
+        return summary;
+    }
+
+    if (scenario == "gate_integration_mode_required")
+    {
+        summary.contract_backed_serverinfo_enabled = false;
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "contract_backed_serverinfo_integration_mode_required");
+        summary.detail =
+            "ordinary diagnostic serverinfo surface remains available, but contract-backed integration did not run without explicit integration mode";
+        return summary;
+    }
+
+    const HldsServerinfoDiagnosticResult diagnostic =
+        BuildHldsServerinfoDiagnosticResult(
+            scenario == "gate_missing_connect"
+                ? "gate_missing_connect"
+                : scenario == "gate_wrong_protocol"
+                ? "gate_wrong_protocol"
+                : scenario == "gate_missing_serverinfo_field"
+                ? "gate_missing_serverinfo_field"
+                : "happy");
+    ApplyHldsServerinfoPathIntegrationPrerequisites(diagnostic, &summary);
+
+    if (scenario == "gate_missing_connect")
+    {
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "missing_connect_diagnostic");
+        summary.detail =
+            "path integration preserved prompt 267 missing-connect gate before invoking the contract builder";
+        return summary;
+    }
+
+    if (scenario == "gate_wrong_protocol")
+    {
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "unsupported_protocol_version");
+        summary.detail =
+            "path integration preserved prompt 267 protocol gate before invoking the contract builder";
+        return summary;
+    }
+
+    if (scenario == "gate_missing_serverinfo_field")
+    {
+        summary.required_fields_present = false;
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "missing_serverinfo_field");
+        summary.detail =
+            "path integration preserved prompt 267 missing serverinfo field gate before marking a response ready";
+        return summary;
+    }
+
+    if (scenario == "gate_validator_required")
+    {
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "fixture_validator_required");
+        summary.detail =
+            "path integration refused to invoke builder/parser without a successful fixture validator dependency";
+        return summary;
+    }
+
+    const std::string builder_scenario =
+        scenario == "gate_unresolved_fixture_rejected"
+            ? "gate_unresolved_fixture_rejected"
+        : scenario == "gate_invalid_fixture_rejected"
+            ? "gate_invalid_fixture_rejected"
+        : scenario == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : "happy";
+    const auto builder = RunHldsServerinfoContractBackedDiagnosticBuilderParser(
+        file_system,
+        mode,
+        builder_scenario,
+        true);
+    CopyHldsServerinfoBuilderParserToPathIntegration(builder, &summary);
+    summary.path_integration_probe_enabled = true;
+    summary.serverinfo_diagnostic_surface_enabled = true;
+    summary.contract_backed_serverinfo_enabled = true;
+    summary.scenario = std::string(scenario);
+    ApplyHldsServerinfoPathIntegrationPrerequisites(diagnostic, &summary);
+
+    if (scenario == "gate_builder_roundtrip_required")
+    {
+        summary.parse_succeeded = false;
+        summary.roundtrip_validation_passed = false;
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "serverinfo_builder_roundtrip_required");
+        summary.detail =
+            "path integration refused to mark response ready when builder roundtrip validation was disabled or failed";
+        return summary;
+    }
+
+    if (scenario == "gate_unresolved_fixture_rejected"
+        || scenario == "gate_invalid_fixture_rejected"
+        || scenario == "gate_real_compatibility_claim_rejected")
+    {
+        summary.serverinfo_response_ready = false;
+        return summary;
+    }
+
+    if (scenario == "gate_no_real_client_used")
+    {
+        summary.no_real_client_gate_passed =
+            !summary.real_steam_client_used && !summary.real_client_binary_invoked;
+    }
+
+    if (diagnostic.accepted == 1
+        && summary.build_succeeded
+        && summary.parse_succeeded
+        && summary.roundtrip_validation_passed)
+    {
+        summary.accepted = 1;
+        summary.rejected = 0;
+        summary.last_reject_reason = "<none>";
+        summary.serverinfo_diagnostic_ready = true;
+        summary.serverinfo_response_ready = true;
+        summary.detail =
+            "contract-backed diagnostic builder/parser supplied the explicit diagnostic serverinfo response after prompt 267 prerequisites; no sockets or real client";
+    }
+    else
+    {
+        RejectHldsServerinfoPathIntegration(
+            &summary,
+            "contract_backed_serverinfo_response_not_ready");
+        summary.detail =
+            "path integration did not mark response ready because diagnostic prerequisites or builder roundtrip failed";
+    }
+
+    return summary;
+}
+
+void PerformHldsServerinfoContractBackedDiagnosticPathIntegration()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe =
+        state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+            .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+            .empty()
+        ? "happy"
+        : state
+              .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario;
+
+    probe = RunHldsServerinfoContractBackedDiagnosticPathIntegration(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
 void PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface()
 {
     EngineShimState& state = CurrentShimState();
@@ -245380,6 +245829,7 @@ void PopulateBootstrapSummary(
         {};
     summary.hlds_serverinfo_fixture_contract_validator_diagnostic_probe = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser = {};
+    summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.dedicated_activation_surface = {};
     summary.dedicated_activation_probe = {};
     summary.dedicated_bootstrap_surface = {};
@@ -246497,6 +246947,8 @@ void PopulateBootstrapSummary(
             state.hlds_serverinfo_fixture_contract_validator_diagnostic_probe;
         summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser =
             state.hlds_serverinfo_contract_backed_diagnostic_builder_parser;
+        summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
+            state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.dedicated_activation_surface = state.dedicated_activation_surface;
         summary.dedicated_activation_probe = state.dedicated_activation_probe;
         summary.dedicated_bootstrap_surface = state.dedicated_bootstrap_surface;
@@ -252962,6 +253414,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsProductionLoopbackConnectionlessSocketPumpLocalhostClientSmokeHarness();
     PerformHldsServerinfoFixtureContractValidatorDiagnosticProbe();
     PerformHldsServerinfoContractBackedDiagnosticBuilderParser();
+    PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
     LogSpawnPipelineStubAvailability(state);
 }
@@ -254903,6 +255356,8 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_builder_parser =
         {};
+    impl_->summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
+        {};
     impl_->summary.dedicated_activation_surface = {};
     impl_->summary.dedicated_activation_probe = {};
     impl_->summary.dedicated_bootstrap_surface = {};
@@ -255528,6 +255983,65 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             ? "gate_no_real_client_used"
         : options
                     .hlds_serverinfo_contract_backed_diagnostic_builder_parser_probe_scenario
+                == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_path_integration =
+        {};
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_path_integration
+        .enabled =
+        options
+            .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled;
+    impl_->shim_state
+        .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario =
+        options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_integration_mode_required"
+            ? "gate_integration_mode_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_validator_required"
+            ? "gate_validator_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_builder_roundtrip_required"
+            ? "gate_builder_roundtrip_required"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_unresolved_fixture_rejected"
+            ? "gate_unresolved_fixture_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_invalid_fixture_rejected"
+            ? "gate_invalid_fixture_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_real_compatibility_claim_rejected"
+            ? "gate_real_compatibility_claim_rejected"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_missing_connect"
+            ? "gate_missing_connect"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_wrong_protocol"
+            ? "gate_wrong_protocol"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_missing_serverinfo_field"
+            ? "gate_missing_serverinfo_field"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
+                == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : options
+                    .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_scenario
                 == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
             : "happy";
