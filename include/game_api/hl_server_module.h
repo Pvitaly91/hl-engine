@@ -7619,6 +7619,29 @@ struct HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
     bool shutdown_cleanup_performed = false;
 };
 
+struct HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary
+    : HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
+{
+    bool query_client_smoke_enabled = false;
+    bool query_client_smoke_disabled_by_default = true;
+    bool diagnostic_query_client_used = false;
+    bool real_query_client_used = false;
+    bool query_client_socket_opened = false;
+    bool query_client_loopback_only = false;
+    bool query_client_public_socket_opened = false;
+    bool query_client_socket_closed = false;
+    bool lan_socket_opened = false;
+    bool connect_datagram_attempted = false;
+    bool connect_datagram_sent = false;
+    bool connect_path_invoked = false;
+    bool post_connect_serverinfo_path_invoked = false;
+    bool signon_serverinfo_path_invoked = false;
+    bool challenge_cache_required = false;
+    bool real_query_client_allowed_now = false;
+    bool public_socket_exposure_allowed_now = false;
+    bool lan_socket_exposure_allowed_now = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22278,6 +22301,12 @@ struct HlServerModuleInitOptions
         hlds_connectionless_query_info_byte_level_loopback_query_response_swap_probe_scenario =
             "happy";
     bool
+        hlds_query_info_byte_level_loopback_query_client_smoke_probe_enabled =
+            false;
+    std::string
+        hlds_query_info_byte_level_loopback_query_client_smoke_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -23145,6 +23174,8 @@ struct HlServerModuleSummary
         hlds_connectionless_query_info_byte_level_diagnostic_path_integration;
     HldsConnectionlessQueryInfoByteLevelLoopbackQueryResponseSwapSummary
         hlds_connectionless_query_info_byte_level_loopback_query_response_swap;
+    HldsQueryInfoByteLevelLoopbackQueryClientSmokeSummary
+        hlds_query_info_byte_level_loopback_query_client_smoke;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
