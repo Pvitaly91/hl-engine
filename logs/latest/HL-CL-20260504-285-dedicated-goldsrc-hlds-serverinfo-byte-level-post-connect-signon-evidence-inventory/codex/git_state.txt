@@ -1,0 +1,31 @@
+PROMPT-ID: HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory
+
+Before prompt 285 edits:
+- branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+- pre_change_head: 7ddcae8f87d90646f298da436a598039a5ec754d
+- worktree: dirty with unrelated build outputs and older logs already present
+
+Descendant gates:
+- All required commits through 7ddcae8f87d90646f298da436a598039a5ec754d passed `git merge-base --is-ancestor <commit> HEAD`.
+
+Prompt 285 file scope:
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/HL-CL-20260504-285__full_handoff.txt
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_byte_level_evidence_inventory.md
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_fixture_audit.md
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_byte_level_candidate_classification.md
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_unresolved_byte_field_matrix.md
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_fixture_promotion_decision.md
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/serverinfo_byte_level_evidence_summary.json
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/command_log.txt
+- logs/latest/HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory/codex/git_state.txt
+
+After prompt 285 artifact creation:
+- source_changed: false
+- fixture files modified: 0
+- source files modified: 0
+- runtime proofs run: none
+- sockets opened by this prompt: 0
+- generated summary JSON: valid
+- prompt-owned artifacts were moved into the `host` git repository path after an initial draft path correction
+
+Final git status and artifact commit are recorded in the final Codex summary.

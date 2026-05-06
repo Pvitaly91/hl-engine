@@ -1,0 +1,69 @@
+﻿PROMPT-ID: HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 7ddcae8f87d90646f298da436a598039a5ec754d
+Source changed: false
+
+Compatibility claim level:
+diagnostic-byte-level-serverinfo-evidence-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Scope:
+- report-only byte-level evidence inventory
+- no source changes
+- no fixture metadata changes
+- no runtime smoke proof
+- no sockets opened
+- no real Steam Half-Life client used
+- no real client binary invoked
+
+Inventory conclusion:
+- Local byte-level evidence exists only for the connectionless query/info candidate.
+- No local byte-level post-connect serverinfo evidence was found.
+- No local byte-level signon-time serverinfo evidence was found.
+- No unresolved fixture can be promoted.
+- The checked-in fixture corpus remains concept-separated.
+- The prompt 284 smoke-swap remains diagnostic-preview-only: byte_level_builder_complete=0 and real_wire_builder_complete=0.
+
+Exact fixture root:
+fixtures/diagnostic/hlds/serverinfo
+
+Fixture counts:
+- fixtures_total: 9
+- fixtures_valid: 2
+- fixtures_invalid_cases: 5
+- fixtures_unresolved: 2
+- fixtures_promoted: 0
+- fixtures_modified: 0
+- fixtures_added: 0
+- real_compatibility_claims_count: 0
+
+Evidence details:
+- `BuildGoldSrcInfoRequest`, `BuildGoldSrcInfoResponse`, `ParseGoldSrcInfoResponse`, and `PumpOneLoopbackGoldSrcInfoQuery` are byte-level for connectionless query/info only.
+- `BuildHldsServerinfoDiagnosticResultFromConnect` builds diagnostic safe preview text only.
+- Generic `StubWriteByte`, `StubWriteShort`, `StubWriteLong`, and `StubWriteString` callbacks do not define a serverinfo opcode, field order, packet frame, or signon transition.
+- Source search found no current source `svc_serverinfo`, `SVC_SERVERINFO`, `MSG_Write`, `SZ_Write`, signon buffer, bitstream, server data, or client put-in-server implementation.
+
+Why this still does not imply real compatibility:
+- Connectionless query/info is not equivalent to post-connect serverinfo.
+- Diagnostic preview text is not a real GoldSrc/HLDS post-connect wire contract.
+- Signon-time serverinfo likely depends on netchan/reliable framing and signon state that are still absent.
+- Auth, netchan, reliable channel, resource baselines, signon state, and admission remain intentionally unimplemented for real-client compatibility.
+
+Recommended next prompt:
+HL-CL-20260504-286-dedicated-goldsrc-hlds-serverinfo-unresolved-fixture-refinement-and-evidence-gap-guard
+
+Recommended next task:
+Add a diagnostic guard around unresolved post-connect and signon-time serverinfo fixtures so future builders/parsers cannot accidentally treat diagnostic preview text or connectionless query bytes as real post-connect/signon evidence.
+
+Artifacts:
+- serverinfo_byte_level_evidence_inventory.md
+- serverinfo_fixture_audit.md
+- serverinfo_byte_level_candidate_classification.md
+- serverinfo_unresolved_byte_field_matrix.md
+- serverinfo_fixture_promotion_decision.md
+- serverinfo_byte_level_evidence_summary.json
+- command_log.txt
+- git_state.txt
+
+PROMPT-ID: HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory
