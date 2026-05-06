@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_182131",
+  "runInstanceId": "20260506_182131_457_pid30728",
+  "runLabel": "p287-committed-16-gate_real_compatibility_claim_rejected",
+  "promptId": "HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "ef7d69a929b16f5f55b03f932ed46fd0594adbb4",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_182131_457_pid30728__p287-committed-16-gate_real_compatibility_claim_rejected_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_182131_457_pid30728__p287-committed-16-gate_real_compatibility_claim_rejected_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_182131_457_pid30728__p287-committed-16-gate_real_compatibility_claim_rejected_part01.log"]
+}
