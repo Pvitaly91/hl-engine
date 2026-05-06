@@ -1,0 +1,19 @@
+# Git State
+
+Before prompt source changes:
+- branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+- pre_change_head: ee5300b911d7b22a6a1acdecd2a46e773f0f77b5
+- unrelated dirty build/log files existed and were preserved.
+
+After source commit:
+- source_commit: 5e1c8e41f6305ff19336e5e2c586671a9fb3c6ff
+- artifact_commit: pending_artifact_commit_recorded_in_final_response
+
+Source files changed for prompt 282:
+- include/app/launch_options.h
+- include/game_api/hl_server_module.h
+- src/app/launch_options.cpp
+- src/app/host_application.cpp
+- src/game_api/hl_server_module.cpp
+
+Current status after artifact generation will include only prompt 282 artifacts plus pre-existing unrelated dirty files.
