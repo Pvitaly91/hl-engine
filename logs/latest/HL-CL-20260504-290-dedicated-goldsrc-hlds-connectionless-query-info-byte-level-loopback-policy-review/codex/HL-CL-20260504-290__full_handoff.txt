@@ -1,0 +1,84 @@
+PROMPT-ID: HL-CL-20260504-290-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-policy-review
+
+Status: pass, report-only policy review.
+
+Compatibility claim level: diagnostic-query-info-loopback-policy-review-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This handoff is diagnostic-only. It claims no real Steam Half-Life client compatibility and no HLDS-compatible client compatibility. Prompt 290 did not invoke Steam, did not invoke a real client binary, did not open public sockets, did not open loopback sockets, did not run runtime proofs, and did not change source, fixture data, launch options, or normal host behavior.
+
+Fixture root: fixtures/diagnostic/hlds/serverinfo
+Selected query/info fixture reviewed: connectionless_query_info_candidate
+Selected fixture stage: connectionless_query
+Response safe hex preview from prompt 287-289 proof chain: FFFFFFFF6D3132372E302E302E313A3000484C656E67696E6520546573742053657276657200633061300076616C76650048616C662D4C696665000004306477000000
+Response safe text preview from prompt 287-289 proof chain: ....m127.0.0.1:0|HLengine Test Server|c0a0|valve|Half-Life||.0dw|||
+
+Dependencies reviewed:
+- prompt 285 byte-level post-connect/signon evidence inventory
+- prompt 286 unresolved fixture evidence-gap guard
+- prompt 287 connectionless query/info byte-level builder/parser
+- prompt 288 connectionless query/info byte-level diagnostic path integration
+- prompt 289 connectionless query/info byte-level loopback response swap
+
+Evidence summary:
+- query/info byte builder complete: 1
+- query/info byte parser complete: 1
+- query/info loopback response proven by prior prompt: 1
+- connectionless query/info is not post-connect serverinfo: 1
+- connectionless query/info is not signon-time serverinfo: 1
+- post-connect byte evidence sufficient: 0
+- signon-time byte evidence sufficient: 0
+- real post-connect builder complete: 0
+- real signon builder complete: 0
+- real wire builder complete: 0
+- real client smoke allowed now: 0
+- real query client allowed now: 0
+- public socket exposure allowed now: 0
+- LAN socket exposure allowed now: 0
+
+Policy decision:
+The diagnostic loopback query/info response path remains fixture-backed, opt-in, bounded, loopback-only, connectionless-query-only, and diagnostic-only. Public sockets, LAN sockets, real query clients, Steam clients, real client binaries, connect/post-connect/signon flows, auth, netchan, resources, and admission remain blocked.
+
+Exact gates reviewed from prompt 289:
+- happy
+- gate_disabled_by_default
+- gate_query_info_path_required
+- gate_validator_required
+- gate_evidence_gap_guard_required
+- gate_builder_roundtrip_required
+- gate_wrong_command_or_query
+- gate_bad_marker_or_header
+- gate_wrong_opcode_or_tag
+- gate_missing_required_field
+- gate_unsafe_string
+- gate_overlong_response
+- gate_post_connect_stage_confusion_rejected
+- gate_signon_stage_confusion_rejected
+- gate_unresolved_post_connect_rejected
+- gate_unresolved_signon_rejected
+- gate_real_compatibility_claim_rejected
+- gate_no_real_client_used
+- gate_non_loopback_bind_denied
+- gate_public_socket_blocked
+- gate_client_timeout_bounded
+- gate_shutdown_cleanup
+
+Why this still does not imply real HLDS or Steam client compatibility:
+The only byte-level serverinfo-like candidate remains connectionless query/info. It is not post-connect serverinfo and not signon-time serverinfo. No local byte-level post-connect or signon serverinfo evidence exists. No real client or Steam binary was invoked. No public or LAN socket policy has been accepted. Auth, netchan, reliable/unreliable channels, resources, signon, and client admission remain unimplemented for real client compatibility.
+
+Remaining before any real client smoke:
+- local byte-level post-connect serverinfo evidence
+- local byte-level signon-time serverinfo evidence
+- real serverinfo wire-format builder for the correct stage
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt: HL-CL-20260504-291-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-client-policy-gated-smoke
+Recommended next task: implement a stricter opt-in diagnostic query-client smoke harness that exercises only connectionless query/info over loopback with the byte-level response, while keeping public/LAN exposure, real clients, connect, post-connect, signon, auth, netchan, resources, and admission blocked
+
+PROMPT-ID: HL-CL-20260504-290-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-policy-review

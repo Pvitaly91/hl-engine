@@ -1,0 +1,26 @@
+# Command Log
+
+Prompt: HL-CL-20260504-290-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-policy-review
+
+## Commands Run
+
+- git branch --show-current -> codex/HL-CL-20260401-081-target-runtime-completion-state
+- git rev-parse HEAD -> f397488a5e47419f510930635285a46c75945e3d
+- git status --short -> reviewed existing dirty generated/build/log files; unrelated changes preserved
+- Get-Content -Raw prior prompt summaries for 285, 286, 287, 288, and 289
+- Get-Content -Raw prompt 285/286/289 markdown evidence reports
+- g -n ... for connectionless query/query info/public socket/LAN/loopback/real client/Steam/evidence gap/post-connect/signon/fixture/byte builder/parser -> failed because bundled g.exe was access denied
+- Select-String fallback searches over launch options, host application, server module, fixtures, and prompt artifacts for connectionless query/query info/public socket/LAN/loopback policy/real client/Steam/evidence gap/post-connect/signon/fixture/byte builder/parser
+- Get-ChildItem fixtures/diagnostic/hlds/serverinfo/fixtures -Filter *.json | ConvertFrom-Json -> all 9 fixture JSON files parsed
+- git merge-base --is-ancestor <checkpoint> HEAD for all requested checkpoint commits through f397488a5e47419f510930635285a46c75945e3d -> pass
+
+## Commands Deliberately Not Run
+
+- No build: report-only prompt and no source changes.
+- No runtime proof: policy review only.
+- No real-client proof: no real client or Steam invocation allowed.
+- No socket/network proof: prompt 290 must not open loopback or public sockets.
+
+## Result
+
+Artifacts only. No source, fixture, launch option, runtime, or normal host behavior changes were made.
