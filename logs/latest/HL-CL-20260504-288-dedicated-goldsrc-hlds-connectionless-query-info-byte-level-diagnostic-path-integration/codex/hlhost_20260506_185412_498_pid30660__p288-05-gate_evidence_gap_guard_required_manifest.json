@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_185412",
+  "runInstanceId": "20260506_185412_498_pid30660",
+  "runLabel": "p288-05-gate_evidence_gap_guard_required",
+  "promptId": "HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "d332394b52faedfec4e0be52499a4c59ce0be2da",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration\\runtime\\hlhost_20260506_185412_498_pid30660__p288-05-gate_evidence_gap_guard_required_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration\\runtime\\hlhost_20260506_185412_498_pid30660__p288-05-gate_evidence_gap_guard_required_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration\\runtime\\hlhost_20260506_185412_498_pid30660__p288-05-gate_evidence_gap_guard_required_part01.log"]
+}

@@ -1,0 +1,4 @@
+MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m: pass
+Warnings: 2 existing C4127 constant-condition warnings in src/game_api/hl_server_module.cpp
+Errors: 0
+git diff --check: pass with CRLF warnings only
