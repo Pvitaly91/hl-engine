@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_143512",
+  "runInstanceId": "20260506_143512_720_pid40372",
+  "runLabel": "p283-6-gate-unresolved-fixture-rejected",
+  "promptId": "HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "225447448eb90634643d26f06fd13e9fcba8c80e",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration\\runtime\\hlhost_20260506_143512_720_pid40372__p283-6-gate-unresolved-fixture-rejected_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration\\runtime\\hlhost_20260506_143512_720_pid40372__p283-6-gate-unresolved-fixture-rejected_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration\\runtime\\hlhost_20260506_143512_720_pid40372__p283-6-gate-unresolved-fixture-rejected_part01.log"]
+}

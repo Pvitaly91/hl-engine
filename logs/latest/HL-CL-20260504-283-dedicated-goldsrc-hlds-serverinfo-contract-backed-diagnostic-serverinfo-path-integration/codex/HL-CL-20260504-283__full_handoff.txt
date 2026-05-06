@@ -1,0 +1,62 @@
+PROMPT-ID: HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change head: 225447448eb90634643d26f06fd13e9fcba8c80e
+Source commit: 7f9c5a6a7288dd39d7b1c7699fca333ad171618d
+Compatibility claim level: diagnostic-contract-backed-serverinfo-path-integration-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility or HLDS-compatible client compatibility is claimed.
+
+No real client binary was invoked. No Steam process was launched. No sockets were opened. The integration only affects explicit diagnostic serverinfo path mode and leaves normal serverinfo and host behavior unchanged.
+
+Exact fixture root: fixtures/diagnostic/hlds/serverinfo
+Validator dependency: prompt 281 fixture contract validator must pass before builder/parser use.
+Builder/parser dependency: prompt 282 contract-backed diagnostic builder/parser supplies and roundtrips the diagnostic preview.
+Selected fixture: diagnostic_post_connect_serverinfo_current
+Selected stage: diagnostic_current
+
+Existing-vs-contract-backed comparison:
+- Existing prompt 267 diagnostic skeleton remains available when contract-backed integration is not enabled.
+- Contract-backed mode selects the checked-in diagnostic fixture and only marks response-ready after validator, build, parse, and roundtrip pass.
+- Byte-level real wire builder is still incomplete: diagnostic_preview_builder_complete=1, byte_level_builder_complete=0, real_wire_builder_complete=0.
+
+Prompt 267 gates preserved:
+- gate_missing_connect: pass
+- gate_wrong_protocol: pass
+- gate_missing_serverinfo_field: pass
+
+Required prompt 283 gates run:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_integration_mode_required: pass
+- gate_validator_required: pass
+- gate_builder_roundtrip_required: pass
+- gate_unresolved_fixture_rejected: pass
+- gate_invalid_fixture_rejected: pass
+- gate_real_compatibility_claim_rejected: pass
+- gate_missing_connect: pass
+- gate_wrong_protocol: pass
+- gate_missing_serverinfo_field: pass
+- gate_no_real_client_used: pass
+- gate_public_socket_blocked: pass
+
+Why this still does not imply real HLDS/Steam compatibility:
+- The builder emits a diagnostic preview, not a proven real post-connect or signon byte stream.
+- There is no real client, Steam auth, netchan, reliable channel, signon state, resource/model/sound/event baseline emission, or client admission.
+- Real client smoke remains blocked.
+
+What remains before any real client smoke:
+- byte-level post-connect/signon serverinfo evidence
+- real serverinfo wire-format builder
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt: HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap
+Recommended next task: optionally swap the diagnostic localhost smoke harness serverinfo response to the contract-backed diagnostic path while keeping real clients and sockets gated

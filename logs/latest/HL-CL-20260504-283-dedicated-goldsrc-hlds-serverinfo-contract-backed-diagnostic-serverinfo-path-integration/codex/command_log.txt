@@ -1,0 +1,50 @@
+PROMPT-ID: HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration
+pre_change_head: 225447448eb90634643d26f06fd13e9fcba8c80e
+source_commit: 7f9c5a6a7288dd39d7b1c7699fca333ad171618d
+rg search attempted earlier but rg.exe returned Access is denied; Select-String fallback used.
+Commands/results:
+git status --short
+git rev-parse --abbrev-ref HEAD
+git rev-parse HEAD
+git merge-base --is-ancestor <required checkpoint> HEAD (all required checkpoints passed)
+Select-String fallback searches for serverinfo/fixture/contract/builder/parser/validator/integration/diagnostic/real client/Steam client/socket
+JSON validation for fixtures/diagnostic/hlds/serverinfo fixtures and schema: pass
+git diff --check: pass with CRLF warnings only
+& "C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe" build32\host\hlhost.vcxproj /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1: pass
+runtime proof matrix for 13 prompt 283 scenarios: pass
+git add source files; git commit -m "Add diagnostic contract-backed serverinfo path integration"
+Descendant gates:
+descendant_gate 88b4ea5affae71a1ac014e63694e8771a562bb0a: pass
+descendant_gate a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea: pass
+descendant_gate 2b0ea6aa83281cd0d01a9bd662a28b23b347aa5e: pass
+descendant_gate 87a0915d9c07634606576ea54a9e91cb78d11743: pass
+descendant_gate 353f2076f54dd14427e76fc08ec3aa3c5bf7b003: pass
+descendant_gate 8d44f3d5a96a727d716cfbe341b992bf74940706: pass
+descendant_gate 4f9c20288a2b751d124b30dce3482f0b7a72f132: pass
+descendant_gate e73814fabe2cae06fa058872ff1f9e6080cc112b: pass
+descendant_gate 10c1bad3d830a3561fdaca6702c63ab94798372b: pass
+descendant_gate 9bac937b6fb62c77911b22432b9502f1d97f4d40: pass
+descendant_gate efa5dde9a8728e3f9a87f8a6dcaadf573882d630: pass
+descendant_gate 4024a2673e1c67177ac449d9448972e5411b214f: pass
+descendant_gate 552fee1682bad180d8010ab6bbd7e5b14b34c8ba: pass
+descendant_gate 2b5e8d707e319c19877fc3809b934c4636e36759: pass
+descendant_gate 4a0299b5fdac68ff384ba2fa5be9d24c166b6cad: pass
+descendant_gate b038470f98f7b82833754b4c21aa18ebc0902188: pass
+descendant_gate 7845839e1e30b170faca2ceaceab2faeab357dff: pass
+descendant_gate 286b041e572f5843fd190958bbc272afc1812ba4: pass
+descendant_gate 5529ce1a00c70a0557d3648d8bddd009eb410f53: pass
+descendant_gate c79afd45f4abc24c4bf956fee43b107a84cfffd7: pass
+descendant_gate d3691e7122a7e87a85552f2ed8efa707443d8822: pass
+descendant_gate 5794bf6ea59319f28313b6d14827b3f6eeccc23e: pass
+descendant_gate 8f07fff570c9640349f2b14b42c182b881ccbb38: pass
+descendant_gate 180a9a7ffee25678d33a19c300168b26d81279ed: pass
+descendant_gate 1db48247ab962540ffe0c3af39cfb02ea656eae1: pass
+descendant_gate c000ada08b15cc8499b63263eab5254e1ed5e55a: pass
+descendant_gate 46d19be2641cae3846b2a69498680e1c36746e51: pass
+descendant_gate 215e9665415b5d064d5fe95e6e708d9000fbf578: pass
+descendant_gate 5f7e59742d761f43cd977929b2d132e17dda7bbd: pass
+descendant_gate e79942c657fc88b3a3fdd6419eccefe49d55a187: pass
+descendant_gate ee5300b911d7b22a6a1acdecd2a46e773f0f77b5: pass
+descendant_gate 5e1c8e41f6305ff19336e5e2c586671a9fb3c6ff: pass
+descendant_gate 225447448eb90634643d26f06fd13e9fcba8c80e: pass
+Runtime proofs: proof_validation: pass
