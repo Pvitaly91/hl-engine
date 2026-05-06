@@ -1,0 +1,24 @@
+{
+  "prompt_id": "HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap",
+  "scenario": "gate_validator_required",
+  "proof_status": "pass",
+  "source_commit": "3107f18b3fc0acd6b1978823a3e0dd97f6246d6c",
+  "runtime_summary_log": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap\\runtime\\hlhost_20260506_152535_873_pid16184__p284-final-05-gate-validator-required_summary.log",
+  "runtime_part_log": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap\\runtime\\hlhost_20260506_152535_873_pid16184__p284-final-05-gate-validator-required_part01.log",
+  "summary_artifact": "logs\\latest\\HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap\\codex\\gate_validator_required_summary.json",
+  "no_real_client": {
+    "real_steam_client_used": "0",
+    "real_client_binary_invoked": "0"
+  },
+  "socket_policy": {
+    "public_socket_opened": "0",
+    "client_public_socket_opened": "0",
+    "server_public_socket_opened": "0",
+    "loopback_udp_socket_opened": "0"
+  },
+  "smoke_swap": {
+    "contract_backed_response_selected": "0",
+    "client_serverinfo_contract_backed": "0",
+    "selected_fixture_id": "<none>"
+  }
+}

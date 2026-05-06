@@ -1,0 +1,37 @@
+PROMPT-ID: HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 9187acd117df662a5daa3eabd1c45ae4ac1815ce
+Source commit: 3107f18b3fc0acd6b1978823a3e0dd97f6246d6c
+
+This is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. The localhost client is the diagnostic-only UDP harness from prompt 277, and public sockets were not opened.
+
+Fixture root: fixtures/diagnostic/hlds/serverinfo
+Selected fixture: diagnostic_post_connect_serverinfo_current
+Validator dependency: prompt 281 fixture validator; invoked before builder/parser in happy.
+Builder/parser dependency: prompt 282 contract-backed diagnostic builder/parser; build and parse/roundtrip are required before response readiness.
+Serverinfo path integration dependency: prompt 283 path integration; the smoke-swap selects that response source only in explicit diagnostic mode.
+
+Client-observed response: the diagnostic localhost UDP client received serverinfo protocol=48 hostname=HLengine_Diagnostic_Server map=crossfire game=valve maxplayers=4 slot=diagnostic-client-slot-1 as a serverinfo-shaped diagnostic preview. The old skeleton response path is preserved; in the smoke-swap happy path old_skeleton_serverinfo_response_used=0 and contract_backed_response_selected=1.
+
+Gates run: happy, gate_disabled_by_default, gate_smoke_harness_required, gate_contract_path_required, gate_validator_required, gate_builder_roundtrip_required, gate_client_timeout_bounded, gate_wrong_challenge, gate_wrong_protocol, gate_unsafe_userinfo, gate_unresolved_fixture_rejected, gate_invalid_fixture_rejected, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_non_loopback_client_denied, gate_public_socket_blocked, gate_shutdown_cleanup
+All gates passed.
+
+Why this is not real HLDS/Steam client compatibility:
+The response remains diagnostic-preview-only. byte_level_builder_complete=0, real_wire_builder_complete=0, auth is not implemented, netchan/reliable channels are not started, signon is not entered, resources/baselines are not emitted, and no client is put in server.
+
+What remains before any real client smoke:
+- byte-level post-connect/signon serverinfo evidence
+- real serverinfo wire-format builder
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt: HL-CL-20260504-285-dedicated-goldsrc-hlds-serverinfo-byte-level-post-connect-signon-evidence-inventory
+Recommended next task: inventory byte-level post-connect and signon serverinfo evidence before any real wire builder or real client smoke

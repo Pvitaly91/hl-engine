@@ -1,0 +1,34 @@
+PROMPT-ID: HL-CL-20260504-284-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-localhost-smoke-swap
+pre_change_head: 9187acd117df662a5daa3eabd1c45ae4ac1815ce
+source_commit: 3107f18b3fc0acd6b1978823a3e0dd97f6246d6c
+rg search attempted; rg.exe failed with Access is denied, so Select-String fallback was used.
+
+Commands/results:
+- git status --short: inspected; unrelated dirty build/log files preserved.
+- git branch --show-current / git rev-parse HEAD: branch=codex/HL-CL-20260401-081-target-runtime-completion-state, pre_change_head=9187acd117df662a5daa3eabd1c45ae4ac1815ce
+- Descendant gates for all required commits through 9187acd117df662a5daa3eabd1c45ae4ac1815ce: pass.
+- Select-String fallback searches for localhost smoke harness, serverinfo, fixture, contract, builder, parser, validator, smoke-swap, real client, Steam client, socket: pass.
+- Fixture JSON validation with ConvertFrom-Json: pass.
+- git diff --check for prompt source files: pass with CRLF warnings only.
+- MSBuild Debug Win32 incremental build: pass.
+- Runtime proof matrix for 17 prompt 284 scenarios: pass.
+- git add prompt source files; git commit -m "Add contract-backed localhost smoke swap diagnostic": source commit recorded above.
+
+Runtime proof statuses:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_smoke_harness_required: pass
+- gate_contract_path_required: pass
+- gate_validator_required: pass
+- gate_builder_roundtrip_required: pass
+- gate_client_timeout_bounded: pass
+- gate_wrong_challenge: pass
+- gate_wrong_protocol: pass
+- gate_unsafe_userinfo: pass
+- gate_unresolved_fixture_rejected: pass
+- gate_invalid_fixture_rejected: pass
+- gate_real_compatibility_claim_rejected: pass
+- gate_no_real_client_used: pass
+- gate_non_loopback_client_denied: pass
+- gate_public_socket_blocked: pass
+- gate_shutdown_cleanup: pass
