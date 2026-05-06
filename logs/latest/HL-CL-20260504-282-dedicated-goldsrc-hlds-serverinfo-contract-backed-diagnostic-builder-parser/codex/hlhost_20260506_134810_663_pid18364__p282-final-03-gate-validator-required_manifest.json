@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_134810",
+  "runInstanceId": "20260506_134810_663_pid18364",
+  "runLabel": "p282-final-03-gate-validator-required",
+  "promptId": "HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "ee5300b911d7b22a6a1acdecd2a46e773f0f77b5",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134810_663_pid18364__p282-final-03-gate-validator-required_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134810_663_pid18364__p282-final-03-gate-validator-required_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134810_663_pid18364__p282-final-03-gate-validator-required_part01.log"]
+}

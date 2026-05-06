@@ -1,0 +1,59 @@
+PROMPT-ID: HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: ee5300b911d7b22a6a1acdecd2a46e773f0f77b5
+Source commit: 5e1c8e41f6305ff19336e5e2c586671a9fb3c6ff
+Artifact commit: pending_artifact_commit_recorded_in_final_response
+Compatibility claim level: diagnostic-serverinfo-contract-backed-builder-parser-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This prompt added a diagnostic-only contract-backed serverinfo builder/parser probe. It is disabled by default and only runs with the explicit builder/parser diagnostic launch flag. It invokes the prompt 281 fixture validator first, reads the checked-in fixture corpus under fixtures/diagnostic/hlds/serverinfo, builds only allowed diagnostic fixture previews, and parses those previews against the fixture contract.
+
+No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. No sockets were opened. Normal host behavior is unchanged. The builder/parser does not replace the existing diagnostic serverinfo path outside explicit probe mode.
+
+Exact validator dependency: RunHldsServerinfoFixtureContractValidatorDiagnosticProbe(..., scenario=happy, probe_enabled=true).
+
+Fixture candidates built:
+- diagnostic_post_connect_serverinfo_current in the happy roundtrip.
+
+Fixture candidates accepted as buildable by contract count: 2.
+
+Fixture candidates rejected:
+- post_connect_real_serverinfo_unresolved
+- signon_time_serverinfo_unresolved by unresolved policy
+- invalid/mutated fixtures by invalid fixture policy
+- in-memory real compatibility claim escalation
+
+Output type:
+- diagnostic_preview_builder_complete=1
+- byte_level_builder_complete=0
+- real_wire_builder_complete=0
+
+Runtime gates run:
+- happy: accepted=1, rejected=0, reason=<none>
+- gate_disabled_by_default: accepted=0, rejected=1, reason=serverinfo_builder_parser_disabled
+- gate_validator_required: accepted=0, rejected=1, reason=fixture_validator_required
+- gate_unresolved_fixture_rejected: accepted=0, rejected=1, reason=unresolved_serverinfo_fixture_not_buildable
+- gate_invalid_fixture_rejected: accepted=0, rejected=1, reason=invalid_serverinfo_fixture_not_buildable
+- gate_real_compatibility_claim_rejected: accepted=0, rejected=1, reason=real_compatibility_claim_rejected
+- gate_field_order_mismatch: accepted=0, rejected=1, reason=serverinfo_field_order_mismatch
+- gate_missing_required_field: accepted=0, rejected=1, reason=missing_serverinfo_required_field
+- gate_unsafe_string: accepted=0, rejected=1, reason=unsafe_serverinfo_string
+- gate_overlong_response: accepted=0, rejected=1, reason=serverinfo_response_too_large
+- gate_no_real_client_used: accepted=1, rejected=0, reason=<none>
+- gate_public_socket_blocked: accepted=0, rejected=1, reason=public_socket_blocked
+
+What remains before any real client smoke:
+- real serverinfo byte-level evidence for post-connect/signon stages
+- contract-backed integration into the explicit diagnostic serverinfo path
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
+
+Recommended next prompt: HL-CL-20260504-283-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-serverinfo-path-integration
+Recommended next task: integrate the contract-backed diagnostic builder/parser into the explicit diagnostic serverinfo path without real clients or sockets

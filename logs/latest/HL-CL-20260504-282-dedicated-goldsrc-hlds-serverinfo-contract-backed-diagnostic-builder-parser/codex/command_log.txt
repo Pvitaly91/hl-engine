@@ -1,0 +1,11 @@
+# Command Log
+
+- git status --short --branch before source changes: branch codex/HL-CL-20260401-081-target-runtime-completion-state; unrelated dirty build/log files were already present.
+- git diff --check on the five source files changed by prompt 282: pass.
+- MSBuild hlhost.vcxproj /t:Rebuild /p:Configuration=Debug /p:Platform=Win32 /m:1: pass, 2 existing C4127 warnings in hl_server_module.cpp.
+- Runtime proof matrix: ran all 12 required scenarios using --hlds-serverinfo-contract-backed-diagnostic-builder-parser-probe and scenario-specific values.
+- ConvertFrom-Json validation for checked-in serverinfo fixture JSON files: pass.
+- Proof assertion script over runtime/proof_results.json: pass.
+- Descendant gates for all required commits through ee5300b911d7b22a6a1acdecd2a46e773f0f77b5: pass.
+- rg search attempted for serverinfo/fixture/contract/builder/parser/schema/JSON/real client/Steam client/socket terms: blocked by local access denied on bundled rg.exe; used PowerShell Select-String fallback successfully.
+- Source commit created: 5e1c8e41f6305ff19336e5e2c586671a9fb3c6ff.

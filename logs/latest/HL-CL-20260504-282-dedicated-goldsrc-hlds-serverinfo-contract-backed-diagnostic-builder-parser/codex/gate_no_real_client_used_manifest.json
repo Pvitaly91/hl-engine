@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_134816",
+  "runInstanceId": "20260506_134816_807_pid24208",
+  "runLabel": "p282-final-11-gate-no-real-client-used",
+  "promptId": "HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "ee5300b911d7b22a6a1acdecd2a46e773f0f77b5",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134816_807_pid24208__p282-final-11-gate-no-real-client-used_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134816_807_pid24208__p282-final-11-gate-no-real-client-used_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-282-dedicated-goldsrc-hlds-serverinfo-contract-backed-diagnostic-builder-parser\\runtime\\hlhost_20260506_134816_807_pid24208__p282-final-11-gate-no-real-client-used_part01.log"]
+}
