@@ -1,0 +1,12 @@
+{
+  "prompt_id": "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap",
+  "scenario": "gate_unresolved_post_connect_rejected",
+  "status": "pass",
+  "command": "hlhost.exe --dedicated --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe --hlds-connectionless-query-info-byte-level-loopback-query-response-swap-probe-scenario gate_unresolved_post_connect_rejected",
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204408_403_pid35756__p289-15-gate_unresolved_post_connect_rejected_summary.log",
+  "artifact_summary_file": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\codex\\gate_unresolved_post_connect_rejected_summary.json",
+  "source_commit": "b02c8d81946d827a740353c332aba8bd584d0ffc",
+  "no_real_client_binary_invoked": true,
+  "public_socket_opened": "0",
+  "loopback_udp_socket_opened": "1"
+}

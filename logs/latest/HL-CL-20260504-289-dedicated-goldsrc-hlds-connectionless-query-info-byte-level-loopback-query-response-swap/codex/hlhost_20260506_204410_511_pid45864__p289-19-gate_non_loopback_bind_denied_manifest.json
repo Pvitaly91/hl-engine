@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_204410",
+  "runInstanceId": "20260506_204410_511_pid45864",
+  "runLabel": "p289-19-gate_non_loopback_bind_denied",
+  "promptId": "HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "9866d3e1e3f6ccfe00120b75bc89081d66606cdf",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204410_511_pid45864__p289-19-gate_non_loopback_bind_denied_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204410_511_pid45864__p289-19-gate_non_loopback_bind_denied_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap\\runtime\\hlhost_20260506_204410_511_pid45864__p289-19-gate_non_loopback_bind_denied_part01.log"]
+}

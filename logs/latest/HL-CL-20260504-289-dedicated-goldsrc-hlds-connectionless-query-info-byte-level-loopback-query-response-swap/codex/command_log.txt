@@ -1,0 +1,11 @@
+# Command Log
+
+- git branch --show-current; git rev-parse HEAD; git status --short
+- git diff --check -- include/app/launch_options.h src/app/launch_options.cpp include/game_api/hl_server_module.h src/app/host_application.cpp src/game_api/hl_server_module.cpp
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /v:minimal /nologo -> pass
+- git merge-base --is-ancestor for all requested checkpoints -> pass
+- ConvertFrom-Json for fixtures/diagnostic/hlds/serverinfo/**/*.json -> pass
+- Select-String search for connectionless query, query info, loopback, socket pump, UDP, serverinfo, fixture, byte builder, parser, validator, evidence gap, real client, Steam client -> complete
+- Runtime proof matrix: happy, gate_disabled_by_default, gate_query_info_path_required, gate_validator_required, gate_evidence_gap_guard_required, gate_builder_roundtrip_required, gate_wrong_command_or_query, gate_bad_marker_or_header, gate_wrong_opcode_or_tag, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_non_loopback_bind_denied, gate_public_socket_blocked, gate_client_timeout_bounded, gate_shutdown_cleanup -> pass
+- No real-client runtime proof: gate_no_real_client_used -> pass
+- No public-socket runtime proof: gate_public_socket_blocked -> pass

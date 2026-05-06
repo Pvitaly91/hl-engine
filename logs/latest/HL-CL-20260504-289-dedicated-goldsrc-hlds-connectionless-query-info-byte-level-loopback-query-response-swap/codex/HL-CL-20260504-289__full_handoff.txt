@@ -1,0 +1,50 @@
+PROMPT-ID: HL-CL-20260504-289-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-loopback-query-response-swap
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 9866d3e1e3f6ccfe00120b75bc89081d66606cdf
+source/final_commit: b02c8d81946d827a740353c332aba8bd584d0ffc
+compatibility_claim_level: diagnostic-connectionless-query-info-byte-level-loopback-response-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. Public sockets were not opened. Only connectionless query/info was routed through loopback, and only under the explicit diagnostic loopback query/info response swap probe.
+
+The query/info response is not post-connect serverinfo and is not signon-time serverinfo. Real post-connect and signon builders remain blocked by the prompt 286 evidence-gap guard because local byte-level post-connect and signon-time evidence remains insufficient.
+
+Exact dependencies:
+- fixture root: fixtures/diagnostic/hlds/serverinfo
+- selected fixture: connectionless_query_info_candidate
+- validator dependency: prompt 281 fixture contract validator
+- evidence-gap guard dependency: prompt 286 unresolved fixture evidence-gap guard
+- byte builder/parser dependency: prompt 287 connectionless query/info byte-level builder/parser
+- path integration dependency: prompt 288 query/info byte-level diagnostic path integration
+- loopback bind policy: 127.0.0.1 only through BindLoopbackQuerySocket; non-loopback and public socket gates reject before opening public sockets
+
+Exact response safe preview:
+- bytes: 67
+- hex: FFFFFFFF6D3132372E302E302E313A3000484C656E67696E6520546573742053657276657200633061300076616C76650048616C662D4C696665000004306477000000
+- text: ....m127.0.0.1:0|HLengine Test Server|c0a0|valve|Half-Life||.0dw|||
+
+Exact client-observed response comparison:
+- request datagram received: 1
+- response datagram sent: 1
+- client response received: 1
+- client response shape valid: 1
+
+Exact gates run:
+happy, gate_disabled_by_default, gate_query_info_path_required, gate_validator_required, gate_evidence_gap_guard_required, gate_builder_roundtrip_required, gate_wrong_command_or_query, gate_bad_marker_or_header, gate_wrong_opcode_or_tag, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_non_loopback_bind_denied, gate_public_socket_blocked, gate_client_timeout_bounded, gate_shutdown_cleanup
+
+Why this still does not imply real HLDS/Steam client compatibility:
+This proof uses a diagnostic localhost UDP client and a deterministic checked-in connectionless query/info fixture. It does not launch Steam, does not invoke a Half-Life client binary, does not open public sockets, does not implement Steam auth, does not start netchan or reliable/unreliable channels, does not enter signon, does not emit resource/model/sound/event baselines, and does not put a client in server. It also does not provide byte-level post-connect or signon-time serverinfo evidence.
+
+Remaining before any real client smoke:
+- local byte-level post-connect serverinfo evidence
+- local byte-level signon-time serverinfo evidence
+- real serverinfo wire-format builder for the correct stage
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
