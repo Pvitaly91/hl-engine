@@ -1,0 +1,44 @@
+# Command Log
+
+Working directory: G:/DEV/СPP/HLengine/host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: d332394b52faedfec4e0be52499a4c59ce0be2da
+Source commit: ddd65ea5886d28cf0f51ffd5fdbc19e4be3b74cd
+
+Commands run:
+- git status --short --branch
+- git rev-parse --show-toplevel / --abbrev-ref HEAD / HEAD
+- git diff --check -- include/app/launch_options.h src/app/launch_options.cpp include/game_api/hl_server_module.h src/app/host_application.cpp src/game_api/hl_server_module.cpp
+- Select-String searches for connectionless query, query info, serverinfo, fixture, byte builder, parser, validator, evidence gap, getchallenge, socket, Steam client, real client
+- Get-ChildItem fixtures/diagnostic/hlds/serverinfo/fixtures/*.json | ConvertFrom-Json
+- git merge-base --is-ancestor descendant gates for required prompt chain commits
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m
+- .\\build32\\host\\Debug\\hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260411-160-dedicated-goldsrc-signon-carried-checkpoint-claimed-checkpoint-resume-allow-surface/runtime/valve-fixture --maxclients 4 --frames 1 --run-label p288-NN-SCENARIO --prompt-id HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration --log-dir logs/latest/HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration/runtime --log-summary-file 1 --log-console-level error --hlds-connectionless-query-info-byte-level-diagnostic-path-integration-probe --hlds-connectionless-query-info-byte-level-diagnostic-path-integration-probe-scenario SCENARIO
+- git add/commit source files only
+
+
+Runtime proof scenarios:
+- happy
+- gate_disabled_by_default
+- gate_query_info_mode_required
+- gate_validator_required
+- gate_evidence_gap_guard_required
+- gate_builder_roundtrip_required
+- gate_wrong_command_or_query
+- gate_bad_marker_or_header
+- gate_wrong_opcode_or_tag
+- gate_missing_required_field
+- gate_unsafe_string
+- gate_overlong_response
+- gate_post_connect_stage_confusion_rejected
+- gate_signon_stage_confusion_rejected
+- gate_unresolved_post_connect_rejected
+- gate_unresolved_signon_rejected
+- gate_real_compatibility_claim_rejected
+- gate_no_real_client_used
+- gate_public_socket_blocked
+
+
+Notes:
+- cmake was not used for final validation; MSBuild was available and passed.
+- Runtime proofs used only in-memory diagnostic probe mode for this prompt and did not enable socket pump, localhost smoke harness, frame pump, Steam, or real client binaries.

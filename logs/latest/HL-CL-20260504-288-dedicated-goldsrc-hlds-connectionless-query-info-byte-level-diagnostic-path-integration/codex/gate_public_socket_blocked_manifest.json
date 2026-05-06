@@ -1,0 +1,11 @@
+{
+  "prompt_id": "HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration",
+  "scenario": "gate_public_socket_blocked",
+  "proof": "pass",
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration\\runtime\\hlhost_20260506_185419_108_pid40712__p288-19-gate_public_socket_blocked_summary.log",
+  "codex_summary_file": "logs\\latest\\HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration\\codex\\gate_public_socket_blocked_summary.json",
+  "command": "hlhost.exe --dedicated --frames 1 --hlds-connectionless-query-info-byte-level-diagnostic-path-integration-probe --hlds-connectionless-query-info-byte-level-diagnostic-path-integration-probe-scenario gate_public_socket_blocked",
+  "no_real_client_binary_invoked": true,
+  "no_public_socket_opened": true,
+  "no_loopback_socket_opened": true
+}

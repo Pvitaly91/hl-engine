@@ -1,0 +1,9 @@
+connectionless_query_info_candidate.json: json_ok
+diagnostic_post_connect_serverinfo_current.json: json_ok
+invalid_field_order_mismatch.json: json_ok
+invalid_missing_required_field.json: json_ok
+invalid_overlong_response.json: json_ok
+invalid_unknown_opcode_or_marker.json: json_ok
+invalid_unsafe_string.json: json_ok
+post_connect_real_serverinfo_unresolved.json: json_ok
+signon_time_serverinfo_unresolved.json: json_ok

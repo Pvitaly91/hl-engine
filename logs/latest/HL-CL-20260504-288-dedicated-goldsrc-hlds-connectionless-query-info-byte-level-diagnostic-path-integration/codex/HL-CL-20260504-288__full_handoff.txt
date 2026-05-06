@@ -1,0 +1,54 @@
+PROMPT-ID: HL-CL-20260504-288-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-diagnostic-path-integration
+
+This handoff is diagnostic-only. No real Steam Half-Life client compatibility is claimed. No HLDS-compatible client compatibility is claimed. No real client binary was invoked. No Steam executable was invoked. No sockets were opened.
+
+Implemented scope:
+- Added a disabled-by-default explicit diagnostic connectionless query/info byte-level path integration probe.
+- The path recognizes only an in-memory connectionless query/info-shaped diagnostic request.
+- The path invokes the prompt 281 fixture validator before use.
+- The path invokes the prompt 286 unresolved evidence-gap guard before use.
+- The path invokes the prompt 287 byte-level connectionless query/info builder/parser.
+- The path selects only connectionless_query_info_candidate from fixtures/diagnostic/hlds/serverinfo.
+- The path marks query_info_response_ready only after build, parse, and roundtrip validation pass.
+
+Exact dependencies:
+- Fixture root: fixtures/diagnostic/hlds/serverinfo
+- Fixture validator dependency: RunHldsServerinfoFixtureContractValidatorDiagnosticProbe
+- Evidence-gap guard dependency: RunHldsServerinfoUnresolvedFixtureEvidenceGapGuard
+- Byte builder/parser dependency: RunHldsConnectionlessQueryInfoByteLevelBuilderParser
+
+Exact selected fixture:
+- connectionless_query_info_candidate
+- stage: connectionless_query
+- family: connectionless_query_info_candidate
+
+Response safe preview:
+- bytes: 67
+- safe hex: FFFFFFFF6D3132372E302E302E313A3000484C656E67696E6520546573742053657276657200633061300076616C76650048616C662D4C696665000004306477000000
+- safe text: ....m127.0.0.1:0|HLengine Test Server|c0a0|valve|Half-Life||.0dw|||
+
+Stage boundaries preserved:
+- connectionless query/info is not post-connect serverinfo.
+- connectionless query/info is not signon-time serverinfo.
+- real post-connect builder remains incomplete and blocked.
+- real signon builder remains incomplete and blocked.
+- real wire builder remains incomplete.
+
+Runtime gates run:
+happy, gate_disabled_by_default, gate_query_info_mode_required, gate_validator_required, gate_evidence_gap_guard_required, gate_builder_roundtrip_required, gate_wrong_command_or_query, gate_bad_marker_or_header, gate_wrong_opcode_or_tag, gate_missing_required_field, gate_unsafe_string, gate_overlong_response, gate_post_connect_stage_confusion_rejected, gate_signon_stage_confusion_rejected, gate_unresolved_post_connect_rejected, gate_unresolved_signon_rejected, gate_real_compatibility_claim_rejected, gate_no_real_client_used, gate_public_socket_blocked
+
+Why this still does not imply real HLDS/Steam client compatibility:
+The implementation is an in-memory diagnostic path over a checked-in connectionless query/info fixture. It does not prove post-connect or signon-time serverinfo bytes, does not start netchan or reliable channels, does not send resource/model/sound/event baselines, does not enter signon, does not spawn or put a client in server, and does not implement Steam auth. It also opens no sockets in this prompt.
+
+Remaining before any real client smoke:
+- local byte-level post-connect serverinfo evidence
+- local byte-level signon-time serverinfo evidence
+- real serverinfo wire-format builder for the correct stage
+- final protocol/version compatibility policy
+- production userinfo policy
+- netchan sequencing/ack
+- reliable/unreliable channel setup
+- resource/model/sound/event baselines
+- signon state machine
+- client spawn / put-in-server path
+- Steam auth or explicit no-auth LAN diagnostic mode
