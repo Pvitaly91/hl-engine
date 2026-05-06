@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260506_235252",
+  "runInstanceId": "20260506_235252_339_pid21188",
+  "runLabel": "p292-03",
+  "promptId": "HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "b11c45537492c5f0e87ab891522a9375853cf6a5",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate\\runtime\\hlhost_20260506_235252_339_pid21188__p292-03_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate\\runtime\\hlhost_20260506_235252_339_pid21188__p292-03_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-292-dedicated-goldsrc-hlds-query-info-loopback-regression-acceptance-gate\\runtime\\hlhost_20260506_235252_339_pid21188__p292-03_part01.log"]
+}
