@@ -1,0 +1,17 @@
+PROMPT-ID: HL-CL-20260504-305-dedicated-goldsrc-hlds-qport-session-offline-fixture-validator-probe
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: c830498ceba33c4bd38342edf91217bfb304722d
+source_commit: 70c4a99b2eace8c549f8379e4f60af4af034d626
+artifact_commit: pending_at_artifact_creation
+
+Commands run and outcome:
+- git status --short :: pass
+- git diff --check -- include/app/launch_options.h src/app/launch_options.cpp src/app/host_application.cpp include/game_api/hl_server_module.h src/game_api/hl_server_module.cpp :: pass
+- descendant gate against 35 source/artifact commits from prompts 287 through 304 :: pass
+- rg -n "qport_session|offline fixture|manifest policy|validator|qport|client_port|challenge|endpoint|public socket|LAN socket|real client|capture" ... :: pass
+- ConvertFrom-Json validation for qport_session policy and five fixture JSON files :: pass
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /nr:false /v:minimal :: pass
+- hlhost validator runtime loop for 13 scenarios with --hlds-qport-session-offline-fixture-validator-probe :: pass
+- parsed p305-final summary logs and manifests into prompt artifacts :: pass
+- first descendant gate attempt used two abbreviated prompt 290/291 hashes and failed for those two missing hashes; corrected full hashes a250e0defc59894a26c00e96d81aff160c20a61e and b11c45537492c5f0e87ab891522a9375853cf6a5, rerun passed.
+- first pre-commit runtime attempt without --gamedir failed before validator startup; final post-source-commit p305-final runtime proofs used fixture game dir and all passed.
