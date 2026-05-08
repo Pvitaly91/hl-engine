@@ -1,0 +1,28 @@
+PROMPT-ID: HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
+
+Commands run:
+1. git branch --show-current; git rev-parse HEAD; git status --short
+2. git merge-base --is-ancestor 959e177fa462fa87ba4a7b5685d5576ff330aed5 HEAD
+3. git merge-base --is-ancestor 026b3038659a8e01f9481a54977ab1f653f48900 HEAD
+4. git merge-base --is-ancestor ce868e3bca89665e66afe6c15189b03f9dc03941 HEAD
+5. git merge-base --is-ancestor 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce HEAD
+6. rg --files docs/diagnostic/hlds logs/latest/HL-CL-20260504-302... logs/latest/HL-CL-20260504-301...
+7. Get-Content docs/diagnostic/hlds/qport_session_binding_static_inventory.md
+8. Get-Content logs/latest/HL-CL-20260504-302.../qport_session_static_summary.json
+9. Get-Content docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+10. rg qport/client_port/remote_address/challenge/userinfo/netchan terms in include/src/docs/fixtures
+11. rg --files include src | Measure-Object
+12. rg source symbols for LoopbackEndpointIdentityString, HldsAddressScopedChallengeCacheEntry, BuildHldsUserinfoValidationPolicyConnectInput, remote_address_source, udp_client_address_source, netchan_not_started, client_not_put_in_server, client_port
+13. ConvertFrom-Json qport_session_static_summary.json
+14. apply_patch added docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+15. git diff --check -- docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+16. rg stable design verification terms
+17. git add -- docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+18. git commit -m "docs: design qport session no-client capture"
+19. apply_patch added prompt 303 artifact files
+20. ConvertFrom-Json qport_session_no_client_capture_summary.json
+21. git diff --check -- logs/latest/HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design/codex docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+22. rg artifact verification terms for compatibility claim, blockers, zero socket/client fields, and next prompt id
+23. git status --short -- docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md logs/latest/HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
+
+No runtime capture, wrapper full-run, socket proof, real-client proof, public/LAN proof, post-connect proof, signon proof, or netchan proof was run for this design-only prompt.

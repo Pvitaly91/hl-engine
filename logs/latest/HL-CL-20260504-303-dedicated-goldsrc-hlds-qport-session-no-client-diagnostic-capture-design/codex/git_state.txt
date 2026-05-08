@@ -1,0 +1,34 @@
+PROMPT-ID: HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
+
+Repo: G:/DEV/CPP/HLengine/host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 959e177fa462fa87ba4a7b5685d5576ff330aed5
+Source/docs commit: 5a9c8277003eb9368838e636030de6660ba9aa8b
+Artifact commit: pending_at_artifact_creation
+
+Ancestry checks:
+- 959e177fa462fa87ba4a7b5685d5576ff330aed5 is an ancestor of HEAD.
+- 026b3038659a8e01f9481a54977ab1f653f48900 is an ancestor of HEAD.
+- ce868e3bca89665e66afe6c15189b03f9dc03941 is an ancestor of HEAD.
+- 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce is an ancestor of HEAD.
+
+Prompt-scoped files:
+- docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+- logs/latest/HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design/codex/
+
+Unrelated dirty files:
+The worktree contains pre-existing unrelated dirty build outputs and old logs. They were not staged or modified for this prompt.
+
+Runtime state:
+- Runtime capture executed: 0
+- Real Steam client used: 0
+- Real client binary invoked: 0
+- Socket open attempted: 0
+- Public socket opened: 0
+- LAN socket opened: 0
+- Loopback UDP socket opened: 0
+- Connect path invoked: 0
+- Post-connect serverinfo path invoked: 0
+- Signon serverinfo path invoked: 0
+- Netchan runtime started: 0
+- Normal host behavior changed: 0
