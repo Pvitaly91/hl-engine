@@ -1,0 +1,35 @@
+PROMPT-ID: HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
+
+Repo: G:/DEV/CPP/HLengine/host
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: e5e845474aa44436ce0d11137f8c15b33621b39a
+Source/data/docs commit: 71e89a6ea848767c94119773ef36be56cc86239a
+Artifact commit: pending_at_artifact_creation
+
+Ancestry checks:
+All required source/artifact commits from prompts 287 through 303 were confirmed as ancestors of HEAD before changes.
+
+Prompt-scoped files:
+- docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md
+- fixtures/diagnostic/hlds/qport_session/
+- logs/latest/HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy/codex/
+
+Unrelated dirty files:
+The worktree contains pre-existing unrelated dirty build outputs and old logs. They were not staged or modified for this prompt.
+
+Runtime state:
+- Validator implemented: 0
+- Validator runtime executed: 0
+- Capture implementation added: 0
+- Capture executed: 0
+- Real Steam client used: 0
+- Real client binary invoked: 0
+- Socket open attempted: 0
+- Public socket opened: 0
+- LAN socket opened: 0
+- Loopback UDP socket opened: 0
+- Connect path invoked: 0
+- Post-connect serverinfo path invoked: 0
+- Signon serverinfo path invoked: 0
+- Netchan runtime started: 0
+- Normal host behavior changed: 0
