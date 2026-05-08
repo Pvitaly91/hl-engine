@@ -1,0 +1,52 @@
+PROMPT-ID: HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 7571d148aec67150001787f81260eea561ece947
+Source/docs commit: ce868e3bca89665e66afe6c15189b03f9dc03941
+Artifact commit: pending at artifact creation; see final Codex summary for committed hash
+
+Compatibility claim level:
+diagnostic-reliable-unreliable-envelope-static-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Scope:
+- Static/report-only inventory of reliable/unreliable envelope concepts and channel placement.
+- No runtime probes were run.
+- No packet capture was implemented or executed.
+- No real wire builder or parser was implemented.
+- No Steam or real Half-Life client was launched.
+- No real client binary was invoked.
+- No public, LAN, loopback, or other sockets were opened by this prompt.
+- No getchallenge, connect, post-connect, signon, auth, netchan, reliable channel, unreliable channel, resource baseline, signon state, or client admission runtime path was entered.
+
+Closed boundary reminder:
+- The prompt 287-296 query/info boundary remains closed and diagnostic-only.
+- It proves fixture-backed connectionless query/info diagnostics only.
+- It does not prove post-connect serverinfo, signon-time serverinfo, reliable/unreliable envelope, netchan sequence/ack, or real HLDS/Steam client compatibility.
+
+Static findings:
+- Source files scanned: 78.
+- reliable matches: 46.
+- unreliable matches: 2.
+- envelope matches: 1163, mostly prompt-era diagnostic signon envelope surfaces.
+- No source symbol was found for reliable_message, unreliable_message, reliable_buf, unreliable_buf, reliable_length, unreliable_length, reliable_state, reliable_pending, reliable_payload, reliable_sequence, reliable_ack, qport, fragment, split, or packet_loss.
+- MSG_ONE_UNRELIABLE exists as a message destination label in src/game_api/server_frame_loop.cpp; it is not an unreliable datagram envelope.
+- reliable_channel_not_started, netchan_not_started, and resource_baselines_not_sent remain diagnostic blockers.
+
+Conclusion:
+- byte_level_envelope_evidence_sufficient=0.
+- reliable_unreliable_contract_candidate_count=9.
+- The top blocker remains missing_reliable_unreliable_envelope_byte_contract.
+- The smallest safe next task is qport/session binding static inventory, because local diagnostics expose client_port and address/session summaries but no qport byte contract or session binding.
+
+Recommended next prompt:
+HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory
+
+Recommended next task:
+inventory qport/session binding before defining sequence/ack or reliable/unreliable envelope fixture contracts.
+
+Changed files:
+- docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+- logs/latest/HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory/codex/*
+
+PROMPT-ID: HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
