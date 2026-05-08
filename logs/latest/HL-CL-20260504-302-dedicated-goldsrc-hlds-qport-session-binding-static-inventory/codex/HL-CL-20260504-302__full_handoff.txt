@@ -1,0 +1,55 @@
+PROMPT-ID: HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce
+Source/docs commit: 026b3038659a8e01f9481a54977ab1f653f48900
+Artifact commit: pending at artifact creation; see final Codex summary for committed hash
+
+Compatibility claim level:
+diagnostic-qport-session-binding-static-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Scope:
+- Static/report-only qport/session binding inventory.
+- No runtime probes were run.
+- No packet capture was implemented or executed.
+- No real wire builder or parser was implemented.
+- No Steam or real Half-Life client was launched.
+- No real client binary was invoked.
+- No public, LAN, loopback, or other sockets were opened by this prompt.
+- No getchallenge, connect, post-connect, signon, auth, netchan, reliable/unreliable channel, resource baseline, signon state, or client admission runtime path was entered.
+
+Closed boundary reminder:
+- The prompt 287-296 query/info boundary remains closed and diagnostic-only.
+- Connectionless query/info is not qport/session proof.
+- Getchallenge/connect diagnostics are not real netchan/session proof.
+- Post-connect and signon byte evidence remain insufficient.
+
+Static findings:
+- Source files scanned: 78.
+- Exact qport source symbols found: 0.
+- client_port matches: 20.
+- remote_address matches: 22.
+- session matches: 22896, mostly noisy app/logging and prompt-era signon/session descriptors.
+- challenge matches: 1364.
+- userinfo matches: 790.
+- netchan matches: 123, primarily blocker/report fields.
+- No local netadr/netadr_t, NAT, port remap, network session id, qport-to-netchan transition, or byte-level qport/session contract was found.
+- Address-scoped challenge cache is reusable as a diagnostic prerequisite, but not as real netchan proof.
+
+Conclusion:
+- byte_level_qport_session_evidence_sufficient=0.
+- top_blocker=missing_qport_session_byte_contract.
+- qport/session evidence is too weak to define a fixture contract.
+
+Recommended next prompt:
+HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
+
+Recommended next task:
+Design a no-client diagnostic capture plan for qport/session binding without executing capture, opening sockets, invoking real clients, or claiming compatibility.
+
+Changed files:
+- docs/diagnostic/hlds/qport_session_binding_static_inventory.md
+- logs/latest/HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory/codex/*
+
+PROMPT-ID: HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory

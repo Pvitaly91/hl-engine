@@ -1,0 +1,36 @@
+PROMPT-ID: HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory
+
+Commands run:
+1. git rev-parse --show-toplevel
+   - Result: G:/DEV/CPP/HLengine/host worktree root (actual path contains Cyrillic CPP directory in local filesystem).
+2. git branch --show-current
+   - Result: codex/HL-CL-20260401-081-target-runtime-completion-state.
+3. git rev-parse HEAD
+   - Result before prompt 302 source changes: 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce.
+4. git status --short
+   - Result: unrelated pre-existing dirty files were present; prompt 302 preserved them.
+5. git merge-base --is-ancestor for prompt 287-301 source/artifact commits.
+   - Result: pass for all required local commits, including ce868e3bca89665e66afe6c15189b03f9dc03941 and 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce.
+6. git ls-files include src
+   - Result: 78 source files scanned.
+7. rg focused qport/session/client_port/remote_address/challenge/userinfo/netchan terms across include/src/docs/fixtures/artifacts.
+   - Result: qport=0, client_port=20, remote_address=22, session=22896, challenge=1364, userinfo=790, netchan=123 in source scope.
+8. Select-String source regions for address-scoped challenge cache and userinfo policy.
+   - Result: diagnostic endpoint key, challenge cache, one-shot/replay, wrong endpoint, TTL, and userinfo policy code inspected.
+9. git diff --check -- docs/diagnostic/hlds/qport_session_binding_static_inventory.md
+   - Result: pass.
+10. rg stable doc verification terms
+   - Result: expected compatibility claim, qport absence, client_port distinction, diagnostic challenge key, and recommendation found.
+11. git add -- docs/diagnostic/hlds/qport_session_binding_static_inventory.md
+12. git commit -m "docs: inventory qport session binding"
+   - Result: source/docs commit 026b3038659a8e01f9481a54977ab1f653f48900.
+13. ConvertFrom-Json qport_session_static_summary.json
+   - Result: json_valid=1.
+14. git diff --check -- logs/latest/HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory/codex
+   - Result: pass.
+15. rg artifact verification terms
+   - Result: expected no-real-client compatibility claim, byte-level-qport/session insufficiency, address-scoped challenge real-netchan rejection, top blocker, and next prompt found.
+16. git status --short -- docs/diagnostic/hlds/qport_session_binding_static_inventory.md logs/latest/HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory
+   - Result: stable docs committed; prompt 302 artifact directory untracked before artifact commit.
+
+No runtime probes, packet capture, sockets, public/LAN exposure, Steam, real client, getchallenge/connect/post-connect/signon runtime, auth, netchan runtime, reliable/unreliable runtime, baselines, or admission were executed.

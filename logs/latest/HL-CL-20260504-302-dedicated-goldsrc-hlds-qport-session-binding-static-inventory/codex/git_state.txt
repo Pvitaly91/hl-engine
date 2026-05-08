@@ -1,0 +1,38 @@
+PROMPT-ID: HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+1e4b18c3e5c585f71d7d896f1ae195a377bcfcce
+
+Source/docs commit:
+026b3038659a8e01f9481a54977ab1f653f48900
+
+Required descendant gate:
+pass
+
+Confirmed local ancestry includes prompt 287 through prompt 301 source/artifact commits, including:
+- ce868e3bca89665e66afe6c15189b03f9dc03941
+- 1e4b18c3e5c585f71d7d896f1ae195a377bcfcce
+- 2c74d671a90efdd93bca217c6027e5a2e37f19fc
+- 7571d148aec67150001787f81260eea561ece947
+- 85291427cad99ada22d125308d8456ad7f00e31f
+- e1ffbc16c945d50915d9543eecac02380d292b1a
+- 13759cc79229a792ebf4e8616044037312d4b640
+- a4928efd7b96ddb607c6e62e6ea679f435df2bb5
+- all earlier required prompt 287-298 source/artifact commits checked by merge-base gate
+
+Prompt 302 staged scope:
+- docs/diagnostic/hlds/qport_session_binding_static_inventory.md
+- logs/latest/HL-CL-20260504-302-dedicated-goldsrc-hlds-qport-session-binding-static-inventory/codex/*
+
+Validation state before artifact commit:
+- stable docs committed in 026b3038659a8e01f9481a54977ab1f653f48900
+- JSON summary validation passed
+- artifact markdown diff check passed
+- artifact verification terms found
+- prompt 302 artifact directory is the only prompt-specific untracked scope
+
+Unrelated dirty files:
+pre-existing unrelated dirty files were present before prompt 302 and were preserved.
