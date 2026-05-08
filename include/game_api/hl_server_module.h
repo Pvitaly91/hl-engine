@@ -7749,6 +7749,66 @@ struct HldsQportSessionOfflineFixtureValidatorSummary
     std::string detail;
 };
 
+struct HldsQportSessionNoClientCapturePolicyGateSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool policy_gate_enabled = false;
+    bool policy_gate_disabled_by_default = true;
+    bool policy_gate_passed = false;
+    bool offline_fixture_validator_invoked = false;
+    bool offline_fixture_validator_passed = false;
+    bool policy_file_loaded = false;
+    std::string policy_file_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json";
+    std::string fixture_root = "fixtures/diagnostic/hlds/qport_session";
+    int fixture_files_loaded = 0;
+    bool required_metadata_present = false;
+    bool invalid_fixtures_have_reject_reasons = false;
+    int real_compatibility_claims_count = 0;
+    int real_client_claims_count = 0;
+    int public_socket_claims_count = 0;
+    int lan_socket_claims_count = 0;
+    int capture_executed_claims_count = 0;
+    int qport_promoted_without_byte_evidence_count = 0;
+    int address_scoped_challenge_promoted_to_real_netchan_count = 0;
+    bool qport_session_byte_evidence_sufficient = false;
+    bool byte_level_qport_session_evidence_sufficient = false;
+    bool address_scoped_challenge_reusable_as_diagnostic_prerequisite = false;
+    bool address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    bool capture_allowed_now = false;
+    bool capture_blocked_by_policy = false;
+    std::string capture_block_reason = "<none>";
+    bool capture_implementation_added = false;
+    bool capture_executed = false;
+    bool capture_runtime_executed = false;
+    bool real_client_capture_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool socket_open_attempted = false;
+    bool public_socket_opened = false;
+    bool lan_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool connect_path_invoked = false;
+    bool post_connect_serverinfo_path_invoked = false;
+    bool signon_serverinfo_path_invoked = false;
+    bool netchan_runtime_started = false;
+    bool normal_host_behavior_changed = false;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22424,6 +22484,11 @@ struct HlServerModuleInitOptions
     bool hlds_qport_session_offline_fixture_validator_probe_enabled = false;
     std::string hlds_qport_session_offline_fixture_validator_probe_scenario =
         "happy";
+    bool hlds_qport_session_no_client_capture_policy_gate_probe_enabled =
+        false;
+    std::string
+        hlds_qport_session_no_client_capture_policy_gate_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23300,6 +23365,8 @@ struct HlServerModuleSummary
         hlds_query_info_regression_ci_manifest_drift_gate;
     HldsQportSessionOfflineFixtureValidatorSummary
         hlds_qport_session_offline_fixture_validator;
+    HldsQportSessionNoClientCapturePolicyGateSummary
+        hlds_qport_session_no_client_capture_policy_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
