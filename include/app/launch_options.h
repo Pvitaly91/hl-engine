@@ -132,6 +132,9 @@ struct LaunchOptions
     std::string
         hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
             "happy";
+    bool hlds_qport_session_offline_fixture_validator_probe_enabled = false;
+    std::string hlds_qport_session_offline_fixture_validator_probe_scenario =
+        "happy";
     bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         false;
     std::string

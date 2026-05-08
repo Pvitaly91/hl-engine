@@ -3991,6 +3991,10 @@ struct EngineShimState
     std::string
         hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
             "happy";
+    hl::game_api::HldsQportSessionOfflineFixtureValidatorSummary
+        hlds_qport_session_offline_fixture_validator;
+    std::string
+        hlds_qport_session_offline_fixture_validator_probe_scenario = "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -26677,6 +26681,112 @@ std::string BuildHldsQueryInfoRegressionCiManifestDriftGateLine(
         + ", signon_unresolved_made_buildable="
         + std::string(
             summary.signon_unresolved_made_buildable ? "1" : "0");
+}
+
+std::string BuildHldsQportSessionOfflineFixtureValidatorLine(
+    const hl::game_api::HldsQportSessionOfflineFixtureValidatorSummary& summary)
+{
+    return "hlds_qport_session_offline_fixture_validator: enabled="
+        + std::string(summary.enabled ? "1" : "0")
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", last_reject_reason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                               : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + std::string(summary.diagnostic_only ? "1" : "0")
+        + ", validator_probe_enabled="
+        + std::string(summary.validator_probe_enabled ? "1" : "0")
+        + ", validator_disabled_by_default="
+        + std::string(summary.validator_disabled_by_default ? "1" : "0")
+        + ", policy_file_loaded="
+        + std::string(summary.policy_file_loaded ? "1" : "0")
+        + ", policy_file_path=" + summary.policy_file_path
+        + ", fixture_root=" + summary.fixture_root
+        + ", fixture_files_loaded=" + std::to_string(summary.fixture_files_loaded)
+        + ", fixture_files_expected=" + std::to_string(summary.fixture_files_expected)
+        + ", fixture_validation_attempted="
+        + std::string(summary.fixture_validation_attempted ? "1" : "0")
+        + ", fixture_validation_passed="
+        + std::string(summary.fixture_validation_passed ? "1" : "0")
+        + ", fixture_validation_error_count="
+        + std::to_string(summary.fixture_validation_error_count)
+        + ", required_metadata_present="
+        + std::string(summary.required_metadata_present ? "1" : "0")
+        + ", missing_metadata_field=" + summary.missing_metadata_field
+        + ", invalid_fixtures_have_reject_reasons="
+        + std::string(summary.invalid_fixtures_have_reject_reasons ? "1" : "0")
+        + ", real_compatibility_claims_count="
+        + std::to_string(summary.real_compatibility_claims_count)
+        + ", real_client_claims_count="
+        + std::to_string(summary.real_client_claims_count)
+        + ", public_socket_claims_count="
+        + std::to_string(summary.public_socket_claims_count)
+        + ", lan_socket_claims_count="
+        + std::to_string(summary.lan_socket_claims_count)
+        + ", capture_executed_claims_count="
+        + std::to_string(summary.capture_executed_claims_count)
+        + ", qport_promoted_without_byte_evidence_count="
+        + std::to_string(summary.qport_promoted_without_byte_evidence_count)
+        + ", address_scoped_challenge_promoted_to_real_netchan_count="
+        + std::to_string(
+            summary.address_scoped_challenge_promoted_to_real_netchan_count)
+        + ", qport_session_byte_evidence_sufficient="
+        + std::string(
+            summary.qport_session_byte_evidence_sufficient ? "1" : "0")
+        + ", byte_level_qport_session_evidence_sufficient="
+        + std::string(
+            summary.byte_level_qport_session_evidence_sufficient ? "1" : "0")
+        + ", address_scoped_challenge_reusable_as_diagnostic_prerequisite="
+        + std::string(
+            summary.address_scoped_challenge_reusable_as_diagnostic_prerequisite
+                ? "1"
+                : "0")
+        + ", address_scoped_challenge_reusable_as_real_netchan_proof="
+        + std::string(
+            summary.address_scoped_challenge_reusable_as_real_netchan_proof
+                ? "1"
+                : "0")
+        + ", capture_implementation_added="
+        + std::string(summary.capture_implementation_added ? "1" : "0")
+        + ", capture_executed="
+        + std::string(summary.capture_executed ? "1" : "0")
+        + ", capture_allowed_now="
+        + std::string(summary.capture_allowed_now ? "1" : "0")
+        + ", real_client_capture_allowed_now="
+        + std::string(summary.real_client_capture_allowed_now ? "1" : "0")
+        + ", real_steam_client_used="
+        + std::string(summary.real_steam_client_used ? "1" : "0")
+        + ", real_client_binary_invoked="
+        + std::string(summary.real_client_binary_invoked ? "1" : "0")
+        + ", no_real_client_gate_passed="
+        + std::string(summary.no_real_client_gate_passed ? "1" : "0")
+        + ", socket_open_attempted="
+        + std::string(summary.socket_open_attempted ? "1" : "0")
+        + ", public_socket_opened="
+        + std::string(summary.public_socket_opened ? "1" : "0")
+        + ", lan_socket_opened="
+        + std::string(summary.lan_socket_opened ? "1" : "0")
+        + ", loopback_udp_socket_opened="
+        + std::string(summary.loopback_udp_socket_opened ? "1" : "0")
+        + ", connect_path_invoked="
+        + std::string(summary.connect_path_invoked ? "1" : "0")
+        + ", post_connect_serverinfo_path_invoked="
+        + std::string(summary.post_connect_serverinfo_path_invoked ? "1" : "0")
+        + ", signon_serverinfo_path_invoked="
+        + std::string(summary.signon_serverinfo_path_invoked ? "1" : "0")
+        + ", netchan_runtime_started="
+        + std::string(summary.netchan_runtime_started ? "1" : "0")
+        + ", normal_host_behavior_changed="
+        + std::string(summary.normal_host_behavior_changed ? "1" : "0")
+        + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
+        + ", recommended_next_task=" + summary.recommended_next_task
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
 }
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
@@ -58230,6 +58340,13 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsQueryInfoRegressionCiManifestDriftGateLine(
                     summary
                         .hlds_query_info_regression_ci_manifest_drift_gate));
+        }
+        if (summary.hlds_qport_session_offline_fixture_validator.enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsQportSessionOfflineFixtureValidatorLine(
+                    summary.hlds_qport_session_offline_fixture_validator));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -213649,6 +213766,84 @@ constexpr std::array<std::string_view, 8>
         "client_query_info_response_shape_valid",
     }};
 
+struct HldsQportSessionOfflineFixtureExpected
+{
+    std::string_view file_name;
+    std::string_view fixture_id;
+    bool invalid = false;
+    std::string_view expected_reject_reason;
+};
+
+struct HldsQportSessionOfflineFixtureText
+{
+    HldsQportSessionOfflineFixtureExpected expected;
+    std::string text;
+};
+
+constexpr std::array<HldsQportSessionOfflineFixtureExpected, 5>
+    kHldsQportSessionOfflineFixtureFiles = {{
+        {"qport_session_unresolved.json",
+         "qport_session_unresolved",
+         false,
+         "qport_session_byte_evidence_missing"},
+        {"diagnostic_endpoint_challenge_prerequisite.json",
+         "diagnostic_endpoint_challenge_prerequisite",
+         false,
+         "<none>"},
+        {"invalid_real_client_claim.json",
+         "invalid_real_client_claim",
+         true,
+         "real_client_claim_rejected"},
+        {"invalid_public_socket_claim.json",
+         "invalid_public_socket_claim",
+         true,
+         "public_socket_claim_rejected"},
+        {"invalid_qport_promoted_without_byte_evidence.json",
+         "invalid_qport_promoted_without_byte_evidence",
+         true,
+         "qport_promoted_without_byte_evidence"},
+    }};
+
+constexpr std::array<std::string_view, 36>
+    kHldsQportSessionOfflineFixtureRequiredMetadata = {{
+        "fixture_id",
+        "family",
+        "stage",
+        "evidence_type",
+        "evidence_source",
+        "evidence_confidence",
+        "compatibility_claim",
+        "diagnostic_only",
+        "real_client_used",
+        "socket_opened",
+        "public_socket_opened",
+        "lan_socket_opened",
+        "capture_executed",
+        "qport_observed",
+        "qport_raw",
+        "qport_width",
+        "qport_endian",
+        "qport_source",
+        "client_udp_source_port",
+        "remote_address",
+        "endpoint_key",
+        "challenge_value",
+        "challenge_cache_key",
+        "challenge_one_shot",
+        "challenge_replay_detected",
+        "userinfo_identity",
+        "connect_ready",
+        "netchan_started",
+        "signon_started",
+        "byte_level_evidence_sufficient",
+        "unresolved_fields",
+        "forbidden_promotions",
+        "required_before_promotion",
+        "expected_guard_reject_reason",
+        "safe_preview",
+        "notes",
+    }};
+
 std::optional<std::string> ExtractFixtureJsonStringValue(
     std::string_view text,
     std::string_view key)
@@ -213740,6 +213935,41 @@ std::optional<int> ExtractFixtureJsonIntValue(
         return std::nullopt;
     }
     return value;
+}
+
+std::optional<bool> ExtractFixtureJsonBoolValue(
+    std::string_view text,
+    std::string_view key)
+{
+    const std::string token = "\"" + std::string(key) + "\"";
+    const std::size_t key_position = text.find(token);
+    if (key_position == std::string_view::npos)
+    {
+        return std::nullopt;
+    }
+
+    const std::size_t colon = text.find(':', key_position + token.size());
+    if (colon == std::string_view::npos)
+    {
+        return std::nullopt;
+    }
+
+    std::size_t index = colon + 1;
+    while (index < text.size()
+           && std::isspace(static_cast<unsigned char>(text[index])) != 0)
+    {
+        ++index;
+    }
+
+    if (text.substr(index, 4) == "true")
+    {
+        return true;
+    }
+    if (text.substr(index, 5) == "false")
+    {
+        return false;
+    }
+    return std::nullopt;
 }
 
 std::string ComputeHldsQueryInfoRegressionFnv1a64(std::string_view text)
@@ -217678,6 +217908,511 @@ void PerformHldsQueryInfoRegressionCiManifestDriftGate()
               .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario;
 
     probe = RunHldsQueryInfoRegressionCiManifestDriftGate(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
+void RecordHldsQportSessionOfflineFixtureValidationError(
+    hl::game_api::HldsQportSessionOfflineFixtureValidatorSummary* summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    ++summary->fixture_validation_error_count;
+    if (summary->last_reject_reason == "<none>")
+    {
+        summary->last_reject_reason = std::string(reason);
+    }
+}
+
+bool IsHldsQportSessionForbiddenCompatibilityClaim(std::string_view claim)
+{
+    return claim == "real_hlds_compatible"
+        || claim == "real_steam_half_life_client_compatible"
+        || claim == "real_query_client_compatible"
+        || claim == "public_socket_compatible"
+        || claim == "lan_socket_compatible"
+        || claim == "post_connect_serverinfo_compatible"
+        || claim == "signon_serverinfo_compatible"
+        || claim == "real_client_compatible"
+        || claim == "steam_client_compatible"
+        || claim == "hlds_compatible";
+}
+
+void ApplyHldsQportSessionOfflineFixtureValidatorMutation(
+    std::string_view scenario,
+    std::vector<HldsQportSessionOfflineFixtureText>* fixtures)
+{
+    if (fixtures == nullptr)
+    {
+        return;
+    }
+
+    for (HldsQportSessionOfflineFixtureText& fixture : *fixtures)
+    {
+        if (scenario == "gate_missing_required_metadata"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"fixture_id\"",
+                "\"fixture_id_missing\"");
+            return;
+        }
+
+        if (scenario == "gate_real_client_claim"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"real_client_used\": false",
+                "\"real_client_used\": true");
+            return;
+        }
+
+        if (scenario == "gate_public_socket_claim"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"public_socket_opened\": false",
+                "\"public_socket_opened\": true");
+            return;
+        }
+
+        if (scenario == "gate_lan_socket_claim"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"lan_socket_opened\": false",
+                "\"lan_socket_opened\": true");
+            return;
+        }
+
+        if (scenario == "gate_capture_executed_claim"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"capture_executed\": false",
+                "\"capture_executed\": true");
+            return;
+        }
+
+        if (scenario == "gate_qport_promoted_without_byte_evidence"
+            && fixture.expected.fixture_id == "qport_session_unresolved")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"byte_level_evidence_sufficient\": false",
+                "\"byte_level_evidence_sufficient\": true");
+            return;
+        }
+
+        if (scenario == "gate_address_scoped_challenge_promoted_to_real_netchan"
+            && fixture.expected.fixture_id
+                == "diagnostic_endpoint_challenge_prerequisite")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"compatibility_claim\": \"diagnostic_prerequisite_only\"",
+                "\"compatibility_claim\": \"real_netchan_proof\"");
+            return;
+        }
+
+        if (scenario == "gate_invalid_fixture_missing_reject_reason"
+            && fixture.expected.fixture_id == "invalid_real_client_claim")
+        {
+            ReplaceFirstFixtureToken(
+                &fixture.text,
+                "\"expected_guard_reject_reason\": \"real_client_claim_rejected\"",
+                "\"expected_guard_reject_reason\": \"\"");
+            return;
+        }
+    }
+}
+
+hl::game_api::HldsQportSessionOfflineFixtureValidatorSummary
+RunHldsQportSessionOfflineFixtureValidator(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsQportSessionOfflineFixtureValidatorSummary summary;
+    summary.enabled = true;
+    summary.mode = std::string(mode);
+    summary.scenario = std::string(scenario);
+    summary.compatibility_claim_level =
+        "diagnostic-qport-session-offline-fixture-validator-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary.diagnostic_only = true;
+    summary.validator_probe_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary.validator_disabled_by_default = true;
+    summary.policy_file_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json";
+    summary.fixture_root = "fixtures/diagnostic/hlds/qport_session";
+    summary.fixture_files_expected =
+        static_cast<int>(kHldsQportSessionOfflineFixtureFiles.size());
+    summary.qport_session_byte_evidence_sufficient = false;
+    summary.byte_level_qport_session_evidence_sufficient = false;
+    summary.address_scoped_challenge_reusable_as_diagnostic_prerequisite = false;
+    summary.address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    summary.capture_implementation_added = false;
+    summary.capture_executed = false;
+    summary.capture_allowed_now = false;
+    summary.real_client_capture_allowed_now = false;
+    summary.real_steam_client_used = false;
+    summary.real_client_binary_invoked = false;
+    summary.socket_open_attempted = false;
+    summary.public_socket_opened = false;
+    summary.lan_socket_opened = false;
+    summary.loopback_udp_socket_opened = false;
+    summary.connect_path_invoked = false;
+    summary.post_connect_serverinfo_path_invoked = false;
+    summary.signon_serverinfo_path_invoked = false;
+    summary.netchan_runtime_started = false;
+    summary.normal_host_behavior_changed = false;
+    summary.auth = "not_started";
+    summary.signon = "not_started";
+    summary.gameplay_transport = "not_started";
+    summary.recommended_next_prompt_id =
+        "HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate";
+    summary.recommended_next_task =
+        "add the qport/session no-client capture policy gate while preserving offline-only fixture validation and all socket, real-client, netchan, post-connect, and signon blockers";
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        summary.validator_probe_enabled = false;
+        summary.accepted = 0;
+        summary.rejected = 1;
+        summary.last_reject_reason =
+            "qport_session_offline_fixture_validator_disabled";
+        summary.detail =
+            "offline qport/session fixture validator stayed disabled without explicit probe mode";
+        return summary;
+    }
+
+    if (scenario == "gate_public_socket_blocked")
+    {
+        summary.validator_probe_enabled = true;
+        summary.accepted = 0;
+        summary.rejected = 1;
+        summary.last_reject_reason = "public_socket_blocked";
+        summary.detail =
+            "offline qport/session fixture validator rejected public socket behavior before any socket open";
+        return summary;
+    }
+
+    summary.fixture_validation_attempted = true;
+
+    if (scenario == "gate_missing_policy_file")
+    {
+        summary.policy_file_loaded = false;
+        RecordHldsQportSessionOfflineFixtureValidationError(
+            &summary,
+            "qport_session_policy_file_missing");
+        summary.accepted = 0;
+        summary.rejected = 1;
+        summary.fixture_validation_passed = false;
+        summary.detail =
+            "offline qport/session fixture validator rejected missing policy file mutation";
+        return summary;
+    }
+
+    const std::filesystem::path root = std::filesystem::path(summary.fixture_root);
+    const std::optional<std::string> policy_text =
+        file_system.ReadTextFile(summary.policy_file_path);
+    summary.policy_file_loaded = policy_text.has_value();
+    if (!policy_text.has_value())
+    {
+        RecordHldsQportSessionOfflineFixtureValidationError(
+            &summary,
+            "qport_session_policy_file_missing");
+    }
+    else
+    {
+        if (!TextContainsAll(
+                *policy_text,
+                kHldsQportSessionOfflineFixtureRequiredMetadata)
+            || policy_text->find("\"fixture_allowlist\"") == std::string::npos
+            || policy_text->find("\"validator_design\"") == std::string::npos)
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_session_policy_metadata_missing");
+        }
+    }
+
+    const std::optional<std::string> readme_text =
+        file_system.ReadTextFile(root / "README.md");
+    if (!readme_text.has_value())
+    {
+        RecordHldsQportSessionOfflineFixtureValidationError(
+            &summary,
+            "qport_session_readme_missing");
+    }
+
+    std::vector<HldsQportSessionOfflineFixtureText> fixtures;
+    fixtures.reserve(kHldsQportSessionOfflineFixtureFiles.size());
+    for (const HldsQportSessionOfflineFixtureExpected& expected :
+         kHldsQportSessionOfflineFixtureFiles)
+    {
+        const std::filesystem::path fixture_path =
+            root / "fixtures" / expected.file_name;
+        std::optional<std::string> text = file_system.ReadTextFile(fixture_path);
+        if (!text.has_value())
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_session_fixture_file_missing");
+            continue;
+        }
+
+        fixtures.push_back({expected, *text});
+    }
+    summary.fixture_files_loaded = static_cast<int>(fixtures.size());
+
+    if (scenario != "happy" && scenario != "gate_no_real_client_used")
+    {
+        ApplyHldsQportSessionOfflineFixtureValidatorMutation(
+            scenario,
+            &fixtures);
+    }
+
+    summary.required_metadata_present = true;
+    summary.invalid_fixtures_have_reject_reasons = true;
+
+    for (const HldsQportSessionOfflineFixtureText& fixture : fixtures)
+    {
+        const std::string_view text = fixture.text;
+        for (std::string_view metadata :
+             kHldsQportSessionOfflineFixtureRequiredMetadata)
+        {
+            if (!FixtureTextContainsKey(text, metadata))
+            {
+                summary.required_metadata_present = false;
+                summary.missing_metadata_field = std::string(metadata);
+                RecordHldsQportSessionOfflineFixtureValidationError(
+                    &summary,
+                    "missing_required_qport_fixture_metadata");
+                break;
+            }
+        }
+
+        const std::optional<std::string> fixture_id =
+            ExtractFixtureJsonStringValue(text, "fixture_id");
+        const std::optional<std::string> compatibility_claim =
+            ExtractFixtureJsonStringValue(text, "compatibility_claim");
+        const std::optional<std::string> expected_guard_reject_reason =
+            ExtractFixtureJsonStringValue(text, "expected_guard_reject_reason");
+        const std::optional<bool> diagnostic_only =
+            ExtractFixtureJsonBoolValue(text, "diagnostic_only");
+        const std::optional<bool> real_client_used =
+            ExtractFixtureJsonBoolValue(text, "real_client_used");
+        const std::optional<bool> socket_opened =
+            ExtractFixtureJsonBoolValue(text, "socket_opened");
+        const std::optional<bool> public_socket_opened =
+            ExtractFixtureJsonBoolValue(text, "public_socket_opened");
+        const std::optional<bool> lan_socket_opened =
+            ExtractFixtureJsonBoolValue(text, "lan_socket_opened");
+        const std::optional<bool> capture_executed =
+            ExtractFixtureJsonBoolValue(text, "capture_executed");
+        const std::optional<bool> netchan_started =
+            ExtractFixtureJsonBoolValue(text, "netchan_started");
+        const std::optional<bool> signon_started =
+            ExtractFixtureJsonBoolValue(text, "signon_started");
+        const std::optional<bool> byte_level_evidence_sufficient =
+            ExtractFixtureJsonBoolValue(text, "byte_level_evidence_sufficient");
+
+        if (!fixture_id.has_value()
+            || std::string_view(*fixture_id) != fixture.expected.fixture_id)
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_session_fixture_id_mismatch");
+        }
+
+        if (fixture.expected.invalid
+            && (!expected_guard_reject_reason.has_value()
+                || expected_guard_reject_reason->empty()
+                || *expected_guard_reject_reason == "<none>"
+                || std::string_view(*expected_guard_reject_reason)
+                    != fixture.expected.expected_reject_reason))
+        {
+            summary.invalid_fixtures_have_reject_reasons = false;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "invalid_qport_fixture_missing_reject_reason");
+        }
+
+        if (!diagnostic_only.value_or(false))
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_diagnostic_only_required");
+        }
+
+        if (real_client_used.value_or(false))
+        {
+            ++summary.real_client_claims_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_real_client_claim_rejected");
+        }
+
+        if (socket_opened.value_or(false))
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_socket_claim_rejected");
+        }
+
+        if (public_socket_opened.value_or(false))
+        {
+            ++summary.public_socket_claims_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_public_socket_claim_rejected");
+        }
+
+        if (lan_socket_opened.value_or(false))
+        {
+            ++summary.lan_socket_claims_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_lan_socket_claim_rejected");
+        }
+
+        if (capture_executed.value_or(false))
+        {
+            ++summary.capture_executed_claims_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_capture_executed_claim_rejected");
+        }
+
+        if (netchan_started.value_or(false))
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_netchan_started_claim_rejected");
+        }
+
+        if (signon_started.value_or(false))
+        {
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_signon_started_claim_rejected");
+        }
+
+        if (byte_level_evidence_sufficient.value_or(false))
+        {
+            ++summary.qport_promoted_without_byte_evidence_count;
+            summary.qport_session_byte_evidence_sufficient = true;
+            summary.byte_level_qport_session_evidence_sufficient = true;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_promoted_without_byte_evidence");
+        }
+
+        if (compatibility_claim.has_value()
+            && IsHldsQportSessionForbiddenCompatibilityClaim(
+                *compatibility_claim))
+        {
+            ++summary.real_compatibility_claims_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "qport_fixture_real_compatibility_claim_rejected");
+        }
+
+        if (fixture.expected.fixture_id
+                == "diagnostic_endpoint_challenge_prerequisite"
+            && compatibility_claim.has_value()
+            && *compatibility_claim == "diagnostic_prerequisite_only")
+        {
+            summary.address_scoped_challenge_reusable_as_diagnostic_prerequisite =
+                true;
+        }
+
+        if (fixture.expected.fixture_id
+                == "diagnostic_endpoint_challenge_prerequisite"
+            && compatibility_claim.has_value()
+            && *compatibility_claim == "real_netchan_proof")
+        {
+            ++summary.address_scoped_challenge_promoted_to_real_netchan_count;
+            RecordHldsQportSessionOfflineFixtureValidationError(
+                &summary,
+                "address_scoped_challenge_not_real_netchan_proof");
+        }
+    }
+
+    summary.no_real_client_gate_passed =
+        scenario == "gate_no_real_client_used"
+        && !summary.real_steam_client_used
+        && !summary.real_client_binary_invoked
+        && summary.real_client_claims_count == 0;
+
+    summary.fixture_validation_passed =
+        summary.fixture_validation_error_count == 0
+        && summary.policy_file_loaded
+        && summary.fixture_files_loaded == summary.fixture_files_expected
+        && summary.required_metadata_present
+        && summary.invalid_fixtures_have_reject_reasons
+        && summary.real_compatibility_claims_count == 0
+        && summary.real_client_claims_count == 0
+        && summary.public_socket_claims_count == 0
+        && summary.lan_socket_claims_count == 0
+        && summary.capture_executed_claims_count == 0
+        && summary.qport_promoted_without_byte_evidence_count == 0
+        && summary.address_scoped_challenge_promoted_to_real_netchan_count == 0
+        && !summary.qport_session_byte_evidence_sufficient
+        && !summary.byte_level_qport_session_evidence_sufficient
+        && summary.address_scoped_challenge_reusable_as_diagnostic_prerequisite
+        && !summary.address_scoped_challenge_reusable_as_real_netchan_proof;
+
+    if (summary.fixture_validation_passed)
+    {
+        summary.accepted = 1;
+        summary.rejected = 0;
+        summary.last_reject_reason = "<none>";
+        summary.detail =
+            "offline qport/session fixture validator read checked-in policy fixtures only; no capture, sockets, real client, netchan, post-connect, or signon runtime";
+        return summary;
+    }
+
+    summary.accepted = 0;
+    summary.rejected = 1;
+    if (summary.last_reject_reason == "<none>")
+    {
+        summary.last_reject_reason = "qport_session_fixture_validation_failed";
+    }
+    summary.detail =
+        "offline qport/session fixture validator rejected policy fixture mutation; no capture, sockets, real client, netchan, post-connect, or signon runtime";
+    return summary;
+}
+
+void PerformHldsQportSessionOfflineFixtureValidator()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe = state.hlds_qport_session_offline_fixture_validator;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state.hlds_qport_session_offline_fixture_validator_probe_scenario.empty()
+        ? "happy"
+        : state.hlds_qport_session_offline_fixture_validator_probe_scenario;
+
+    probe = RunHldsQportSessionOfflineFixtureValidator(
         state.file_system,
         state.server_state.dedicated ? "dedicated" : "listen",
         scenario,
@@ -250091,6 +250826,7 @@ void PopulateBootstrapSummary(
     summary.hlds_query_info_byte_level_loopback_query_client_smoke = {};
     summary.hlds_query_info_loopback_regression_acceptance = {};
     summary.hlds_query_info_regression_ci_manifest_drift_gate = {};
+    summary.hlds_qport_session_offline_fixture_validator = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -251230,6 +251966,8 @@ void PopulateBootstrapSummary(
             state.hlds_query_info_loopback_regression_acceptance;
         summary.hlds_query_info_regression_ci_manifest_drift_gate =
             state.hlds_query_info_regression_ci_manifest_drift_gate;
+        summary.hlds_qport_session_offline_fixture_validator =
+            state.hlds_qport_session_offline_fixture_validator;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -257710,6 +258448,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsQueryInfoByteLevelLoopbackQueryClientSmoke();
     PerformHldsQueryInfoLoopbackRegressionAcceptance();
     PerformHldsQueryInfoRegressionCiManifestDriftGate();
+    PerformHldsQportSessionOfflineFixtureValidator();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -259656,6 +260395,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.hlds_serverinfo_unresolved_fixture_evidence_gap_guard = {};
     impl_->summary.hlds_connectionless_query_info_byte_level_builder_parser =
         {};
+    impl_->summary.hlds_qport_session_offline_fixture_validator = {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
         {};
     impl_->summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -260651,6 +261391,41 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         : query_info_ci_drift_gate_scenario == "gate_no_real_client_used"
             ? "gate_no_real_client_used"
         : query_info_ci_drift_gate_scenario == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state.hlds_qport_session_offline_fixture_validator = {};
+    impl_->shim_state.hlds_qport_session_offline_fixture_validator.enabled =
+        options.hlds_qport_session_offline_fixture_validator_probe_enabled;
+    const std::string& qport_session_validator_scenario =
+        options.hlds_qport_session_offline_fixture_validator_probe_scenario;
+    impl_->shim_state
+        .hlds_qport_session_offline_fixture_validator_probe_scenario =
+        qport_session_validator_scenario == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : qport_session_validator_scenario == "gate_missing_policy_file"
+            ? "gate_missing_policy_file"
+        : qport_session_validator_scenario == "gate_missing_required_metadata"
+            ? "gate_missing_required_metadata"
+        : qport_session_validator_scenario == "gate_real_client_claim"
+            ? "gate_real_client_claim"
+        : qport_session_validator_scenario == "gate_public_socket_claim"
+            ? "gate_public_socket_claim"
+        : qport_session_validator_scenario == "gate_lan_socket_claim"
+            ? "gate_lan_socket_claim"
+        : qport_session_validator_scenario == "gate_capture_executed_claim"
+            ? "gate_capture_executed_claim"
+        : qport_session_validator_scenario
+                == "gate_qport_promoted_without_byte_evidence"
+            ? "gate_qport_promoted_without_byte_evidence"
+        : qport_session_validator_scenario
+                == "gate_address_scoped_challenge_promoted_to_real_netchan"
+            ? "gate_address_scoped_challenge_promoted_to_real_netchan"
+        : qport_session_validator_scenario
+                == "gate_invalid_fixture_missing_reject_reason"
+            ? "gate_invalid_fixture_missing_reject_reason"
+        : qport_session_validator_scenario == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : qport_session_validator_scenario == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
             : "happy";
     impl_->shim_state
