@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260508_230243",
+  "runInstanceId": "20260508_230243_713_pid34456",
+  "runLabel": "p306-final-14-gate_no_real_client_used",
+  "promptId": "HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "7ce0541babd4a2f3a7e7e41e0e2352f6f4022c3d",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230243_713_pid34456__p306-final-14-gate_no_real_client_used_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230243_713_pid34456__p306-final-14-gate_no_real_client_used_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230243_713_pid34456__p306-final-14-gate_no_real_client_used_part01.log"]
+}

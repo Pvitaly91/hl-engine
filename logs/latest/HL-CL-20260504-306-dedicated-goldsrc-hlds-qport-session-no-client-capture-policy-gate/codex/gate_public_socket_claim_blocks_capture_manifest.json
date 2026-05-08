@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260508_230238",
+  "runInstanceId": "20260508_230238_099_pid39892",
+  "runLabel": "p306-final-07-gate_public_socket_claim_blocks_capture",
+  "promptId": "HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "7ce0541babd4a2f3a7e7e41e0e2352f6f4022c3d",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230238_099_pid39892__p306-final-07-gate_public_socket_claim_blocks_capture_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230238_099_pid39892__p306-final-07-gate_public_socket_claim_blocks_capture_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_230238_099_pid39892__p306-final-07-gate_public_socket_claim_blocks_capture_part01.log"]
+}

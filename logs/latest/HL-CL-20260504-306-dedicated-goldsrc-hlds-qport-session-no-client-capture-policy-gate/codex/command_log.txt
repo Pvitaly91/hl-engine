@@ -1,0 +1,33 @@
+Prompt: HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate
+
+Commands run:
+- git status --short --branch
+- rg targeted source symbols and qport/session terms
+- git diff --check -- targeted source files
+- git merge-base --is-ancestor <prompt-287-through-305-commit> HEAD
+- ConvertFrom-Json validation for qport/session policy and fixtures
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /nr:false /v:minimal
+- git add -- targeted source files
+- git commit -m "Add qport session capture policy gate"
+- hlhost.exe policy gate runtime proof scenarios p306-final-01 through p306-final-14
+- PowerShell proof parser for policy gate summaries
+
+Build result:
+- MSBuild passed for build32/host/hlhost.vcxproj Debug Win32.
+- Warnings observed: C4127 constant-condition warnings in src/game_api/hl_server_module.cpp; build succeeded.
+
+Runtime proof labels:
+- p306-final-01-happy: happy
+- p306-final-02-gate_disabled_by_default: gate_disabled_by_default
+- p306-final-03-gate_validator_required: gate_validator_required
+- p306-final-04-gate_policy_file_required: gate_policy_file_required
+- p306-final-05-gate_invalid_fixture_blocks_capture: gate_invalid_fixture_blocks_capture
+- p306-final-06-gate_real_client_claim_blocks_capture: gate_real_client_claim_blocks_capture
+- p306-final-07-gate_public_socket_claim_blocks_capture: gate_public_socket_claim_blocks_capture
+- p306-final-08-gate_lan_socket_claim_blocks_capture: gate_lan_socket_claim_blocks_capture
+- p306-final-09-gate_capture_executed_claim_blocks_capture: gate_capture_executed_claim_blocks_capture
+- p306-final-10-gate_qport_byte_evidence_claim_blocks_capture: gate_qport_byte_evidence_claim_blocks_capture
+- p306-final-11-gate_address_scoped_challenge_real_netchan_claim_blocks_capture: gate_address_scoped_challenge_real_netchan_claim_blocks_capture
+- p306-final-12-gate_capture_implementation_present_blocks_policy: gate_capture_implementation_present_blocks_policy
+- p306-final-13-gate_socket_request_blocked: gate_socket_request_blocked
+- p306-final-14-gate_no_real_client_used: gate_no_real_client_used
