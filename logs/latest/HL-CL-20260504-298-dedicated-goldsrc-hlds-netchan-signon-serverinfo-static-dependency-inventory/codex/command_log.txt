@@ -1,0 +1,42 @@
+Command log for HL-CL-20260504-298
+
+- git status --short
+- git branch --show-current
+- git rev-parse HEAD
+- descendant gates with git merge-base --is-ancestor for prompts 287 through 297 source/artifact commits:
+  ef7d69a929b16f5f55b03f932ed46fd0594adbb4
+  d332394b52faedfec4e0be52499a4c59ce0be2da
+  ddd65ea5886d28cf0f51ffd5fdbc19e4be3b74cd
+  9866d3e1e3f6ccfe00120b75bc89081d66606cdf
+  b02c8d81946d827a740353c332aba8bd584d0ffc
+  f397488a5e47419f510930635285a46c75945e3d
+  a250e0defc59894a26c00e96d81aff160c20a61e
+  9e9027b381c6813c63d33e243de1f86ad27d03c2
+  b11c45537492c5f0e87ab891522a9375853cf6a5
+  4b286595663162008f80d63945529c04c6d16aed
+  8c2b3493a96c9bc57cf85e54a95d4eace36bf4a4
+  17839836b97dea9c75050deb61a869fa60750bf2
+  22a1133f59c195066a8f55fdbac495cf8eb607f6
+  424ee9da370f22fc3d85956c7931450f6ac010c0
+  63a8e670ee0f6b64d3965cef6c84a8001afdb1ab
+  9f659b68ee53a9af8f2c325631c8ebe3b5298efd
+  ae4bfe410e5f7b82314bc05ce76f5027df60fb64
+  4a451bec590514cc55a889d9ede6f3f6e43819f3
+  7fcb8c77c6102058e71832f5a1ff109cb2f891a9
+  a54ed7b2aab4f4a2683ff79c272235e5eb85d72b
+  0dc6e9c22366db267374a999b797e8da64f785a0
+- git ls-files include src fixtures/diagnostic/hlds docs/diagnostic/hlds scripts selected prompt artifacts
+- Select-String broad scan for netchan, signon, serverinfo, svc_serverinfo, SVC_SERVERINFO, svc, server data, client data, baseline, resource, model, sound, event, reliable, unreliable, packet, datagram, message, bitstream, buffer, sizebuf, MSG_Write, SZ_Write, WriteByte, WriteShort, WriteLong, WriteString, connect, getchallenge, challenge, userinfo, client slot, client index, edict, put in server, putinserver, spawn, disconnect, reject
+- Corrected Select-String per-file scan after an initial noisy InputStream pipeline attempt
+- Select-String focused scans in hl_server_module.cpp, hl_server_module.h, server_frame_loop.cpp, server_bootstrap.cpp, launch_options, host_application
+- Get-ChildItem fixtures/diagnostic/hlds/serverinfo -Recurse -File
+- Get-ChildItem logs/latest for prior prompt artifacts 264, 267, 269-271, 273, 276-277, 279, 285-297
+- apply_patch added docs/diagnostic/hlds/netchan_signon_serverinfo_static_dependency_inventory.md
+- git add -- docs/diagnostic/hlds/netchan_signon_serverinfo_static_dependency_inventory.md
+- git commit -m "docs: inventory hlds netchan signon dependencies"
+- generated prompt-specific artifact files under logs/latest/HL-CL-20260504-298-dedicated-goldsrc-hlds-netchan-signon-serverinfo-static-dependency-inventory/codex
+
+No wrapper full-run, socket proof, real-client proof, public/LAN proof, post-connect proof, or signon proof was run for this static/report-only prompt.
+- JSON validation: Get-Content netchan_signon_static_dependency_summary.json -Raw | ConvertFrom-Json
+- post-source descendant gate re-run for prompt 287-297 commits: PASS
+- git status --short scoped to prompt 298 artifacts/docs
