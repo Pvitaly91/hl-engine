@@ -1,0 +1,16 @@
+PROMPT-ID: HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator
+
+Status: pass pending artifact commit.
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 53ccbdf3d12a9fca0ef1a6b31c780367369578a6
+Source commit: 1bc41c55242f71447e707f182e652e8bf2f7f3a9
+Compatibility claim: diagnostic-qport-session-capture-preflight-dry-run-validator-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Implemented a disabled-by-default read-only qport/session capture preflight dry-run validator. The validator checks the prompt 307 dry-run manifest, offline policy reference, offline validator requirement, capture policy gate requirement, capture-blocked state, planned artifact schema, planned action safety, qport byte evidence non-promotion, and address-scoped challenge non-promotion.
+
+Runtime proof: all p308-final2 scenarios passed. Happy and no-real-client gates accepted; every negative gate rejected before sockets, capture, real client, connect, signon, or netchan runtime.
+
+Recommended next prompt: HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper
+Recommended next task: add a disabled-by-default qport/session no-client capture dry-run wrapper after the dry-run manifest validator passes while capture remains blocked
+
+Artifact files are in logs/latest/HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator/codex
