@@ -1,0 +1,28 @@
+@"
+# Prompt 299 Command Log
+
+Working directory: G:\DEV\CPP\HLengine\host (actual path contains Cyrillic CPP parent)
+
+Commands run, summarized:
+1. git branch --show-current
+2. git rev-parse HEAD
+3. git status --short
+4. git merge-base --is-ancestor for source/artifact commits from prompts 287 through 298
+5. git ls-files include src fixtures/diagnostic/hlds docs/diagnostic/hlds scripts selected prompt artifacts
+6. Select-String focused scans for message-writing, buffer, packet, netchan, reliable/unreliable, and overflow-policy terms
+7. rg kMaxCompletedMessages include src
+8. Select-String targeted inspection of src/game_api/server_frame_loop.cpp
+9. Select-String targeted inspection of src/game_api/hl_server_module.cpp
+10. git diff --check -- docs/diagnostic/hlds/netchan_message_writing_static_inventory.md
+11. git add -- docs/diagnostic/hlds/netchan_message_writing_static_inventory.md
+12. git commit -m "docs: inventory hlds netchan message writing"
+13. PowerShell artifact generation for prompt 299 reports
+
+No runtime proof was run. No wrapper full-run was run. No sockets were opened. No real client binary was invoked.
+14. ConvertFrom-Json validation for netchan_message_writing_static_summary.json
+15. git merge-base --is-ancestor validation for prompt 287 through 298 commits after source commit
+16. rg validation for netchan/message-writing/public-LAN/real-client/connect/post-connect/signon terms in stable doc and prompt artifacts
+17. git status --short for prompt 299 paths
+18. git add -f prompt 299 artifact root
+19. git commit -m "artifacts: record hlds netchan message writing inventory"
+20. git push origin codex/HL-CL-20260401-081-target-runtime-completion-state
