@@ -166,6 +166,25 @@ bool IsHldsQueryInfoRegressionCiManifestDriftGateScenario(
         || normalized == L"gate_public_socket_blocked";
 }
 
+bool IsHldsQportSessionOfflineFixtureValidatorScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_missing_policy_file"
+        || normalized == L"gate_missing_required_metadata"
+        || normalized == L"gate_real_client_claim"
+        || normalized == L"gate_public_socket_claim"
+        || normalized == L"gate_lan_socket_claim"
+        || normalized == L"gate_capture_executed_claim"
+        || normalized == L"gate_qport_promoted_without_byte_evidence"
+        || normalized
+            == L"gate_address_scoped_challenge_promoted_to_real_netchan"
+        || normalized == L"gate_invalid_fixture_missing_reject_reason"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -3276,6 +3295,83 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_query_info_regression_ci_manifest_drift_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument == L"--hlds-qport-session-offline-fixture-validator-probe")
+        {
+            result.options
+                .hlds_qport_session_offline_fixture_validator_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_offline_fixture_validator_probe_prefix =
+                L"--hlds-qport-session-offline-fixture-validator-probe=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_offline_fixture_validator_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_offline_fixture_validator_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_offline_fixture_validator_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-offline-fixture-validator-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-qport-session-offline-fixture-validator-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-qport-session-offline-fixture-validator-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQportSessionOfflineFixtureValidatorScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-offline-fixture-validator-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_offline_fixture_validator_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_offline_fixture_validator_probe_scenario_prefix =
+                L"--hlds-qport-session-offline-fixture-validator-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_offline_fixture_validator_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_qport_session_offline_fixture_validator_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQportSessionOfflineFixtureValidatorScenario(normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-offline-fixture-validator-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_offline_fixture_validator_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
