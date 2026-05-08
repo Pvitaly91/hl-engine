@@ -1,0 +1,46 @@
+PROMPT-ID: HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: c830498ceba33c4bd38342edf91217bfb304722d
+Source commit: 7ce0541babd4a2f3a7e7e41e0e2352f6f4022c3d
+Artifact commit: pending
+Compatibility claim level: diagnostic-qport-session-no-client-capture-policy-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Implemented a disabled-by-default read-only qport/session no-client capture policy gate. The gate reuses the prompt-305 offline fixture validator, evaluates future capture readiness, and blocks capture in prompt 306 because capture implementation is not allowed yet and qport/session byte evidence remains insufficient.
+
+All 14 required scenarios passed:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_validator_required: pass
+- gate_policy_file_required: pass
+- gate_invalid_fixture_blocks_capture: pass
+- gate_real_client_claim_blocks_capture: pass
+- gate_public_socket_claim_blocks_capture: pass
+- gate_lan_socket_claim_blocks_capture: pass
+- gate_capture_executed_claim_blocks_capture: pass
+- gate_qport_byte_evidence_claim_blocks_capture: pass
+- gate_address_scoped_challenge_real_netchan_claim_blocks_capture: pass
+- gate_capture_implementation_present_blocks_policy: pass
+- gate_socket_request_blocked: pass
+- gate_no_real_client_used: pass
+
+Safety invariants from happy path:
+- capture_allowed_now: 0
+- capture_implementation_added: 0
+- capture_executed: 0
+- capture_runtime_executed: 0
+- socket_open_attempted: 0
+- public_socket_opened: 0
+- lan_socket_opened: 0
+- loopback_udp_socket_opened: 0
+- real_steam_client_used: 0
+- real_client_binary_invoked: 0
+- connect_path_invoked: 0
+- post_connect_serverinfo_path_invoked: 0
+- signon_serverinfo_path_invoked: 0
+- netchan_runtime_started: 0
+- normal_host_behavior_changed: 0
+
+Recommended next prompt: HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan
+Recommended next task: plan a qport/session capture preflight dry run while preserving no-client, no-socket, no-runtime, and no-compatibility-claim gates
