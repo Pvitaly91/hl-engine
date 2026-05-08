@@ -1,0 +1,47 @@
+# Prompt 299 Full Handoff
+
+Prompt ID: HL-CL-20260504-299-dedicated-goldsrc-hlds-netchan-message-writing-static-inventory
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: a4928efd7b96ddb607c6e62e6ea679f435df2bb5
+Source commit: 85291427cad99ada22d125308d8456ad7f00e31f
+Compatibility claim level: diagnostic-netchan-message-writing-static-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Status: pass pending artifact commit. This prompt is static/report-only. No runtime probe was run. No packets were captured. No sockets were opened. No Steam process, real Half-Life client, or real query client binary was invoked.
+
+Stable inventory doc: docs/diagnostic/hlds/netchan_message_writing_static_inventory.md
+
+What was inspected:
+- include/ and src/ for message-writing, buffer, packet, netchan, reliable/unreliable, and overflow-policy terms.
+- checked-in query/info regression fixture/docs context.
+- prompt 293, 296, 297, and 298 artifacts for prior boundary and policy context.
+
+Key findings:
+- Diagnostic message observation exists through FrameMessageBuffer and StubWrite* callbacks.
+- Connectionless query/info byte helpers exist and remain scoped to the closed query/info boundary.
+- Pseudo signon byte report helpers exist, but they are diagnostic pseudo-packets and not real netchan or real signon serverinfo evidence.
+- No production MSG_Write/MSG_Read/SZ_Write/sizebuf-style real network writer was found.
+- No real netchan channel object, sequence/ack encoder, reliable envelope, unreliable envelope, fragment/split-packet handling, or packet loss/flow implementation was found.
+- Query/info remains connectionless-only and is not post-connect serverinfo or signon-time serverinfo.
+
+Safety state:
+- post_connect_byte_evidence_sufficient=0
+- signon_time_byte_evidence_sufficient=0
+- real_post_connect_builder_complete=0
+- real_signon_builder_complete=0
+- real_wire_builder_complete=0
+- real_client_capture_allowed_now=0
+- real_steam_client_used=0
+- real_client_binary_invoked=0
+- public_socket_opened=0
+- lan_socket_opened=0
+- loopback_udp_socket_opened=0
+- connect_path_invoked=0
+- post_connect_serverinfo_path_invoked=0
+- signon_serverinfo_path_invoked=0
+- normal_host_behavior_changed=0
+
+Recommended next prompt: HL-CL-20260504-300-dedicated-goldsrc-hlds-netchan-sequence-ack-static-contract-inventory
+Recommended next task: create a static netchan sequence/ack contract inventory before any post-connect or signon-time serverinfo field contract, capture design, runtime execution, public/LAN exposure, or real client work
+
+Why this still does not imply real compatibility:
+The located helpers are diagnostic observation/query-info/pseudo-report helpers. They do not define the real post-connect or signon-time serverinfo envelope, netchan sequence/ack fields, reliable/unreliable channels, resource baselines, signon state, client admission, Steam auth, or production wire behavior.

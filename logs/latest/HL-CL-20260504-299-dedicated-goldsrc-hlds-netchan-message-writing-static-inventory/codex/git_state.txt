@@ -1,0 +1,22 @@
+# Prompt 299 Git State
+
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: a4928efd7b96ddb607c6e62e6ea679f435df2bb5
+Source commit: 85291427cad99ada22d125308d8456ad7f00e31f
+Artifact commit: pending_artifact_commit
+
+Descendant gates: passed for required commits from prompts 287 through 298, including 13759cc79229a792ebf4e8616044037312d4b640 and a4928efd7b96ddb607c6e62e6ea679f435df2bb5.
+
+Tracked prompt 299 source/doc change:
+- docs/diagnostic/hlds/netchan_message_writing_static_inventory.md
+
+Prompt 299 artifact root:
+- logs/latest/HL-CL-20260504-299-dedicated-goldsrc-hlds-netchan-message-writing-static-inventory/codex
+
+Dirty worktree note:
+The repository had pre-existing unrelated build outputs, older log modifications, and untracked runtime artifacts before prompt 299. These were not staged or modified for this prompt.
+
+Validation after source commit:
+- Descendant gates passed for prompt 287 through 298 source/artifact commits.
+- Prompt 299 JSON summary parsed with ConvertFrom-Json.
+- Static grep validation found required netchan/message-writing/policy terms in stable doc and artifacts.
