@@ -205,6 +205,27 @@ bool IsHldsQportSessionNoClientCapturePolicyGateScenario(
         || normalized == L"gate_no_real_client_used";
 }
 
+bool IsHldsQportSessionCapturePreflightDryRunValidatorScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_missing_dry_run_manifest"
+        || normalized == L"gate_missing_policy_reference"
+        || normalized == L"gate_validator_not_required"
+        || normalized == L"gate_policy_gate_not_required"
+        || normalized == L"gate_capture_allowed_claim"
+        || normalized == L"gate_capture_executed_claim"
+        || normalized == L"gate_socket_action_in_plan"
+        || normalized == L"gate_real_client_action_in_plan"
+        || normalized == L"gate_connect_or_signon_action_in_plan"
+        || normalized == L"gate_missing_planned_artifact_schema"
+        || normalized == L"gate_qport_byte_evidence_claim"
+        || normalized == L"gate_address_scoped_challenge_real_netchan_claim"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -3492,6 +3513,109 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_qport_session_no_client_capture_policy_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
+                == L"--hlds-qport-session-capture-preflight-dry-run-validator"
+            || argument
+                == L"--hlds-qport-session-capture-preflight-dry-run-validator-probe")
+        {
+            result.options
+                .hlds_qport_session_capture_preflight_dry_run_validator_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_preflight_dry_run_validator_prefix =
+                L"--hlds-qport-session-capture-preflight-dry-run-validator=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_preflight_dry_run_validator_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_capture_preflight_dry_run_validator_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_capture_preflight_dry_run_validator_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-capture-preflight-dry-run-validator"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_preflight_dry_run_validator_probe_prefix =
+                L"--hlds-qport-session-capture-preflight-dry-run-validator-probe=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_preflight_dry_run_validator_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_capture_preflight_dry_run_validator_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_capture_preflight_dry_run_validator_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-capture-preflight-dry-run-validator-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQportSessionCapturePreflightDryRunValidatorScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario_prefix =
+                L"--hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQportSessionCapturePreflightDryRunValidatorScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
