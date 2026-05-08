@@ -1,0 +1,56 @@
+PROMPT-ID: HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+7571d148aec67150001787f81260eea561ece947
+
+Source/docs commit:
+ce868e3bca89665e66afe6c15189b03f9dc03941
+
+Required descendant gate:
+pass
+
+Confirmed local ancestry includes prompt 287 through prompt 300 source/artifact commits, including:
+- ef7d69a929b16f5f55b03f932ed46fd0594adbb4
+- d332394b52faedfec4e0be52499a4c59ce0be2da
+- ddd65ea5886d28cf0f51ffd5fdbc19e4be3b74cd
+- 9866d3e1e3f6ccfe00120b75bc89081d66606cdf
+- b02c8d81946d827a740353c332aba8bd584d0ffc
+- f397488a5e47419f510930635285a46c75945e3d
+- a250e0defc59894a26c00e96d81aff160c20a61e
+- 9e9027b381c6813c63d33e243de1f86ad27d03c2
+- b11c45537492c5f0e87ab891522a9375853cf6a5
+- 4b286595663162008f80d63945529c04c6d16aed
+- 8c2b3493a96c9bc57cf85e54a95d4eace36bf4a4
+- 17839836b97dea9c75050deb61a869fa60750bf2
+- 22a1133f59c195066a8f55fdbac495cf8eb607f6
+- 424ee9da370f22fc3d85956c7931450f6ac010c0
+- 63a8e670ee0f6b64d3965cef6c84a8001afdb1ab
+- 9f659b68ee53a9af8f2c325631c8ebe3b5298efd
+- ae4bfe410e5f7b82314bc05ce76f5027df60fb64
+- 4a451bec590514cc55a889d9ede6f3f6e43819f3
+- 7fcb8c77c6102058e71832f5a1ff109cb2f891a9
+- a54ed7b2aab4f4a2683ff79c272235e5eb85d72b
+- 0dc6e9c22366db267374a999b797e8da64f785a0
+- 13759cc79229a792ebf4e8616044037312d4b640
+- a4928efd7b96ddb607c6e62e6ea679f435df2bb5
+- 85291427cad99ada22d125308d8456ad7f00e31f
+- e1ffbc16c945d50915d9543eecac02380d292b1a
+- 2c74d671a90efdd93bca217c6027e5a2e37f19fc
+- 7571d148aec67150001787f81260eea561ece947
+
+Prompt 301 staged scope:
+- docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+- logs/latest/HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory/codex/*
+
+Validation state before artifact commit:
+- stable docs committed in ce868e3bca89665e66afe6c15189b03f9dc03941
+- JSON summary validation passed
+- artifact markdown diff check passed
+- descendant gate after source/docs commit passed
+- prompt 301 artifact directory is the only prompt-specific untracked scope
+
+Unrelated dirty files:
+pre-existing unrelated dirty files were present before prompt 301 and were preserved.

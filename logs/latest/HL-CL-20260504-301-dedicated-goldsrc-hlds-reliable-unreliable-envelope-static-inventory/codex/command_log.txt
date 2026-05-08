@@ -1,0 +1,36 @@
+PROMPT-ID: HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
+
+Commands run:
+1. git rev-parse --show-toplevel
+   - Result: G:/DEV/CPP/HLengine/host worktree root (actual path contains Cyrillic CPP directory in local filesystem).
+2. git branch --show-current
+   - Result: codex/HL-CL-20260401-081-target-runtime-completion-state.
+3. git rev-parse HEAD
+   - Result before changes: 7571d148aec67150001787f81260eea561ece947.
+4. git status --short
+   - Result: unrelated pre-existing dirty files were present; prompt 301 preserved them.
+5. git merge-base --is-ancestor for prompt 287-300 source/artifact commits.
+   - Result: pass for all required local commits, including 2c74d671a90efdd93bca217c6027e5a2e37f19fc and 7571d148aec67150001787f81260eea561ece947.
+6. git ls-files include src
+   - Result: 78 source files scanned.
+7. rg focused reliable/unreliable/envelope/netchan/channel/session/message terms across include/src/docs/fixtures.
+   - Result: reliable=46, unreliable=2, envelope=1163 in source scope; no reliable_message/unreliable_message/reliable_buf/unreliable_buf/reliable_sequence/reliable_ack/qport/fragment/split packet contract found.
+8. git diff --check -- docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+   - Result: pass.
+9. rg doc verification terms in docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+   - Result: expected compatibility claim, qport/session rationale, and recommendation found.
+10. git add -- docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md
+11. git commit -m "docs: inventory reliable unreliable envelopes"
+   - Result: source/docs commit ce868e3bca89665e66afe6c15189b03f9dc03941.
+12. ConvertFrom-Json reliable_unreliable_static_summary.json
+   - Result: json_valid=1.
+13. git diff --check -- logs/latest/HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory/codex
+   - Result: pass.
+14. rg artifact verification terms
+   - Result: expected no-real-client compatibility claim, byte-level-envelope insufficiency, qport/session recommendation, and netchan runtime blocker fields found.
+15. git merge-base --is-ancestor for prompt 287-300 source/artifact commits after the source/docs commit.
+   - Result: descendant_gate_all=pass.
+16. git status --short -- docs/diagnostic/hlds/reliable_unreliable_envelope_static_inventory.md logs/latest/HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
+   - Result: stable docs committed; prompt 301 artifact directory untracked before artifact commit.
+
+No runtime probes, packet capture, sockets, public/LAN exposure, Steam, real client, getchallenge/connect/post-connect/signon runtime, auth, netchan runtime, reliable/unreliable runtime, baselines, or admission were executed.
