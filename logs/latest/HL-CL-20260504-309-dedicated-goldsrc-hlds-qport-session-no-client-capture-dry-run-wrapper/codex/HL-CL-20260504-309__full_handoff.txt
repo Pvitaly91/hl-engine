@@ -1,0 +1,27 @@
+PROMPT-ID: HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change head: dc885cbc0c7e222adb00570557b01708da1e1eaa
+Source commit: 9bebafe858211606689e326a90637c4455875400
+Artifact commit: pending until artifact commit is created
+Compatibility claim level: diagnostic-qport-session-capture-dry-run-wrapper-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- wrapper_script_created=1
+- wrapper_plan_generated=1
+- wrapper_plan_passed=1
+- wrapper_validate_executed=1
+- wrapper_validate_passed=1
+- offline_fixture_validator_included=1
+- capture_policy_gate_included=1
+- dry_run_validator_included=1
+- capture_allowed_now=0
+- capture_blocked_by_policy=1
+- capture_block_reason=capture_implementation_not_allowed_yet
+- unsafe_options_blocked=1
+
+All wrapper gate scenarios passed. No capture, socket, real client, Steam, connect/post-connect/signon, netchan, auth, or admission path was introduced or executed.
+
+Recommended next prompt: HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary
+Recommended next task: summarize the qport/session no-client capture dry-run release boundary after wrapper plan and validate modes pass while capture remains blocked

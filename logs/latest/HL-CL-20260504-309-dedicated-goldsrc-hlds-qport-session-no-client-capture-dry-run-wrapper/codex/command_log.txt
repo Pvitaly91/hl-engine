@@ -1,0 +1,16 @@
+Prompt: HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper
+Commands run:
+- git status --short --branch
+- rg qport_session/capture dry run/wrapper terms
+- PowerShell syntax validation for scripts/run_hlds_qport_session_capture_dry_run.ps1
+- git diff --check -- scripts/run_hlds_qport_session_capture_dry_run.ps1 docs/diagnostic/hlds/qport_session_capture_dry_run_wrapper.md
+- .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode plan -OutDir logs/latest/HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper/wrapper_plan -RunLabelPrefix p309-plan -Strict
+- .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode validate -NoBuild -OutDir logs/latest/HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper/wrapper_validate -RunLabelPrefix p309-validate2 -Strict
+- wrapper gate loop through happy_plan, happy_validate, gate_public_option_blocked, gate_lan_option_blocked, gate_real_client_option_blocked, gate_capture_option_blocked, gate_socket_option_blocked, gate_connect_option_blocked, gate_signon_option_blocked, gate_missing_dry_run_validator_blocked
+- descendant gate for prompt 305-308 source/artifact commits
+- JSON validation for generated summary and gate artifacts
+
+Notes:
+- MSBuild was not run because only PowerShell/docs changed.
+- Validate mode used existing build32/host/Debug/hlhost.exe with -NoBuild.
+- Host probe logs used logs/latest/runtime to avoid long-path summary log failures.

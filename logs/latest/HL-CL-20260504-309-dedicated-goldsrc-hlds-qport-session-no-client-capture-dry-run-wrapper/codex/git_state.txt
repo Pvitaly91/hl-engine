@@ -1,0 +1,6 @@
+branch=codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head=dc885cbc0c7e222adb00570557b01708da1e1eaa
+source_commit=9bebafe858211606689e326a90637c4455875400
+artifact_commit=pending
+status_scope=source committed; artifact files pending
+tracked_source_files=scripts/run_hlds_qport_session_capture_dry_run.ps1, docs/diagnostic/hlds/qport_session_capture_dry_run_wrapper.md
