@@ -1,0 +1,30 @@
+PROMPT-ID: HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan
+
+Repository root:
+G:/DEV/CPP/HLengine/host
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+eca41a4b2f5a48666fe6fd9bc02d1480ec970a16
+
+Source/docs commit:
+7db1ba1e0b1235d50933bb99d50f7a18d909e6f8
+
+Artifact commit:
+pending at artifact creation time
+
+Targeted prompt-owned files before source/docs commit:
+- docs/diagnostic/hlds/qport_session_capture_preflight_dry_run_plan.md
+- fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json
+
+Prompt-owned artifact root:
+logs/latest/HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan/codex
+
+Descendant gate:
+All required source/artifact commits from prompts 287 through 306 were present as ancestors of HEAD before prompt 307 source/docs commit.
+
+Dirty worktree note:
+Unrelated build products and older runtime/log files were already dirty before this prompt. They were preserved and not staged for prompt 307.
+

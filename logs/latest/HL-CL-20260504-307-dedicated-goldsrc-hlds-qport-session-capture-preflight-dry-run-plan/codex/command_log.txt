@@ -1,0 +1,57 @@
+PROMPT-ID: HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan
+
+Commands run:
+
+1. git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD
+   Output:
+   - G:/DEV/CPP/HLengine/host
+   - codex/HL-CL-20260401-081-target-runtime-completion-state
+   - eca41a4b2f5a48666fe6fd9bc02d1480ec970a16
+
+2. git status --short --branch
+   Result:
+   - Confirmed the current branch.
+   - Existing unrelated build/runtime dirty files were present before prompt-owned edits.
+
+3. git status --short -- fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json docs/diagnostic/hlds/qport_session_capture_preflight_dry_run_plan.md
+   Result:
+   - Both prompt-owned stable files were untracked before source/docs commit.
+
+4. JSON validation:
+   - Get-Content -Raw fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json | ConvertFrom-Json | Out-Null
+   - Get-Content -Raw fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json | ConvertFrom-Json | Out-Null
+   Result:
+   - dry_run_manifest_json=valid
+   - offline_policy_json=valid
+
+5. Descendant gate:
+   - git merge-base --is-ancestor <required-commit> HEAD
+   Result:
+   - All required source/artifact commits from prompts 287 through 306 returned ancestor=1.
+
+6. Search:
+   - rg -n "qport_session|capture preflight|dry-run|dry run|offline fixture|policy gate|validator|public socket|LAN socket|real client|capture" fixtures/diagnostic/hlds/qport_session docs/diagnostic/hlds logs/latest/HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate/codex
+   Result:
+   - Found expected qport/session dry-run, offline fixture, policy gate, validator, public socket, LAN socket, real client, and capture guard terms in stable docs, policy files, and prompt artifacts.
+
+7. Source/docs commit:
+   - git add -- fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json docs/diagnostic/hlds/qport_session_capture_preflight_dry_run_plan.md
+   - git commit -m "Add qport session capture preflight dry-run plan"
+   Result:
+   - 7db1ba1e0b1235d50933bb99d50f7a18d909e6f8
+
+8. Artifact creation:
+   - New prompt-specific artifact directory created under logs/latest/HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan/codex.
+   - Artifact files created by patch.
+
+9. Artifact path correction:
+   - Detected that the first patch wrote artifacts under the outer workspace path instead of the repo root.
+   - Copied those artifacts into G:/DEV/CPP/HLengine/host/logs/latest/HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan/codex.
+   - Removed the accidental outer-workspace prompt 307 artifact directory after verifying the exact path.
+
+10. Artifact JSON validation:
+   - Get-Content -Raw logs/latest/HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan/codex/qport_session_capture_preflight_dry_run_summary.json | ConvertFrom-Json | Out-Null
+   Result:
+   - artifact_summary_json=valid
+
+No runtime proofs were run. No capture, socket, real client, connect, post-connect, signon, or netchan runtime path was executed.
