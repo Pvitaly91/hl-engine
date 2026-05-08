@@ -1,0 +1,16 @@
+PROMPT-ID: HL-CL-20260504-297-dedicated-goldsrc-hlds-post-connect-signon-evidence-acquisition-plan
+
+Commands run (high signal):
+- git status --short
+- git branch --show-current; git rev-parse HEAD
+- git merge-base --is-ancestor for prompt 287-296 source/artifact commits
+- Get-ChildItem fixture/docs/log directories
+- Get-Content serverinfo fixture README/contract/unresolved fixtures/query-info manifest/docs/wrapper
+- Select-String fallback searches for serverinfo/svc_serverinfo/signon/netchan/baseline/resource/model/sound/event/reliable/unreliable/packet/datagram/message/writebyte/writeshort/writelong/writestring/connect/challenge/userinfo/disconnect/reject
+- ConvertFrom-Json validation for serverinfo fixtures and query_info_regression_ci_manifest.json
+- powershell -NoProfile -ExecutionPolicy Bypass -File scripts/run_hlds_query_info_regression.ps1 -Mode all -DryRun -NoBuild -OutDir logs/latest/HL-CL-20260504-297-dedicated-goldsrc-hlds-post-connect-signon-evidence-acquisition-plan/wrapper_dry_run
+- apply_patch added docs/diagnostic/hlds/post_connect_signon_evidence_acquisition_plan.md
+- git add docs/diagnostic/hlds/post_connect_signon_evidence_acquisition_plan.md; git commit -m "Add post-connect signon evidence acquisition plan"
+- artifact generation for prompt 297 codex files
+
+No real client was invoked. No Steam process was launched. No sockets were opened by this planning prompt. No public/LAN/loopback runtime proof was run.

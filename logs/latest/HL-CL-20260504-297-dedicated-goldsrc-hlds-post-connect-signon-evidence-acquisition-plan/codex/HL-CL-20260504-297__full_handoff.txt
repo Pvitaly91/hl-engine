@@ -1,0 +1,45 @@
+PROMPT-ID: HL-CL-20260504-297-dedicated-goldsrc-hlds-post-connect-signon-evidence-acquisition-plan
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 7fcb8c77c6102058e71832f5a1ff109cb2f891a9
+Source/docs commit: a54ed7b2aab4f4a2683ff79c272235e5eb85d72b
+Compatibility claim level: diagnostic-post-connect-signon-evidence-acquisition-plan-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+This is a planning-only prompt. No packet capture was implemented. No real wire builder or parser was implemented. No Half-Life client code, client.dll, HUD, renderer, gameplay logic, runtime socket code, launch options, or fixtures were changed.
+
+No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. Steam was not launched. Public sockets were not opened. LAN sockets were not opened. Loopback sockets were not opened by this plan prompt. Connect, post-connect serverinfo, signon serverinfo, auth, netchan, reliable channel, resource baselines, signon state, and client admission were not started.
+
+Closed query/info boundary:
+- Fixture: connectionless_query_info_candidate
+- Stage: connectionless_query
+- Wrapper: scripts/run_hlds_query_info_regression.ps1
+- CI manifest: fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+- Release doc: docs/diagnostic/hlds/query_info_release_boundary_summary.md
+
+Post-connect and signon evidence status:
+- post_connect_byte_evidence_sufficient=0
+- signon_time_byte_evidence_sufficient=0
+- real_post_connect_builder_complete=0
+- real_signon_builder_complete=0
+- real_wire_builder_complete=0
+
+Evidence sources inspected:
+1. fixtures/diagnostic/hlds/serverinfo/README.md
+2. serverinfo fixture contract doc and schema
+3. connectionless_query_info_candidate.json
+4. diagnostic_post_connect_serverinfo_current.json
+5. post_connect_real_serverinfo_unresolved.json
+6. signon_time_serverinfo_unresolved.json
+7. query_info_regression_ci_manifest.json
+8. docs/diagnostic/hlds query/info docs
+9. scripts/run_hlds_query_info_regression.ps1
+10. include/app and src/app launch/host code
+11. include/game_api and src/game_api server module code
+12. prompt artifacts/summaries from 279, 285, 287-296
+
+Acquisition methods considered: 7
+Blockers listed: 10
+
+Recommended next prompt: HL-CL-20260504-298-dedicated-goldsrc-hlds-netchan-signon-serverinfo-static-dependency-inventory
+Recommended next task: Create a focused static dependency inventory for netchan, signon, post-connect serverinfo, signon-time serverinfo, message writing, baseline/resource linkage, challenge/session linkage, and userinfo linkage before any capture design or runtime execution.
