@@ -1,0 +1,53 @@
+PROMPT-ID: HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 959e177fa462fa87ba4a7b5685d5576ff330aed5
+Source/docs commit: 5a9c8277003eb9368838e636030de6660ba9aa8b
+Artifact commit: pending_at_artifact_creation
+
+Compatibility claim level:
+diagnostic-qport-session-no-client-capture-design-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Boundary:
+This prompt is design/report-only. It did not implement packet capture, add launch options, add runtime code, open sockets, bind loopback/public/LAN sockets, run getchallenge/connect/post-connect/signon paths, start auth, start netchan, start reliable or unreliable channels, emit resource baselines, enter signon state, admit a client, invoke Steam, invoke a real client binary, or claim real HLDS compatibility.
+
+What was created:
+- Stable design doc: docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+- Prompt artifact design report.
+- Safety policy report.
+- Evidence target matrix.
+- Offline fixture manifest policy sketch.
+- Gate matrix.
+- Blocker ranking.
+- JSON summary.
+- Command log and git state.
+
+Inputs inspected:
+- Prompt 302 qport/session static inventory and JSON summary.
+- Prompt 301 reliable/unreliable envelope static inventory.
+- Prompt 300 netchan sequence/ack inventory.
+- Prompt 299 message-writing inventory.
+- Prompt 296 query/info release boundary summary.
+- Source/header search results for qport, client_port, remote_address_source, udp_client_address_source, challenge cache, userinfo, netchan blockers, and admission blockers.
+
+Key findings:
+- qport source symbols remain absent locally.
+- client_port remains local diagnostic source-port metadata, not a GoldSrc qport byte.
+- address-scoped challenge cache remains reusable only as a diagnostic prerequisite.
+- userinfo validation remains a diagnostic connect prerequisite, not admission proof.
+- qport-to-netchan binding is not known.
+- reliable/unreliable envelope byte evidence is still insufficient.
+- sequence/ack byte evidence is still insufficient.
+- post-connect and signon-time serverinfo remain blocked.
+
+Design result:
+The safest next step is not a fixture contract or live capture. It is an offline fixture manifest policy and disabled-by-default validator design. That policy should define fixture ids, stage labels, hashes, compatibility claim limits, qport/session fields, and fail-closed gates before any capture harness exists.
+
+Recommended next prompt:
+HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
+
+Recommended next task:
+Add an offline qport/session fixture manifest policy and disabled-by-default validator design, still without executing capture, opening sockets, invoking real clients, or claiming compatibility.
+
+PROMPT-ID: HL-CL-20260504-303-dedicated-goldsrc-hlds-qport-session-no-client-diagnostic-capture-design
