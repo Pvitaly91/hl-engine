@@ -1,0 +1,25 @@
+PROMPT-ID: HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
+
+Commands run:
+1. git branch --show-current; git rev-parse HEAD; git status --short
+2. git merge-base --is-ancestor <prompt-287-through-303-commit> HEAD
+3. rg --files fixtures/diagnostic/hlds docs/diagnostic/hlds logs/latest/HL-CL-20260504-303... logs/latest/HL-CL-20260504-302...
+4. Get-ChildItem -Recurse fixtures/diagnostic/hlds
+5. Get-Content fixtures/diagnostic/hlds/serverinfo/contract/serverinfo_fixture_contract.schema.json
+6. Get-Content fixtures/diagnostic/hlds/serverinfo/fixtures/connectionless_query_info_candidate.json
+7. Get-Content fixtures/diagnostic/hlds/query_info_regression/query_info_regression_ci_manifest.json
+8. Get-Content docs/diagnostic/hlds/qport_session_no_client_diagnostic_capture_design.md
+9. apply_patch added qport_session policy JSON, README, fixture manifests, and stable docs
+10. ConvertFrom-Json for qport_session policy and all fixture JSON files
+11. git diff --check -- fixtures/diagnostic/hlds/qport_session docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md
+12. rg verification terms for policy and fixtures
+13. git status --short -- fixtures/diagnostic/hlds/qport_session docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md
+14. git add -- docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md fixtures/diagnostic/hlds/qport_session
+15. git commit -m "fixtures: add qport session offline manifest policy"
+16. apply_patch added prompt 304 artifact files
+17. ConvertFrom-Json qport_session_offline_fixture_policy_summary.json
+18. git diff --check -- logs/latest/HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy/codex fixtures/diagnostic/hlds/qport_session docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md
+19. rg verification terms for compatibility claim, validator, capture, next prompt, real client, and public socket blockers
+20. git status --short -- docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md fixtures/diagnostic/hlds/qport_session logs/latest/HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
+
+No runtime capture, validator runtime, wrapper full-run, socket proof, real-client proof, public/LAN proof, post-connect proof, signon proof, or netchan proof was run.

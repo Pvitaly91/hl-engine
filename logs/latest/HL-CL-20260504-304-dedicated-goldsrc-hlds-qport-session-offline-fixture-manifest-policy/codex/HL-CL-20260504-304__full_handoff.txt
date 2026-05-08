@@ -1,0 +1,61 @@
+PROMPT-ID: HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: e5e845474aa44436ce0d11137f8c15b33621b39a
+Source/data/docs commit: 71e89a6ea848767c94119773ef36be56cc86239a
+Artifact commit: pending_at_artifact_creation
+
+Compatibility claim level:
+diagnostic-qport-session-offline-fixture-manifest-policy-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Boundary:
+This prompt created an offline qport/session fixture manifest policy. It did not implement capture, run capture, open sockets, run getchallenge/connect/post-connect/signon runtime paths, start auth, start netchan, start reliable or unreliable channels, emit resource baselines, enter signon state, admit a client, invoke Steam, invoke a real client binary, or claim real HLDS compatibility.
+
+Stable files created:
+- fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json
+- fixtures/diagnostic/hlds/qport_session/README.md
+- fixtures/diagnostic/hlds/qport_session/fixtures/qport_session_unresolved.json
+- fixtures/diagnostic/hlds/qport_session/fixtures/diagnostic_endpoint_challenge_prerequisite.json
+- fixtures/diagnostic/hlds/qport_session/fixtures/invalid_real_client_claim.json
+- fixtures/diagnostic/hlds/qport_session/fixtures/invalid_public_socket_claim.json
+- fixtures/diagnostic/hlds/qport_session/fixtures/invalid_qport_promoted_without_byte_evidence.json
+- docs/diagnostic/hlds/qport_session_offline_fixture_manifest_policy.md
+
+Policy result:
+- offline_fixture_manifest_policy_created: 1
+- stable_policy_file_created: 1
+- fixtures_created_count: 5
+- invalid_fixtures_created_count: 3
+- validator_design_created: 1
+- validator_implemented: 0
+- validator_runtime_executed: 0
+
+Safety result:
+- qport_session_byte_evidence_sufficient: 0
+- byte_level_qport_session_evidence_sufficient: 0
+- address_scoped_challenge_reusable_as_diagnostic_prerequisite: 1
+- address_scoped_challenge_reusable_as_real_netchan_proof: 0
+- capture_implementation_added: 0
+- capture_executed: 0
+- capture_allowed_now: 0
+- real_client_capture_allowed_now: 0
+- real_steam_client_used: 0
+- real_client_binary_invoked: 0
+- socket_open_attempted: 0
+- public_socket_opened: 0
+- lan_socket_opened: 0
+- loopback_udp_socket_opened: 0
+- connect_path_invoked: 0
+- post_connect_serverinfo_path_invoked: 0
+- signon_serverinfo_path_invoked: 0
+- netchan_runtime_started: 0
+- normal_host_behavior_changed: 0
+
+Recommended next prompt:
+HL-CL-20260504-305-dedicated-goldsrc-hlds-qport-session-offline-fixture-validator-probe
+
+Recommended next task:
+Implement a disabled-by-default read-only validator probe for the offline qport/session policy and fixtures, opening no sockets, invoking no real clients, running no runtime stages, and preserving all diagnostic-only blockers.
+
+PROMPT-ID: HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy
