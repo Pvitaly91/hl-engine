@@ -1,0 +1,6 @@
+﻿prompt_id=HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper
+mode=plan
+rejected=1
+last_reject_reason=socket_option_blocked
+command_plan_file=G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_gates\gate_socket_option_blocked\qport_session_capture_dry_run_command_plan.json
+summary_file=G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_gates\gate_socket_option_blocked\qport_session_capture_dry_run_wrapper_summary.json

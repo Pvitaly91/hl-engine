@@ -1,0 +1,7 @@
+public_option_blocked
+At G:\DEV\СPP\HLengine\host\scripts\run_hlds_qport_session_capture_dry_run.ps1:558 char:5
++     throw $unsafeRejectReason
++     ~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (public_option_blocked:String) [], RuntimeException
+    + FullyQualifiedErrorId : public_option_blocked
+ 

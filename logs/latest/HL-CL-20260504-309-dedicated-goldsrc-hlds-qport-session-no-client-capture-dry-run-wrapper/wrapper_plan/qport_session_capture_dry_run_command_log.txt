@@ -1,0 +1,17 @@
+prompt_id=HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper
+compatibility_claim_level=diagnostic-qport-session-capture-dry-run-wrapper-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+mode=plan
+command_plan_file=G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_plan\qport_session_capture_dry_run_command_plan.json
+summary_file=G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_plan\qport_session_capture_dry_run_wrapper_summary.json
+step=offline_fixture_validator
+command=G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe --dedicated --gamedir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --run-label p309-plan-offline-fixture-validator-happy --prompt-id HL-CL-20260504-305-dedicated-goldsrc-hlds-qport-session-offline-fixture-validator-probe --log-dir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_plan\offline_fixture_validator --hlds-qport-session-offline-fixture-validator-probe --hlds-qport-session-offline-fixture-validator-probe-scenario happy
+exit_code=
+summary_log=
+step=capture_policy_gate
+command=G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe --dedicated --gamedir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --run-label p309-plan-capture-policy-gate-happy --prompt-id HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate --log-dir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_plan\capture_policy_gate --hlds-qport-session-no-client-capture-policy-gate-probe --hlds-qport-session-no-client-capture-policy-gate-probe-scenario happy
+exit_code=
+summary_log=
+step=dry_run_validator
+command=G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe --dedicated --gamedir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --run-label p309-plan-dry-run-validator-happy --prompt-id HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator --log-dir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper\wrapper_plan\dry_run_validator --hlds-qport-session-capture-preflight-dry-run-validator-probe --hlds-qport-session-capture-preflight-dry-run-validator-probe-scenario happy
+exit_code=
+summary_log=
