@@ -1,0 +1,35 @@
+Prompt: HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator  Commands run:
+- git status --short --branch
+- git diff -- targeted source files
+- rg targeted dry-run validator and qport/session terms
+- git diff --check -- targeted source files
+- MSBuild lookup through Visual Studio install path after MSBuild was not on PATH
+- & C:\Program Files\Microsoft Visual Studio\2022\Community\MSBuild\Current\Bin\MSBuild.exe build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1 /nr:false /v:minimal
+- hlhost.exe dry-run validator debug happy proof using local valve-fixture
+- hlhost.exe p308-final scenarios, detected missing schema mutation bug
+- MSBuild after mutation fix
+- hlhost.exe p308-final2 runtime proof scenarios happy through gate_public_socket_blocked
+- PowerShell proof parser for p308-final2 summaries
+- git merge-base --is-ancestor for prompt 287-307 commits
+- ConvertFrom-Json validation for dry-run manifest, offline policy, and qport/session fixtures
+- git add/commit targeted source files
+
+Build result: MSBuild passed for build32/host/hlhost.vcxproj Debug Win32. Existing C4127 warnings in hl_server_module.cpp remained.
+
+Runtime proof labels:
+- p308-final2: happy => pass
+- p308-final2: gate_disabled_by_default => pass
+- p308-final2: gate_missing_dry_run_manifest => pass
+- p308-final2: gate_missing_policy_reference => pass
+- p308-final2: gate_validator_not_required => pass
+- p308-final2: gate_policy_gate_not_required => pass
+- p308-final2: gate_capture_allowed_claim => pass
+- p308-final2: gate_capture_executed_claim => pass
+- p308-final2: gate_socket_action_in_plan => pass
+- p308-final2: gate_real_client_action_in_plan => pass
+- p308-final2: gate_connect_or_signon_action_in_plan => pass
+- p308-final2: gate_missing_planned_artifact_schema => pass
+- p308-final2: gate_qport_byte_evidence_claim => pass
+- p308-final2: gate_address_scoped_challenge_real_netchan_claim => pass
+- p308-final2: gate_no_real_client_used => pass
+- p308-final2: gate_public_socket_blocked => pass
