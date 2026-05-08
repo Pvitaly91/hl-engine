@@ -1,0 +1,63 @@
+{
+  "fixture_id": "invalid_qport_promoted_without_byte_evidence",
+  "family": "negative_policy_fixture",
+  "stage": "negative_policy_fixture",
+  "evidence_type": "negative_policy_fixture",
+  "evidence_source": "checked_in_policy",
+  "evidence_confidence": "negative_policy",
+  "compatibility_claim": "negative_policy_fixture",
+  "diagnostic_only": true,
+  "real_client_used": false,
+  "socket_opened": false,
+  "public_socket_opened": false,
+  "lan_socket_opened": false,
+  "capture_executed": false,
+  "qport_observed": "simulated_invalid_promotion",
+  "qport_raw": "unknown",
+  "qport_width": "unknown",
+  "qport_endian": "unknown",
+  "qport_source": "simulated_invalid_mutation",
+  "client_udp_source_port": "diagnostic_only_unknown",
+  "remote_address": "unknown",
+  "endpoint_key": "unknown",
+  "challenge_value": "unknown",
+  "challenge_cache_key": "unknown",
+  "challenge_one_shot": "unknown",
+  "challenge_replay_detected": "unknown",
+  "userinfo_identity": "unknown",
+  "connect_ready": false,
+  "netchan_started": false,
+  "signon_started": false,
+  "byte_level_evidence_sufficient": false,
+  "unresolved_fields": [
+    "qport_raw",
+    "qport_width",
+    "qport_endian",
+    "qport_order",
+    "session_binding"
+  ],
+  "forbidden_promotions": [
+    "qport_promoted_without_byte_evidence",
+    "unknown_qport_width_to_contract",
+    "unknown_qport_endian_to_contract"
+  ],
+  "required_before_promotion": [
+    "local_byte_level_fixture",
+    "qport_presence_evidence",
+    "qport_width_evidence",
+    "qport_endian_evidence",
+    "offline_validator_gate"
+  ],
+  "expected_guard_reject_reason": "qport_promoted_without_byte_evidence",
+  "expected_valid": false,
+  "simulated_violation": {
+    "attempted_byte_contract_promotion": true,
+    "attempted_qport_observed": true,
+    "attempted_byte_level_evidence_sufficient": true
+  },
+  "safe_preview": {
+    "available": true,
+    "text": "negative fixture: simulated qport promotion without bytes must be rejected"
+  },
+  "notes": "Negative policy fixture only. It keeps byte_level_evidence_sufficient=false at the real fixture level."
+}

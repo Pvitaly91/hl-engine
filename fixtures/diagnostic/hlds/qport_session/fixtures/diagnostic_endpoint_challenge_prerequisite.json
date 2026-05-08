@@ -1,0 +1,59 @@
+{
+  "fixture_id": "diagnostic_endpoint_challenge_prerequisite",
+  "family": "diagnostic_endpoint_challenge_prerequisite",
+  "stage": "diagnostic_prerequisite",
+  "evidence_type": "diagnostic_prerequisite_only",
+  "evidence_source": "prompt_269_address_scoped_challenge_cache",
+  "evidence_confidence": "diagnostic_prerequisite",
+  "compatibility_claim": "diagnostic_prerequisite_only",
+  "diagnostic_only": true,
+  "real_client_used": false,
+  "socket_opened": false,
+  "public_socket_opened": false,
+  "lan_socket_opened": false,
+  "capture_executed": false,
+  "qport_observed": "unknown",
+  "qport_raw": "unknown",
+  "qport_width": "unknown",
+  "qport_endian": "unknown",
+  "qport_source": "not_observed",
+  "client_udp_source_port": "diagnostic_only",
+  "remote_address": "diagnostic_loopback_endpoint_string",
+  "endpoint_key": "AF_INET/127.0.0.1:<diagnostic_port>",
+  "challenge_value": "diagnostic_challenge_value",
+  "challenge_cache_key": "remote_loopback_endpoint",
+  "challenge_one_shot": "diagnostic_prerequisite_only",
+  "challenge_replay_detected": "diagnostic_prerequisite_only",
+  "userinfo_identity": {
+    "source": "prompt_270_userinfo_validation_policy",
+    "status": "diagnostic_prerequisite_only"
+  },
+  "connect_ready": "diagnostic_prerequisite_only",
+  "netchan_started": false,
+  "signon_started": false,
+  "byte_level_evidence_sufficient": false,
+  "unresolved_fields": [
+    "qport_presence",
+    "qport_width",
+    "qport_endian",
+    "real_session_key",
+    "netchan_remote_address_binding"
+  ],
+  "forbidden_promotions": [
+    "address_scoped_challenge_to_real_netchan_proof",
+    "diagnostic_endpoint_to_qport_byte_contract",
+    "diagnostic_userinfo_to_client_admission"
+  ],
+  "required_before_promotion": [
+    "qport_session_byte_evidence",
+    "session_binding_evidence",
+    "offline_validator_gate"
+  ],
+  "expected_guard_reject_reason": "<none>",
+  "expected_valid": true,
+  "safe_preview": {
+    "available": true,
+    "text": "diagnostic endpoint/challenge prerequisite; no qport byte evidence"
+  },
+  "notes": "This fixture allows later validators to distinguish a reusable diagnostic prerequisite from real netchan proof."
+}
