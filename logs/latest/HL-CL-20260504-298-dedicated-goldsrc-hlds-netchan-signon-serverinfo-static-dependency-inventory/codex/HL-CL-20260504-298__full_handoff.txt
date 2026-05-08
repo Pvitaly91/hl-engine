@@ -1,0 +1,39 @@
+HL-CL-20260504-298 full handoff
+
+This prompt is diagnostic-only and report-only. No packet capture was implemented or run. No real Steam Half-Life client compatibility is claimed. No real client binary was invoked. Steam was not invoked. Public, LAN, non-loopback, and loopback sockets were not opened. Connect, post-connect serverinfo, signon serverinfo, auth, netchan, reliable channel, resource baseline, signon state, and client admission paths were not run.
+
+Closed query/info boundary:
+- Prompts 287-296 remain the closed diagnostic connectionless query/info boundary.
+- Selected fixture: connectionless_query_info_candidate.
+- Selected stage: connectionless_query.
+- Query/info is not post-connect serverinfo and not signon-time serverinfo.
+
+Static inventory created:
+- Stable doc: docs/diagnostic/hlds/netchan_signon_serverinfo_static_dependency_inventory.md
+- Prompt artifact inventory: logs/latest/HL-CL-20260504-298-dedicated-goldsrc-hlds-netchan-signon-serverinfo-static-dependency-inventory/codex/netchan_signon_static_dependency_inventory.md
+
+Key findings:
+- Source files scanned in selected static scope: 127.
+- Aggregate core-term matches in corrected scan: 96534 across 73 tracked core files.
+- Netchan symbols found: 190 matches, mostly blocker/report fields.
+- Signon symbols found: 56431 matches, mostly diagnostic/report/history fields.
+- Message writing helper groups found: 13, all diagnostic observation or query/info-specific, not real serverinfo wire proof.
+- Baseline/resource symbols found: 886 aggregate matches, but no byte-level baseline serialization proof.
+- Challenge/session links found: 1808 aggregate getchallenge/challenge matches.
+- Userinfo links found: 838 aggregate matches.
+
+Evidence status:
+- post_connect_byte_evidence_sufficient=0
+- signon_time_byte_evidence_sufficient=0
+- real_post_connect_builder_complete=0
+- real_signon_builder_complete=0
+- real_wire_builder_complete=0
+
+Top blocker:
+missing_byte_level_post_connect_serverinfo
+
+Recommended next prompt:
+HL-CL-20260504-299-dedicated-goldsrc-hlds-netchan-message-writing-static-inventory
+
+Reason:
+The scan found diagnostic callback write recording and many netchan/signon references, but no reusable real MSG_Write/SZ_Write/sizebuf writer and no netchan packet framing proof. A narrower static inventory of netchan and message-writing dependencies is the smallest safe next task before any serverinfo field contract inventory or capture design.
