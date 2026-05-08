@@ -1,0 +1,23 @@
+@"
+# Prompt 300 Git State
+
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: e1ffbc16c945d50915d9543eecac02380d292b1a
+Source commit: 2c74d671a90efdd93bca217c6027e5a2e37f19fc
+Artifact commit: pending_artifact_commit
+
+Descendant gates: passed for required commits from prompts 287 through 299, including 85291427cad99ada22d125308d8456ad7f00e31f and e1ffbc16c945d50915d9543eecac02380d292b1a.
+
+Tracked prompt 300 source/doc change:
+- docs/diagnostic/hlds/netchan_sequence_ack_static_contract_inventory.md
+
+Prompt 300 artifact root:
+- logs/latest/HL-CL-20260504-300-dedicated-goldsrc-hlds-netchan-sequence-ack-static-contract-inventory/codex
+
+Dirty worktree note:
+The repository had pre-existing unrelated build outputs, older log modifications, and untracked runtime artifacts before prompt 300. These were not staged or modified for this prompt.
+
+Validation after source commit:
+- Descendant gates passed for prompt 287 through 299 source/artifact commits.
+- Prompt 300 JSON summary parsed with ConvertFrom-Json.
+- Static grep validation found required sequence/ack/envelope/qport/fragment/policy terms in stable doc and artifacts.
