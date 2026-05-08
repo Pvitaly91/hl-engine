@@ -1,0 +1,54 @@
+{
+  "fixture_id": "invalid_real_client_claim",
+  "family": "negative_policy_fixture",
+  "stage": "negative_policy_fixture",
+  "evidence_type": "negative_policy_fixture",
+  "evidence_source": "checked_in_policy",
+  "evidence_confidence": "negative_policy",
+  "compatibility_claim": "negative_policy_fixture",
+  "diagnostic_only": true,
+  "real_client_used": false,
+  "socket_opened": false,
+  "public_socket_opened": false,
+  "lan_socket_opened": false,
+  "capture_executed": false,
+  "qport_observed": "unknown",
+  "qport_raw": "unknown",
+  "qport_width": "unknown",
+  "qport_endian": "unknown",
+  "qport_source": "simulated_invalid_mutation",
+  "client_udp_source_port": "unknown",
+  "remote_address": "unknown",
+  "endpoint_key": "unknown",
+  "challenge_value": "unknown",
+  "challenge_cache_key": "unknown",
+  "challenge_one_shot": "unknown",
+  "challenge_replay_detected": "unknown",
+  "userinfo_identity": "unknown",
+  "connect_ready": false,
+  "netchan_started": false,
+  "signon_started": false,
+  "byte_level_evidence_sufficient": false,
+  "unresolved_fields": [
+    "qport_presence",
+    "qport_width",
+    "qport_endian"
+  ],
+  "forbidden_promotions": [
+    "diagnostic_fixture_to_real_client_compatibility"
+  ],
+  "required_before_promotion": [
+    "never_promote_negative_policy_fixture"
+  ],
+  "expected_guard_reject_reason": "real_client_claim_rejected",
+  "expected_valid": false,
+  "simulated_violation": {
+    "attempted_compatibility_claim": "real_steam_half_life_client_compatible",
+    "attempted_real_client_used": true
+  },
+  "safe_preview": {
+    "available": true,
+    "text": "negative fixture: simulated real-client claim must be rejected"
+  },
+  "notes": "Negative policy fixture only. It does not prove a real client was used."
+}
