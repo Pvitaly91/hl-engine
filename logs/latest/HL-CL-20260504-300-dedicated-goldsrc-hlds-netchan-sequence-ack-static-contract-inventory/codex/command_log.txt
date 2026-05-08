@@ -1,0 +1,28 @@
+@"
+# Prompt 300 Command Log
+
+Working directory: G:\DEV\CPP\HLengine\host (actual path contains Cyrillic CPP parent)
+
+Commands run, summarized:
+1. git rev-parse --show-toplevel
+2. git branch --show-current
+3. git rev-parse HEAD
+4. git status --short
+5. git merge-base --is-ancestor for source/artifact commits from prompts 287 through 299
+6. git ls-files include src
+7. Select-String focused scans for netchan, sequence, ack, reliable/unreliable, qport/client port, remote address, fragment, flow, challenge, channel, signon, datagram, message, and packet terms
+8. rg focused symbol searches for exact sequence/ack/qport/fragment/flow/reliable/unreliable/channel terms
+9. rg targeted source checks for netchan blockers, qport/client_port/remote_address, pseudo signon sequence ids, and message destination labels
+10. git diff --check -- docs/diagnostic/hlds/netchan_sequence_ack_static_contract_inventory.md
+11. git add -- docs/diagnostic/hlds/netchan_sequence_ack_static_contract_inventory.md
+12. git commit -m "docs: inventory hlds netchan sequence ack"
+13. PowerShell artifact generation for prompt 300 reports
+
+No runtime proof was run. No wrapper full-run was run. No sockets were opened. No real client binary was invoked. Netchan runtime was not started.
+14. ConvertFrom-Json validation for netchan_sequence_ack_static_summary.json
+15. git merge-base --is-ancestor validation for prompt 287 through 299 commits after source commit
+16. rg validation for sequence/ack/envelope/qport/fragment/public-LAN/real-client/post-connect/signon terms in stable doc and prompt artifacts
+17. git status --short for prompt 300 paths
+18. git add -f prompt 300 artifact root
+19. git commit -m "artifacts: record hlds netchan sequence ack inventory"
+20. git push origin codex/HL-CL-20260401-081-target-runtime-completion-state

@@ -1,0 +1,51 @@
+# Prompt 300 Full Handoff
+
+Prompt ID: HL-CL-20260504-300-dedicated-goldsrc-hlds-netchan-sequence-ack-static-contract-inventory
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: e1ffbc16c945d50915d9543eecac02380d292b1a
+Source commit: 2c74d671a90efdd93bca217c6027e5a2e37f19fc
+Compatibility claim level: diagnostic-netchan-sequence-ack-static-contract-inventory-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Status: pass pending artifact commit. This prompt is static/report-only. No runtime probe was run. No packets were captured. No sockets were opened. No Steam process, real Half-Life client, or real query client binary was invoked. No getchallenge/connect/post-connect/signon runtime path was run. Netchan runtime was not started.
+
+Stable inventory doc: docs/diagnostic/hlds/netchan_sequence_ack_static_contract_inventory.md
+
+What was inspected:
+- include/ and src/ for netchan, sequence, ack, reliable/unreliable, qport/client port, remote address, fragment, packet loss, split, flow, channel, signon, datagram, message, and packet terms.
+- checked-in query/info regression fixture/docs context.
+- prompt 293, 296, 297, 298, and 299 artifacts for prior boundary and policy context.
+
+Key findings:
+- No real incoming/outgoing sequence symbols were found.
+- No exact ack, acknowledged, incoming_acknowledged, or reliable_ack source symbols were found.
+- No incoming/outgoing reliable sequence symbols were found.
+- No qport symbol was found; only diagnostic loopback client_port variables exist.
+- No fragment, packet_loss, or split packet source symbols were found.
+- Diagnostic blocker fields (
+etchan_not_started, eliable_channel_not_started, esource_baselines_not_sent) remain the strongest local netchan evidence.
+- A pseudo signon sequence_id is byte-shaped and little-endian, but it belongs to diagnostic pseudo wiremap helpers and must not be promoted to real netchan evidence.
+
+Safety state:
+- byte_level_sequence_ack_evidence_sufficient=0
+- post_connect_byte_evidence_sufficient=0
+- signon_time_byte_evidence_sufficient=0
+- real_post_connect_builder_complete=0
+- real_signon_builder_complete=0
+- real_wire_builder_complete=0
+- real_client_capture_allowed_now=0
+- real_steam_client_used=0
+- real_client_binary_invoked=0
+- public_socket_opened=0
+- lan_socket_opened=0
+- loopback_udp_socket_opened=0
+- connect_path_invoked=0
+- post_connect_serverinfo_path_invoked=0
+- signon_serverinfo_path_invoked=0
+- netchan_runtime_started=0
+- normal_host_behavior_changed=0
+
+Recommended next prompt: HL-CL-20260504-301-dedicated-goldsrc-hlds-reliable-unreliable-envelope-static-inventory
+Recommended next task: inventory reliable/unreliable envelope concepts and channel placement before any sequence/ack fixture contract, post-connect/signon serverinfo field contract, capture design, runtime execution, public/LAN exposure, or real client work
+
+Why this still does not imply real compatibility:
+The source tree still has no real netchan sequence/ack byte contract, reliable/unreliable envelope contract, qport contract, post-connect serverinfo envelope, signon-time serverinfo envelope, real client proof, public/LAN exposure policy, or real Steam/HLDS compatibility proof.
