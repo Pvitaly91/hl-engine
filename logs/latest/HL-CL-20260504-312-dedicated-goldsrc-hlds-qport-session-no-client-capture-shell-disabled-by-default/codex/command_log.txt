@@ -1,0 +1,14 @@
+Prompt: HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default
+Commands run:
+- git status --short --branch
+- rg qport/session capture shell and safety terms
+- git merge-base --is-ancestor descendant gate for prompt 304-311 source/artifact commits
+- ConvertFrom-Json validation for qport/session policy, dry-run manifest, fixtures, and prompt artifacts
+- git diff --check -- targeted source files
+- MSBuild Debug Win32 build for build32/host/hlhost.vcxproj
+- hlhost.exe smoke happy shell probe
+- hlhost.exe full p312-final2 shell proof matrix: happy, gate_disabled_by_default, gate_policy_gate_required, gate_offline_validator_required, gate_dry_run_validator_required, gate_wrapper_validation_required, gate_capture_execution_blocked, gate_socket_request_blocked, gate_real_client_request_blocked, gate_public_lan_request_blocked, gate_connect_postconnect_signon_request_blocked, gate_netchan_runtime_request_blocked, gate_qport_evidence_promotion_blocked, gate_address_scoped_challenge_real_netchan_claim_blocked, gate_no_real_client_used
+- git add/commit targeted source files
+
+Build result: passed. Existing C4127 warnings in hl_server_module.cpp remained.
+Runtime log root: logs/latest/runtime/p312-shell-final2

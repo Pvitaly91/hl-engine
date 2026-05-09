@@ -1,0 +1,13 @@
+{
+  "prompt_id": "HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default",
+  "scenario": "gate_disabled_by_default",
+  "proof": "pass",
+  "run_label": "p312-final2-s02",
+  "log_dir": "logs\\latest\\runtime\\p312-shell-final2\\s02",
+  "command": ".\\build32\\host\\Debug\\hlhost.exe --dedicated --gamedir logs/latest/HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface/runtime/valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --run-label p312-final2-s02 --prompt-id HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default --log-dir logs\\latest\\runtime\\p312-shell-final2\\s02 --hlds-qport-session-no-client-capture-shell-probe --hlds-qport-session-no-client-capture-shell-probe-scenario gate_disabled_by_default",
+  "summary_file": "logs\\latest\\HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default\\codex\\gate_disabled_by_default_summary.json",
+  "summary_log": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p312-shell-final2\\s02\\hlhost_20260509_155759_543_pid28088__p312-final2-s02_summary.log",
+  "capture_executed": 0,
+  "socket_open_attempted": 0,
+  "real_client_binary_invoked": 0
+}

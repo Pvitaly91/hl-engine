@@ -1,0 +1,14 @@
+PROMPT-ID: HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 534c14b4aa01e2360bf0c0e808df2da67d87e834
+Source commit: 89131aa1b019bd18705ebf5cb32bff4e079a325d
+Compatibility claim level: diagnostic-qport-session-no-client-capture-shell-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Implemented a disabled-by-default diagnostic qport/session no-client capture shell probe. The shell validates existing policy dependencies and creates a shell-only plan. It does not execute capture, open sockets, invoke real clients, run connect/post-connect/signon/netchan paths, or promote qport/session byte evidence.
+
+Runtime proofs: all 15 required scenarios passed from logs/latest/runtime/p312-shell-final2.
+
+Recommended next prompt: HL-CL-20260504-313-dedicated-goldsrc-hlds-qport-session-capture-shell-release-boundary-summary
+Recommended next task: summarize the disabled-by-default qport/session no-client capture shell boundary after all shell gates pass while capture remains blocked.
