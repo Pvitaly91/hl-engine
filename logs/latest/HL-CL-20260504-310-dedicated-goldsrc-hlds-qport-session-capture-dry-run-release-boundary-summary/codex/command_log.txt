@@ -1,0 +1,51 @@
+PROMPT-ID: HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary
+
+Commands run:
+
+1. git status --short --branch; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+   Result: branch codex/HL-CL-20260401-081-target-runtime-completion-state at 6dd0ced69d0018fd548f41e3da5fe56cc86239a before prompt changes. Unrelated dirty build/log files were present and preserved.
+
+2. Inspected qport/session fixture root, prompt 309 wrapper artifacts, wrapper docs, and dry-run manifest.
+   Result: policy, fixtures, dry-run manifest, wrapper script, and wrapper docs exist at the expected paths.
+
+3. .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode plan -OutDir logs/latest/HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary/wrapper_plan -RunLabelPrefix p310-plan -Strict
+   Result: plan mode passed. Summary: wrapper_plan/qport_session_capture_dry_run_wrapper_summary.json.
+
+4. .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode validate -NoBuild -OutDir logs/latest/HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary/wrapper_validate -RunLabelPrefix p310-validate -Strict
+   Result: validate mode passed. The wrapper invoked only the read-only offline fixture validator, capture policy gate, and dry-run validator.
+
+5. git merge-base --is-ancestor for prompt 304-309 source/artifact commits.
+   Result: all listed commits were present and ancestors of HEAD.
+
+6. Summary-based descendant scan for prompt 287-303 local source/artifact commits.
+   Result: all local commits found by the scan were ancestors of HEAD.
+
+7. ConvertFrom-Json validation for:
+   - fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json
+   - fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json
+   - fixtures/diagnostic/hlds/qport_session/fixtures/*.json
+   - logs/latest/HL-CL-20260504-309-dedicated-goldsrc-hlds-qport-session-no-client-capture-dry-run-wrapper/codex/qport_session_capture_dry_run_wrapper_summary.json
+   - prompt 310 wrapper plan and validate summaries
+   Result: all parsed successfully.
+
+8. rg searches for qport_session, dry-run wrapper, capture_allowed_now, socket_open_attempted, public socket, LAN socket, real client, capture, connect, post-connect, signon, and netchan.
+   Result: terms are present only in diagnostic policy, docs, wrappers, manifests, summaries, and existing diagnostic report surfaces.
+
+9. Created stable release boundary doc:
+   docs/diagnostic/hlds/qport_session_capture_dry_run_release_boundary_summary.md
+
+10. git add -- docs/diagnostic/hlds/qport_session_capture_dry_run_release_boundary_summary.md; git commit -m "Add qport session capture dry-run release boundary"
+    Result: source/docs commit 3392efdfde566494636cef6a398a49851f1e42a9.
+
+Forbidden actions not run:
+- no capture execution
+- no packet capture
+- no socket bind or socket open
+- no public socket
+- no LAN socket
+- no loopback capture socket
+- no Steam
+- no real client binary
+- no getchallenge/connect/post-connect/signon runtime path
+- no netchan runtime
+- no compatibility claim expansion
