@@ -1,0 +1,49 @@
+PROMPT-ID: HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review
+
+Commands run:
+
+1. git status --short --branch; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+   Result: branch codex/HL-CL-20260401-081-target-runtime-completion-state at ad3ff5383f6f456e877ca43f1e4d2d3299662822 before prompt changes. Unrelated dirty build/log files were present and preserved.
+
+2. Inspected:
+   - docs/diagnostic/hlds/qport_session_capture_dry_run_release_boundary_summary.md
+   - logs/latest/HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary/codex/qport_session_capture_dry_run_release_boundary_summary.json
+   - logs/latest/HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary/wrapper_validate/qport_session_capture_dry_run_wrapper_summary.json
+
+3. .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode plan -OutDir logs/latest/HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review/wrapper_plan -RunLabelPrefix p311-plan -Strict
+   Result: passed. No host validator was invoked in plan mode.
+
+4. .\scripts\run_hlds_qport_session_capture_dry_run.ps1 -Mode validate -NoBuild -OutDir logs/latest/HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review/wrapper_validate -RunLabelPrefix p311-validate -Strict
+   Result: passed. The wrapper invoked only read-only validators/policy gates from prompts 305, 306, and 308.
+
+5. Created stable policy review doc:
+   docs/diagnostic/hlds/qport_session_capture_implementation_policy_review.md
+
+6. git add -- docs/diagnostic/hlds/qport_session_capture_implementation_policy_review.md; git commit -m "Add qport session capture implementation policy review"
+   Result: source/docs commit 707aa1c47555691c6231fccbdb7b4289cf2fcbfe.
+
+7. Descendant gate against prompt 304-310 source and artifact commits.
+   Result: all listed commits were present and ancestors of HEAD.
+
+8. Summary-based descendant gate for prompt 287-303 local source/artifact commits.
+   Result: 108 local commits found from prompt summaries were ancestors of HEAD.
+
+9. rg searches for qport_session, capture implementation, capture_allowed_now, capture_implementation_allowed_next, socket, public, LAN, real client, connect, post-connect, signon, and netchan.
+   Result: terms are present in diagnostic policy docs, artifacts, and existing dry-run wrapper/probe surfaces only.
+
+10. ConvertFrom-Json validation for prompt 311 summary and wrapper plan/validate summaries.
+    Result: all parsed successfully.
+
+Forbidden actions not run:
+- no capture implementation
+- no capture execution
+- no packet capture
+- no socket bind or socket open
+- no public socket
+- no LAN socket
+- no loopback capture socket
+- no Steam
+- no real client binary
+- no getchallenge/connect/post-connect/signon runtime path
+- no netchan runtime
+- no compatibility claim expansion

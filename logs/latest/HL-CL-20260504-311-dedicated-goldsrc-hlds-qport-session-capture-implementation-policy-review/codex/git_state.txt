@@ -1,0 +1,16 @@
+PROMPT-ID: HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review
+
+Initial branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Initial prompt HEAD:
+ad3ff5383f6f456e877ca43f1e4d2d3299662822
+
+Source/docs commit:
+707aa1c47555691c6231fccbdb7b4289cf2fcbfe
+
+Artifact commit:
+pending
+
+Dirty worktree note:
+Unrelated modified build outputs, historical prompt logs, and untracked runtime logs were present before prompt 311 work and were preserved. Only the prompt 311 stable doc and prompt 311 artifacts are staged/committed for this prompt.

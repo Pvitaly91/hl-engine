@@ -1,0 +1,42 @@
+PROMPT-ID: HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change head: ad3ff5383f6f456e877ca43f1e4d2d3299662822
+Source/docs commit: 707aa1c47555691c6231fccbdb7b4289cf2fcbfe
+Artifact commit: pending
+
+Compatibility claim level:
+diagnostic-qport-session-capture-implementation-policy-review-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Policy decision:
+- qport_session_dry_run_boundary_closed=1
+- capture_implementation_allowed_next=1
+- capture_runtime_allowed_now=0
+- socket_open_allowed_now=0
+- public_socket_allowed_now=0
+- lan_socket_allowed_now=0
+- real_client_allowed_now=0
+- compatibility_claim_expansion_allowed_now=0
+- capture_allowed_now=0
+- capture_blocked_by_policy=1
+- capture_block_reason=capture_implementation_not_allowed_yet
+
+Meaning of capture_implementation_allowed_next=1:
+Only a future disabled-by-default diagnostic no-client capture shell is allowed. The future prompt must still not execute capture by default, open public/LAN sockets, invoke real clients, use Steam, run connect/post-connect/signon/netchan runtime paths, promote qport byte evidence, or claim real compatibility.
+
+Validation:
+- Wrapper plan mode ran and passed.
+- Wrapper validate mode ran with -NoBuild and passed.
+- No capture, socket, real-client, Steam, connect, post-connect, signon, or netchan runtime proof was run.
+- Prompt 304-310 listed source/artifact commits are present and ancestors of HEAD.
+- Prompt 287-303 local commit scan found only ancestor commits.
+- JSON validation passed for prompt 311 summary and wrapper plan/validate summaries.
+
+Recommended next prompt:
+HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default
+
+Recommended next task:
+add only a disabled-by-default diagnostic no-client qport/session capture shell with hard policy gates, no default capture execution, no public or LAN sockets, no real client, no runtime stage execution, and no compatibility-claim expansion
+
+PROMPT-ID: HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review
