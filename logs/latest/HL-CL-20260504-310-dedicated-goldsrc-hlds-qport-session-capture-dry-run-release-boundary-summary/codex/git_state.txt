@@ -1,0 +1,20 @@
+PROMPT-ID: HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary
+
+Initial branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Initial prompt HEAD:
+6dd0ced69d0018fd548f41e3da5fe56e4586dc77
+
+Source/docs commit:
+3392efdfde566494636cef6a398a49851f1e42a9
+
+Artifact commit:
+pending
+
+Descendant gate:
+- Prompt 304-309 listed source and artifact commits: present and ancestors of HEAD.
+- Prompt 287-303 local source/artifact commits discovered from prompt summaries: ancestors of HEAD.
+
+Dirty worktree note:
+Unrelated modified build outputs, historical prompt logs, and untracked runtime logs were present before prompt 310 work and were preserved. Only the prompt 310 stable doc and prompt 310 artifacts are staged/committed for this prompt.

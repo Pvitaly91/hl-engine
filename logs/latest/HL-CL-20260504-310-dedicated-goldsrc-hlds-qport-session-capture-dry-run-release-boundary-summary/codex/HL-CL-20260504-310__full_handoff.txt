@@ -1,0 +1,61 @@
+PROMPT-ID: HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change head: 6dd0ced69d0018fd548f41e3da5fe56cc86239a
+Source/docs commit: 3392efdfde566494636cef6a398a49851f1e42a9
+Artifact commit: pending
+
+Compatibility claim level:
+diagnostic-qport-session-capture-dry-run-release-boundary-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Boundary:
+- Covered prompt range: HL-CL-20260504-304 through HL-CL-20260504-309.
+- Related static/design prompts: HL-CL-20260504-302 and HL-CL-20260504-303.
+- Fixture root: fixtures/diagnostic/hlds/qport_session.
+- Policy file: fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json.
+- Dry-run manifest: fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json.
+- Wrapper script: scripts/run_hlds_qport_session_capture_dry_run.ps1.
+- Wrapper docs: docs/diagnostic/hlds/qport_session_capture_dry_run_wrapper.md.
+- Stable release doc: docs/diagnostic/hlds/qport_session_capture_dry_run_release_boundary_summary.md.
+
+Validation:
+- Wrapper plan mode ran and passed.
+- Wrapper validate mode ran with -NoBuild and passed.
+- Listed prompt 304-309 source/artifact commits are ancestors of HEAD.
+- Summary-based prompt 287-303 commit scan found local commits as ancestors of HEAD.
+- JSON validation passed for the dry-run manifest, offline policy, qport/session fixtures, prompt 309 wrapper summary, and prompt 310 wrapper outputs.
+- rg searches covered qport_session, dry-run wrapper, capture_allowed_now, socket, public/LAN, real-client, capture, connect, post-connect, signon, and netchan terms.
+
+Boundary decision:
+- qport_session_dry_run_boundary_closed=1.
+- capture_allowed_now=0.
+- capture_blocked_by_policy=1.
+- capture_block_reason=capture_implementation_not_allowed_yet.
+- capture_implementation_added=0.
+- capture_executed=0.
+- capture_runtime_executed=0.
+- qport_session_byte_evidence_sufficient=0.
+- byte_level_qport_session_evidence_sufficient=0.
+- address_scoped_challenge_reusable_as_diagnostic_prerequisite=1.
+- address_scoped_challenge_reusable_as_real_netchan_proof=0.
+- real_client_capture_allowed_now=0.
+- real_steam_client_used=0.
+- real_client_binary_invoked=0.
+- socket_open_attempted=0.
+- public_socket_opened=0.
+- lan_socket_opened=0.
+- loopback_udp_socket_opened=0.
+- connect_path_invoked=0.
+- post_connect_serverinfo_path_invoked=0.
+- signon_serverinfo_path_invoked=0.
+- netchan_runtime_started=0.
+- normal_host_behavior_changed=0.
+
+Recommended next prompt:
+HL-CL-20260504-311-dedicated-goldsrc-hlds-qport-session-capture-implementation-policy-review
+
+Recommended next task:
+review the qport/session capture implementation policy before any future socket, runtime, capture, or compatibility-claim expansion is considered
+
+PROMPT-ID: HL-CL-20260504-310-dedicated-goldsrc-hlds-qport-session-capture-dry-run-release-boundary-summary
