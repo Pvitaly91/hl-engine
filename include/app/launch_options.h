@@ -146,6 +146,10 @@ struct LaunchOptions
     std::string
         hlds_qport_session_capture_preflight_dry_run_validator_probe_scenario =
             "happy";
+    bool hlds_qport_session_no_client_capture_shell_probe_enabled = false;
+    std::string
+        hlds_qport_session_no_client_capture_shell_probe_scenario =
+            "happy";
     bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         false;
     std::string
