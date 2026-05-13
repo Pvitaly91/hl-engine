@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_002746",
+  "runInstanceId": "20260505_002746_626_pid14008",
+  "runLabel": "codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-happy",
+  "promptId": "HL-CL-20260504-271-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "552fee1682bad180d8010ab6bbd7e5b14b34c8ba",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_002746_626_pid14008__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_002746_626_pid14008__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_002746_626_pid14008__codex-dedicated-goldsrc-hlds-connectionless-diagnostic-lifecycle-acceptance-happy_part01.log"]
+}

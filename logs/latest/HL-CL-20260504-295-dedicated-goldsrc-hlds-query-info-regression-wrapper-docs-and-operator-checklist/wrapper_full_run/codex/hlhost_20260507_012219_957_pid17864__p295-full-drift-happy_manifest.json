@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260507_012219",
+  "runInstanceId": "20260507_012219_957_pid17864",
+  "runLabel": "p295-full-drift-happy",
+  "promptId": "HL-CL-20260504-293-dedicated-goldsrc-hlds-query-info-regression-ci-manifest-and-fixture-drift-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "63a8e670ee0f6b64d3965cef6c84a8001afdb1ab",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist\\wrapper_full_run\\drift\\hlhost_20260507_012219_957_pid17864__p295-full-drift-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist\\wrapper_full_run\\drift\\hlhost_20260507_012219_957_pid17864__p295-full-drift-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-295-dedicated-goldsrc-hlds-query-info-regression-wrapper-docs-and-operator-checklist\\wrapper_full_run\\drift\\hlhost_20260507_012219_957_pid17864__p295-full-drift-happy_part01.log"]
+}

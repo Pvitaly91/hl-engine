@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_165902",
+  "runInstanceId": "20260505_165902_503_pid19764",
+  "runLabel": "p277-test",
+  "promptId": "HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 10,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "8f07fff570c9640349f2b14b42c182b881ccbb38",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_165902_503_pid19764__p277-test_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_165902_503_pid19764__p277-test_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_165902_503_pid19764__p277-test_part01.log"]
+}

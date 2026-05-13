@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_234524",
+  "runInstanceId": "20260504_234524_550_pid17268",
+  "runLabel": "codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name",
+  "promptId": "HL-CL-20260504-270-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "efa5dde9a8728e3f9a87f8a6dcaadf573882d630",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_234524_550_pid17268__codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_234524_550_pid17268__codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_234524_550_pid17268__codex-dedicated-goldsrc-hlds-userinfo-validation-policy-diagnostic-gate-missing-required-name_part01.log"]
+}

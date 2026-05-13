@@ -1,0 +1,23 @@
+[2026-05-09 00:31:04.667] [info][startup] Logger session started.
+[2026-05-09 00:31:04.667] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\logs\latest\runtime
+[2026-05-09 00:31:04.667] [info][startup] Session id: 20260509_003104
+[2026-05-09 00:31:04.667] [info][startup] Run instance id: 20260509_003104_667_pid21968
+[2026-05-09 00:31:04.668] [info][startup] Max file size: 10485760 bytes
+[2026-05-09 00:31:04.668] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_part01.log
+[2026-05-09 00:31:04.668] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_summary.log
+[2026-05-09 00:31:04.669] [info][startup] hlhost startup initiated.
+[2026-05-09 00:31:04.669] [info][startup] Current working directory: G:\DEV\СPP\HLengine\host
+[2026-05-09 00:31:04.669] [info][startup] Executable path: G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe
+[2026-05-09 00:31:04.669] [error][filesystem] Could not locate a valid 'valve' directory near the executable or project root.
+[2026-05-09 00:31:04.670] [warn][filesystem] Checked candidate directories:
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\host\Debug\valve
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\host\valve
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\valve
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\valve
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\HLengine\valve
+[2026-05-09 00:31:04.670] [warn][filesystem]   - G:\DEV\СPP\valve
+[2026-05-09 00:31:04.671] [warn][filesystem]   - G:\DEV\valve
+[2026-05-09 00:31:04.671] [warn][filesystem]   - G:\valve
+[2026-05-09 00:31:04.672] [info][summary] codex_run_identity: sessionId=20260509_003104, runInstanceId=20260509_003104_667_pid21968, runLabel=p308-debug-happy, regressionGuard=<none>, stopOnChangelevelRequest=0, frames=1, frametime=0.050000, gitBranch=codex/HL-CL-20260401-081-target-runtime-completion-state, gitCommit=53ccbdf3d12a9fca0ef1a6b31c780367369578a6, currentFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_part01.log, summaryFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_summary.log, action=run identity recorded
+[2026-05-09 00:31:04.674] [info][summary] Logger shutdown: total log files created=2, total bytes written=7473, repeat suppressions=0
+[2026-05-09 00:31:04.674] [info][summary] Logger shutdown paths: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_part01.log; G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003104_667_pid21968__p308-debug-happy_summary.log

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260505_142304",
+  "runInstanceId": "20260505_142304_781_pid18844",
+  "runLabel": "codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-happy",
+  "promptId": "HL-CL-20260504-275-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-stub",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "5529ce1a00c70a0557d3648d8bddd009eb410f53",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_142304_781_pid18844__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_142304_781_pid18844__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260505_142304_781_pid18844__codex-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-lifecycle-registration-happy_part01.log"]
+}

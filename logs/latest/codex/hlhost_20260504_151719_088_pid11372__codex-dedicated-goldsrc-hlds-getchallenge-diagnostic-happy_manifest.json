@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_151719",
+  "runInstanceId": "20260504_151719_088_pid11372",
+  "runLabel": "codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy",
+  "promptId": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "88b4ea5affae71a1ac014e63694e8771a562bb0a",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_151719_088_pid11372__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-happy_part01.log"]
+}

@@ -1,0 +1,14 @@
+{
+  "sessionId": "20260509_003255",
+  "runInstanceId": "20260509_003255_201_pid8936",
+  "runLabel": "p308-final-10-gate_real_client_action_in_plan",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "53ccbdf3d12a9fca0ef1a6b31c780367369578a6",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260509_003255_201_pid8936__p308-final-10-gate_real_client_action_in_plan_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260509_003255_201_pid8936__p308-final-10-gate_real_client_action_in_plan_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260509_003255_201_pid8936__p308-final-10-gate_real_client_action_in_plan_part01.log"]
+}

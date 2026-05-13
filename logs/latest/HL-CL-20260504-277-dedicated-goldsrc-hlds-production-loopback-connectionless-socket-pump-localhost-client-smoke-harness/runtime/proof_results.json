@@ -1,0 +1,82 @@
+[
+  {
+    "scenario": "happy",
+    "label": "p277-1",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_disabled_by_default",
+    "label": "p277-2",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_no_real_client_used",
+    "label": "p277-3",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_non_loopback_client_denied",
+    "label": "p277-4",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_public_socket_blocked",
+    "label": "p277-5",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_client_timeout_bounded",
+    "label": "p277-6",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_wrong_challenge",
+    "label": "p277-7",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_wrong_protocol",
+    "label": "p277-8",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_unsafe_userinfo",
+    "label": "p277-9",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  },
+  {
+    "scenario": "gate_shutdown_cleanup",
+    "label": "p277-10",
+    "exit_code": 0,
+    "summary_found": true,
+    "manifest_found": true,
+    "probe_line_found": true
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260509_014734",
+  "runInstanceId": "20260509_014734_233_pid5156",
+  "runLabel": "p309-validate2-dry-run-validator-happy",
+  "promptId": "HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "dc885cbc0c7e222adb00570557b01708da1e1eaa",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p309-validate2-dry-run-validator\\hlhost_20260509_014734_233_pid5156__p309-validate2-dry-run-validator-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p309-validate2-dry-run-validator\\hlhost_20260509_014734_233_pid5156__p309-validate2-dry-run-validator-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p309-validate2-dry-run-validator\\hlhost_20260509_014734_233_pid5156__p309-validate2-dry-run-validator-happy_part01.log"]
+}

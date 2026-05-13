@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260513_180209",
+  "runInstanceId": "20260513_180209_049_pid29672",
+  "runLabel": "p314-final-s12",
+  "promptId": "HL-CL-20260504-314-dedicated-goldsrc-hlds-qport-session-capture-shell-ci-manifest-and-drift-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "a3cb74aa0205366c1f8abcb8f0c842956e56c8cf",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p314-drift-gate-final-matrix\\s12\\hlhost_20260513_180209_049_pid29672__p314-final-s12_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p314-drift-gate-final-matrix\\s12\\hlhost_20260513_180209_049_pid29672__p314-final-s12_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p314-drift-gate-final-matrix\\s12\\hlhost_20260513_180209_049_pid29672__p314-final-s12_part01.log"]
+}

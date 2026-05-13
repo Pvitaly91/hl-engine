@@ -809,8 +809,8 @@ exact prompt-scoped files placed into logs/latest/HL-CL-20260411-183-dedicated-g
 whether runtime maxclients override was used: yes (--maxclients=5 for proof runs A and B only; default engine code path remains maxclients=4)
 whether logs/latest/changelevel_policy_regressions existed or was absent: absent
 whether core.longpaths was already enabled or had to be enabled: had to be enabled (git config --get core.longpaths returned empty; git config core.longpaths true was applied before checkout work)
-final git commit SHA: pending-at-file-write-time (exact value recorded in final chat after commit)
-push result: pending-at-file-write-time (exact value recorded in final chat after push)
+final git commit SHA: ba96fd1481ce200a93cd9d1d31eea7568e96957c
+push result: To https://github.com/Pvitaly91/hl-engine.git; 0508c2f..ba96fd1  codex/HL-CL-20260401-081-target-runtime-completion-state -> codex/HL-CL-20260401-081-target-runtime-completion-state
 issues / risks / quirks noticed in logs: Logs stayed free of actual SEH/errors and both runs ended with any_seh=no; runtime proofs required the allowed runtime-only maxclients=5 override; compatibility truthfully remains tertiary-successor-claimant-checkpoint-range-pending; the accepted opaque token remains in the existing successor_checkpoint_bridge_* format because validation reuses the already-landed successor checkpoint token issuer path.
 progress assessment: Prompt 183 objective is complete on descendant baseline 0508c2f6def47472e4c967b72627e26f1638c8ba; the next unlocked implementation step is tertiary successor claimant checkpoint-range fetch.
 concise conclusion: Dedicated loopback successor-checkpoint resume-token claim is now externally probeable, gateable, and bound into a fresh tertiary successor claimant session.

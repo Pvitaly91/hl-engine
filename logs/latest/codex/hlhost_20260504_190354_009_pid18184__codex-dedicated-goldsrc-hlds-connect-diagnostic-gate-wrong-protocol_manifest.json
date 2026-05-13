@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_190354",
+  "runInstanceId": "20260504_190354_009_pid18184",
+  "runLabel": "codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol",
+  "promptId": "HL-CL-20260504-266-dedicated-goldsrc-hlds-connect-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "87a0915d9c07634606576ea54a9e91cb78d11743",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_190354_009_pid18184__codex-dedicated-goldsrc-hlds-connect-diagnostic-gate-wrong-protocol_part01.log"]
+}

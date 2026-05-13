@@ -1,0 +1,27 @@
+[2026-05-09 00:31:27.314] [info][startup] Logger session started.
+[2026-05-09 00:31:27.315] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\logs\latest\runtime
+[2026-05-09 00:31:27.315] [info][startup] Session id: 20260509_003127
+[2026-05-09 00:31:27.315] [info][startup] Run instance id: 20260509_003127_314_pid32120
+[2026-05-09 00:31:27.315] [info][startup] Max file size: 10485760 bytes
+[2026-05-09 00:31:27.315] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_part01.log
+[2026-05-09 00:31:27.316] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_summary.log
+[2026-05-09 00:31:27.318] [info][startup] hlhost startup initiated.
+[2026-05-09 00:31:27.318] [info][startup] Current working directory: G:\DEV\СPP\HLengine\host
+[2026-05-09 00:31:27.318] [info][startup] Executable path: G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe
+[2026-05-09 00:31:27.322] [error][dll] LoadLibraryW failed for G:\DEV\СPP\HLengine\out\test-fixtures\valve\dlls\hl.dll (code 193): %1 is not a valid Win32 application.
+[2026-05-09 00:31:27.322] [error][dll] hl.dll smoke test failed to load any candidate DLL.
+[2026-05-09 00:31:27.323] [warn][dll] hl.dll load error: code 193, message: %1 is not a valid Win32 application.
+[2026-05-09 00:31:27.325] [error][dll] LoadLibraryExW failed for G:\DEV\СPP\HLengine\out\test-fixtures\valve\cl_dlls\client.dll (code 193): %1 is not a valid Win32 application.
+[2026-05-09 00:31:27.325] [warn][dll] client.dll candidate missing: G:\DEV\СPP\HLengine\out\test-fixtures\valve\dlls/client.dll
+[2026-05-09 00:31:27.325] [error][dll] client.dll smoke test failed to load any candidate DLL.
+[2026-05-09 00:31:27.326] [warn][dll] client.dll load error: code 193, message: %1 is not a valid Win32 application.
+[2026-05-09 00:31:27.326] [info][summary] DLL smoke test summary:
+[2026-05-09 00:31:27.326] [info][summary] Valve directory: OK
+[2026-05-09 00:31:27.326] [info][summary] hl.dll: failed
+[2026-05-09 00:31:27.326] [info][summary] hl.dll exports: 0/2
+[2026-05-09 00:31:27.326] [info][summary] client.dll: failed
+[2026-05-09 00:31:27.327] [info][summary] client.dll exports: 0/5
+[2026-05-09 00:31:27.327] [error][dll] DLL smoke test failed.
+[2026-05-09 00:31:27.328] [info][summary] codex_run_identity: sessionId=20260509_003127, runInstanceId=20260509_003127_314_pid32120, runLabel=p308-debug-happy, regressionGuard=<none>, stopOnChangelevelRequest=0, frames=1, frametime=0.050000, gitBranch=codex/HL-CL-20260401-081-target-runtime-completion-state, gitCommit=53ccbdf3d12a9fca0ef1a6b31c780367369578a6, currentFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_part01.log, summaryFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_summary.log, action=run identity recorded
+[2026-05-09 00:31:27.330] [info][summary] Logger shutdown: total log files created=2, total bytes written=13340, repeat suppressions=0
+[2026-05-09 00:31:27.331] [info][summary] Logger shutdown paths: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_part01.log; G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260509_003127_314_pid32120__p308-debug-happy_summary.log

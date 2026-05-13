@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260509_144440",
+  "runInstanceId": "20260509_144440_064_pid36468",
+  "runLabel": "p311-validate-capture-policy-gate-happy",
+  "promptId": "HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "ad3ff5383f6f456e877ca43f1e4d2d3299662822",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p311-validate-capture-policy-gate\\hlhost_20260509_144440_064_pid36468__p311-validate-capture-policy-gate-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p311-validate-capture-policy-gate\\hlhost_20260509_144440_064_pid36468__p311-validate-capture-policy-gate-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p311-validate-capture-policy-gate\\hlhost_20260509_144440_064_pid36468__p311-validate-capture-policy-gate-happy_part01.log"]
+}

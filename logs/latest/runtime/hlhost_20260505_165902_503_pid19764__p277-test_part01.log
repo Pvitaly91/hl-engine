@@ -1,0 +1,23 @@
+[2026-05-05 16:59:02.505] [info][startup] Logger session started.
+[2026-05-05 16:59:02.505] [info][startup] Log directory: G:\DEV\СPP\HLengine\host\logs\latest\runtime
+[2026-05-05 16:59:02.506] [info][startup] Session id: 20260505_165902
+[2026-05-05 16:59:02.506] [info][startup] Run instance id: 20260505_165902_503_pid19764
+[2026-05-05 16:59:02.506] [info][startup] Max file size: 10485760 bytes
+[2026-05-05 16:59:02.506] [info][startup] Current file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_part01.log
+[2026-05-05 16:59:02.507] [info][startup] Summary file path: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_summary.log
+[2026-05-05 16:59:02.509] [info][startup] hlhost startup initiated.
+[2026-05-05 16:59:02.509] [info][startup] Current working directory: G:\DEV\СPP\HLengine\host
+[2026-05-05 16:59:02.509] [info][startup] Executable path: G:\DEV\СPP\HLengine\host\build32\host\Debug\hlhost.exe
+[2026-05-05 16:59:02.510] [error][filesystem] Could not locate a valid 'valve' directory near the executable or project root.
+[2026-05-05 16:59:02.511] [warn][filesystem] Checked candidate directories:
+[2026-05-05 16:59:02.511] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\host\Debug\valve
+[2026-05-05 16:59:02.511] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\host\valve
+[2026-05-05 16:59:02.511] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\build32\valve
+[2026-05-05 16:59:02.512] [warn][filesystem]   - G:\DEV\СPP\HLengine\host\valve
+[2026-05-05 16:59:02.512] [warn][filesystem]   - G:\DEV\СPP\HLengine\valve
+[2026-05-05 16:59:02.512] [warn][filesystem]   - G:\DEV\СPP\valve
+[2026-05-05 16:59:02.512] [warn][filesystem]   - G:\DEV\valve
+[2026-05-05 16:59:02.512] [warn][filesystem]   - G:\valve
+[2026-05-05 16:59:02.558] [info][summary] codex_run_identity: sessionId=20260505_165902, runInstanceId=20260505_165902_503_pid19764, runLabel=p277-test, promptId=HL-CL-20260504-277-dedicated-goldsrc-hlds-production-loopback-connectionless-socket-pump-localhost-client-smoke-harness, regressionGuard=<none>, stopOnChangelevelRequest=0, frames=10, frametime=0.050000, gitBranch=codex/HL-CL-20260401-081-target-runtime-completion-state, gitCommit=8f07fff570c9640349f2b14b42c182b881ccbb38, currentFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_part01.log, summaryFile=G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_summary.log, action=run identity recorded
+[2026-05-05 16:59:02.563] [info][summary] Logger shutdown: total log files created=2, total bytes written=7761, repeat suppressions=0
+[2026-05-05 16:59:02.563] [info][summary] Logger shutdown paths: G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_part01.log; G:\DEV\СPP\HLengine\host\logs\latest\runtime\hlhost_20260505_165902_503_pid19764__p277-test_summary.log

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260504_152035",
+  "runInstanceId": "20260504_152035_228_pid39568",
+  "runLabel": "codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker",
+  "promptId": "HL-CL-20260504-265-dedicated-goldsrc-hlds-getchallenge-diagnostic-surface",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1000,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "a5e519a6ec1e3593f0f004f8a97b4107aa8c81ea",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260504_152035_228_pid39568__codex-dedicated-goldsrc-hlds-getchallenge-diagnostic-gate-bad-marker_part01.log"]
+}

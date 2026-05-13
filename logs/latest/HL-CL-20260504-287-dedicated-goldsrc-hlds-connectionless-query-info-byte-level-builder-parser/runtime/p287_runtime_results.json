@@ -1,0 +1,110 @@
+[
+  {
+    "scenario": "happy",
+    "exit": 0,
+    "status": "accepted=1 rejected=0 reason=<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181933_110_pid21332__p287-01-happy_summary.log"
+  },
+  {
+    "scenario": "gate_disabled_by_default",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_info_byte_builder_disabled",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181933_725_pid17208__p287-02-gate_disabled_by_default_summary.log"
+  },
+  {
+    "scenario": "gate_validator_required",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=fixture_validator_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181934_152_pid38980__p287-03-gate_validator_required_summary.log"
+  },
+  {
+    "scenario": "gate_evidence_gap_guard_required",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=serverinfo_evidence_gap_guard_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181934_575_pid35048__p287-04-gate_evidence_gap_guard_required_summary.log"
+  },
+  {
+    "scenario": "gate_wrong_fixture_family_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_info_fixture_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181935_043_pid16752__p287-05-gate_wrong_fixture_family_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_post_connect_stage_confusion_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_not_post_connect_evidence",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181935_474_pid29032__p287-06-gate_post_connect_stage_confusion_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_signon_stage_confusion_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_not_signon_evidence",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181935_924_pid41848__p287-07-gate_signon_stage_confusion_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_unresolved_post_connect_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=unresolved_post_connect_serverinfo_not_buildable",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181936_551_pid12740__p287-08-gate_unresolved_post_connect_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_unresolved_signon_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=unresolved_signon_serverinfo_not_buildable",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181937_042_pid33560__p287-09-gate_unresolved_signon_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_missing_marker_or_header",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_missing_marker_or_header",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181937_590_pid44252__p287-10-gate_missing_marker_or_header_summary.log"
+  },
+  {
+    "scenario": "gate_wrong_opcode_or_tag",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_wrong_opcode_or_tag",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181937_994_pid38884__p287-11-gate_wrong_opcode_or_tag_summary.log"
+  },
+  {
+    "scenario": "gate_field_order_mismatch",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_field_order_mismatch",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181938_515_pid44200__p287-12-gate_field_order_mismatch_summary.log"
+  },
+  {
+    "scenario": "gate_missing_required_field",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_missing_required_field",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181939_006_pid44536__p287-13-gate_missing_required_field_summary.log"
+  },
+  {
+    "scenario": "gate_unsafe_string",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_unsafe_string",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181939_482_pid35276__p287-14-gate_unsafe_string_summary.log"
+  },
+  {
+    "scenario": "gate_overlong_response",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=connectionless_query_response_too_large",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181939_960_pid37040__p287-15-gate_overlong_response_summary.log"
+  },
+  {
+    "scenario": "gate_real_compatibility_claim_rejected",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=real_compatibility_claim_rejected",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181940_394_pid45316__p287-16-gate_real_compatibility_claim_rejected_summary.log"
+  },
+  {
+    "scenario": "gate_no_real_client_used",
+    "exit": 0,
+    "status": "accepted=1 rejected=0 reason=<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181940_934_pid16236__p287-17-gate_no_real_client_used_summary.log"
+  },
+  {
+    "scenario": "gate_public_socket_blocked",
+    "exit": 0,
+    "status": "accepted=0 rejected=1 reason=public_socket_blocked",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260504-287-dedicated-goldsrc-hlds-connectionless-query-info-byte-level-builder-parser\\runtime\\hlhost_20260506_181941_375_pid46760__p287-18-gate_public_socket_blocked_summary.log"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260508_221441",
+  "runInstanceId": "20260508_221441_214_pid31448",
+  "runLabel": "p305-04-gate_missing_required_metadata",
+  "promptId": "HL-CL-20260504-305-dedicated-goldsrc-hlds-qport-session-offline-fixture-validator-probe",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "c830498ceba33c4bd38342edf91217bfb304722d",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_221441_214_pid31448__p305-04-gate_missing_required_metadata_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_221441_214_pid31448__p305-04-gate_missing_required_metadata_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\hlhost_20260508_221441_214_pid31448__p305-04-gate_missing_required_metadata_part01.log"]
+}

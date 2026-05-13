@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260513_183208",
+  "runInstanceId": "20260513_183208_222_pid23844",
+  "runLabel": "p315-drift-happy",
+  "promptId": "HL-CL-20260504-315-dedicated-goldsrc-hlds-qport-session-capture-shell-wrapper-and-ci-release-summary",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "gitCommit": "0a6d8aeac8a3b99d8bcae84d268994324828f7f3",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p315-drift-gate-happy\\hlhost_20260513_183208_222_pid23844__p315-drift-happy_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p315-drift-gate-happy\\hlhost_20260513_183208_222_pid23844__p315-drift-happy_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\runtime\\p315-drift-gate-happy\\hlhost_20260513_183208_222_pid23844__p315-drift-happy_part01.log"]
+}
