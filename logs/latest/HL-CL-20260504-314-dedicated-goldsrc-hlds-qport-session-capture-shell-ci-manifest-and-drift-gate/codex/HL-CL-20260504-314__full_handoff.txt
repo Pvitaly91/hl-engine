@@ -1,0 +1,18 @@
+PROMPT-ID: HL-CL-20260504-314-dedicated-goldsrc-hlds-qport-session-capture-shell-ci-manifest-and-drift-gate
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: a3cb74aa0205366c1f8abcb8f0c842956e56c8cf
+Source commit: bf42fc0e59d67ab00aae3286eb1cef3aded6a5d3
+Artifact commit: pending_artifact_commit
+Compatibility claim level: diagnostic-qport-session-capture-shell-ci-manifest-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- Added stable CI manifest at fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json.
+- Added disabled-by-default read-only drift gate launch options and summary output.
+- Happy path validates fixture, policy, dry-run manifest, wrapper, and shell dependency boundary.
+- All 18 required runtime proof scenarios passed.
+- Capture, sockets, runtime network paths, netchan, public/LAN exposure, real clients, and compatibility expansion remain blocked.
+
+Recommended next prompt: HL-CL-20260504-315-dedicated-goldsrc-hlds-qport-session-capture-shell-wrapper-and-ci-release-summary
+Recommended next task: summarize the qport/session capture shell wrapper and CI drift gate boundary after manifest drift checks pass
