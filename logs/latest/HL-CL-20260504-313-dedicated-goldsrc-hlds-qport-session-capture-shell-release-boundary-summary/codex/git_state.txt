@@ -1,0 +1,23 @@
+Prompt: HL-CL-20260504-313-dedicated-goldsrc-hlds-qport-session-capture-shell-release-boundary-summary
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+f2018ebf61bb7d271580ef3709428fdbb7acc398
+
+Source/docs commit:
+9812166cf4dc8877569db0dadfbab0a46782432a
+
+Artifact commit:
+pending_artifact_commit
+
+Descendant gate:
+PASS for required prompt 287-312 source/artifact commits available in history.
+
+Targeted prompt 313 files:
+- docs/diagnostic/hlds/qport_session_capture_shell_release_boundary_summary.md
+- logs/latest/HL-CL-20260504-313-dedicated-goldsrc-hlds-qport-session-capture-shell-release-boundary-summary/
+
+Worktree note:
+The repository contained unrelated dirty build products and historical runtime logs before this prompt. Those files were preserved and were not staged for prompt 313 commits.
