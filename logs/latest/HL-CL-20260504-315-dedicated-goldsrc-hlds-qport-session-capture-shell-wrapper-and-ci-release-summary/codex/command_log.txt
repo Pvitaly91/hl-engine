@@ -1,0 +1,22 @@
+Prompt: HL-CL-20260504-315-dedicated-goldsrc-hlds-qport-session-capture-shell-wrapper-and-ci-release-summary
+
+Commands run:
+- git status --short --branch
+- git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD
+- rg qport_session, capture shell, CI manifest, drift gate, capture_allowed_now, capture_executed, capture_runtime_executed, socket_open_attempted, public socket, LAN socket, real client, connect, post-connect, signon, netchan
+- git merge-base --is-ancestor descendant gate for prompt 287-314 commit set
+- Get-Content existing qport/session CI and boundary docs
+- hlhost.exe qport/session capture shell CI drift gate happy proof
+- ConvertFrom-Json validation for qport/session policy, dry-run manifest, CI manifest, and prompt 315 artifact JSON
+- git diff --check for stable release summary doc and prompt 315 artifacts
+- git add/commit stable docs
+
+Validation results:
+- Descendant gate: pass for 55 locally checked prompt 287-314 commits.
+- JSON validation: pass for policy, dry-run manifest, CI manifest, release summary JSON, and optional proof summary JSON.
+- Optional drift gate happy proof: pass.
+- Diff check: pass for stable release summary doc and prompt 315 artifacts.
+- Capture proof: capture_executed=0 and capture_runtime_executed=0.
+- Socket proof: socket_open_attempted=0, public_socket_opened=0, lan_socket_opened=0, loopback_udp_socket_opened=0.
+- Real-client proof: real_steam_client_used=0 and real_client_binary_invoked=0.
+- Runtime proof: connect_path_invoked=0, post_connect_serverinfo_path_invoked=0, signon_serverinfo_path_invoked=0, netchan_runtime_started=0.
