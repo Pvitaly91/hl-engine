@@ -7933,6 +7933,79 @@ struct HldsQportSessionNoClientCaptureShellSummary
     std::string detail;
 };
 
+struct HldsQportSessionCaptureShellCiDriftGateSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool ci_manifest_created = false;
+    bool ci_manifest_loaded = false;
+    std::string ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json";
+    bool drift_gate_enabled = false;
+    bool drift_gate_disabled_by_default = true;
+    bool drift_gate_passed = false;
+    std::string fixture_root = "fixtures/diagnostic/hlds/qport_session";
+    int fixture_files_checked = 0;
+    bool fixture_hashes_recorded = false;
+    bool fixture_drift_detected = false;
+    std::string policy_file_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json";
+    bool policy_hash_recorded = false;
+    bool policy_drift_detected = false;
+    std::string dry_run_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json";
+    bool dry_run_manifest_hash_recorded = false;
+    bool dry_run_manifest_drift_detected = false;
+    std::string wrapper_script_file =
+        "scripts/run_hlds_qport_session_capture_dry_run.ps1";
+    bool wrapper_hash_recorded = false;
+    bool wrapper_drift_detected = false;
+    bool shell_dependency_drift_detected = false;
+    bool capture_shell_added = false;
+    bool shell_plan_created = false;
+    bool shell_plan_validated = false;
+    bool offline_fixture_validator_required = true;
+    bool capture_policy_gate_required = true;
+    bool dry_run_validator_required = true;
+    bool wrapper_validation_required = true;
+    bool capture_allowed_now = false;
+    bool capture_blocked_by_policy = false;
+    std::string capture_block_reason = "<none>";
+    bool capture_implementation_added = false;
+    bool capture_executed = false;
+    bool capture_runtime_executed = false;
+    bool qport_session_byte_evidence_sufficient = false;
+    bool byte_level_qport_session_evidence_sufficient = false;
+    bool address_scoped_challenge_reusable_as_diagnostic_prerequisite = false;
+    bool address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    bool compatibility_claim_expanded = false;
+    bool real_client_capture_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool socket_open_attempted = false;
+    bool public_socket_opened = false;
+    bool lan_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool connect_path_invoked = false;
+    bool post_connect_serverinfo_path_invoked = false;
+    bool signon_serverinfo_path_invoked = false;
+    bool netchan_runtime_started = false;
+    bool normal_host_behavior_changed = false;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22623,6 +22696,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_qport_session_no_client_capture_shell_probe_scenario =
             "happy";
+    bool hlds_qport_session_capture_shell_ci_drift_gate_probe_enabled =
+        false;
+    std::string
+        hlds_qport_session_capture_shell_ci_drift_gate_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23505,6 +23583,8 @@ struct HlServerModuleSummary
         hlds_qport_session_capture_preflight_dry_run_validator;
     HldsQportSessionNoClientCaptureShellSummary
         hlds_qport_session_no_client_capture_shell;
+    HldsQportSessionCaptureShellCiDriftGateSummary
+        hlds_qport_session_capture_shell_ci_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

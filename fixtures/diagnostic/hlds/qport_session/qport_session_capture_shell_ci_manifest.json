@@ -1,0 +1,157 @@
+{
+  "prompt_id": "HL-CL-20260504-314-dedicated-goldsrc-hlds-qport-session-capture-shell-ci-manifest-and-drift-gate",
+  "boundary_name": "qport_session_capture_shell_boundary",
+  "compatibility_claim_level": "diagnostic-qport-session-capture-shell-ci-manifest-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "covered_prompt_start": 304,
+  "covered_prompt_end": 313,
+  "fixture_root": "fixtures/diagnostic/hlds/qport_session",
+  "policy_file_path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+  "dry_run_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json",
+  "wrapper_script_file": "scripts/run_hlds_qport_session_capture_dry_run.ps1",
+  "wrapper_usage_file": "docs/diagnostic/hlds/qport_session_capture_dry_run_wrapper.md",
+  "release_boundary_doc_file": "docs/diagnostic/hlds/qport_session_capture_shell_release_boundary_summary.md",
+  "implementation_policy_review_doc_file": "docs/diagnostic/hlds/qport_session_capture_implementation_policy_review.md",
+  "capture_shell_source_commit": "89131aa1b019bd18705ebf5cb32bff4e079a325d",
+  "capture_shell_artifact_commit": "f2018ebf61bb7d271580ef3709428fdbb7acc398",
+  "fixture_hashes": [
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/diagnostic_endpoint_challenge_prerequisite.json",
+      "sha256": "92306d5f7076ec52330ce37562b2d3e924cd5a5675372e7325bc4230318b37b3",
+      "fnv1a64": "9ef8a4751b4d89df",
+      "bytes": 2168
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_public_socket_claim.json",
+      "sha256": "cda8c24808b0306c1bf470a31bbe65269db9b5983d91209bf4295952d44a107b",
+      "fnv1a64": "d4dc951c3e0e4b37",
+      "bytes": 1717
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_qport_promoted_without_byte_evidence.json",
+      "sha256": "308726a6667fa54191dd14de30a1772086e7205f48e615bd8a1c2e3bc91e1df1",
+      "fnv1a64": "cc1563785ea30ce8",
+      "bytes": 2096
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_real_client_claim.json",
+      "sha256": "8d5b37003eb8a1a4c35984e214287b739bf59ac238d3af4d300e9f3a7a1d0e81",
+      "fnv1a64": "5a2b33083351f42d",
+      "bytes": 1758
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/qport_session_unresolved.json",
+      "sha256": "a852517116fdc8f01fce93b8a890c2ab23ec1e253bcfce85d5e60669a8d7a3be",
+      "fnv1a64": "5e674e7ecc6cfee3",
+      "bytes": 2114
+    }
+  ],
+  "policy_file_hash": {
+    "path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+    "sha256": "fa105cf5ca6fd7abcdd8d79275f9938d671ec585bf5add3f6933627afebfea8c",
+    "fnv1a64": "cd53f068b544d409",
+    "bytes": 7911
+  },
+  "dry_run_manifest_hash": {
+    "path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json",
+    "sha256": "3f7d598923eab9ed5561eecbc8256f9e19e3138d808bbbfba0b0c1ba57aedbd7",
+    "fnv1a64": "069f498d9f9fd17c",
+    "bytes": 13376
+  },
+  "wrapper_script_hash": {
+    "path": "scripts/run_hlds_qport_session_capture_dry_run.ps1",
+    "sha256": "4c3fc614bf98092d19bc1c440482b16af930c0cae11e7fb39a0550835419b5b3",
+    "fnv1a64": "c4e87f146b49d513",
+    "bytes": 25104
+  },
+  "docs_hashes": [
+    {
+      "path": "docs/diagnostic/hlds/qport_session_capture_dry_run_wrapper.md",
+      "sha256": "67447292053ba8b4d76091e9309e95596275cbc11a84f22cb003c3fae24007a4",
+      "fnv1a64": "63149d4b7fd603f4",
+      "bytes": 5155
+    },
+    {
+      "path": "docs/diagnostic/hlds/qport_session_capture_shell_release_boundary_summary.md",
+      "sha256": "6eb905474048b62f1533f2839c189518d45cbcbeb708babb914739d70542fed5",
+      "fnv1a64": "7470d87ff86f478e",
+      "bytes": 9846
+    },
+    {
+      "path": "docs/diagnostic/hlds/qport_session_capture_implementation_policy_review.md",
+      "sha256": "97ff0f8a5afee5b09a34a9142b137fedbe916939812cc2eb729858b4ed9bd7c2",
+      "fnv1a64": "4f61c419d9c970ed",
+      "bytes": 8254
+    }
+  ],
+  "required_positive_boundary_fields": {
+    "capture_shell_added": 1,
+    "shell_plan_created": 1,
+    "shell_plan_validated": 1,
+    "offline_fixture_validator_passed": 1,
+    "capture_policy_gate_passed": 1,
+    "dry_run_validator_passed": 1,
+    "wrapper_validation_passed": 1
+  },
+  "required_blocked_fields": {
+    "capture_allowed_now": 0,
+    "capture_implementation_added": 0,
+    "capture_executed": 0,
+    "capture_runtime_executed": 0,
+    "qport_session_byte_evidence_sufficient": 0,
+    "byte_level_qport_session_evidence_sufficient": 0,
+    "address_scoped_challenge_reusable_as_real_netchan_proof": 0,
+    "real_client_capture_allowed_now": 0,
+    "real_steam_client_used": 0,
+    "real_client_binary_invoked": 0,
+    "socket_open_attempted": 0,
+    "public_socket_opened": 0,
+    "lan_socket_opened": 0,
+    "loopback_udp_socket_opened": 0,
+    "connect_path_invoked": 0,
+    "post_connect_serverinfo_path_invoked": 0,
+    "signon_serverinfo_path_invoked": 0,
+    "netchan_runtime_started": 0,
+    "normal_host_behavior_changed": 0
+  },
+  "forbidden_drift": [
+    "fixture policy removed or changed without review",
+    "fixture hash drift without review",
+    "dry-run manifest drift without review",
+    "wrapper loses unsafe option blockers",
+    "shell no longer requires validators or gates",
+    "capture_allowed_now becomes 1",
+    "capture_executed becomes 1",
+    "socket_open_attempted becomes 1",
+    "public or LAN socket becomes allowed",
+    "real client becomes allowed",
+    "connect, post-connect, signon, or netchan runtime becomes allowed",
+    "qport/session byte evidence is promoted without evidence prompt",
+    "address-scoped challenge is promoted to real netchan proof",
+    "compatibility claim is expanded"
+  ],
+  "unsafe_wrapper_options_required": [
+    "Public",
+    "LAN",
+    "RealClient",
+    "Steam",
+    "Capture",
+    "Socket",
+    "Connect",
+    "PostConnect",
+    "Signon",
+    "Netchan",
+    "Auth",
+    "Admission"
+  ],
+  "expected_drift_gate_summary": {
+    "ci_manifest_created": 1,
+    "drift_gate_disabled_by_default": 1,
+    "capture_shell_added": 1,
+    "shell_plan_created": 1,
+    "shell_plan_validated": 1,
+    "capture_allowed_now": 0,
+    "capture_blocked_by_policy": 1,
+    "capture_block_reason": "capture_implementation_not_allowed_yet",
+    "compatibility_claim_expanded": 0
+  }
+}
