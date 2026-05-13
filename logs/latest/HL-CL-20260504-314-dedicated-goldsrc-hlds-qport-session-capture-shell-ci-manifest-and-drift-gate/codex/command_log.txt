@@ -1,0 +1,31 @@
+Prompt: HL-CL-20260504-314-dedicated-goldsrc-hlds-qport-session-capture-shell-ci-manifest-and-drift-gate
+
+Commands run:
+- git status --short --branch
+- git rev-parse HEAD
+- git branch --show-current
+- git log --oneline --max-count=6
+- git merge-base --is-ancestor descendant gate for prompt 287-313 commits
+- rg hlds-qport-session-no-client-capture-shell and qport/session shell plumbing
+- rg query/info regression CI manifest drift gate reference implementation
+- Get-FileHash/Node SHA256 and FNV inventory for qport/session fixture, policy, dry-run manifest, wrapper, and docs files
+- node JSON validation for CI manifest, qport/session policy, dry-run manifest, fixtures, and runtime matrix results
+- git diff --check for prompt 314 source/data/docs files
+- MSBuild Debug Win32 build for build32/host/hlhost.vcxproj
+- hlhost.exe initial smoke without --gamedir failed before probe due missing valve directory; rerun used fixture gamedir
+- hlhost.exe happy smoke with qport/session capture shell CI drift gate probe
+- hlhost.exe full p314-final drift gate proof matrix for 18 scenarios
+- git add/commit targeted prompt 314 source/data/docs files
+
+Validation results:
+- Descendant gate: pass for prompt 287-313 required commits.
+- JSON validation: pass for CI manifest, qport/session policy, dry-run manifest, all qport/session fixtures, and runtime matrix results.
+- Diff check: pass for prompt 314 source/data/docs files.
+- Build: pass for build32/host/hlhost.vcxproj Debug Win32; existing C4127 warnings remained.
+- Runtime matrix: pass for 18 scenarios.
+- Capture runtime proof: no capture executed.
+- Socket proof: no sockets opened.
+- Real-client runtime proof: no real client or Steam invoked.
+- Public/LAN socket proof: no public or LAN sockets opened.
+- Post-connect/signon runtime proof: no post-connect or signon runtime invoked.
+- Netchan runtime proof: netchan not started.
