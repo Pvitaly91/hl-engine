@@ -1,0 +1,31 @@
+Prompt: HL-CL-20260504-313-dedicated-goldsrc-hlds-qport-session-capture-shell-release-boundary-summary
+
+Commands run:
+- git status --short --branch
+- git rev-parse HEAD
+- git branch --show-current
+- rg prompt 287-312 summary and artifact files
+- rg qport_session, capture shell, capture_allowed_now, capture_executed, capture_runtime_executed, socket_open_attempted, public socket, LAN socket, real client, connect, post-connect, signon, and netchan terms
+- git merge-base --is-ancestor descendant gate for prompt 287-312 commits
+- Get-Content docs/diagnostic/hlds/qport_session_capture_dry_run_release_boundary_summary.md
+- Get-Content docs/diagnostic/hlds/qport_session_capture_implementation_policy_review.md
+- Get-Content logs/latest/HL-CL-20260504-312-dedicated-goldsrc-hlds-qport-session-no-client-capture-shell-disabled-by-default/codex/qport_session_capture_shell_report.md
+- hlhost.exe prompt 313 happy shell proof with --hlds-qport-session-no-client-capture-shell-probe and happy scenario
+- Select-String extraction of hlds_qport_session_no_client_capture_shell summary line
+- git diff --check -- docs/diagnostic/hlds/qport_session_capture_shell_release_boundary_summary.md
+- git add/commit stable release doc
+- ConvertFrom-Json validation for qport/session policy, dry-run manifest, prompt 312 shell summary, prompt 313 release summary, prompt 313 shell proof summary, and qport/session fixtures
+- git diff --check for prompt 313 stable doc and artifact directory
+
+Validation results:
+- Descendant gate: pass for prompt 287-312 commits
+- Stable release doc diff check: pass
+- JSON validation: pass for 10 files
+- Prompt 313 artifact diff check: pass
+- Shell happy proof: pass
+- Capture execution: not run
+- Socket proof: not run
+- Real-client runtime proof: not run
+- Public/LAN socket proof: not run
+- Post-connect/signon runtime proof: not run
+- Netchan runtime proof: not run
