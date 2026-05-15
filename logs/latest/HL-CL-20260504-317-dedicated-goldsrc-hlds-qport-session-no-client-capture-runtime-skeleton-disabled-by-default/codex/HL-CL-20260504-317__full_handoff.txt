@@ -1,0 +1,28 @@
+PROMPT-ID: HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 25e60e9bbef65034fee5a9de165b248762784c52
+source_commit: 5c48e0070132c0415125cef656795aabe69dde03
+artifact_commit: pending_artifact_commit
+compatibility_claim_level: diagnostic-qport-session-no-client-capture-runtime-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- Added a disabled-by-default diagnostic qport/session no-client capture runtime skeleton probe.
+- The happy scenario validates final policy, CI drift, offline fixture, capture policy, dry-run, shell boundary, and wrapper gates.
+- The skeleton creates a skeleton-only plan and does not execute capture, open sockets, send/receive datagrams, invoke real clients, run connect/post-connect/signon/netchan, promote qport evidence, or expand compatibility claims.
+- All 21 required runtime skeleton proof scenarios passed.
+
+Changed source files:
+- include/app/launch_options.h
+- include/game_api/hl_server_module.h
+- src/app/host_application.cpp
+- src/app/launch_options.cpp
+- src/game_api/hl_server_module.cpp
+
+
+Required artifact root:
+logs/latest/HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default/codex
+
+Recommended next prompt:
+HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary
+summarize the disabled-by-default qport/session no-client capture runtime skeleton boundary after all skeleton gates pass while capture, sockets, datagrams, real clients, runtime stages, and compatibility expansion remain blocked

@@ -1,0 +1,16 @@
+{
+  "prompt_id": "HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default",
+  "scenario": "gate_connect_postconnect_signon_blocked",
+  "command": "G:\\DEV\\СPP\\HLengine\\host-p316\\build32\\host\\Debug\\hlhost.exe --dedicated --gamedir G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\runtime\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default --run-label p317-gate_connect_postconnect_signon_blocked --log-dir G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p317-runtime-skeleton-proofs\\gate_connect_postconnect_signon_blocked --hlds-qport-session-no-client-capture-runtime-skeleton-probe --hlds-qport-session-no-client-capture-runtime-skeleton-probe-scenario gate_connect_postconnect_signon_blocked",
+  "exit_code": 0,
+  "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p317-runtime-skeleton-proofs\\gate_connect_postconnect_signon_blocked\\hlhost_20260515_234942_273_pid32308__p317-gate_connect_postconnect_signon_blocked_summary.log",
+  "summary_json": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_connect_postconnect_signon_blocked_summary.json",
+  "proof_passed": 1,
+  "failures": [],
+  "no_capture_runtime_proof": 1,
+  "no_socket_proof": 1,
+  "no_datagram_proof": 1,
+  "no_real_client_proof": 1,
+  "no_post_connect_signon_proof": 1,
+  "no_netchan_runtime_proof": 1
+}

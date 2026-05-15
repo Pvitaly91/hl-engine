@@ -1,0 +1,11 @@
+# Command log
+
+- git status --short --branch: completed before and after cleanup.
+- git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp: pass.
+- rg search audit for qport_session, runtime skeleton, capture implementation allowed next, capture runtime, socket open, datagram send, datagram receive, public socket, LAN socket, real client, compatibility claim, connect, post-connect, signon, netchan: completed.
+- descendant gate against required source/artifact commits from prompts 287 through 316: checked 41 commits, pass.
+- JSON validation for qport/session CI manifest, offline policy, dry-run manifest, and prompt 317 proof summaries/manifests: 46 JSON files parsed, pass.
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m: pass; existing C4127 warnings in src/game_api/hl_server_module.cpp.
+- Runtime proof scenarios: all 21 required qport/session no-client capture runtime skeleton scenarios passed without capture, sockets, datagrams, real clients, connect/post-connect/signon, or netchan runtime.
+- git restore -- build32: restored generated build output before staging.
+- git commit -m "Add qport session runtime skeleton probe": source commit 5c48e0070132c0415125cef656795aabe69dde03.

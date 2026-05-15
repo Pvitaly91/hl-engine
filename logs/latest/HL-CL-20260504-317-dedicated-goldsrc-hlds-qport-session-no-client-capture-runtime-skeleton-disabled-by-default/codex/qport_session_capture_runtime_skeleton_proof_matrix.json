@@ -1,0 +1,191 @@
+[
+  {
+    "scenario": "happy",
+    "proof_passed": 1,
+    "accepted": 1,
+    "rejected": 0,
+    "reason": "<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\happy_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\happy_manifest.json"
+  },
+  {
+    "scenario": "gate_disabled_by_default",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "qport_session_runtime_skeleton_disabled",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_disabled_by_default_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_disabled_by_default_manifest.json"
+  },
+  {
+    "scenario": "gate_final_policy_gate_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "final_policy_gate_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_final_policy_gate_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_final_policy_gate_required_manifest.json"
+  },
+  {
+    "scenario": "gate_ci_drift_gate_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "ci_drift_gate_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_ci_drift_gate_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_ci_drift_gate_required_manifest.json"
+  },
+  {
+    "scenario": "gate_offline_validator_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "offline_fixture_validator_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_offline_validator_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_offline_validator_required_manifest.json"
+  },
+  {
+    "scenario": "gate_capture_policy_gate_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_policy_gate_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_capture_policy_gate_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_capture_policy_gate_required_manifest.json"
+  },
+  {
+    "scenario": "gate_dry_run_validator_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "dry_run_validator_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_dry_run_validator_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_dry_run_validator_required_manifest.json"
+  },
+  {
+    "scenario": "gate_shell_boundary_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_shell_boundary_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_shell_boundary_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_shell_boundary_required_manifest.json"
+  },
+  {
+    "scenario": "gate_wrapper_validation_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "wrapper_validation_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_wrapper_validation_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_wrapper_validation_required_manifest.json"
+  },
+  {
+    "scenario": "gate_capture_execution_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_execution_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_capture_execution_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_capture_execution_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_socket_open_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "socket_open_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_socket_open_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_socket_open_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_datagram_send_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "datagram_send_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_datagram_send_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_datagram_send_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_datagram_receive_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "datagram_receive_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_datagram_receive_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_datagram_receive_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_real_client_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "real_client_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_real_client_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_real_client_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_public_lan_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "public_lan_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_public_lan_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_public_lan_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_connect_postconnect_signon_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "connect_postconnect_signon_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_connect_postconnect_signon_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_connect_postconnect_signon_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_netchan_runtime_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "netchan_runtime_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_netchan_runtime_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_netchan_runtime_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_qport_evidence_promotion_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "qport_evidence_promotion_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_qport_evidence_promotion_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_qport_evidence_promotion_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_compatibility_claim_expansion_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "compatibility_claim_expansion_not_allowed_in_runtime_skeleton",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_compatibility_claim_expansion_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_compatibility_claim_expansion_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_no_real_client_used",
+    "proof_passed": 1,
+    "accepted": 1,
+    "rejected": 0,
+    "reason": "<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_no_real_client_used_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_no_real_client_used_manifest.json"
+  },
+  {
+    "scenario": "gate_public_socket_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "public_socket_blocked",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_public_socket_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default\\codex\\gate_public_socket_blocked_manifest.json"
+  }
+]
