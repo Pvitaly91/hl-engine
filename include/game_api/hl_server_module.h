@@ -8154,6 +8154,90 @@ struct HldsQportSessionNoClientCaptureRuntimeSkeletonSummary
     std::string detail;
 };
 
+struct HldsQportSessionRuntimeSkeletonCiDriftGateSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool runtime_skeleton_ci_manifest_created = false;
+    bool runtime_skeleton_ci_manifest_loaded = false;
+    std::string runtime_skeleton_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json";
+    bool runtime_skeleton_drift_gate_enabled = false;
+    bool runtime_skeleton_drift_gate_disabled_by_default = true;
+    bool runtime_skeleton_drift_gate_passed = false;
+    std::string runtime_skeleton_source_commit = "disabled";
+    std::string runtime_skeleton_artifact_commit = "disabled";
+    std::string fixture_root = "fixtures/diagnostic/hlds/qport_session";
+    int fixture_files_checked = 0;
+    bool fixture_hashes_recorded = false;
+    std::string policy_file_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json";
+    bool policy_hash_recorded = false;
+    bool policy_drift_detected = false;
+    std::string dry_run_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json";
+    bool dry_run_manifest_hash_recorded = false;
+    bool dry_run_manifest_drift_detected = false;
+    std::string shell_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json";
+    bool shell_ci_manifest_hash_recorded = false;
+    bool shell_ci_manifest_drift_detected = false;
+    std::string wrapper_script_file =
+        "scripts/run_hlds_qport_session_capture_dry_run.ps1";
+    bool wrapper_hash_recorded = false;
+    bool wrapper_drift_detected = false;
+    bool runtime_skeleton_drift_detected = false;
+    bool dependency_drift_detected = false;
+    bool runtime_skeleton_added = false;
+    bool skeleton_plan_created = false;
+    bool skeleton_plan_validated = false;
+    bool final_policy_gate_passed = false;
+    bool ci_drift_gate_passed = false;
+    bool offline_fixture_validator_passed = false;
+    bool capture_policy_gate_passed = false;
+    bool dry_run_validator_passed = false;
+    bool wrapper_validation_passed = false;
+    bool shell_boundary_validated = false;
+    bool capture_allowed_now = false;
+    bool capture_blocked_by_policy = false;
+    std::string capture_block_reason = "<none>";
+    bool capture_implementation_added = false;
+    bool capture_executed = false;
+    bool capture_runtime_executed = false;
+    bool datagram_sent = false;
+    bool datagram_received = false;
+    bool qport_session_byte_evidence_sufficient = false;
+    bool byte_level_qport_session_evidence_sufficient = false;
+    bool address_scoped_challenge_reusable_as_diagnostic_prerequisite = false;
+    bool address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    bool compatibility_claim_expanded = false;
+    bool real_client_capture_allowed_now = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool socket_open_attempted = false;
+    bool public_socket_opened = false;
+    bool lan_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool connect_path_invoked = false;
+    bool post_connect_serverinfo_path_invoked = false;
+    bool signon_serverinfo_path_invoked = false;
+    bool netchan_runtime_started = false;
+    bool normal_host_behavior_changed = false;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -22860,6 +22944,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_qport_session_no_client_capture_runtime_skeleton_probe_scenario =
             "happy";
+    bool hlds_qport_session_runtime_skeleton_ci_drift_gate_probe_enabled =
+        false;
+    std::string
+        hlds_qport_session_runtime_skeleton_ci_drift_gate_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23748,6 +23837,8 @@ struct HlServerModuleSummary
         hlds_qport_session_capture_final_policy_gate;
     HldsQportSessionNoClientCaptureRuntimeSkeletonSummary
         hlds_qport_session_no_client_capture_runtime_skeleton;
+    HldsQportSessionRuntimeSkeletonCiDriftGateSummary
+        hlds_qport_session_runtime_skeleton_ci_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
