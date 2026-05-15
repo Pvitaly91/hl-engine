@@ -1,0 +1,164 @@
+[
+  {
+    "scenario": "happy",
+    "proof_passed": 1,
+    "accepted": 1,
+    "rejected": 0,
+    "reason": "<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\happy_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\happy_manifest.json"
+  },
+  {
+    "scenario": "gate_disabled_by_default",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "qport_session_final_policy_gate_disabled",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_disabled_by_default_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_disabled_by_default_manifest.json"
+  },
+  {
+    "scenario": "gate_ci_drift_gate_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "qport_session_ci_drift_gate_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_ci_drift_gate_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_ci_drift_gate_required_manifest.json"
+  },
+  {
+    "scenario": "gate_offline_validator_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "offline_fixture_validator_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_offline_validator_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_offline_validator_required_manifest.json"
+  },
+  {
+    "scenario": "gate_capture_policy_gate_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_policy_gate_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_capture_policy_gate_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_capture_policy_gate_required_manifest.json"
+  },
+  {
+    "scenario": "gate_dry_run_validator_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "dry_run_validator_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_dry_run_validator_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_dry_run_validator_required_manifest.json"
+  },
+  {
+    "scenario": "gate_wrapper_validation_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "wrapper_validation_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_wrapper_validation_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_wrapper_validation_required_manifest.json"
+  },
+  {
+    "scenario": "gate_shell_boundary_required",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_shell_boundary_required",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_shell_boundary_required_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_shell_boundary_required_manifest.json"
+  },
+  {
+    "scenario": "gate_capture_runtime_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "capture_runtime_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_capture_runtime_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_capture_runtime_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_socket_open_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "socket_open_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_socket_open_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_socket_open_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_public_lan_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "public_lan_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_public_lan_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_public_lan_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_real_client_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "real_client_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_real_client_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_real_client_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_connect_signon_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "connect_postconnect_signon_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_connect_signon_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_connect_signon_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_netchan_runtime_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "netchan_runtime_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_netchan_runtime_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_netchan_runtime_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_compatibility_claim_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "compatibility_claim_expansion_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_compatibility_claim_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_compatibility_claim_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_qport_evidence_promotion_requested_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "qport_evidence_promotion_not_allowed_now",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_qport_evidence_promotion_requested_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_qport_evidence_promotion_requested_blocked_manifest.json"
+  },
+  {
+    "scenario": "gate_no_real_client_used",
+    "proof_passed": 1,
+    "accepted": 1,
+    "rejected": 0,
+    "reason": "<none>",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_no_real_client_used_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_no_real_client_used_manifest.json"
+  },
+  {
+    "scenario": "gate_public_socket_blocked",
+    "proof_passed": 1,
+    "accepted": 0,
+    "rejected": 1,
+    "reason": "public_socket_blocked",
+    "summary": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_public_socket_blocked_summary.json",
+    "manifest": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_public_socket_blocked_manifest.json"
+  }
+]

@@ -1,0 +1,25 @@
+Prompt: HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate
+
+Commands run:
+- git status --short; git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- rg final policy gate and qport/session source locations
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m
+- hlhost.exe final policy gate happy smoke proof
+- hlhost.exe final policy gate 18-scenario proof matrix
+- git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/host_application.cpp src/app/launch_options.cpp src/game_api/hl_server_module.cpp
+- git add/commit source files
+- git restore -- build32
+- Remove generated prompt-316 build/runtime verification directories
+- git merge-base --is-ancestor descendant gate for known prompt 304-315 commits
+- rg qport_session/final policy/capture/socket/public/LAN/real client/connect/signon/netchan search
+- ConvertFrom-Json validation for qport/session CI manifest, policy, dry-run manifest, happy summary, proof matrix
+
+Build result:
+- Build succeeded.
+- Warnings: existing C4127 warnings in src/game_api/hl_server_module.cpp.
+
+Proof result:
+- All 18 final policy gate scenarios passed.
+- No capture runtime, socket, real-client, public/LAN, post-connect/signon, or netchan runtime fields changed from blocked zero values.
+
+- Extracted source/artifact commit hashes from prompt 287-315 JSON artifacts and ran git merge-base --is-ancestor for each local commit: pass count=28

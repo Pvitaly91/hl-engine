@@ -1,0 +1,15 @@
+{
+  "prompt_id": "HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate",
+  "scenario": "gate_compatibility_claim_requested_blocked",
+  "command": "G:\\DEV\\СPP\\HLengine\\host-p316\\build32\\host\\Debug\\hlhost.exe --dedicated --gamedir G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\runtime\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate --run-label p316-gate_compatibility_claim_requested_blocked --log-dir G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p316-final-policy-gate-proofs\\gate_compatibility_claim_requested_blocked --hlds-qport-session-capture-final-policy-gate-probe --hlds-qport-session-capture-final-policy-gate-probe-scenario gate_compatibility_claim_requested_blocked",
+  "exit_code": 0,
+  "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p316-final-policy-gate-proofs\\gate_compatibility_claim_requested_blocked\\hlhost_20260515_232051_792_pid41060__p316-gate_compatibility_claim_requested_blocked_summary.log",
+  "summary_json": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate\\codex\\gate_compatibility_claim_requested_blocked_summary.json",
+  "proof_passed": 1,
+  "failures": [],
+  "no_capture_runtime_proof": 1,
+  "no_socket_proof": 1,
+  "no_real_client_proof": 1,
+  "no_post_connect_signon_proof": 1,
+  "no_netchan_runtime_proof": 1
+}

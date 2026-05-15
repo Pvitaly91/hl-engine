@@ -1,0 +1,44 @@
+PROMPT-ID: HL-CL-20260504-316-dedicated-goldsrc-hlds-qport-session-capture-implementation-final-policy-gate
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: 2102da76495a4c2135d2340449f44fb15756cfe9
+Source commit: 624052e71f3901883f837e4220db120e9b5433a0
+Artifact commit: pending_artifact_commit
+Compatibility claim level: diagnostic-qport-session-capture-final-policy-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- Added disabled-by-default qport/session capture final policy gate launch options and probe summary fields.
+- Gate validates/reuses CI drift, offline fixture, no-client capture policy, dry-run, wrapper, and shell boundary surfaces.
+- Happy path allows only the next minimal disabled-by-default no-client diagnostic shell/runtime skeleton prompt.
+- Current capture runtime, sockets, public/LAN, real clients, connect/post-connect/signon, netchan, qport evidence promotion, and compatibility expansion remain denied.
+
+Proofs:
+- happy: pass
+- gate_disabled_by_default: pass
+- gate_ci_drift_gate_required: pass
+- gate_offline_validator_required: pass
+- gate_capture_policy_gate_required: pass
+- gate_dry_run_validator_required: pass
+- gate_wrapper_validation_required: pass
+- gate_shell_boundary_required: pass
+- gate_capture_runtime_requested_blocked: pass
+- gate_socket_open_requested_blocked: pass
+- gate_public_lan_requested_blocked: pass
+- gate_real_client_requested_blocked: pass
+- gate_connect_signon_requested_blocked: pass
+- gate_netchan_runtime_requested_blocked: pass
+- gate_compatibility_claim_requested_blocked: pass
+- gate_qport_evidence_promotion_requested_blocked: pass
+- gate_no_real_client_used: pass
+- gate_public_socket_blocked: pass
+
+Validation:
+- MSBuild Debug Win32 hlhost target: pass with existing C4127 warnings.
+- 18 final-policy scenarios: pass.
+- JSON validation: pass for CI manifest, policy, dry-run manifest, happy summary, proof matrix.
+- Descendant gate for known prompt 304-315 commits: pass.
+- No capture runtime, socket, real-client, public/LAN, post-connect/signon, or netchan proof fields stayed zero.
+
+Recommended next prompt: HL-CL-20260504-317-dedicated-goldsrc-hlds-qport-session-no-client-capture-runtime-skeleton-disabled-by-default
+Recommended next task: add only a minimal disabled-by-default diagnostic no-client qport/session capture runtime skeleton after final policy gate approval, without default capture execution, public or LAN sockets, real clients, netchan runtime, or compatibility-claim expansion.
