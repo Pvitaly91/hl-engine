@@ -1,0 +1,205 @@
+{
+  "prompt_id": "HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate",
+  "branch": "codex/HL-CL-20260401-081-target-runtime-completion-state",
+  "pre_change_head": "c36d2443835d8eea336009cc6ea26b88a262ce01",
+  "source_commit": "5804ca4961ef3a843a2604deb28c95e9439a6112",
+  "artifact_commit": "pending_artifact_commit",
+  "compatibility_claim_level": "diagnostic-qport-session-runtime-skeleton-ci-manifest-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "runtime_skeleton_ci_manifest_created": 1,
+  "runtime_skeleton_ci_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json",
+  "runtime_skeleton_ci_manifest_loaded": 1,
+  "runtime_skeleton_drift_gate_enabled": 1,
+  "runtime_skeleton_drift_gate_disabled_by_default": 1,
+  "runtime_skeleton_drift_gate_passed": 1,
+  "runtime_skeleton_source_commit": "5c48e0070132c0415125cef656795aabe69dde03",
+  "runtime_skeleton_artifact_commit": "9958e7b8bf099b788eb7ad301757521393b820eb",
+  "fixture_root": "fixtures/diagnostic/hlds/qport_session",
+  "fixture_files_checked": 5,
+  "fixture_hashes_recorded": 1,
+  "policy_file_path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+  "policy_hash_recorded": 1,
+  "policy_drift_detected": 0,
+  "dry_run_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json",
+  "dry_run_manifest_hash_recorded": 1,
+  "dry_run_manifest_drift_detected": 0,
+  "shell_ci_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json",
+  "shell_ci_manifest_hash_recorded": 1,
+  "shell_ci_manifest_drift_detected": 0,
+  "wrapper_script_file": "scripts/run_hlds_qport_session_capture_dry_run.ps1",
+  "wrapper_hash_recorded": 1,
+  "wrapper_drift_detected": 0,
+  "runtime_skeleton_drift_detected": 0,
+  "dependency_drift_detected": 0,
+  "runtime_skeleton_added": 1,
+  "skeleton_plan_created": 1,
+  "skeleton_plan_validated": 1,
+  "final_policy_gate_passed": 1,
+  "ci_drift_gate_passed": 1,
+  "offline_fixture_validator_passed": 1,
+  "capture_policy_gate_passed": 1,
+  "dry_run_validator_passed": 1,
+  "wrapper_validation_passed": 1,
+  "shell_boundary_validated": 1,
+  "capture_allowed_now": 0,
+  "capture_blocked_by_policy": 1,
+  "capture_block_reason": "capture_implementation_not_allowed_yet",
+  "capture_implementation_added": 0,
+  "capture_executed": 0,
+  "capture_runtime_executed": 0,
+  "datagram_sent": 0,
+  "datagram_received": 0,
+  "qport_session_byte_evidence_sufficient": 0,
+  "byte_level_qport_session_evidence_sufficient": 0,
+  "address_scoped_challenge_reusable_as_diagnostic_prerequisite": 1,
+  "address_scoped_challenge_reusable_as_real_netchan_proof": 0,
+  "compatibility_claim_expanded": 0,
+  "real_client_capture_allowed_now": 0,
+  "real_steam_client_used": 0,
+  "real_client_binary_invoked": 0,
+  "socket_open_attempted": 0,
+  "public_socket_opened": 0,
+  "lan_socket_opened": 0,
+  "loopback_udp_socket_opened": 0,
+  "connect_path_invoked": 0,
+  "post_connect_serverinfo_path_invoked": 0,
+  "signon_serverinfo_path_invoked": 0,
+  "netchan_runtime_started": 0,
+  "normal_host_behavior_changed": 0,
+  "recommended_next_prompt_id": "HL-CL-20260504-320-dedicated-goldsrc-hlds-qport-session-runtime-skeleton-wrapper-ci-release-summary",
+  "recommended_next_task": "summarize the qport/session runtime skeleton wrapper and CI drift gate boundary after manifest drift checks pass",
+  "changed_files": [
+    "include/app/launch_options.h",
+    "src/app/launch_options.cpp",
+    "include/game_api/hl_server_module.h",
+    "src/app/host_application.cpp",
+    "src/game_api/hl_server_module.cpp",
+    "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json",
+    "docs/diagnostic/hlds/qport_session_capture_runtime_skeleton_ci_manifest_and_drift_gate.md"
+  ],
+  "commands_run": [
+    "git status --short --branch",
+    "git rev-parse --abbrev-ref HEAD; git rev-parse HEAD",
+    "Select-String happy summary for p319 drift gate line",
+    "rg for qport_session/runtime skeleton/drift gate/capture/socket/datagram/client/connect/signon/netchan markers",
+    "ConvertFrom-Json validation for runtime skeleton CI manifest, shell CI manifest, dry-run manifest, policy, happy summary, proof results",
+    "git merge-base --is-ancestor descendant gate for required prompt 287-318 source/artifact commits present locally",
+    "MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1",
+    "22 runtime skeleton CI drift gate proof scenarios via hlhost.exe with --frames 1 and explicit probe scenario",
+    "git diff --check for prompt 319 changed source/data/docs files",
+    "git restore -- build32",
+    "git add exact prompt 319 source/data/docs files",
+    "git commit -m \"HL-CL-20260504-319 runtime skeleton CI drift gate\""
+  ],
+  "proofs": [
+    {
+      "scenario": "happy",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_disabled_by_default",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_missing_ci_manifest",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_runtime_skeleton_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_policy_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_dry_run_manifest_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_shell_ci_manifest_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_wrapper_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_dependency_removed",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_capture_allowed_now_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_capture_executed_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_capture_runtime_executed_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_datagram_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_socket_allowed_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_real_client_allowed_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_connect_signon_allowed_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_netchan_runtime_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_qport_evidence_promoted_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_address_scoped_challenge_real_netchan_drift",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_compatibility_claim_expanded",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_no_real_client_used",
+      "proof_passed": "pass",
+      "failures": ""
+    },
+    {
+      "scenario": "gate_public_socket_blocked",
+      "proof_passed": "pass",
+      "failures": ""
+    }
+  ]
+}

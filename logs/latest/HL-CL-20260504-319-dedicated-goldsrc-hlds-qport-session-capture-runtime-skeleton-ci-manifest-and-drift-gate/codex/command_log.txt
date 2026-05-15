@@ -1,0 +1,16 @@
+PROMPT-ID: HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate
+
+Commands run and outcome:
+- git status --short --branch: branch confirmed, prompt 319 changes isolated.
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD: branch $branch, pre-change HEAD $preChange.
+- Select-String proof summary marker: initial happy drift identified old hash expectations; corrected with prompt-319-specific current boundary hashes.
+- MSBuild build32/host/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m:1: final build succeeded with 2 existing C4127 warnings and 0 errors.
+- Runtime proofs: all 22 required qport/session runtime skeleton CI drift gate scenarios passed with --frames 1.
+- git restore -- build32: restored generated build outputs before staging.
+- descendant gate: all listed prompt source/artifact commits present locally are ancestors of HEAD.
+- git diff --check: passed; Git reported CRLF normalization warnings only.
+- ConvertFrom-Json: runtime skeleton CI manifest, shell CI manifest, dry-run manifest, policy, happy summary, and proof results validated.
+- rg search: qport_session/runtime skeleton/drift/capture/socket/datagram/client/connect/signon/netchan markers inspected.
+- git add exact prompt 319 source/data/docs files; git commit: source commit $sourceCommit.
+
+No capture runtime proof, socket proof, datagram proof, real-client runtime proof, public/LAN socket proof, post-connect/signon runtime proof, or netchan runtime proof was run.

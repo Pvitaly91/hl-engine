@@ -1,0 +1,134 @@
+[
+  {
+    "scenario": "happy",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\happy\\hlhost_20260516_010109_526_pid26560__p319-happy_summary.log"
+  },
+  {
+    "scenario": "gate_disabled_by_default",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_disabled_by_default\\hlhost_20260516_010110_181_pid41736__p319-gate_disabled_by_default_summary.log"
+  },
+  {
+    "scenario": "gate_missing_ci_manifest",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_missing_ci_manifest\\hlhost_20260516_010110_590_pid2540__p319-gate_missing_ci_manifest_summary.log"
+  },
+  {
+    "scenario": "gate_runtime_skeleton_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_runtime_skeleton_drift\\hlhost_20260516_010111_001_pid39184__p319-gate_runtime_skeleton_drift_summary.log"
+  },
+  {
+    "scenario": "gate_policy_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_policy_drift\\hlhost_20260516_010111_576_pid20304__p319-gate_policy_drift_summary.log"
+  },
+  {
+    "scenario": "gate_dry_run_manifest_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_dry_run_manifest_drift\\hlhost_20260516_010112_108_pid32360__p319-gate_dry_run_manifest_drift_summary.log"
+  },
+  {
+    "scenario": "gate_shell_ci_manifest_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_shell_ci_manifest_drift\\hlhost_20260516_010112_585_pid35752__p319-gate_shell_ci_manifest_drift_summary.log"
+  },
+  {
+    "scenario": "gate_wrapper_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_wrapper_drift\\hlhost_20260516_010113_038_pid5412__p319-gate_wrapper_drift_summary.log"
+  },
+  {
+    "scenario": "gate_dependency_removed",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_dependency_removed\\hlhost_20260516_010113_518_pid23428__p319-gate_dependency_removed_summary.log"
+  },
+  {
+    "scenario": "gate_capture_allowed_now_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_capture_allowed_now_drift\\hlhost_20260516_010113_983_pid40324__p319-gate_capture_allowed_now_drift_summary.log"
+  },
+  {
+    "scenario": "gate_capture_executed_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_capture_executed_drift\\hlhost_20260516_010114_420_pid14456__p319-gate_capture_executed_drift_summary.log"
+  },
+  {
+    "scenario": "gate_capture_runtime_executed_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_capture_runtime_executed_drift\\hlhost_20260516_010114_908_pid5040__p319-gate_capture_runtime_executed_drift_summary.log"
+  },
+  {
+    "scenario": "gate_datagram_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_datagram_drift\\hlhost_20260516_010115_418_pid24816__p319-gate_datagram_drift_summary.log"
+  },
+  {
+    "scenario": "gate_socket_allowed_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_socket_allowed_drift\\hlhost_20260516_010115_971_pid29944__p319-gate_socket_allowed_drift_summary.log"
+  },
+  {
+    "scenario": "gate_real_client_allowed_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_real_client_allowed_drift\\hlhost_20260516_010116_533_pid31764__p319-gate_real_client_allowed_drift_summary.log"
+  },
+  {
+    "scenario": "gate_connect_signon_allowed_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_connect_signon_allowed_drift\\hlhost_20260516_010117_067_pid29008__p319-gate_connect_signon_allowed_drift_summary.log"
+  },
+  {
+    "scenario": "gate_netchan_runtime_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_netchan_runtime_drift\\hlhost_20260516_010117_578_pid42368__p319-gate_netchan_runtime_drift_summary.log"
+  },
+  {
+    "scenario": "gate_qport_evidence_promoted_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_qport_evidence_promoted_drift\\hlhost_20260516_010118_068_pid39356__p319-gate_qport_evidence_promoted_drift_summary.log"
+  },
+  {
+    "scenario": "gate_address_scoped_challenge_real_netchan_drift",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_address_scoped_challenge_real_netchan_drift\\hlhost_20260516_010118_576_pid42668__p319-gate_address_scoped_challenge_real_netchan_drift_summary.log"
+  },
+  {
+    "scenario": "gate_compatibility_claim_expanded",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_compatibility_claim_expanded\\hlhost_20260516_010119_045_pid36612__p319-gate_compatibility_claim_expanded_summary.log"
+  },
+  {
+    "scenario": "gate_no_real_client_used",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_no_real_client_used\\hlhost_20260516_010119_519_pid43268__p319-gate_no_real_client_used_summary.log"
+  },
+  {
+    "scenario": "gate_public_socket_blocked",
+    "proof_passed": true,
+    "failures": "",
+    "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_public_socket_blocked\\hlhost_20260516_010120_015_pid28860__p319-gate_public_socket_blocked_summary.log"
+  }
+]

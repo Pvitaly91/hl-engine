@@ -1,0 +1,14 @@
+{
+  "prompt_id": "HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate",
+  "scenario": "gate_no_real_client_used",
+  "summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate\\codex\\gate_no_real_client_used_summary.json",
+  "summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p319-runtime-skeleton-ci-drift-gate-proofs\\gate_no_real_client_used\\hlhost_20260516_010119_519_pid43268__p319-gate_no_real_client_used_summary.log",
+  "proof_passed": 1,
+  "no_capture_runtime_proof": 1,
+  "no_socket_proof": 1,
+  "no_datagram_proof": 1,
+  "no_real_client_runtime_proof": 1,
+  "no_public_lan_socket_proof": 1,
+  "no_post_connect_signon_runtime_proof": 1,
+  "no_netchan_runtime_proof": 1
+}

@@ -1,0 +1,18 @@
+PROMPT-ID: HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate
+
+Status: pass
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+Pre-change HEAD: c36d2443835d8eea336009cc6ea26b88a262ce01
+Source commit: 5804ca4961ef3a843a2604deb28c95e9439a6112
+Artifact commit: pending_artifact_commit
+Compatibility claim level: diagnostic-qport-session-runtime-skeleton-ci-manifest-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+Prompt 319 added a stable qport/session runtime skeleton CI manifest plus a disabled-by-default read-only drift gate/probe. The gate validates current checked-in fixture, policy, dry-run manifest, shell CI manifest, wrapper, release doc, and runtime skeleton proof surfaces, then rejects drift and unsafe expansion scenarios without running capture, opening sockets, sending or receiving datagrams, invoking clients, or starting network runtime paths.
+
+Proofs:
+All 22 required scenarios passed. Happy loaded the manifest and passed with runtime_skeleton_drift_gate_passed=1. The disabled-by-default, missing manifest, drift, unsafe capture/runtime/socket/datagram/client/connect/signon/netchan/evidence/claim, no-real-client, and public-socket-blocked gates all produced expected pass summaries.
+
+Recommended next prompt:
+HL-CL-20260504-320-dedicated-goldsrc-hlds-qport-session-runtime-skeleton-wrapper-ci-release-summary
+summarize the qport/session runtime skeleton wrapper and CI drift gate boundary after manifest drift checks pass
