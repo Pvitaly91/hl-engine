@@ -1,0 +1,13 @@
+# Command log
+
+- git status --short --branch: clean at prompt 317 artifact commit before changes.
+- Read prompt 317 runtime skeleton summary and proof matrix artifacts.
+- Read qport/session CI manifest and release boundary docs.
+- Added stable doc docs/diagnostic/hlds/qport_session_capture_runtime_skeleton_release_boundary_summary.md.
+- git diff --check -- docs/diagnostic/hlds/qport_session_capture_runtime_skeleton_release_boundary_summary.md: pass.
+- git commit -m "Add qport session runtime skeleton release boundary": source/docs commit b7387159a07676aebf15751ccaa10bdc6d376237.
+- Skeleton happy proof rerun: not run; reason not_run_report_only_boundary_prompt_uses_prompt_317_full_21_scenario_runtime_skeleton_proof_matrix.
+- Descendant gate against required source/artifact commits from prompts 287 through 317: checked 43 commits, pass.
+- JSON validation for qport/session policy, dry-run manifest, CI manifest, prompt 317 runtime skeleton summary, and prompt 318 release boundary summary: 5 JSON files parsed, pass.
+- Search audit for qport_session, runtime skeleton, capture runtime, capture_executed, capture_runtime_executed, socket_open_attempted, datagram_sent, datagram_received, public socket, LAN socket, real client, connect, post-connect, signon, and netchan: completed.
+- No capture runtime proof, socket proof, datagram proof, real-client runtime proof, public/LAN socket proof, post-connect/signon runtime proof, or netchan runtime proof was run.

@@ -1,0 +1,25 @@
+PROMPT-ID: HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 9958e7b8bf099b788eb7ad301757521393b820eb
+source_commit: b7387159a07676aebf15751ccaa10bdc6d376237
+artifact_commit: pending_artifact_commit
+compatibility_claim_level: diagnostic-qport-session-capture-runtime-skeleton-release-boundary-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+
+Summary:
+- Created the stable runtime skeleton release boundary document.
+- Closed the qport/session runtime skeleton boundary as documentation only.
+- Relied on prompt 317's full 21-scenario proof matrix; no skeleton proof was rerun in this report-only prompt.
+- Capture, capture runtime, sockets, datagrams, real clients, connect/post-connect/signon, netchan, qport byte evidence promotion, and compatibility expansion remain blocked.
+
+Stable doc:
+- docs/diagnostic/hlds/qport_session_capture_runtime_skeleton_release_boundary_summary.md
+
+Artifacts:
+- logs/latest/HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary/codex/qport_session_capture_runtime_skeleton_release_boundary_summary.md
+- logs/latest/HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary/codex/qport_session_capture_runtime_skeleton_boundary_checklist.md
+- logs/latest/HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary/codex/qport_session_capture_runtime_skeleton_boundary_risk_table.md
+- logs/latest/HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary/codex/qport_session_capture_runtime_skeleton_release_boundary_summary.json
+
+Recommended next prompt:
+HL-CL-20260504-319-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-ci-manifest-and-drift-gate

@@ -1,0 +1,16 @@
+## git status --short --branch
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-318-dedicated-goldsrc-hlds-qport-session-capture-runtime-skeleton-release-boundary-summary/
+
+## git log --oneline -8
+b738715 Add qport session runtime skeleton release boundary
+9958e7b Add qport session runtime skeleton artifacts
+5c48e00 Add qport session runtime skeleton probe
+25e60e9 Add qport session final policy gate artifacts
+624052e Add qport session final capture policy gate
+2102da7 Add qport session wrapper CI release artifacts
+d6aaa61 Add qport session wrapper CI release summary
+0a6d8ae Add qport session capture shell drift gate artifacts
+
+## source docs commit
+b7387159a07676aebf15751ccaa10bdc6d376237
