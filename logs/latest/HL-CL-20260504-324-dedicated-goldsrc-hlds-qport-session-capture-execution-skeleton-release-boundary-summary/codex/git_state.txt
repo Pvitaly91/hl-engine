@@ -1,0 +1,14 @@
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: c08bdd9b3091f4186c2115cf46f4449bae55def5
+source_commit: 8353146bfc652ae3ac0d85673628a07e58dcbad8
+git_status_before_artifact_commit:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-324-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-release-boundary-summary/
+recent_log:
+8353146 Add qport session execution skeleton release boundary summary
+c08bdd9 HL-CL-20260504-323 capture execution skeleton artifacts
+8d85c47 Add qport session no-client capture execution skeleton
+a9cd2fc HL-CL-20260504-322 capture execution final policy artifacts
+700a738 Add qport session capture execution final policy gate
+source_commit_changed_files:
+docs/diagnostic/hlds/qport_session_capture_execution_skeleton_release_boundary_summary.md

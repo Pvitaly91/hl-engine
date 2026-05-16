@@ -1,0 +1,5 @@
+git status --short --branch
+git merge-base --is-ancestor prompt 321-323 refs HEAD
+rg qport_session/execution skeleton/execution plan/safety blockers over source, fixtures, docs, scripts
+ConvertFrom-Json qport/session policy, dry-run, shell CI, runtime skeleton CI, prompt 323 execution skeleton summary, and prompt 324 release summary
+not_run execution skeleton happy proof: report-only boundary uses prompt 323 full 23-scenario proof matrix

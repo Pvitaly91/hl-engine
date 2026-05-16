@@ -1,0 +1,23 @@
+PROMPT-ID: HL-CL-20260504-324-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-release-boundary-summary
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: c08bdd9b3091f4186c2115cf46f4449bae55def5
+source/final_commit: 8353146bfc652ae3ac0d85673628a07e58dcbad8
+compatibility_claim_level: diagnostic-qport-session-capture-execution-skeleton-release-boundary-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+release_boundary_summary_created: 1
+stable_release_doc_file: docs/diagnostic/hlds/qport_session_capture_execution_skeleton_release_boundary_summary.md
+execution_skeleton_proof_executed: 0
+not_run_with_reason: not_run_report_only_boundary_prompt_uses_prompt_323_full_23_scenario_execution_skeleton_proof_matrix
+qport_session_execution_skeleton_boundary_closed: 1
+execution_skeleton_added: 1
+execution_plan_created: 1
+execution_plan_validated: 1
+capture_execution_allowed_now: 0
+capture_executed: 0
+socket_open_attempted: 0
+datagram_sent: 0
+datagram_received: 0
+real_client_binary_invoked: 0
+netchan_runtime_started: 0
+recommended_next_prompt_id: HL-CL-20260504-325-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-ci-manifest-and-drift-gate
+recommended_next_task: manifest the qport/session execution skeleton boundary and guard drift before any future capture execution policy discussion
