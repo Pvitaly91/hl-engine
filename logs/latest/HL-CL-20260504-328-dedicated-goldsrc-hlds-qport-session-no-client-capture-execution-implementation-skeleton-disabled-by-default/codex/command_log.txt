@@ -1,0 +1,30 @@
+Prompt: HL-CL-20260504-328-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-skeleton-disabled-by-default
+
+Commands and validations run:
+- git status --short --branch
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- git merge-base --is-ancestor descendant checks for prompt 327 and prior checkpoint commits
+- rg source/docs/fixture inspection for qport_session and execution implementation policy markers
+- git diff --check
+- Visual Studio CMake configure build-p328
+- MSBuild build-p328/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m with HL SDK include paths and NOMINMAX
+- runtime proof matrix for 25 execution implementation skeleton scenarios
+- JSON validation for qport/session fixture manifests and prompt 328 summaries/manifests
+- git add/commit source files
+- artifact report generation and final git state capture
+
+Build notes:
+- The default shell did not have cmake/MSBuild on PATH.
+- Used Visual Studio bundled CMake and MSBuild.
+- Injected the parent checkout Half-Life SDK include paths because this worktree does not contain third_party/halflife-sdk.
+- Final MSBuild result: succeeded with 0 warnings and 0 errors.
+
+Proof notes:
+- Ran all 25 execution implementation skeleton scenarios with the dedicated fixture game directory.
+- Parsed deterministic summary lines into committed JSON summaries/manifests.
+- Raw runtime logs were removed from the commit scope after parsing to keep artifacts bounded.
+
+Post-artifact validation:
+- Descendant gate passed for prompt 327 source/artifact and execution skeleton boundary commits listed in prompt 328.
+- JSON validation passed for 55 JSON files, including qport/session fixture manifests, execution skeleton CI manifest, prompt 328 summary, 25 summaries, and 25 manifests.
+- Required rg search ran across source, docs, fixtures, and wrapper surfaces with 52780 matches.

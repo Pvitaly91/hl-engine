@@ -1,0 +1,17 @@
+{
+  "prompt_id": "HL-CL-20260504-328-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-skeleton-disabled-by-default",
+  "scenario": "gate_netchan_runtime_blocked",
+  "exit_code": 0,
+  "proof_passed": 1,
+  "summary_file": "logs\\latest\\HL-CL-20260504-328-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-skeleton-disabled-by-default\\codex\\summaries\\gate_netchan_runtime_blocked_summary.json",
+  "no_capture_execution": 1,
+  "no_capture_runtime": 1,
+  "no_socket": 1,
+  "no_datagram": 1,
+  "no_real_client_runtime": 1,
+  "no_public_lan_socket": 1,
+  "no_post_connect_signon_runtime": 1,
+  "no_netchan_runtime": 1,
+  "runtime_logs_committed": 0,
+  "runtime_log_cleanup_reason": "raw runtime logs were parsed into committed summaries/manifests and omitted from artifact commit to keep artifacts bounded"
+}
