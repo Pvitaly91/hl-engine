@@ -1,0 +1,35 @@
+PROMPT-ID: HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+064cd887511ea84920406538edfff79f26e62cff
+
+Source/docs commit:
+d35926c233dbef0016def499c1d9fa049666db7b
+
+Artifact commit:
+pending at artifact file creation; final artifact commit is reported by Codex after commit.
+
+Initial git status:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Source commit status after commit:
+clean
+
+Descendant gates:
+- required-descendant-ok
+- descendant-ok commit_count=129 missing_noncommit_or_absent=0
+
+Files intentionally changed for prompt 332:
+- docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/HL-CL-20260504-332__full_handoff.txt
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_capture_execution_implementation_final_policy_review.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_future_execution_implementation_final_gate_scope.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_future_execution_implementation_final_gate_matrix.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_execution_implementation_final_allowed_forbidden_actions.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_execution_implementation_final_risk_review.md
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/qport_session_capture_execution_implementation_final_policy_summary.json
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/command_log.txt
+- logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex/git_state.txt

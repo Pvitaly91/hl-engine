@@ -1,0 +1,35 @@
+PROMPT-ID: HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review
+
+Commands run:
+
+1. git status --short --branch
+2. git rev-parse --abbrev-ref HEAD
+3. git rev-parse HEAD
+4. Required descendant gate for prompt 332 checkpoint commits
+5. Test-Path docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md
+6. Get-Content -Raw docs/diagnostic/hlds/qport_session_execution_implementation_wrapper_ci_release_summary.md
+7. Get-Content -Raw docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md
+8. Get-Content -Raw logs/latest/HL-CL-20260504-331-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_release_summary.json
+9. Get-Content -Raw logs/latest/HL-CL-20260504-330-dedicated-goldsrc-hlds-qport-session-execution-implementation-skeleton-ci-manifest-and-drift-gate/codex/qport_session_execution_implementation_skeleton_drift_gate_summary.json
+10. rg search for qport_session, execution implementation final policy review, future_final_execution_implementation_gate_allowed_next, blocked runtime fields, public socket, LAN socket, real client, connect, post-connect, signon, and netchan
+11. ConvertFrom-Json validation for qport/session policy, dry-run manifest, and execution implementation skeleton CI manifest
+12. Broad descendant gate across prompt artifact commit references from 287 through 331 plus prompt 332 required checkpoints
+13. git diff --check
+14. git status --short
+15. git add docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md
+16. git commit -m "HL-CL-20260504-332 review qport capture execution implementation final policy"
+17. ConvertFrom-Json validation for prompt 332 final policy summary JSON
+18. git diff --check
+19. git status --short
+20. rg -n "diagnostic-qport-session-capture-execution-implementation-final-policy-review-only|future_final_execution_implementation_gate_allowed_next|capture_execution_allowed_now|socket_open_attempted|datagram_sent|real_client_binary_invoked|netchan_runtime_started" logs/latest/HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review/codex docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md
+
+Results:
+
+- Initial HEAD: 064cd887511ea84920406538edfff79f26e62cff
+- Initial status: clean
+- Required descendant gate: required-descendant-ok
+- Broad descendant gate: descendant-ok commit_count=129 missing_noncommit_or_absent=0
+- JSON validation: json-ok
+- Prompt 332 artifact JSON validation: artifact-json-ok
+- Source/docs commit: d35926c233dbef0016def499c1d9fa049666db7b
+- Optional wrapper plan/validate: not run; policy-review prompt relies on prompt 331 release summary and prompt 330 drift gate proof matrix
