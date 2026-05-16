@@ -199,6 +199,12 @@ struct LaunchOptions
     std::string
         hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario =
             "happy";
+    bool
+        hlds_qport_session_capture_execution_implementation_final_gate_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_capture_execution_implementation_final_gate_probe_scenario =
+            "happy";
     bool hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         false;
     std::string

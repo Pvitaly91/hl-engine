@@ -8512,6 +8512,18 @@ struct HldsQportSessionExecutionImplementationSkeletonCiDriftGateSummary
     bool compatibility_claim_expanded = false;
 };
 
+struct HldsQportSessionCaptureExecutionImplementationFinalGateSummary
+    : HldsQportSessionExecutionImplementationSkeletonCiDriftGateSummary
+{
+    bool final_gate_enabled = false;
+    bool final_gate_disabled_by_default = true;
+    bool final_gate_passed = false;
+    bool implementation_skeleton_ci_drift_gate_invoked = false;
+    bool implementation_skeleton_ci_drift_gate_passed = false;
+    bool future_capture_execution_implementation_prompt_allowed_next = false;
+    bool future_final_execution_implementation_gate_allowed_next = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23252,6 +23264,12 @@ struct HlServerModuleInitOptions
         hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario =
             "happy";
     bool
+        hlds_qport_session_capture_execution_implementation_final_gate_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_capture_execution_implementation_final_gate_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -24151,6 +24169,8 @@ struct HlServerModuleSummary
         hlds_qport_session_no_client_capture_execution_implementation_skeleton;
     HldsQportSessionExecutionImplementationSkeletonCiDriftGateSummary
         hlds_qport_session_execution_implementation_skeleton_ci_drift_gate;
+    HldsQportSessionCaptureExecutionImplementationFinalGateSummary
+        hlds_qport_session_capture_execution_implementation_final_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
