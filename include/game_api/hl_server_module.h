@@ -8451,6 +8451,23 @@ struct HldsQportSessionExecutionSkeletonCiDriftGateSummary
     bool compatibility_claim_expanded = false;
 };
 
+struct HldsQportSessionNoClientCaptureExecutionImplementationSkeletonSummary
+    : HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+{
+    bool execution_implementation_skeleton_enabled = false;
+    bool execution_implementation_skeleton_disabled_by_default = true;
+    bool execution_implementation_skeleton_added = false;
+    bool implementation_execution_plan_created = false;
+    bool implementation_execution_plan_validated = false;
+    bool policy_review_loaded = false;
+    bool policy_review_passed = false;
+    bool execution_skeleton_ci_drift_gate_invoked = false;
+    bool execution_skeleton_ci_drift_gate_passed = false;
+    bool execution_skeleton_boundary_validated = false;
+    bool future_minimal_no_client_execution_implementation_allowed_next =
+        false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23179,6 +23196,12 @@ struct HlServerModuleInitOptions
         hlds_qport_session_execution_skeleton_ci_drift_gate_probe_scenario =
             "happy";
     bool
+        hlds_qport_session_no_client_capture_execution_implementation_skeleton_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_no_client_capture_execution_implementation_skeleton_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -24074,6 +24097,8 @@ struct HlServerModuleSummary
         hlds_qport_session_no_client_capture_execution_skeleton;
     HldsQportSessionExecutionSkeletonCiDriftGateSummary
         hlds_qport_session_execution_skeleton_ci_drift_gate;
+    HldsQportSessionNoClientCaptureExecutionImplementationSkeletonSummary
+        hlds_qport_session_no_client_capture_execution_implementation_skeleton;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
