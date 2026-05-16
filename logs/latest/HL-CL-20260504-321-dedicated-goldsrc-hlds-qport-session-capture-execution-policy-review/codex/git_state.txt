@@ -1,0 +1,50 @@
+# Git State
+
+initial_status:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state
+
+pre_change_head: b4f4ae6b49b714042a56480ae5905d4d9d9318d8
+source_commit: 1fa50a3d97c9b805fad3a6619498505b6ea2234a
+artifact_commit: pending_artifact_commit
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+descendant_gate:
+hex_refs_found=70
+commit_refs_checked=66
+non_commit_hex_refs_ignored=4
+not_ancestor=0
+
+json_validation:
+qport_session_offline_fixture_manifest_policy.json: valid
+qport_session_capture_preflight_dry_run_manifest.json: valid
+qport_session_capture_shell_ci_manifest.json: valid
+qport_session_capture_runtime_skeleton_ci_manifest.json: valid
+qport_session_capture_execution_policy_summary.json: valid
+
+search_validation:
+qport_session: found
+capture execution policy: found
+capture_execution_allowed_now: found
+capture_runtime_allowed_now: found
+socket_open_allowed_now: found
+datagram_send_allowed_now: found
+datagram_receive_allowed_now: found
+public socket: found
+LAN socket: found
+real client: found
+connect: found
+post-connect: found
+signon: found
+netchan: found
+
+current_status_before_artifact_commit:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-321-dedicated-goldsrc-hlds-qport-session-capture-execution-policy-review/
+
+latest_log:
+1fa50a3 HL-CL-20260504-321 capture execution policy review
+b4f4ae6 HL-CL-20260504-320 runtime skeleton wrapper CI release artifacts
+5a31f7a HL-CL-20260504-320 runtime skeleton wrapper CI release summary
+6cf870f HL-CL-20260504-319 runtime skeleton CI drift gate artifacts
+5804ca4 HL-CL-20260504-319 runtime skeleton CI drift gate
+

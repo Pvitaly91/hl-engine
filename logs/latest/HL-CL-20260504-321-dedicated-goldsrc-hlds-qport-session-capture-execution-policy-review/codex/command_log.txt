@@ -1,0 +1,22 @@
+# Command Log
+
+- git status --short --branch
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- Test prompt 320 stable doc and artifact summary paths
+- ConvertFrom-Json prompt 320 wrapper CI release summary
+- ConvertFrom-Json prompt 319 runtime skeleton drift gate summary
+- List prompt 287 through 320 artifact directories
+- Descendant gate over prompt 287 through 320 local source/artifact commit references; non-commit fixture byte strings ignored
+- apply_patch add docs/diagnostic/hlds/qport_session_capture_execution_policy_review.md
+- git status --short --branch
+- git diff --check -- docs/diagnostic/hlds/qport_session_capture_execution_policy_review.md
+- Get-Content stable policy review doc preview
+- git add -- docs/diagnostic/hlds/qport_session_capture_execution_policy_review.md
+- git commit -m "HL-CL-20260504-321 capture execution policy review"
+- New-Item prompt 321 artifact directory
+- Copy stable policy review into prompt 321 artifact directory
+- Set-Content prompt 321 future preconditions, allowed/forbidden table, risk review, JSON summary, full handoff, command log, and git state
+- ConvertFrom-Json qport/session policy, dry-run manifest, shell CI manifest, runtime skeleton CI manifest, and prompt 321 summary JSON
+- rg --fixed-strings --count-matches for qport_session, capture execution policy, capture_execution_allowed_now, capture_runtime_allowed_now, socket_open_allowed_now, datagram_send_allowed_now, datagram_receive_allowed_now, public socket, LAN socket, real client, connect, post-connect, signon, netchan
+- git diff --check -- prompt 321 artifact directory
+- Descendant gate across prompt 287-320 local source/artifact commit references after source commit
