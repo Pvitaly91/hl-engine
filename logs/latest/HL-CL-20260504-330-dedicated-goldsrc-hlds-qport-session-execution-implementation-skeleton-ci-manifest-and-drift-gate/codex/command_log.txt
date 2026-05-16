@@ -1,0 +1,17 @@
+# Command Log
+
+Prompt ID: HL-CL-20260504-330-dedicated-goldsrc-hlds-qport-session-execution-implementation-skeleton-ci-manifest-and-drift-gate
+
+- git status --short --branch
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- git merge-base --is-ancestor checks for prompt 329, 328, 327, 326, and earlier checkpoint commits
+- rg searches for qport_session, execution implementation skeleton, implementation skeleton CI manifest, drift gate, blocked runtime fields, socket, datagram, real client, connect, post-connect, signon, and netchan markers
+- generated stable implementation skeleton CI manifest with recorded hashes
+- git diff --check
+- ConvertFrom-Json validation for qport/session policy, dry-run manifest, runtime skeleton CI manifest, execution skeleton CI manifest, and implementation skeleton CI manifest
+- CMake configure: build-p330 Win32
+- MSBuild: build-p330/hlhost.vcxproj Debug Win32, result pass with zero warnings and zero errors
+- 24 proof runs: hlhost --dedicated --frames 1 --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario <scenario>
+- Source commit: bc1b9ca7f736a995603c35b515e45f6a5bf8b706
+- Removed generated build-p330 and raw runtime scratch logs from working tree before artifact commit
+- Generated prompt-specific handoff, reports, summaries, manifests, command log, and git state

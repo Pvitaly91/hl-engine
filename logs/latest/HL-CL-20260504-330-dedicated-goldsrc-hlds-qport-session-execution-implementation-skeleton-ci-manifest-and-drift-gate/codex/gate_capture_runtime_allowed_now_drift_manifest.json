@@ -1,0 +1,10 @@
+{
+  "prompt_id": "HL-CL-20260504-330-dedicated-goldsrc-hlds-qport-session-execution-implementation-skeleton-ci-manifest-and-drift-gate",
+  "scenario": "gate_capture_runtime_allowed_now_drift",
+  "command": "G:\\DEV\\СPP\\HLengine\\host-p316\\build-p330\\Debug\\hlhost.exe --dedicated --gamedir G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\runtime\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-330-dedicated-goldsrc-hlds-qport-session-execution-implementation-skeleton-ci-manifest-and-drift-gate --run-label p330-gate_capture_runtime_allowed_now_drift --log-dir G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p330-ci\\gate_capture_runtime_allowed_now_drift --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario gate_capture_runtime_allowed_now_drift",
+  "exit_code": 0,
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p330-ci\\gate_capture_runtime_allowed_now_drift\\hlhost_20260516_234416_662_pid29444__p330-gate_capture_runtime_allowed_now_drift_summary.log",
+  "console_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p330-ci\\gate_capture_runtime_allowed_now_drift\\console.txt",
+  "proof_passed": 1,
+  "runtime_network_behavior": "not_invoked; no capture, sockets, datagrams, real client, connect, post-connect, signon, or netchan runtime executed by proof harness"
+}
