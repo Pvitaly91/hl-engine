@@ -1,0 +1,37 @@
+PROMPT-ID: HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: a9cd2fc8d9df47ce4d38867408a669204ec48faf
+source/final_commit: 8d85c47e73758a0970c7242fa8eecf621f3fd9ce
+compatibility_claim_level: diagnostic-qport-session-no-client-capture-execution-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+proof matrix: 23/23 pass
+execution_skeleton_enabled: 1
+execution_skeleton_disabled_by_default: 1
+execution_skeleton_added: 1
+execution_plan_created: 1
+execution_plan_validated: 1
+final_execution_policy_gate_passed: 1
+runtime_skeleton_ci_drift_gate_passed: 1
+runtime_skeleton_boundary_validated: 1
+capture_execution_allowed_now: 0
+capture_runtime_allowed_now: 0
+socket_open_allowed_now: 0
+loopback_socket_allowed_now: 0
+datagram_send_allowed_now: 0
+datagram_receive_allowed_now: 0
+real_client_allowed_now: 0
+netchan_runtime_allowed_now: 0
+qport_evidence_promotion_allowed_now: 0
+compatibility_claim_expansion_allowed_now: 0
+capture_executed: 0
+capture_runtime_executed: 0
+datagram_sent: 0
+datagram_received: 0
+socket_open_attempted: 0
+real_client_binary_invoked: 0
+netchan_runtime_started: 0
+recommended_next_prompt_id: HL-CL-20260504-324-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-release-boundary-summary
+recommended_next_task: summarize the disabled-by-default qport/session no-client capture execution skeleton boundary after all gates pass while execution, sockets, datagrams, real clients, runtime stages, qport evidence, and compatibility expansion remain blocked
+report: G:\DEV\СPP\HLengine\host-p316\logs\latest\HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default\codex\qport_session_capture_execution_skeleton_report.md
+summary: G:\DEV\СPP\HLengine\host-p316\logs\latest\HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default\codex\qport_session_capture_execution_skeleton_summary.json
+comparison: G:\DEV\СPP\HLengine\host-p316\logs\latest\HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default\codex\qport_session_execution_plan_validation_comparison.md

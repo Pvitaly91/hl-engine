@@ -1,0 +1,10 @@
+git status --short --branch
+git rev-parse HEAD
+git merge-base --is-ancestor <prompt-322-and-runtime-boundary-refs> HEAD
+git diff --check
+cmake configure build-p323 Win32 Debug
+MSBuild build-p323/hlhost.vcxproj /p:Configuration=Debug /p:Platform=Win32 /m
+23 x hlhost execution-skeleton probe scenarios under logs/latest/runtime/p323-execution-skeleton-proofs/<scenario>
+ConvertFrom-Json qport/session manifests and p323 summaries
+rg qport_session/capture execution skeleton/safety blocker terms over source, fixtures, docs, scripts
+Remove-Item build-p323 and logs/latest/runtime/p323-execution-skeleton-proofs after artifacts copied

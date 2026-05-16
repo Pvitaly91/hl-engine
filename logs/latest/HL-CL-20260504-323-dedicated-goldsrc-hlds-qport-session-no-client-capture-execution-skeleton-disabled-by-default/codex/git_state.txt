@@ -1,0 +1,18 @@
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: a9cd2fc8d9df47ce4d38867408a669204ec48faf
+source_commit: 8d85c47e73758a0970c7242fa8eecf621f3fd9ce
+git_status_before_artifact_commit:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default/
+recent_log:
+8d85c47 Add qport session no-client capture execution skeleton
+a9cd2fc HL-CL-20260504-322 capture execution final policy artifacts
+700a738 Add qport session capture execution final policy gate
+4956ac9 HL-CL-20260504-321 capture execution policy artifacts
+1fa50a3 HL-CL-20260504-321 capture execution policy review
+source_commit_changed_files:
+include/app/launch_options.h
+include/game_api/hl_server_module.h
+src/app/host_application.cpp
+src/app/launch_options.cpp
+src/game_api/hl_server_module.cpp

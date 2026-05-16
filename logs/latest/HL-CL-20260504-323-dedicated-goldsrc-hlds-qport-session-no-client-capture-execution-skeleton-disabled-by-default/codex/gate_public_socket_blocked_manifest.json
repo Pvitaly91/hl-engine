@@ -1,0 +1,19 @@
+{
+  "prompt_id": "HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default",
+  "scenario": "gate_public_socket_blocked",
+  "command": "G:\\DEV\\СPP\\HLengine\\host-p316\\build-p323\\Debug\\hlhost.exe --dedicated --gamedir G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\runtime\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default --run-label p323-gate_public_socket_blocked --log-dir G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p323-execution-skeleton-proofs\\gate_public_socket_blocked --hlds-qport-session-no-client-capture-execution-skeleton-probe --hlds-qport-session-no-client-capture-execution-skeleton-probe-scenario gate_public_socket_blocked",
+  "exit_code": 0,
+  "summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default\\codex\\gate_public_socket_blocked_summary.json",
+  "runtime_log_dir": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p323-execution-skeleton-proofs\\gate_public_socket_blocked",
+  "proof_passed": 1,
+  "fields_checked": 84,
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p323-execution-skeleton-proofs\\gate_public_socket_blocked\\hlhost_20260516_151922_646_pid7156__p323-gate_public_socket_blocked_summary.log",
+  "no_capture_execution_proof": 1,
+  "no_capture_runtime_proof": 1,
+  "no_socket_proof": 1,
+  "no_datagram_proof": 1,
+  "no_real_client_runtime_proof": 1,
+  "no_public_lan_socket_proof": 1,
+  "no_post_connect_signon_runtime_proof": 1,
+  "no_netchan_runtime_proof": 1
+}
