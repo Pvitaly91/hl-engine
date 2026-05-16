@@ -4035,6 +4035,11 @@ struct EngineShimState
     std::string
         hlds_qport_session_capture_execution_final_policy_gate_probe_scenario =
             "happy";
+    hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+        hlds_qport_session_no_client_capture_execution_skeleton;
+    std::string
+        hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario =
+            "happy";
     hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     std::string
@@ -5028,6 +5033,9 @@ std::string BuildHldsQportSessionRuntimeSkeletonCiDriftGateLine(
 std::string BuildHldsQportSessionCaptureExecutionFinalPolicyGateLine(
     const hl::game_api::
         HldsQportSessionCaptureExecutionFinalPolicyGateSummary& summary);
+std::string BuildHldsQportSessionNoClientCaptureExecutionSkeletonLine(
+    const hl::game_api::
+        HldsQportSessionNoClientCaptureExecutionSkeletonSummary& summary);
 
 std::string BuildHldsServerinfoContractBackedDiagnosticPathIntegrationLine(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticPathIntegrationSummary&
@@ -27945,6 +27953,160 @@ std::string BuildHldsQportSessionCaptureExecutionFinalPolicyGateLine(
         + std::string(summary.netchan_runtime_started ? "1" : "0")
         + ", normal_host_behavior_changed="
         + std::string(summary.normal_host_behavior_changed ? "1" : "0")
+        + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
+        + ", recommended_next_task=" + summary.recommended_next_task
+        + ", auth=" + summary.auth
+        + ", signon=" + summary.signon
+        + ", gameplay_transport=" + summary.gameplay_transport
+        + ", detail=" + summary.detail;
+}
+
+std::string BuildHldsQportSessionNoClientCaptureExecutionSkeletonLine(
+    const hl::game_api::
+        HldsQportSessionNoClientCaptureExecutionSkeletonSummary& summary)
+{
+    const auto b = [](bool value) { return std::string(value ? "1" : "0"); };
+
+    return "hlds_qport_session_no_client_capture_execution_skeleton: enabled="
+        + b(summary.enabled)
+        + ", mode=" + summary.mode
+        + ", scenario=" + summary.scenario
+        + ", accepted=" + std::to_string(summary.accepted)
+        + ", rejected=" + std::to_string(summary.rejected)
+        + ", last_reject_reason="
+        + (summary.last_reject_reason.empty() ? std::string("<none>")
+                                               : summary.last_reject_reason)
+        + ", compatibility_claim_level=" + summary.compatibility_claim_level
+        + ", diagnostic_only=" + b(summary.diagnostic_only)
+        + ", execution_skeleton_enabled="
+        + b(summary.execution_skeleton_enabled)
+        + ", execution_skeleton_disabled_by_default="
+        + b(summary.execution_skeleton_disabled_by_default)
+        + ", execution_skeleton_added="
+        + b(summary.execution_skeleton_added)
+        + ", execution_plan_created=" + b(summary.execution_plan_created)
+        + ", execution_plan_validated="
+        + b(summary.execution_plan_validated)
+        + ", final_execution_policy_gate_invoked="
+        + b(summary.final_execution_policy_gate_invoked)
+        + ", final_execution_policy_gate_passed="
+        + b(summary.final_execution_policy_gate_passed)
+        + ", runtime_skeleton_ci_drift_gate_invoked="
+        + b(summary.runtime_skeleton_ci_drift_gate_invoked)
+        + ", runtime_skeleton_ci_drift_gate_passed="
+        + b(summary.runtime_skeleton_ci_drift_gate_passed)
+        + ", runtime_skeleton_boundary_validated="
+        + b(summary.runtime_skeleton_boundary_validated)
+        + ", offline_fixture_validator_invoked="
+        + b(summary.offline_fixture_validator_invoked)
+        + ", offline_fixture_validator_passed="
+        + b(summary.offline_fixture_validator_passed)
+        + ", capture_policy_gate_invoked="
+        + b(summary.capture_policy_gate_invoked)
+        + ", capture_policy_gate_passed="
+        + b(summary.capture_policy_gate_passed)
+        + ", dry_run_validator_invoked="
+        + b(summary.dry_run_validator_invoked)
+        + ", dry_run_validator_passed="
+        + b(summary.dry_run_validator_passed)
+        + ", wrapper_validation_checked="
+        + b(summary.wrapper_validation_checked)
+        + ", wrapper_validation_passed="
+        + b(summary.wrapper_validation_passed)
+        + ", future_no_client_capture_execution_implementation_allowed_next="
+        + b(summary
+                .future_no_client_capture_execution_implementation_allowed_next)
+        + ", capture_execution_allowed_now="
+        + b(summary.capture_execution_allowed_now)
+        + ", capture_runtime_allowed_now="
+        + b(summary.capture_runtime_allowed_now)
+        + ", socket_open_allowed_now=" + b(summary.socket_open_allowed_now)
+        + ", loopback_socket_allowed_now="
+        + b(summary.loopback_socket_allowed_now)
+        + ", public_socket_allowed_now="
+        + b(summary.public_socket_allowed_now)
+        + ", lan_socket_allowed_now=" + b(summary.lan_socket_allowed_now)
+        + ", datagram_send_allowed_now="
+        + b(summary.datagram_send_allowed_now)
+        + ", datagram_receive_allowed_now="
+        + b(summary.datagram_receive_allowed_now)
+        + ", real_client_allowed_now="
+        + b(summary.real_client_allowed_now)
+        + ", connect_path_allowed_now="
+        + b(summary.connect_path_allowed_now)
+        + ", post_connect_serverinfo_allowed_now="
+        + b(summary.post_connect_serverinfo_allowed_now)
+        + ", signon_serverinfo_allowed_now="
+        + b(summary.signon_serverinfo_allowed_now)
+        + ", netchan_runtime_allowed_now="
+        + b(summary.netchan_runtime_allowed_now)
+        + ", qport_evidence_promotion_allowed_now="
+        + b(summary.qport_evidence_promotion_allowed_now)
+        + ", compatibility_claim_expansion_allowed_now="
+        + b(summary.compatibility_claim_expansion_allowed_now)
+        + ", capture_allowed_now=" + b(summary.capture_allowed_now)
+        + ", capture_blocked_by_policy="
+        + b(summary.capture_blocked_by_policy)
+        + ", capture_block_reason=" + summary.capture_block_reason
+        + ", capture_implementation_added="
+        + b(summary.capture_implementation_added)
+        + ", capture_execution_request_detected="
+        + b(summary.capture_execution_request_detected)
+        + ", capture_runtime_request_detected="
+        + b(summary.capture_runtime_request_detected)
+        + ", capture_executed=" + b(summary.capture_executed)
+        + ", capture_runtime_executed="
+        + b(summary.capture_runtime_executed)
+        + ", socket_open_request_detected="
+        + b(summary.socket_open_request_detected)
+        + ", loopback_socket_request_detected="
+        + b(summary.loopback_socket_request_detected)
+        + ", public_lan_request_detected="
+        + b(summary.public_lan_request_detected)
+        + ", datagram_send_request_detected="
+        + b(summary.datagram_send_request_detected)
+        + ", datagram_receive_request_detected="
+        + b(summary.datagram_receive_request_detected)
+        + ", datagram_sent=" + b(summary.datagram_sent)
+        + ", datagram_received=" + b(summary.datagram_received)
+        + ", real_client_request_detected="
+        + b(summary.real_client_request_detected)
+        + ", connect_or_signon_request_detected="
+        + b(summary.connect_or_signon_request_detected)
+        + ", netchan_runtime_request_detected="
+        + b(summary.netchan_runtime_request_detected)
+        + ", qport_evidence_promotion_requested="
+        + b(summary.qport_evidence_promotion_requested)
+        + ", compatibility_claim_expansion_requested="
+        + b(summary.compatibility_claim_expansion_requested)
+        + ", qport_session_byte_evidence_sufficient="
+        + b(summary.qport_session_byte_evidence_sufficient)
+        + ", byte_level_qport_session_evidence_sufficient="
+        + b(summary.byte_level_qport_session_evidence_sufficient)
+        + ", address_scoped_challenge_reusable_as_diagnostic_prerequisite="
+        + b(summary
+                .address_scoped_challenge_reusable_as_diagnostic_prerequisite)
+        + ", address_scoped_challenge_reusable_as_real_netchan_proof="
+        + b(summary.address_scoped_challenge_reusable_as_real_netchan_proof)
+        + ", real_steam_client_used=" + b(summary.real_steam_client_used)
+        + ", real_client_binary_invoked="
+        + b(summary.real_client_binary_invoked)
+        + ", no_real_client_gate_passed="
+        + b(summary.no_real_client_gate_passed)
+        + ", socket_open_attempted=" + b(summary.socket_open_attempted)
+        + ", public_socket_opened=" + b(summary.public_socket_opened)
+        + ", lan_socket_opened=" + b(summary.lan_socket_opened)
+        + ", loopback_udp_socket_opened="
+        + b(summary.loopback_udp_socket_opened)
+        + ", connect_path_invoked=" + b(summary.connect_path_invoked)
+        + ", post_connect_serverinfo_path_invoked="
+        + b(summary.post_connect_serverinfo_path_invoked)
+        + ", signon_serverinfo_path_invoked="
+        + b(summary.signon_serverinfo_path_invoked)
+        + ", netchan_runtime_started="
+        + b(summary.netchan_runtime_started)
+        + ", normal_host_behavior_changed="
+        + b(summary.normal_host_behavior_changed)
         + ", recommended_next_prompt_id=" + summary.recommended_next_prompt_id
         + ", recommended_next_task=" + summary.recommended_next_task
         + ", auth=" + summary.auth
@@ -59580,6 +59742,16 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 BuildHldsQportSessionCaptureExecutionFinalPolicyGateLine(
                     summary
                         .hlds_qport_session_capture_execution_final_policy_gate));
+        }
+        if (summary
+                .hlds_qport_session_no_client_capture_execution_skeleton
+                .enabled)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                BuildHldsQportSessionNoClientCaptureExecutionSkeletonLine(
+                    summary
+                        .hlds_qport_session_no_client_capture_execution_skeleton));
         }
         if (summary.hlds_serverinfo_contract_backed_diagnostic_path_integration.enabled)
         {
@@ -223888,6 +224060,562 @@ void PerformHldsQportSessionCaptureExecutionFinalPolicyGate()
         probe.enabled);
 }
 
+void RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+    hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary*
+        summary,
+    std::string_view reason)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->accepted = 0;
+    summary->rejected = 1;
+    summary->last_reject_reason = std::string(reason);
+    summary->execution_plan_created = false;
+    summary->execution_plan_validated = false;
+}
+
+void SeedHldsQportSessionNoClientCaptureExecutionSkeletonSummary(
+    hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary*
+        summary,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->enabled = true;
+    summary->mode = std::string(mode);
+    summary->scenario = std::string(scenario);
+    summary->compatibility_claim_level =
+        "diagnostic-qport-session-no-client-capture-execution-skeleton-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed";
+    summary->diagnostic_only = true;
+    summary->execution_skeleton_enabled =
+        probe_enabled && scenario != "gate_disabled_by_default";
+    summary->execution_skeleton_disabled_by_default = true;
+    summary->execution_skeleton_added =
+        summary->execution_skeleton_enabled;
+    summary->execution_plan_created = false;
+    summary->execution_plan_validated = false;
+    summary->future_no_client_capture_execution_implementation_allowed_next =
+        false;
+    summary->capture_execution_allowed_now = false;
+    summary->capture_runtime_allowed_now = false;
+    summary->socket_open_allowed_now = false;
+    summary->loopback_socket_allowed_now = false;
+    summary->public_socket_allowed_now = false;
+    summary->lan_socket_allowed_now = false;
+    summary->datagram_send_allowed_now = false;
+    summary->datagram_receive_allowed_now = false;
+    summary->real_client_allowed_now = false;
+    summary->connect_path_allowed_now = false;
+    summary->post_connect_serverinfo_allowed_now = false;
+    summary->signon_serverinfo_allowed_now = false;
+    summary->netchan_runtime_allowed_now = false;
+    summary->qport_evidence_promotion_allowed_now = false;
+    summary->compatibility_claim_expansion_allowed_now = false;
+    summary->capture_allowed_now = false;
+    summary->capture_blocked_by_policy = true;
+    summary->capture_block_reason = "capture_implementation_not_allowed_yet";
+    summary->capture_implementation_added = false;
+    summary->capture_execution_request_detected = false;
+    summary->capture_runtime_request_detected = false;
+    summary->capture_executed = false;
+    summary->capture_runtime_executed = false;
+    summary->socket_open_request_detected = false;
+    summary->loopback_socket_request_detected = false;
+    summary->public_lan_request_detected = false;
+    summary->datagram_send_request_detected = false;
+    summary->datagram_receive_request_detected = false;
+    summary->datagram_sent = false;
+    summary->datagram_received = false;
+    summary->real_client_request_detected = false;
+    summary->connect_or_signon_request_detected = false;
+    summary->netchan_runtime_request_detected = false;
+    summary->qport_evidence_promotion_requested = false;
+    summary->compatibility_claim_expansion_requested = false;
+    summary->qport_session_byte_evidence_sufficient = false;
+    summary->byte_level_qport_session_evidence_sufficient = false;
+    summary->address_scoped_challenge_reusable_as_diagnostic_prerequisite =
+        true;
+    summary->address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    summary->real_steam_client_used = false;
+    summary->real_client_binary_invoked = false;
+    summary->no_real_client_gate_passed = false;
+    summary->socket_open_attempted = false;
+    summary->public_socket_opened = false;
+    summary->lan_socket_opened = false;
+    summary->loopback_udp_socket_opened = false;
+    summary->connect_path_invoked = false;
+    summary->post_connect_serverinfo_path_invoked = false;
+    summary->signon_serverinfo_path_invoked = false;
+    summary->netchan_runtime_started = false;
+    summary->normal_host_behavior_changed = false;
+    summary->auth = "not_started";
+    summary->signon = "not_started";
+    summary->gameplay_transport = "not_started";
+    summary->recommended_next_prompt_id =
+        "HL-CL-20260504-324-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-release-boundary-summary";
+    summary->recommended_next_task =
+        "summarize the disabled-by-default qport/session no-client capture execution skeleton boundary after all gates pass while execution, sockets, datagrams, real clients, runtime stages, qport evidence, and compatibility expansion remain blocked";
+}
+
+void CopyHldsQportSessionNoClientCaptureExecutionSkeletonFieldsFromFinalPolicy(
+    const hl::game_api::HldsQportSessionCaptureExecutionFinalPolicyGateSummary&
+        policy,
+    hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary*
+        summary)
+{
+    if (summary == nullptr)
+    {
+        return;
+    }
+
+    summary->final_execution_policy_gate_invoked = true;
+    summary->final_execution_policy_gate_passed =
+        policy.accepted == 1 && policy.final_execution_policy_gate_passed;
+    summary->runtime_skeleton_ci_drift_gate_invoked =
+        policy.runtime_skeleton_ci_drift_gate_invoked;
+    summary->runtime_skeleton_ci_drift_gate_passed =
+        policy.runtime_skeleton_ci_drift_gate_passed;
+    summary->runtime_skeleton_boundary_validated =
+        policy.runtime_skeleton_boundary_validated;
+    summary->offline_fixture_validator_invoked =
+        policy.offline_fixture_validator_invoked;
+    summary->offline_fixture_validator_passed =
+        policy.offline_fixture_validator_passed;
+    summary->capture_policy_gate_invoked =
+        policy.capture_policy_gate_invoked;
+    summary->capture_policy_gate_passed =
+        policy.capture_policy_gate_passed;
+    summary->dry_run_validator_invoked =
+        policy.dry_run_validator_invoked;
+    summary->dry_run_validator_passed =
+        policy.dry_run_validator_passed;
+    summary->wrapper_validation_checked =
+        policy.wrapper_validation_checked;
+    summary->wrapper_validation_passed =
+        policy.wrapper_validation_passed;
+    summary->future_no_client_capture_execution_implementation_allowed_next =
+        policy
+            .future_no_client_capture_execution_implementation_allowed_next;
+    summary->capture_execution_allowed_now =
+        policy.capture_execution_allowed_now;
+    summary->capture_runtime_allowed_now =
+        policy.capture_runtime_allowed_now;
+    summary->socket_open_allowed_now = policy.socket_open_allowed_now;
+    summary->loopback_socket_allowed_now =
+        policy.loopback_socket_allowed_now;
+    summary->public_socket_allowed_now =
+        policy.public_socket_allowed_now;
+    summary->lan_socket_allowed_now = policy.lan_socket_allowed_now;
+    summary->datagram_send_allowed_now =
+        policy.datagram_send_allowed_now;
+    summary->datagram_receive_allowed_now =
+        policy.datagram_receive_allowed_now;
+    summary->real_client_allowed_now = policy.real_client_allowed_now;
+    summary->connect_path_allowed_now = policy.connect_path_allowed_now;
+    summary->post_connect_serverinfo_allowed_now =
+        policy.post_connect_serverinfo_allowed_now;
+    summary->signon_serverinfo_allowed_now =
+        policy.signon_serverinfo_allowed_now;
+    summary->netchan_runtime_allowed_now =
+        policy.netchan_runtime_allowed_now;
+    summary->qport_evidence_promotion_allowed_now =
+        policy.qport_evidence_promotion_allowed_now;
+    summary->compatibility_claim_expansion_allowed_now =
+        policy.compatibility_claim_expansion_allowed_now;
+    summary->capture_allowed_now = policy.capture_allowed_now;
+    summary->capture_blocked_by_policy =
+        policy.capture_blocked_by_policy;
+    summary->capture_block_reason = policy.capture_block_reason;
+    summary->capture_implementation_added =
+        policy.capture_implementation_added;
+    summary->capture_executed = policy.capture_executed;
+    summary->capture_runtime_executed =
+        policy.capture_runtime_executed;
+    summary->datagram_sent = policy.datagram_sent;
+    summary->datagram_received = policy.datagram_received;
+    summary->qport_session_byte_evidence_sufficient =
+        policy.qport_session_byte_evidence_sufficient;
+    summary->byte_level_qport_session_evidence_sufficient =
+        policy.byte_level_qport_session_evidence_sufficient;
+    summary->address_scoped_challenge_reusable_as_diagnostic_prerequisite =
+        policy
+            .address_scoped_challenge_reusable_as_diagnostic_prerequisite;
+    summary->address_scoped_challenge_reusable_as_real_netchan_proof =
+        policy.address_scoped_challenge_reusable_as_real_netchan_proof;
+    summary->real_steam_client_used = policy.real_steam_client_used;
+    summary->real_client_binary_invoked =
+        policy.real_client_binary_invoked;
+    summary->socket_open_attempted = policy.socket_open_attempted;
+    summary->public_socket_opened = policy.public_socket_opened;
+    summary->lan_socket_opened = policy.lan_socket_opened;
+    summary->loopback_udp_socket_opened =
+        policy.loopback_udp_socket_opened;
+    summary->connect_path_invoked = policy.connect_path_invoked;
+    summary->post_connect_serverinfo_path_invoked =
+        policy.post_connect_serverinfo_path_invoked;
+    summary->signon_serverinfo_path_invoked =
+        policy.signon_serverinfo_path_invoked;
+    summary->netchan_runtime_started =
+        policy.netchan_runtime_started;
+    summary->normal_host_behavior_changed =
+        policy.normal_host_behavior_changed;
+}
+
+bool HldsQportSessionNoClientCaptureExecutionSkeletonSafetyInvariantHolds(
+    const hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary&
+        summary)
+{
+    return !summary.capture_execution_allowed_now
+        && !summary.capture_runtime_allowed_now
+        && !summary.socket_open_allowed_now
+        && !summary.loopback_socket_allowed_now
+        && !summary.public_socket_allowed_now
+        && !summary.lan_socket_allowed_now
+        && !summary.datagram_send_allowed_now
+        && !summary.datagram_receive_allowed_now
+        && !summary.real_client_allowed_now
+        && !summary.connect_path_allowed_now
+        && !summary.post_connect_serverinfo_allowed_now
+        && !summary.signon_serverinfo_allowed_now
+        && !summary.netchan_runtime_allowed_now
+        && !summary.qport_evidence_promotion_allowed_now
+        && !summary.compatibility_claim_expansion_allowed_now
+        && !summary.capture_allowed_now
+        && summary.capture_blocked_by_policy
+        && !summary.capture_implementation_added
+        && !summary.capture_execution_request_detected
+        && !summary.capture_runtime_request_detected
+        && !summary.capture_executed
+        && !summary.capture_runtime_executed
+        && !summary.socket_open_request_detected
+        && !summary.loopback_socket_request_detected
+        && !summary.public_lan_request_detected
+        && !summary.datagram_send_request_detected
+        && !summary.datagram_receive_request_detected
+        && !summary.datagram_sent
+        && !summary.datagram_received
+        && !summary.real_client_request_detected
+        && !summary.connect_or_signon_request_detected
+        && !summary.netchan_runtime_request_detected
+        && !summary.qport_evidence_promotion_requested
+        && !summary.compatibility_claim_expansion_requested
+        && !summary.qport_session_byte_evidence_sufficient
+        && !summary.byte_level_qport_session_evidence_sufficient
+        && summary.address_scoped_challenge_reusable_as_diagnostic_prerequisite
+        && !summary.address_scoped_challenge_reusable_as_real_netchan_proof
+        && !summary.real_steam_client_used
+        && !summary.real_client_binary_invoked
+        && !summary.socket_open_attempted
+        && !summary.public_socket_opened
+        && !summary.lan_socket_opened
+        && !summary.loopback_udp_socket_opened
+        && !summary.connect_path_invoked
+        && !summary.post_connect_serverinfo_path_invoked
+        && !summary.signon_serverinfo_path_invoked
+        && !summary.netchan_runtime_started
+        && !summary.normal_host_behavior_changed;
+}
+
+hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+RunHldsQportSessionNoClientCaptureExecutionSkeleton(
+    const hl::filesystem::FileSystem& file_system,
+    std::string_view mode,
+    std::string_view scenario,
+    bool probe_enabled)
+{
+    hl::game_api::HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+        summary;
+    SeedHldsQportSessionNoClientCaptureExecutionSkeletonSummary(
+        &summary,
+        mode,
+        scenario,
+        probe_enabled);
+
+    if (scenario == "gate_disabled_by_default")
+    {
+        summary.execution_skeleton_enabled = false;
+        summary.execution_skeleton_added = false;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "qport_session_execution_skeleton_disabled");
+        summary.detail =
+            "qport/session no-client capture execution skeleton stayed disabled without explicit diagnostic probe mode";
+        return summary;
+    }
+
+    const std::string final_policy_scenario =
+        scenario == "gate_final_execution_policy_gate_required"
+            ? "gate_disabled_by_default"
+        : scenario == "gate_runtime_skeleton_ci_required"
+            ? "gate_runtime_skeleton_ci_required"
+        : scenario == "gate_runtime_skeleton_boundary_required"
+            ? "gate_runtime_skeleton_boundary_required"
+        : scenario == "gate_offline_validator_required"
+            ? "gate_offline_validator_required"
+        : scenario == "gate_capture_policy_gate_required"
+            ? "gate_capture_policy_gate_required"
+        : scenario == "gate_dry_run_validator_required"
+            ? "gate_dry_run_validator_required"
+        : scenario == "gate_wrapper_validation_required"
+            ? "gate_wrapper_validation_required"
+            : "happy";
+
+    if (scenario != "gate_final_execution_policy_gate_required")
+    {
+        const auto final_policy =
+            RunHldsQportSessionCaptureExecutionFinalPolicyGate(
+                file_system,
+                mode,
+                final_policy_scenario,
+                true);
+        CopyHldsQportSessionNoClientCaptureExecutionSkeletonFieldsFromFinalPolicy(
+            final_policy,
+            &summary);
+    }
+
+    if (scenario == "gate_final_execution_policy_gate_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "final_execution_policy_gate_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without final execution policy gate approval";
+        return summary;
+    }
+    if (scenario == "gate_runtime_skeleton_ci_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "runtime_skeleton_ci_drift_gate_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without runtime skeleton CI drift gate reuse";
+        return summary;
+    }
+    if (scenario == "gate_runtime_skeleton_boundary_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "runtime_skeleton_boundary_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without runtime skeleton boundary validation";
+        return summary;
+    }
+    if (scenario == "gate_offline_validator_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "offline_fixture_validator_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without offline fixture validation";
+        return summary;
+    }
+    if (scenario == "gate_capture_policy_gate_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "capture_policy_gate_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without no-client capture policy gate approval";
+        return summary;
+    }
+    if (scenario == "gate_dry_run_validator_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "dry_run_validator_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without dry-run validator approval";
+        return summary;
+    }
+    if (scenario == "gate_wrapper_validation_required")
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "wrapper_validation_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected a plan without wrapper validation";
+        return summary;
+    }
+
+    if (!summary.final_execution_policy_gate_passed)
+    {
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "final_execution_policy_gate_required");
+        summary.detail =
+            "qport/session no-client capture execution skeleton rejected because final execution policy gate did not pass";
+        return summary;
+    }
+
+    if (scenario == "gate_execution_request_blocked")
+    {
+        summary.capture_execution_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "capture_execution_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_capture_runtime_request_blocked")
+    {
+        summary.capture_runtime_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "capture_runtime_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_socket_open_request_blocked")
+    {
+        summary.socket_open_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "socket_open_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_loopback_socket_request_blocked")
+    {
+        summary.loopback_socket_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "loopback_socket_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_public_lan_request_blocked")
+    {
+        summary.public_lan_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "public_lan_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_datagram_send_request_blocked")
+    {
+        summary.datagram_send_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "datagram_send_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_datagram_receive_request_blocked")
+    {
+        summary.datagram_receive_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "datagram_receive_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_real_client_request_blocked")
+    {
+        summary.real_client_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "real_client_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_connect_signon_request_blocked")
+    {
+        summary.connect_or_signon_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "connect_postconnect_signon_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_netchan_runtime_request_blocked")
+    {
+        summary.netchan_runtime_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "netchan_runtime_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_qport_evidence_promotion_request_blocked")
+    {
+        summary.qport_evidence_promotion_requested = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "qport_evidence_promotion_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_compatibility_claim_request_blocked")
+    {
+        summary.compatibility_claim_expansion_requested = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "compatibility_claim_expansion_not_allowed_in_execution_skeleton");
+    }
+    else if (scenario == "gate_public_socket_blocked")
+    {
+        summary.public_lan_request_detected = true;
+        RejectHldsQportSessionNoClientCaptureExecutionSkeleton(
+            &summary,
+            "public_socket_blocked");
+    }
+    else
+    {
+        summary.execution_plan_created = true;
+        summary.execution_plan_validated =
+            summary.final_execution_policy_gate_passed
+            && summary.runtime_skeleton_ci_drift_gate_passed
+            && summary.runtime_skeleton_boundary_validated
+            && summary.offline_fixture_validator_passed
+            && summary.capture_policy_gate_passed
+            && summary.dry_run_validator_passed
+            && summary.wrapper_validation_passed
+            && HldsQportSessionNoClientCaptureExecutionSkeletonSafetyInvariantHolds(
+                summary);
+        summary.accepted = summary.execution_plan_validated ? 1 : 0;
+        summary.rejected = summary.execution_plan_validated ? 0 : 1;
+        summary.last_reject_reason = summary.execution_plan_validated
+            ? "<none>"
+            : "qport_session_execution_skeleton_plan_invalid";
+        if (scenario == "gate_no_real_client_used")
+        {
+            summary.no_real_client_gate_passed =
+                !summary.real_steam_client_used
+                && !summary.real_client_binary_invoked;
+            summary.execution_plan_validated =
+                summary.execution_plan_validated
+                && summary.no_real_client_gate_passed;
+            summary.accepted = summary.execution_plan_validated ? 1 : 0;
+            summary.rejected = summary.execution_plan_validated ? 0 : 1;
+            summary.last_reject_reason = summary.execution_plan_validated
+                ? "<none>"
+                : "real_client_not_allowed_in_execution_skeleton";
+        }
+    }
+
+    if (summary.rejected == 1)
+    {
+        summary.execution_plan_created = false;
+        summary.execution_plan_validated = false;
+    }
+
+    summary.detail =
+        "qport/session no-client capture execution skeleton read validated final execution policy, runtime skeleton CI drift, runtime skeleton boundary, offline fixture, capture policy, dry-run, and wrapper surfaces only; it creates an execution-skeleton-only plan while capture execution, capture runtime, sockets, loopback sockets, public/LAN exposure, datagrams, real clients, connect/post-connect/signon, netchan, qport evidence promotion, and compatibility expansion remain blocked";
+    return summary;
+}
+
+void PerformHldsQportSessionNoClientCaptureExecutionSkeleton()
+{
+    EngineShimState& state = CurrentShimState();
+    auto& probe =
+        state.hlds_qport_session_no_client_capture_execution_skeleton;
+    if (!state.server_state.dedicated || !probe.enabled)
+    {
+        return;
+    }
+
+    const std::string scenario =
+        state
+                .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario
+                .empty()
+        ? "happy"
+        : state
+              .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario;
+
+    probe = RunHldsQportSessionNoClientCaptureExecutionSkeleton(
+        state.file_system,
+        state.server_state.dedicated ? "dedicated" : "listen",
+        scenario,
+        probe.enabled);
+}
+
 void CopyHldsServerinfoBuilderParserToPathIntegration(
     const hl::game_api::HldsServerinfoContractBackedDiagnosticBuilderParserSummary&
         builder,
@@ -256304,6 +257032,7 @@ void PopulateBootstrapSummary(
     summary.hlds_qport_session_no_client_capture_runtime_skeleton = {};
     summary.hlds_qport_session_runtime_skeleton_ci_drift_gate = {};
     summary.hlds_qport_session_capture_execution_final_policy_gate = {};
+    summary.hlds_qport_session_no_client_capture_execution_skeleton = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_path_integration = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap = {};
     summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap_probe =
@@ -257461,6 +258190,8 @@ void PopulateBootstrapSummary(
             state.hlds_qport_session_runtime_skeleton_ci_drift_gate;
         summary.hlds_qport_session_capture_execution_final_policy_gate =
             state.hlds_qport_session_capture_execution_final_policy_gate;
+        summary.hlds_qport_session_no_client_capture_execution_skeleton =
+            state.hlds_qport_session_no_client_capture_execution_skeleton;
         summary.hlds_serverinfo_contract_backed_diagnostic_path_integration =
             state.hlds_serverinfo_contract_backed_diagnostic_path_integration;
         summary.hlds_serverinfo_contract_backed_diagnostic_localhost_smoke_swap =
@@ -263950,6 +264681,7 @@ void FinalizeServerBootstrapStep()
     PerformHldsQportSessionNoClientCaptureRuntimeSkeleton();
     PerformHldsQportSessionRuntimeSkeletonCiDriftGate();
     PerformHldsQportSessionCaptureExecutionFinalPolicyGate();
+    PerformHldsQportSessionNoClientCaptureExecutionSkeleton();
     PerformHldsServerinfoContractBackedDiagnosticPathIntegration();
     PerformHldsServerinfoContractBackedDiagnosticLocalhostSmokeSwap();
     PerformHldsProductionLoopbackConnectionlessSocketPumpDiagnosticSurface();
@@ -267432,6 +268164,87 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
                 == "gate_no_real_client_used"
             ? "gate_no_real_client_used"
         : qport_session_capture_execution_final_policy_gate_scenario
+                == "gate_public_socket_blocked"
+            ? "gate_public_socket_blocked"
+            : "happy";
+    impl_->shim_state
+        .hlds_qport_session_no_client_capture_execution_skeleton =
+        {};
+    impl_->shim_state
+        .hlds_qport_session_no_client_capture_execution_skeleton
+        .enabled =
+        options
+            .hlds_qport_session_no_client_capture_execution_skeleton_probe_enabled;
+    const std::string&
+        qport_session_no_client_capture_execution_skeleton_scenario =
+            options
+                .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario;
+    impl_->shim_state
+        .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario =
+        qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_disabled_by_default"
+            ? "gate_disabled_by_default"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_final_execution_policy_gate_required"
+            ? "gate_final_execution_policy_gate_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_runtime_skeleton_ci_required"
+            ? "gate_runtime_skeleton_ci_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_runtime_skeleton_boundary_required"
+            ? "gate_runtime_skeleton_boundary_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_offline_validator_required"
+            ? "gate_offline_validator_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_capture_policy_gate_required"
+            ? "gate_capture_policy_gate_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_dry_run_validator_required"
+            ? "gate_dry_run_validator_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_wrapper_validation_required"
+            ? "gate_wrapper_validation_required"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_execution_request_blocked"
+            ? "gate_execution_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_capture_runtime_request_blocked"
+            ? "gate_capture_runtime_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_socket_open_request_blocked"
+            ? "gate_socket_open_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_loopback_socket_request_blocked"
+            ? "gate_loopback_socket_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_public_lan_request_blocked"
+            ? "gate_public_lan_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_datagram_send_request_blocked"
+            ? "gate_datagram_send_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_datagram_receive_request_blocked"
+            ? "gate_datagram_receive_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_real_client_request_blocked"
+            ? "gate_real_client_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_connect_signon_request_blocked"
+            ? "gate_connect_signon_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_netchan_runtime_request_blocked"
+            ? "gate_netchan_runtime_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_qport_evidence_promotion_request_blocked"
+            ? "gate_qport_evidence_promotion_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_compatibility_claim_request_blocked"
+            ? "gate_compatibility_claim_request_blocked"
+        : qport_session_no_client_capture_execution_skeleton_scenario
+                == "gate_no_real_client_used"
+            ? "gate_no_real_client_used"
+        : qport_session_no_client_capture_execution_skeleton_scenario
                 == "gate_public_socket_blocked"
             ? "gate_public_socket_blocked"
             : "happy";

@@ -8326,6 +8326,95 @@ struct HldsQportSessionCaptureExecutionFinalPolicyGateSummary
     std::string detail;
 };
 
+struct HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+{
+    bool enabled = false;
+    std::string mode = "listen";
+    std::string scenario = "disabled";
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    std::string compatibility_claim_level = "disabled";
+    bool diagnostic_only = true;
+    bool execution_skeleton_enabled = false;
+    bool execution_skeleton_disabled_by_default = true;
+    bool execution_skeleton_added = false;
+    bool execution_plan_created = false;
+    bool execution_plan_validated = false;
+    bool final_execution_policy_gate_invoked = false;
+    bool final_execution_policy_gate_passed = false;
+    bool runtime_skeleton_ci_drift_gate_invoked = false;
+    bool runtime_skeleton_ci_drift_gate_passed = false;
+    bool runtime_skeleton_boundary_validated = false;
+    bool offline_fixture_validator_invoked = false;
+    bool offline_fixture_validator_passed = false;
+    bool capture_policy_gate_invoked = false;
+    bool capture_policy_gate_passed = false;
+    bool dry_run_validator_invoked = false;
+    bool dry_run_validator_passed = false;
+    bool wrapper_validation_checked = false;
+    bool wrapper_validation_passed = false;
+    bool future_no_client_capture_execution_implementation_allowed_next =
+        false;
+    bool capture_execution_allowed_now = false;
+    bool capture_runtime_allowed_now = false;
+    bool socket_open_allowed_now = false;
+    bool loopback_socket_allowed_now = false;
+    bool public_socket_allowed_now = false;
+    bool lan_socket_allowed_now = false;
+    bool datagram_send_allowed_now = false;
+    bool datagram_receive_allowed_now = false;
+    bool real_client_allowed_now = false;
+    bool connect_path_allowed_now = false;
+    bool post_connect_serverinfo_allowed_now = false;
+    bool signon_serverinfo_allowed_now = false;
+    bool netchan_runtime_allowed_now = false;
+    bool qport_evidence_promotion_allowed_now = false;
+    bool compatibility_claim_expansion_allowed_now = false;
+    bool capture_allowed_now = false;
+    bool capture_blocked_by_policy = false;
+    std::string capture_block_reason = "<none>";
+    bool capture_implementation_added = false;
+    bool capture_execution_request_detected = false;
+    bool capture_runtime_request_detected = false;
+    bool capture_executed = false;
+    bool capture_runtime_executed = false;
+    bool socket_open_request_detected = false;
+    bool loopback_socket_request_detected = false;
+    bool public_lan_request_detected = false;
+    bool datagram_send_request_detected = false;
+    bool datagram_receive_request_detected = false;
+    bool datagram_sent = false;
+    bool datagram_received = false;
+    bool real_client_request_detected = false;
+    bool connect_or_signon_request_detected = false;
+    bool netchan_runtime_request_detected = false;
+    bool qport_evidence_promotion_requested = false;
+    bool compatibility_claim_expansion_requested = false;
+    bool qport_session_byte_evidence_sufficient = false;
+    bool byte_level_qport_session_evidence_sufficient = false;
+    bool address_scoped_challenge_reusable_as_diagnostic_prerequisite = false;
+    bool address_scoped_challenge_reusable_as_real_netchan_proof = false;
+    bool real_steam_client_used = false;
+    bool real_client_binary_invoked = false;
+    bool no_real_client_gate_passed = false;
+    bool socket_open_attempted = false;
+    bool public_socket_opened = false;
+    bool lan_socket_opened = false;
+    bool loopback_udp_socket_opened = false;
+    bool connect_path_invoked = false;
+    bool post_connect_serverinfo_path_invoked = false;
+    bool signon_serverinfo_path_invoked = false;
+    bool netchan_runtime_started = false;
+    bool normal_host_behavior_changed = false;
+    std::string recommended_next_prompt_id = "disabled";
+    std::string recommended_next_task = "disabled";
+    std::string auth = "disabled";
+    std::string signon = "disabled";
+    std::string gameplay_transport = "disabled";
+    std::string detail;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23043,6 +23132,11 @@ struct HlServerModuleInitOptions
     std::string
         hlds_qport_session_capture_execution_final_policy_gate_probe_scenario =
             "happy";
+    bool hlds_qport_session_no_client_capture_execution_skeleton_probe_enabled =
+        false;
+    std::string
+        hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario =
+            "happy";
     bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
@@ -23935,6 +24029,8 @@ struct HlServerModuleSummary
         hlds_qport_session_runtime_skeleton_ci_drift_gate;
     HldsQportSessionCaptureExecutionFinalPolicyGateSummary
         hlds_qport_session_capture_execution_final_policy_gate;
+    HldsQportSessionNoClientCaptureExecutionSkeletonSummary
+        hlds_qport_session_no_client_capture_execution_skeleton;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
