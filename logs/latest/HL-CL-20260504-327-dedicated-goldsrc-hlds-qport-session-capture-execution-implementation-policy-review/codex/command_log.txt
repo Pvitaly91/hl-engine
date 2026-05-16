@@ -1,0 +1,17 @@
+git status --short --branch
+git rev-parse HEAD; git branch --show-current
+git merge-base --is-ancestor <prompt-323-through-326 refs> HEAD
+Get-Content prompt 326 summary, execution skeleton CI manifest, stable release docs, prompt 321 policy review
+apply_patch add docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md
+git diff --check -- docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md
+ConvertFrom-Json policy/dry-run/runtime-skeleton-ci/execution-skeleton-ci/p326 summary
+rg qport_session/execution implementation policy/future_minimal_no_client_execution_implementation_allowed_next/safety blocker terms
+git add docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md
+git commit -m "docs: review qport session execution implementation policy"
+Generate prompt 327 artifact bundle
+JSON validation for prompt 327 policy summary artifact
+git status before and after artifact generation
+git diff --check
+git add -f prompt 327 artifacts
+git commit artifact bundle
+git push origin codex/HL-CL-20260401-081-target-runtime-completion-state
