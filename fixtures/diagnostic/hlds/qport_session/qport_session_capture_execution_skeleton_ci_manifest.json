@@ -1,0 +1,158 @@
+{
+  "prompt_id": "HL-CL-20260504-325-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-ci-manifest-and-drift-gate",
+  "boundary_name": "qport_session_capture_execution_skeleton_boundary",
+  "compatibility_claim_level": "diagnostic-qport-session-execution-skeleton-ci-manifest-drift-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "covered_prompt_start": 304,
+  "covered_prompt_end": 324,
+  "focused_execution_skeleton_prompt": 323,
+  "execution_skeleton_source_commit": "8d85c47e73758a0970c7242fa8eecf621f3fd9ce",
+  "execution_skeleton_artifact_commit": "c08bdd9b3091f4186c2115cf46f4449bae55def5",
+  "final_execution_policy_gate_source_commit": "700a7380d7570588532c129d625d88177b692632",
+  "runtime_skeleton_ci_source_commit": "5804ca4961ef3a843a2604deb28c95e9439a6112",
+  "fixture_root": "fixtures/diagnostic/hlds/qport_session",
+  "policy_file_path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+  "dry_run_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json",
+  "shell_ci_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json",
+  "runtime_skeleton_ci_manifest_path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json",
+  "wrapper_script_file": "scripts/run_hlds_qport_session_capture_dry_run.ps1",
+  "execution_skeleton_release_doc_file": "docs/diagnostic/hlds/qport_session_capture_execution_skeleton_release_boundary_summary.md",
+  "execution_skeleton_summary_artifact_file": "logs/latest/HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default/codex/qport_session_capture_execution_skeleton_summary.json",
+  "fixture_hashes": [
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/diagnostic_endpoint_challenge_prerequisite.json",
+      "sha256": "94f567b998e11f68761e836d0d9530baf2ba398a2a7a0e2feee1e12b09dcdc04",
+      "fnv1a64": "477664f8270b63be",
+      "bytes": 2227
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_public_socket_claim.json",
+      "sha256": "f2be01389262526f5430a53a51c5f00297f1df5e1bf5235b96ba5592e5cf1339",
+      "fnv1a64": "a64168e2c0c66741",
+      "bytes": 1771
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_qport_promoted_without_byte_evidence.json",
+      "sha256": "4b68d4b4ebbdcc285774fc69c4f45d84ad8f1c49be5df7ed0570e60d0accabe4",
+      "fnv1a64": "a3dc3b265066d291",
+      "bytes": 2159
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/invalid_real_client_claim.json",
+      "sha256": "e885535b523017f53835be8fdeccf8b2ca5fd4f10006cf699cca76d6ebddf58d",
+      "fnv1a64": "673f24fea7c088bf",
+      "bytes": 1812
+    },
+    {
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures/qport_session_unresolved.json",
+      "sha256": "fb6ebc0c2aa5bd39da9879fb35edfccf9988c2e2f7362d843625dde603d5ffdc",
+      "fnv1a64": "69f5545193182b43",
+      "bytes": 2178
+    }
+  ],
+  "policy_file_hash": {
+    "path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+    "sha256": "2f4aad0cd6084186d6ca3f520eda4a221164b4eb9548005130ba679a1b23ec7e",
+    "fnv1a64": "879c0268f4fa00fb",
+    "bytes": 8137
+  },
+  "dry_run_manifest_hash": {
+    "path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json",
+    "sha256": "f41bdd4d34f0b9e006c8ce10e75fb3bcc7e555361666ad09ac8ec530391fdca8",
+    "fnv1a64": "f3f729a664fa8204",
+    "bytes": 13768
+  },
+  "runtime_skeleton_ci_manifest_hash": {
+    "path": "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json",
+    "sha256": "535259e8240d12eae7fcfae36a65c5f2c5ecf817ef6633a2bbc73e9bcb1ab436",
+    "bytes": 7048
+  },
+  "wrapper_script_hash": {
+    "path": "scripts/run_hlds_qport_session_capture_dry_run.ps1",
+    "sha256": "c5a3648cd07a32e9a6f90916347c438f5ef7f1b9dfc8ab7cdb45c1187f522444",
+    "fnv1a64": "fb57bd8e4aa7b1ed",
+    "bytes": 25764
+  },
+  "execution_skeleton_release_doc_hash": {
+    "path": "docs/diagnostic/hlds/qport_session_capture_execution_skeleton_release_boundary_summary.md",
+    "sha256": "cf4e6fe77ff03caec4fa3e71576ee998c9cb6d35ef2c74523b54248e940e6a9d",
+    "bytes": 15105
+  },
+  "execution_skeleton_summary_artifact_hash": {
+    "path": "logs/latest/HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default/codex/qport_session_capture_execution_skeleton_summary.json",
+    "sha256": "7b5c57c58e949c688f057c1facbe8242ae327c167a96408aec2b26e461e3438d",
+    "bytes": 17902
+  },
+  "required_positive_fields": {
+    "execution_skeleton_added": 1,
+    "execution_plan_created": 1,
+    "execution_plan_validated": 1,
+    "final_execution_policy_gate_passed": 1,
+    "runtime_skeleton_ci_drift_gate_passed": 1,
+    "runtime_skeleton_boundary_validated": 1,
+    "offline_fixture_validator_passed": 1,
+    "capture_policy_gate_passed": 1,
+    "dry_run_validator_passed": 1,
+    "wrapper_validation_passed": 1
+  },
+  "required_blocked_fields": {
+    "capture_execution_allowed_now": 0,
+    "capture_runtime_allowed_now": 0,
+    "socket_open_allowed_now": 0,
+    "loopback_socket_allowed_now": 0,
+    "public_socket_allowed_now": 0,
+    "lan_socket_allowed_now": 0,
+    "datagram_send_allowed_now": 0,
+    "datagram_receive_allowed_now": 0,
+    "real_client_allowed_now": 0,
+    "connect_path_allowed_now": 0,
+    "post_connect_serverinfo_allowed_now": 0,
+    "signon_serverinfo_allowed_now": 0,
+    "netchan_runtime_allowed_now": 0,
+    "qport_evidence_promotion_allowed_now": 0,
+    "compatibility_claim_expansion_allowed_now": 0,
+    "capture_allowed_now": 0,
+    "capture_implementation_added": 0,
+    "capture_executed": 0,
+    "capture_runtime_executed": 0,
+    "datagram_sent": 0,
+    "datagram_received": 0,
+    "qport_session_byte_evidence_sufficient": 0,
+    "byte_level_qport_session_evidence_sufficient": 0,
+    "address_scoped_challenge_reusable_as_real_netchan_proof": 0,
+    "real_steam_client_used": 0,
+    "real_client_binary_invoked": 0,
+    "socket_open_attempted": 0,
+    "public_socket_opened": 0,
+    "lan_socket_opened": 0,
+    "loopback_udp_socket_opened": 0,
+    "connect_path_invoked": 0,
+    "post_connect_serverinfo_path_invoked": 0,
+    "signon_serverinfo_path_invoked": 0,
+    "netchan_runtime_started": 0,
+    "normal_host_behavior_changed": 0
+  },
+  "forbidden_drift": [
+    "execution skeleton no longer disabled by default",
+    "execution skeleton no longer requires final execution policy gate",
+    "execution skeleton no longer requires runtime skeleton CI drift gate",
+    "execution skeleton no longer requires offline validator, capture policy gate, dry-run validator, or wrapper validation",
+    "capture_execution_allowed_now becomes 1",
+    "capture_runtime_allowed_now becomes 1",
+    "socket_open_allowed_now becomes 1",
+    "loopback_socket_allowed_now becomes 1",
+    "datagram_send_allowed_now becomes 1",
+    "datagram_receive_allowed_now becomes 1",
+    "capture_executed becomes 1",
+    "capture_runtime_executed becomes 1",
+    "datagram send or receive becomes 1",
+    "socket_open_attempted becomes 1",
+    "public, LAN, or loopback socket opened",
+    "real client or Steam used",
+    "connect, post-connect, signon, or netchan runtime starts",
+    "qport/session byte evidence promoted",
+    "address-scoped challenge promoted to real netchan proof",
+    "compatibility claim expanded"
+  ],
+  "recommended_next_prompt_id": "HL-CL-20260504-326-dedicated-goldsrc-hlds-qport-session-execution-skeleton-wrapper-ci-release-summary",
+  "recommended_next_task": "summarize the qport/session execution skeleton wrapper and CI drift gate boundary after manifest drift checks pass"
+}

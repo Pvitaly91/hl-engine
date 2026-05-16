@@ -22693,6 +22693,14 @@ bool HostApplication::RunServerEngineShim(
         options
             .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario;
     init_options
+        .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_enabled =
+        options
+            .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_enabled;
+    init_options
+        .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_scenario =
+        options
+            .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_scenario;
+    init_options
         .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
         options
             .hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled;
@@ -24317,6 +24325,15 @@ bool HostApplication::RunServerEngineShim(
         + ", hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario="
         + init_options
               .hlds_qport_session_no_client_capture_execution_skeleton_probe_scenario
+        + ", hlds_qport_session_execution_skeleton_ci_drift_gate_probe="
+        + std::string(
+            init_options
+                    .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_enabled
+                ? "1"
+                : "0")
+        + ", hlds_qport_session_execution_skeleton_ci_drift_gate_probe_scenario="
+        + init_options
+              .hlds_qport_session_execution_skeleton_ci_drift_gate_probe_scenario
         + ", hlds_serverinfo_contract_backed_diagnostic_path_integration_probe="
         + std::string(
             init_options
