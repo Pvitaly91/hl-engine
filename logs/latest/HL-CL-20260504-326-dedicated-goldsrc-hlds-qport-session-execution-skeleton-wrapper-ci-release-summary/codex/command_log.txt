@@ -1,0 +1,17 @@
+git status --short --branch
+git rev-parse HEAD; git branch --show-current
+git merge-base --is-ancestor <prompt-322-through-325 refs> HEAD
+Get-Content execution skeleton CI manifest / prompt 325 drift summary / release docs
+apply_patch add docs/diagnostic/hlds/qport_session_execution_skeleton_wrapper_ci_release_summary.md
+git diff --check -- docs/diagnostic/hlds/qport_session_execution_skeleton_wrapper_ci_release_summary.md
+ConvertFrom-Json policy/dry-run/runtime-skeleton-ci/execution-skeleton-ci/p325 summary
+rg qport_session/execution skeleton/CI manifest/drift gate/safety blocker terms
+git add docs/diagnostic/hlds/qport_session_execution_skeleton_wrapper_ci_release_summary.md
+git commit -m "docs: summarize qport session execution skeleton ci boundary"
+Generate prompt 326 artifact bundle
+JSON validation for prompt 326 release summary artifact
+git status before and after artifact generation
+git diff --check
+git add prompt 326 artifacts
+git commit artifact bundle
+git push origin codex/HL-CL-20260401-081-target-runtime-completion-state
