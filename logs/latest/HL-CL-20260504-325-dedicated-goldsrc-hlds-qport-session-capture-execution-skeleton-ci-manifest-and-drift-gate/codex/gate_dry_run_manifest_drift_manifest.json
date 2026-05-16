@@ -1,0 +1,17 @@
+{
+  "prompt_id": "HL-CL-20260504-325-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-ci-manifest-and-drift-gate",
+  "scenario": "gate_dry_run_manifest_drift",
+  "command": "G:\\DEV\\СPP\\HLengine\\host-p316\\build-p325\\Debug\\hlhost.exe --dedicated --gamedir G:\\DEV\\СPP\\HLengine\\host\\logs\\latest\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\runtime\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-325-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-ci-manifest-and-drift-gate --run-label p325-gate_dry_run_manifest_drift --log-dir G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p325-execution-skeleton-ci-drift-gate-proofs\\gate_dry_run_manifest_drift --hlds-qport-session-execution-skeleton-ci-drift-gate-probe --hlds-qport-session-execution-skeleton-ci-drift-gate-probe-scenario gate_dry_run_manifest_drift",
+  "proof_passed": 1,
+  "summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\HL-CL-20260504-325-dedicated-goldsrc-hlds-qport-session-capture-execution-skeleton-ci-manifest-and-drift-gate\\codex\\gate_dry_run_manifest_drift_summary.json",
+  "runtime_log_dir": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p325-execution-skeleton-ci-drift-gate-proofs\\gate_dry_run_manifest_drift",
+  "runtime_summary_file": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p325-execution-skeleton-ci-drift-gate-proofs\\gate_dry_run_manifest_drift\\hlhost_20260516_160704_677_pid6116__p325-gate_dry_run_manifest_drift_summary.log",
+  "output_prefix": "hlds_qport_session_execution_skeleton_ci_drift_gate:",
+  "no_capture_execution_proof": 1,
+  "no_socket_proof": 1,
+  "no_datagram_proof": 1,
+  "no_real_client_runtime_proof": 1,
+  "no_public_lan_socket_proof": 1,
+  "no_post_connect_signon_runtime_proof": 1,
+  "no_netchan_runtime_proof": 1
+}
