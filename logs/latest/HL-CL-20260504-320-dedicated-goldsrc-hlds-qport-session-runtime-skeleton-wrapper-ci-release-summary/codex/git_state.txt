@@ -1,0 +1,34 @@
+# Git State
+
+initial_status:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state
+
+pre_change_head: 6cf870fb4ea28e003702bbd7bfd62d9900f0486e
+source_commit: 5a31f7ac7f9a4ee19eed3ad04c1eea20d4f985c2
+artifact_commit: pending_artifact_commit
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+descendant_gate:
+hex_refs_found=68
+commit_refs_checked=64
+non_commit_hex_refs_ignored=4
+not_ancestor=0
+
+json_validation:
+qport_session_offline_fixture_manifest_policy.json: valid
+qport_session_capture_preflight_dry_run_manifest.json: valid
+qport_session_capture_shell_ci_manifest.json: valid
+qport_session_capture_runtime_skeleton_ci_manifest.json: valid
+qport_session_runtime_skeleton_wrapper_ci_release_summary.json: valid
+
+current_status_before_artifact_commit:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-320-dedicated-goldsrc-hlds-qport-session-runtime-skeleton-wrapper-ci-release-summary/
+
+latest_log:
+5a31f7a HL-CL-20260504-320 runtime skeleton wrapper CI release summary
+6cf870f HL-CL-20260504-319 runtime skeleton CI drift gate artifacts
+5804ca4 HL-CL-20260504-319 runtime skeleton CI drift gate
+c36d244 Add qport session runtime skeleton release artifacts
+b738715 Add qport session runtime skeleton release boundary
+

@@ -1,0 +1,28 @@
+# Command Log
+
+- git status --short --branch
+- git rev-parse --abbrev-ref HEAD; git rev-parse HEAD
+- Test-Path docs/diagnostic/hlds/qport_session_runtime_skeleton_wrapper_ci_release_summary.md
+- Test-Path logs/latest/HL-CL-20260504-320-dedicated-goldsrc-hlds-qport-session-runtime-skeleton-wrapper-ci-release-summary/codex
+- Get-ChildItem logs/latest for prompt 287-319 directories
+- ConvertFrom-Json prompt 319 runtime skeleton drift gate summary
+- Get-ChildItem fixtures/diagnostic/hlds/qport_session
+- ConvertFrom-Json runtime skeleton CI manifest
+- ConvertFrom-Json prompt 317 runtime skeleton summary
+- ConvertFrom-Json prompt 315 shell wrapper CI release summary
+- Descendant gate over 68 hex references from prompt 287-319 logs; 4 non-commit fixture byte strings ignored; 64 local commits were ancestors of HEAD
+- rg for source/artifact commit fields in prompt 302, 303, 310, and 318 artifacts
+- Get-Content prior release boundary and CI docs for local style
+- apply_patch add docs/diagnostic/hlds/qport_session_runtime_skeleton_wrapper_ci_release_summary.md
+- git diff --check -- docs/diagnostic/hlds/qport_session_runtime_skeleton_wrapper_ci_release_summary.md
+- ConvertFrom-Json qport/session policy, dry-run manifest, shell CI manifest, and runtime skeleton CI manifest
+- git add -- docs/diagnostic/hlds/qport_session_runtime_skeleton_wrapper_ci_release_summary.md
+- git commit -m "HL-CL-20260504-320 runtime skeleton wrapper CI release summary"
+- New-Item prompt 320 artifact directory
+- Copy stable release doc into prompt 320 artifact summary
+- Set-Content prompt 320 operator checklist, risk table, JSON summary, full handoff, command log, and git state
+- ConvertFrom-Json qport/session policy, dry-run manifest, shell CI manifest, runtime skeleton CI manifest, and prompt 320 release summary JSON
+- rg --fixed-strings --count-matches for qport_session, runtime skeleton, CI manifest, drift gate, capture_allowed_now, capture_executed, capture_runtime_executed, socket_open_attempted, datagram_sent, datagram_received, public socket, LAN socket, real client, connect, post-connect, signon, netchan
+- Descendant gate across prompt 287-319 local source/artifact commit references after source commit
+- git diff --check -- logs/latest/HL-CL-20260504-320-dedicated-goldsrc-hlds-qport-session-runtime-skeleton-wrapper-ci-release-summary/codex
+- ConvertFrom-Json prompt 320 release summary JSON selected fields
