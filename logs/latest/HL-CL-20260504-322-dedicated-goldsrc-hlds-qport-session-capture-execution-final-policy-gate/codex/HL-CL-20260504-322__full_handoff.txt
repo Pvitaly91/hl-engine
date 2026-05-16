@@ -1,0 +1,29 @@
+PROMPT-ID: HL-CL-20260504-322-dedicated-goldsrc-hlds-qport-session-capture-execution-final-policy-gate
+status: pass
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 4956ac965801a6d6eb213d9232708ad496baec07
+source_commit: 700a7380d7570588532c129d625d88177b692632
+compatibility_claim_level: diagnostic-qport-session-capture-execution-final-policy-gate-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
+final_execution_policy_gate_enabled: 1
+final_execution_policy_gate_disabled_by_default: 1
+final_execution_policy_gate_passed: 1
+future_no_client_capture_execution_implementation_allowed_next: 1
+next_capture_execution_implementation_scope: minimal_disabled_by_default_no_client_diagnostic_execution_skeleton
+capture_execution_allowed_now: 0
+capture_runtime_allowed_now: 0
+socket_open_allowed_now: 0
+loopback_socket_allowed_now: 0
+public_socket_allowed_now: 0
+lan_socket_allowed_now: 0
+datagram_send_allowed_now: 0
+datagram_receive_allowed_now: 0
+real_client_allowed_now: 0
+connect_path_allowed_now: 0
+post_connect_serverinfo_allowed_now: 0
+signon_serverinfo_allowed_now: 0
+netchan_runtime_allowed_now: 0
+qport_evidence_promotion_allowed_now: 0
+compatibility_claim_expansion_allowed_now: 0
+all_23_proofs: pass
+recommended_next_prompt_id: HL-CL-20260504-323-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-skeleton-disabled-by-default
+recommended_next_task: add only a minimal disabled-by-default no-client diagnostic execution skeleton after final execution policy gate approval, without current capture execution, sockets, datagrams, real clients, public or LAN exposure, netchan runtime, qport evidence promotion, or compatibility expansion

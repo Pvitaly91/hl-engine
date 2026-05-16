@@ -1,0 +1,8 @@
+git status --short --branch after source commit and artifact generation:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+?? logs/latest/HL-CL-20260504-322-dedicated-goldsrc-hlds-qport-session-capture-execution-final-policy-gate/
+
+git log -3 --oneline:
+700a738 Add qport session capture execution final policy gate
+4956ac9 HL-CL-20260504-321 capture execution policy artifacts
+1fa50a3 HL-CL-20260504-321 capture execution policy review
