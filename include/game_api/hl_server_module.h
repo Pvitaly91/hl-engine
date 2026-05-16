@@ -8468,6 +8468,50 @@ struct HldsQportSessionNoClientCaptureExecutionImplementationSkeletonSummary
         false;
 };
 
+struct HldsQportSessionExecutionImplementationSkeletonCiDriftGateSummary
+    : HldsQportSessionNoClientCaptureExecutionImplementationSkeletonSummary
+{
+    bool execution_implementation_skeleton_ci_manifest_created = false;
+    bool execution_implementation_skeleton_ci_manifest_loaded = false;
+    std::string execution_implementation_skeleton_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json";
+    bool execution_implementation_skeleton_drift_gate_enabled = false;
+    bool execution_implementation_skeleton_drift_gate_disabled_by_default =
+        true;
+    bool execution_implementation_skeleton_drift_gate_passed = false;
+    std::string execution_implementation_skeleton_source_commit =
+        "disabled";
+    std::string execution_implementation_skeleton_artifact_commit =
+        "disabled";
+    std::string fixture_root = "fixtures/diagnostic/hlds/qport_session";
+    int fixture_files_checked = 0;
+    bool fixture_hashes_recorded = false;
+    std::string policy_file_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json";
+    bool policy_hash_recorded = false;
+    bool policy_drift_detected = false;
+    std::string dry_run_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json";
+    bool dry_run_manifest_hash_recorded = false;
+    bool dry_run_manifest_drift_detected = false;
+    std::string execution_skeleton_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_skeleton_ci_manifest.json";
+    bool execution_skeleton_ci_manifest_hash_recorded = false;
+    bool execution_skeleton_ci_manifest_drift_detected = false;
+    std::string runtime_skeleton_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json";
+    bool runtime_skeleton_ci_manifest_hash_recorded = false;
+    bool runtime_skeleton_ci_manifest_drift_detected = false;
+    std::string wrapper_script_file =
+        "scripts/run_hlds_qport_session_capture_dry_run.ps1";
+    bool wrapper_hash_recorded = false;
+    bool wrapper_drift_detected = false;
+    bool implementation_skeleton_drift_detected = false;
+    bool policy_review_drift_detected = false;
+    bool dependency_drift_detected = false;
+    bool compatibility_claim_expanded = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23202,6 +23246,12 @@ struct HlServerModuleInitOptions
         hlds_qport_session_no_client_capture_execution_implementation_skeleton_probe_scenario =
             "happy";
     bool
+        hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -24099,6 +24149,8 @@ struct HlServerModuleSummary
         hlds_qport_session_execution_skeleton_ci_drift_gate;
     HldsQportSessionNoClientCaptureExecutionImplementationSkeletonSummary
         hlds_qport_session_no_client_capture_execution_implementation_skeleton;
+    HldsQportSessionExecutionImplementationSkeletonCiDriftGateSummary
+        hlds_qport_session_execution_implementation_skeleton_ci_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary

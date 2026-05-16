@@ -465,6 +465,36 @@ bool IsHldsQportSessionNoClientCaptureExecutionImplementationSkeletonScenario(
         || normalized == L"gate_public_socket_blocked";
 }
 
+bool IsHldsQportSessionExecutionImplementationSkeletonCiDriftGateScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_missing_ci_manifest"
+        || normalized == L"gate_implementation_skeleton_drift"
+        || normalized == L"gate_policy_review_drift"
+        || normalized == L"gate_execution_skeleton_ci_manifest_drift"
+        || normalized == L"gate_runtime_skeleton_ci_manifest_drift"
+        || normalized == L"gate_wrapper_drift"
+        || normalized == L"gate_dependency_removed"
+        || normalized == L"gate_capture_execution_allowed_now_drift"
+        || normalized == L"gate_capture_runtime_allowed_now_drift"
+        || normalized == L"gate_socket_allowed_drift"
+        || normalized == L"gate_loopback_socket_allowed_drift"
+        || normalized == L"gate_datagram_allowed_drift"
+        || normalized == L"gate_capture_executed_drift"
+        || normalized == L"gate_datagram_executed_drift"
+        || normalized == L"gate_real_client_allowed_drift"
+        || normalized == L"gate_connect_signon_allowed_drift"
+        || normalized == L"gate_netchan_runtime_drift"
+        || normalized == L"gate_qport_evidence_promoted_drift"
+        || normalized
+            == L"gate_address_scoped_challenge_real_netchan_drift"
+        || normalized == L"gate_compatibility_claim_expanded"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -4777,6 +4807,109 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_qport_session_no_client_capture_execution_implementation_skeleton_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument
+                == L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate"
+            || argument
+                == L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe")
+        {
+            result.options
+                .hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_prefix =
+                L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_prefix =
+                L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQportSessionExecutionImplementationSkeletonCiDriftGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario_prefix =
+                L"--hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQportSessionExecutionImplementationSkeletonCiDriftGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_execution_implementation_skeleton_ci_drift_gate_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
