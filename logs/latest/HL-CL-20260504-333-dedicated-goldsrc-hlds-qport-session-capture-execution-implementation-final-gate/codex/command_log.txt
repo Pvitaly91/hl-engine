@@ -1,0 +1,16 @@
+git status --short --branch
+git diff -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+rg -n "CopyHldsQportSessionCaptureExecutionImplementationFinalGateFieldsFromImplementationSkeletonCi|recommended_next_prompt_id|recommended_next_task" src/game_api/hl_server_module.cpp
+cmake --build build-p333 --target hlhost --config Debug --parallel
+for each final gate scenario: .\build-p333\Debug\hlhost.exe --dedicated --gamedir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-333-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-gate --run-label p333-<scenario> --log-dir logs\latest\runtime\p333-final-gate\<scenario> --hlds-qport-session-capture-execution-implementation-final-gate-probe --hlds-qport-session-capture-execution-implementation-final-gate-probe-scenario <scenario>
+git merge-base --is-ancestor <required-commit> HEAD
+rg -n "execution implementation final gate|future_capture_execution_implementation_prompt_allowed_next|capture_execution_allowed_now|capture_runtime_allowed_now|socket_open_allowed_now|loopback_socket_allowed_now|datagram_send_allowed_now|datagram_receive_allowed_now|public socket|LAN socket|real client|post-connect|signon|netchan" <expected-surfaces>
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_skeleton_ci_manifest.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json
+git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+git add -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+git commit -m "HL-CL-20260504-333 add qport session final gate probe"

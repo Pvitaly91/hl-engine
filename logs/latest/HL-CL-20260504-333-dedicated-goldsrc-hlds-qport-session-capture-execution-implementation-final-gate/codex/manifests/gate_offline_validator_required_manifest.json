@@ -1,0 +1,15 @@
+{
+  "prompt_id": "HL-CL-20260504-333-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-gate",
+  "scenario": "gate_offline_validator_required",
+  "proof_passed": true,
+  "command": ".\\\\build-p333\\\\Debug\\\\hlhost.exe --dedicated --gamedir G:\\\\DEV\\\\СPP\\\\HLengine\\\\host\\\\logs\\\\latest\\\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\\\runtime\\\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-333-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-gate --run-label p333-gate_offline_validator_required --log-dir logs\\\\latest\\\\runtime\\\\p333-final-gate\\\\gate_offline_validator_required --hlds-qport-session-capture-execution-implementation-final-gate-probe --hlds-qport-session-capture-execution-implementation-final-gate-probe-scenario gate_offline_validator_required",
+  "summary_json": "logs\\latest\\HL-CL-20260504-333-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-gate\\codex\\summaries\\gate_offline_validator_required_summary.json",
+  "runtime_summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p333-final-gate\\gate_offline_validator_required\\hlhost_20260517_004748_136_pid31680__p333-gate_offline_validator_required_summary.log",
+  "no_capture_execution_proof": true,
+  "no_capture_runtime_proof": true,
+  "no_socket_proof": true,
+  "no_datagram_proof": true,
+  "no_real_client_runtime_proof": true,
+  "no_post_connect_signon_runtime_proof": true,
+  "no_netchan_runtime_proof": true
+}
