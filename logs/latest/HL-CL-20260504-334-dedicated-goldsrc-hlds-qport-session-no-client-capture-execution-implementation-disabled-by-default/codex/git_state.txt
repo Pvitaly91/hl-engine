@@ -1,0 +1,19 @@
+pre_change_head: 50273d6929644103ca3ec664e3bde6801d09c287
+source_commit: 2a1bcaed03bffa02d068b33a6f6e18f333e98714
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+status_before_artifact_commit:
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+ M build32/host/hlhost.dir/Debug/hlhost.ilk
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+?? build-p333/
+?? logs/latest/HL-CL-20260504-334-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-disabled-by-default/
+?? logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+?? logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+?? logs/latest/runtime/p333-final-gate/
+?? logs/latest/runtime/p334-execution-implementation/
+

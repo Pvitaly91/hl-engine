@@ -1,0 +1,13 @@
+git status --short --branch
+rg -n "NoClientCaptureExecutionImplementation|no_client_capture_execution_implementation|hlds-qport-session-no-client-capture-execution-implementation|execution_implementation_surface_added|implementation_plan_created|final_gate_invoked" include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+git diff --check -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+cmake --build build-p333 --target hlhost --config Debug --parallel
+for each implementation scenario: .\build-p333\Debug\hlhost.exe --dedicated --gamedir G:\DEV\СPP\HLengine\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-334-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-disabled-by-default --run-label p334-<scenario> --log-dir logs\latest\runtime\p334-execution-implementation\<scenario> --hlds-qport-session-no-client-capture-execution-implementation-probe --hlds-qport-session-no-client-capture-execution-implementation-probe-scenario <scenario>
+git merge-base --is-ancestor <required-commit> HEAD
+rg -n "qport_session|capture execution implementation|implementation plan|future_capture_execution_implementation_prompt_allowed_next|capture_execution_allowed_now|capture_runtime_allowed_now|socket_open_allowed_now|loopback_socket_allowed_now|datagram_send_allowed_now|datagram_receive_allowed_now|public socket|LAN socket|real client|connect|post-connect|signon|netchan" <expected-surfaces>
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json
+python -m json.tool fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json
+python -m json.tool logs/latest/runtime/p334-execution-implementation/proof_matrix.json
+git add -- include/app/launch_options.h include/game_api/hl_server_module.h src/app/launch_options.cpp src/app/host_application.cpp src/game_api/hl_server_module.cpp
+git commit -m "HL-CL-20260504-334 add qport session execution implementation surface"

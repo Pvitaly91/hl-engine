@@ -1,0 +1,16 @@
+{
+  "prompt_id": "HL-CL-20260504-334-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-disabled-by-default",
+  "scenario": "gate_socket_open_blocked",
+  "proof_passed": true,
+  "command": ".\\\\build-p333\\\\Debug\\\\hlhost.exe --dedicated --gamedir G:\\\\DEV\\\\СPP\\\\HLengine\\\\host\\\\logs\\\\latest\\\\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\\\\runtime\\\\valve-fixture --maxclients 4 --frames 1 --log-summary-file 1 --log-console-level error --prompt-id HL-CL-20260504-334-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-disabled-by-default --run-label p334-gate_socket_open_blocked --log-dir logs\\\\latest\\\\runtime\\\\p334-execution-implementation\\\\gate_socket_open_blocked --hlds-qport-session-no-client-capture-execution-implementation-probe --hlds-qport-session-no-client-capture-execution-implementation-probe-scenario gate_socket_open_blocked",
+  "summary_json": "logs\\latest\\HL-CL-20260504-334-dedicated-goldsrc-hlds-qport-session-no-client-capture-execution-implementation-disabled-by-default\\codex\\summaries\\gate_socket_open_blocked_summary.json",
+  "runtime_summary_log": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p334-execution-implementation\\gate_socket_open_blocked\\hlhost_20260517_135548_313_pid19556__p334-gate_socket_open_blocked_summary.log",
+  "no_capture_execution_proof": true,
+  "no_capture_runtime_proof": true,
+  "no_socket_proof": true,
+  "no_datagram_proof": true,
+  "no_real_client_runtime_proof": true,
+  "no_public_lan_socket_proof": true,
+  "no_post_connect_signon_runtime_proof": true,
+  "no_netchan_runtime_proof": true
+}
