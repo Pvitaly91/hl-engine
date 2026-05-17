@@ -1,0 +1,392 @@
+{
+  "prompt_id": "HL-CL-20260504-307-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-plan",
+  "manifest_id": "diagnostic_hlds_qport_session_capture_preflight_dry_run_plan",
+  "manifest_version": 1,
+  "diagnostic_only": true,
+  "compatibility_claim_level": "diagnostic-qport-session-capture-preflight-dry-run-plan-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "fixture_root": "fixtures/diagnostic/hlds/qport_session",
+  "policy_file_path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+  "offline_fixture_validator_required": true,
+  "capture_policy_gate_required": true,
+  "capture_allowed_now": false,
+  "capture_blocked_by_policy": true,
+  "capture_block_reason": "capture_implementation_not_allowed_yet",
+  "capture_implementation_added": false,
+  "capture_executed": false,
+  "capture_runtime_executed": false,
+  "qport_session_byte_evidence_sufficient": false,
+  "byte_level_qport_session_evidence_sufficient": false,
+  "address_scoped_challenge_reusable_as_diagnostic_prerequisite": true,
+  "address_scoped_challenge_reusable_as_real_netchan_proof": false,
+  "planned_inputs": [
+    {
+      "input_id": "offline_fixture_policy",
+      "path": "fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json",
+      "required": true,
+      "purpose": "Defines allowed fixture families, safety fields, promotion policy, and forbidden claims."
+    },
+    {
+      "input_id": "offline_qport_session_fixtures",
+      "path": "fixtures/diagnostic/hlds/qport_session/fixtures",
+      "required": true,
+      "purpose": "Provides offline positive and negative policy fixtures for validator and policy-gate checks."
+    },
+    {
+      "input_id": "offline_fixture_validator_probe",
+      "source_prompt": "HL-CL-20260504-305-dedicated-goldsrc-hlds-qport-session-offline-fixture-validator-probe",
+      "required": true,
+      "purpose": "Must validate the offline policy and fixture set before any dry-run command plan is considered."
+    },
+    {
+      "input_id": "capture_policy_gate_probe",
+      "source_prompt": "HL-CL-20260504-306-dedicated-goldsrc-hlds-qport-session-no-client-capture-policy-gate",
+      "required": true,
+      "purpose": "Must deny capture until a later prompt explicitly permits implementation and evidence promotion."
+    }
+  ],
+  "planned_checks": [
+    "load_offline_fixture_policy",
+    "run_offline_fixture_validator",
+    "run_capture_policy_gate",
+    "confirm_capture_allowed_now_false",
+    "confirm_capture_blocked_by_policy_true",
+    "confirm_capture_implementation_added_false",
+    "confirm_capture_executed_false",
+    "confirm_socket_open_attempted_false",
+    "confirm_public_socket_opened_false",
+    "confirm_lan_socket_opened_false",
+    "confirm_loopback_udp_socket_opened_false",
+    "confirm_real_client_binary_invoked_false",
+    "confirm_qport_byte_evidence_insufficient",
+    "confirm_address_scoped_challenge_not_real_netchan_proof",
+    "generate_capture_command_plan_only",
+    "generate_artifact_schema_preview_only",
+    "stop_before_socket_capture_or_runtime"
+  ],
+  "dry_run_stages": [
+    {
+      "stage_id": 0,
+      "name": "load_offline_fixture_policy",
+      "input": "policy_file_path",
+      "output": "policy_loaded",
+      "allowed_actions": [
+        "read_checked_in_json",
+        "validate_json_shape"
+      ],
+      "forbidden_actions": [
+        "open_socket",
+        "run_capture",
+        "invoke_real_client"
+      ],
+      "failure_condition": "policy_file_missing_or_invalid",
+      "summary_fields": [
+        "policy_file_loaded",
+        "policy_file_path"
+      ]
+    },
+    {
+      "stage_id": 1,
+      "name": "run_offline_fixture_validator",
+      "input": "offline_fixture_policy_and_fixtures",
+      "output": "offline_fixture_validator_passed",
+      "allowed_actions": [
+        "run_disabled_by_default_validator_when_explicitly_requested",
+        "read_checked_in_fixture_json"
+      ],
+      "forbidden_actions": [
+        "open_socket",
+        "run_network_runtime",
+        "promote_qport_evidence"
+      ],
+      "failure_condition": "offline_fixture_validator_failed",
+      "summary_fields": [
+        "offline_fixture_validator_required",
+        "offline_fixture_validator_passed"
+      ]
+    },
+    {
+      "stage_id": 2,
+      "name": "run_capture_policy_gate",
+      "input": "validator_result",
+      "output": "capture_policy_gate_result",
+      "allowed_actions": [
+        "evaluate_policy_only",
+        "reuse_validator_result"
+      ],
+      "forbidden_actions": [
+        "implement_capture",
+        "execute_capture",
+        "open_socket"
+      ],
+      "failure_condition": "policy_gate_missing_or_allows_capture_unexpectedly",
+      "summary_fields": [
+        "capture_policy_gate_required",
+        "capture_allowed_now",
+        "capture_blocked_by_policy",
+        "capture_block_reason"
+      ]
+    },
+    {
+      "stage_id": 3,
+      "name": "generate_capture_command_plan_only",
+      "input": "policy_gate_result",
+      "output": "planned_command_preview",
+      "allowed_actions": [
+        "write_text_plan",
+        "write_json_plan"
+      ],
+      "forbidden_actions": [
+        "execute_planned_command",
+        "bind_loopback_socket",
+        "bind_public_socket",
+        "bind_lan_socket"
+      ],
+      "failure_condition": "planned_command_contains_forbidden_action",
+      "summary_fields": [
+        "planned_command_created",
+        "capture_executed"
+      ]
+    },
+    {
+      "stage_id": 4,
+      "name": "generate_artifact_schema_preview_only",
+      "input": "planned_command_preview",
+      "output": "planned_artifact_schema",
+      "allowed_actions": [
+        "document_required_fields",
+        "document_unresolved_fields"
+      ],
+      "forbidden_actions": [
+        "write_live_capture_bytes",
+        "write_real_client_material",
+        "claim_byte_evidence_sufficient"
+      ],
+      "failure_condition": "artifact_schema_omits_required_safety_fields",
+      "summary_fields": [
+        "planned_artifact_schema_created",
+        "qport_session_byte_evidence_sufficient"
+      ]
+    },
+    {
+      "stage_id": 5,
+      "name": "stop_before_socket_capture_or_runtime",
+      "input": "artifact_schema_preview",
+      "output": "blocked_dry_run_stop",
+      "allowed_actions": [
+        "emit_blocked_decision"
+      ],
+      "forbidden_actions": [
+        "socket_open_attempted",
+        "connect_path_invoked",
+        "post_connect_serverinfo_path_invoked",
+        "signon_serverinfo_path_invoked",
+        "netchan_runtime_started"
+      ],
+      "failure_condition": "any_runtime_or_socket_field_nonzero",
+      "summary_fields": [
+        "socket_open_attempted",
+        "connect_path_invoked",
+        "netchan_runtime_started"
+      ]
+    },
+    {
+      "stage_id": 6,
+      "name": "emit_blocked_decision",
+      "input": "blocked_dry_run_stop",
+      "output": "dry_run_summary",
+      "allowed_actions": [
+        "write_diagnostic_summary",
+        "recommend_validator_prompt"
+      ],
+      "forbidden_actions": [
+        "expand_compatibility_claim",
+        "promote_address_scoped_challenge_to_real_netchan_proof"
+      ],
+      "failure_condition": "summary_claims_capture_or_compatibility",
+      "summary_fields": [
+        "compatibility_claim_level",
+        "recommended_next_prompt_id",
+        "recommended_next_task"
+      ]
+    }
+  ],
+  "planned_artifacts": [
+    {
+      "path": "qport_session_capture_plan.json",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "capture_allowed_now",
+        "capture_block_reason",
+        "planned_command",
+        "forbidden_actions"
+      ]
+    },
+    {
+      "path": "qport_session_capture_preflight_summary.json",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "qport_observed",
+        "qport_raw",
+        "qport_width",
+        "qport_endian",
+        "client_udp_source_port",
+        "remote_address",
+        "endpoint_key",
+        "challenge_value",
+        "challenge_cache_key",
+        "userinfo_identity",
+        "connect_ready",
+        "netchan_started",
+        "signon_started",
+        "capture_executed",
+        "socket_opened",
+        "public_socket_opened",
+        "lan_socket_opened",
+        "safe_preview",
+        "unresolved_fields",
+        "reject_reason"
+      ]
+    },
+    {
+      "path": "qport_session_planned_datagram_shapes.md",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "unresolved_qport_shape",
+        "unresolved_connect_shape",
+        "unknown_byte_contracts"
+      ]
+    },
+    {
+      "path": "qport_session_planned_guard_results.json",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "validator_passed",
+        "policy_gate_passed",
+        "capture_allowed_now",
+        "reject_reason"
+      ]
+    },
+    {
+      "path": "qport_session_planned_cleanup.md",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "temporary_files",
+        "socket_cleanup",
+        "runtime_cleanup",
+        "no_runtime_state_created"
+      ]
+    },
+    {
+      "path": "qport_session_planned_unresolved_fields.md",
+      "type": "planned_future_artifact",
+      "created_by_this_prompt": false,
+      "required_fields": [
+        "qport_presence",
+        "qport_width",
+        "qport_endian",
+        "qport_order",
+        "qport_to_udp_source_port_relation",
+        "endpoint_or_session_binding"
+      ]
+    }
+  ],
+  "planned_stop_conditions": [
+    "offline_fixture_validator_fails",
+    "capture_policy_gate_missing",
+    "capture_policy_gate_allows_capture_unexpectedly",
+    "capture_implementation_detected",
+    "capture_execution_requested",
+    "socket_request_detected",
+    "real_client_request_detected",
+    "public_or_lan_exposure_requested",
+    "connect_or_signon_runtime_requested",
+    "netchan_runtime_requested",
+    "qport_byte_evidence_promoted_without_local_bytes",
+    "address_scoped_challenge_promoted_to_real_netchan_proof",
+    "real_compatibility_claim_requested"
+  ],
+  "planned_cleanup_steps": [
+    "remove_or_ignore_transient_dry_run_preview_outputs",
+    "confirm_no_socket_handles_opened",
+    "confirm_no_runtime_state_started",
+    "confirm_no_capture_files_created",
+    "confirm_no_real_client_process_started",
+    "record_blocked_summary"
+  ],
+  "forbidden_actions": [
+    "packet_capture",
+    "real_wire_builder",
+    "real_wire_parser",
+    "socket_open",
+    "public_socket_open",
+    "lan_socket_open",
+    "loopback_udp_socket_open",
+    "steam_invocation",
+    "real_client_binary_invocation",
+    "getchallenge_runtime",
+    "connect_runtime",
+    "post_connect_serverinfo_runtime",
+    "signon_serverinfo_runtime",
+    "auth_start",
+    "netchan_start",
+    "reliable_channel_start",
+    "unreliable_channel_start",
+    "resource_baseline_start",
+    "client_admission",
+    "real_compatibility_claim"
+  ],
+  "expected_summary_fields": [
+    "prompt_id",
+    "compatibility_claim_level",
+    "dry_run_plan_created",
+    "stable_dry_run_manifest_created",
+    "stable_dry_run_doc_created",
+    "offline_fixture_validator_required",
+    "capture_policy_gate_required",
+    "capture_allowed_now",
+    "capture_blocked_by_policy",
+    "capture_block_reason",
+    "capture_implementation_added",
+    "capture_executed",
+    "capture_runtime_executed",
+    "dry_run_manifest_validated",
+    "planned_artifact_schema_created",
+    "guard_matrix_created",
+    "qport_session_byte_evidence_sufficient",
+    "byte_level_qport_session_evidence_sufficient",
+    "address_scoped_challenge_reusable_as_diagnostic_prerequisite",
+    "address_scoped_challenge_reusable_as_real_netchan_proof",
+    "real_client_capture_allowed_now",
+    "real_steam_client_used",
+    "real_client_binary_invoked",
+    "socket_open_attempted",
+    "public_socket_opened",
+    "lan_socket_opened",
+    "loopback_udp_socket_opened",
+    "connect_path_invoked",
+    "post_connect_serverinfo_path_invoked",
+    "signon_serverinfo_path_invoked",
+    "netchan_runtime_started",
+    "normal_host_behavior_changed"
+  ],
+  "required_preconditions_before_capture_implementation": [
+    "separate_prompt_explicitly_allows_capture_implementation",
+    "offline_fixture_validator_passes",
+    "capture_policy_gate_passes_and_is_updated_to_allow_implementation",
+    "qport_presence_byte_evidence_policy_defined",
+    "qport_width_byte_evidence_policy_defined",
+    "qport_endian_byte_evidence_policy_defined",
+    "qport_order_byte_evidence_policy_defined",
+    "endpoint_or_session_binding_evidence_policy_defined",
+    "no_real_client_requirement_preserved",
+    "no_public_or_lan_exposure_requirement_preserved",
+    "cleanup_and_artifact_policy_defined"
+  ],
+  "recommended_next_prompt_id": "HL-CL-20260504-308-dedicated-goldsrc-hlds-qport-session-capture-preflight-dry-run-validator",
+  "recommended_next_task": "implement a disabled-by-default read-only validator for the qport/session capture preflight dry-run manifest and planned artifact schema without capture, sockets, runtime paths, real clients, or compatibility claim expansion"
+}

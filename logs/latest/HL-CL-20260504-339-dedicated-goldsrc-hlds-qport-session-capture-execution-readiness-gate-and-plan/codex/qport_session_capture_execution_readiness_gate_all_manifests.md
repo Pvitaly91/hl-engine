@@ -1,0 +1,51 @@
+# Qport/session Capture Execution Readiness Gate Manifests
+
+## Stable Manifests
+
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_ci_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_skeleton_ci_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json`
+- `fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json`
+
+## Copied Prompt 339 Runtime Manifests
+
+- `manifests\hlhost_20260517_174920_070_pid43628__p339-happy_manifest.json`
+- `manifests\hlhost_20260517_174922_234_pid24360__p339-gate_disabled_by_default_manifest.json`
+- `manifests\hlhost_20260517_174922_620_pid29624__p339-gate_readiness_policy_required_manifest.json`
+- `manifests\hlhost_20260517_174923_137_pid18416__p339-gate_execution_implementation_ci_required_manifest.json`
+- `manifests\hlhost_20260517_174923_546_pid35384__p339-gate_execution_implementation_boundary_required_manifest.json`
+- `manifests\hlhost_20260517_174924_253_pid25768__p339-gate_final_gate_required_manifest.json`
+- `manifests\hlhost_20260517_174924_894_pid41092__p339-gate_execution_skeleton_ci_required_manifest.json`
+- `manifests\hlhost_20260517_174925_697_pid37192__p339-gate_runtime_skeleton_ci_required_manifest.json`
+- `manifests\hlhost_20260517_174926_471_pid42512__p339-gate_offline_validator_required_manifest.json`
+- `manifests\hlhost_20260517_174927_110_pid464__p339-gate_capture_policy_gate_required_manifest.json`
+- `manifests\hlhost_20260517_174927_744_pid9188__p339-gate_dry_run_validator_required_manifest.json`
+- `manifests\hlhost_20260517_174928_374_pid11924__p339-gate_wrapper_validation_required_manifest.json`
+- `manifests\hlhost_20260517_174928_990_pid39544__p339-gate_timeout_cleanup_policy_required_manifest.json`
+- `manifests\hlhost_20260517_174929_620_pid23592__p339-gate_artifact_schema_lock_required_manifest.json`
+- `manifests\hlhost_20260517_174930_234_pid14640__p339-gate_socket_policy_review_required_manifest.json`
+- `manifests\hlhost_20260517_174930_895_pid19288__p339-gate_datagram_policy_review_required_manifest.json`
+- `manifests\hlhost_20260517_174931_587_pid23648__p339-gate_capture_execution_blocked_manifest.json`
+- `manifests\hlhost_20260517_174932_161_pid41524__p339-gate_capture_runtime_blocked_manifest.json`
+- `manifests\hlhost_20260517_174932_911_pid9696__p339-gate_socket_open_blocked_manifest.json`
+- `manifests\hlhost_20260517_174933_493_pid31936__p339-gate_loopback_socket_blocked_manifest.json`
+- `manifests\hlhost_20260517_174934_117_pid10372__p339-gate_public_lan_blocked_manifest.json`
+- `manifests\hlhost_20260517_174934_750_pid12004__p339-gate_datagram_send_blocked_manifest.json`
+- `manifests\hlhost_20260517_174935_353_pid18108__p339-gate_datagram_receive_blocked_manifest.json`
+- `manifests\hlhost_20260517_174936_195_pid32928__p339-gate_real_client_blocked_manifest.json`
+- `manifests\hlhost_20260517_174936_993_pid25884__p339-gate_connect_signon_blocked_manifest.json`
+- `manifests\hlhost_20260517_174937_612_pid43916__p339-gate_netchan_runtime_blocked_manifest.json`
+- `manifests\hlhost_20260517_174938_285_pid14712__p339-gate_qport_evidence_promotion_blocked_manifest.json`
+- `manifests\hlhost_20260517_174938_854_pid44744__p339-gate_compatibility_claim_blocked_manifest.json`
+- `manifests\hlhost_20260517_174939_464_pid34372__p339-gate_no_real_client_used_manifest.json`
+- `manifests\hlhost_20260517_174940_096_pid26188__p339-gate_public_socket_blocked_manifest.json`
+- `manifests\qport_session_capture_execution_implementation_ci_manifest.json`
+- `manifests\qport_session_capture_execution_implementation_skeleton_ci_manifest.json`
+- `manifests\qport_session_capture_execution_skeleton_ci_manifest.json`
+- `manifests\qport_session_capture_preflight_dry_run_manifest.json`
+- `manifests\qport_session_capture_runtime_skeleton_ci_manifest.json`
+- `manifests\qport_session_capture_shell_ci_manifest.json`
+- `manifests\qport_session_offline_fixture_manifest_policy.json`

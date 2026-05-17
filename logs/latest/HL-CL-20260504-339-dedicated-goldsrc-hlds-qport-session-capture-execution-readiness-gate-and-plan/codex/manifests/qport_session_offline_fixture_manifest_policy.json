@@ -1,0 +1,226 @@
+{
+  "prompt_id": "HL-CL-20260504-304-dedicated-goldsrc-hlds-qport-session-offline-fixture-manifest-policy",
+  "policy_id": "diagnostic_hlds_qport_session_offline_fixture_manifest_policy",
+  "policy_version": 1,
+  "compatibility_claim_level": "diagnostic-qport-session-offline-fixture-manifest-policy-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed",
+  "diagnostic_only": true,
+  "fixture_root": "fixtures/diagnostic/hlds/qport_session",
+  "covered_prompts": [
+    302,
+    303
+  ],
+  "allowed_fixture_families": [
+    "qport_session_unresolved",
+    "diagnostic_endpoint_challenge_prerequisite",
+    "negative_policy_fixture"
+  ],
+  "allowed_stages": [
+    "qport_session_candidate",
+    "connect_session_candidate",
+    "diagnostic_prerequisite",
+    "negative_policy_fixture"
+  ],
+  "forbidden_stages": [
+    "connectionless_query",
+    "post_connect",
+    "signon",
+    "signon_time",
+    "netchan_runtime",
+    "client_admission"
+  ],
+  "allowed_evidence_types": [
+    "offline_policy_fixture",
+    "checked_in_manifest",
+    "local_static_inventory",
+    "diagnostic_prerequisite_only",
+    "negative_policy_fixture"
+  ],
+  "allowed_evidence_sources": [
+    "checked_in_fixture",
+    "checked_in_policy",
+    "prompt_302_static_inventory",
+    "prompt_303_design",
+    "prompt_269_address_scoped_challenge_cache",
+    "prompt_270_userinfo_validation_policy",
+    "prompt_271_lifecycle_acceptance"
+  ],
+  "allowed_compatibility_claims": [
+    "diagnostic_only",
+    "fixture_only",
+    "unresolved",
+    "diagnostic_prerequisite_only",
+    "negative_policy_fixture"
+  ],
+  "forbidden_compatibility_claims": [
+    "real_hlds_compatible",
+    "real_steam_half_life_client_compatible",
+    "real_query_client_compatible",
+    "public_socket_compatible",
+    "lan_socket_compatible",
+    "post_connect_serverinfo_compatible",
+    "signon_serverinfo_compatible"
+  ],
+  "required_metadata_fields": [
+    "fixture_id",
+    "family",
+    "stage",
+    "evidence_type",
+    "evidence_source",
+    "evidence_confidence",
+    "compatibility_claim",
+    "diagnostic_only",
+    "real_client_used",
+    "socket_opened",
+    "public_socket_opened",
+    "lan_socket_opened",
+    "capture_executed",
+    "qport_observed",
+    "qport_raw",
+    "qport_width",
+    "qport_endian",
+    "qport_source",
+    "client_udp_source_port",
+    "remote_address",
+    "endpoint_key",
+    "challenge_value",
+    "challenge_cache_key",
+    "challenge_one_shot",
+    "challenge_replay_detected",
+    "userinfo_identity",
+    "connect_ready",
+    "netchan_started",
+    "signon_started",
+    "byte_level_evidence_sufficient",
+    "unresolved_fields",
+    "forbidden_promotions",
+    "required_before_promotion",
+    "expected_guard_reject_reason",
+    "safe_preview",
+    "notes"
+  ],
+  "schema_contract": {
+    "fixture_id": "non_empty_string",
+    "family": "enum:allowed_fixture_families",
+    "stage": "enum:allowed_stages",
+    "evidence_type": "enum:allowed_evidence_types",
+    "evidence_source": "enum:allowed_evidence_sources_or_specific_checked_in_path",
+    "evidence_confidence": "enum:unresolved|diagnostic_prerequisite|negative_policy|local_static_inventory",
+    "compatibility_claim": "enum:allowed_compatibility_claims",
+    "diagnostic_only": "boolean_true",
+    "real_client_used": "boolean_false",
+    "socket_opened": "boolean_false",
+    "public_socket_opened": "boolean_false",
+    "lan_socket_opened": "boolean_false",
+    "capture_executed": "boolean_false",
+    "qport_observed": "enum:false|unknown|simulated_invalid_promotion",
+    "qport_raw": "null_or_hex_string_or_unknown",
+    "qport_width": "integer_or_unknown",
+    "qport_endian": "enum:little|big|text|unknown",
+    "qport_source": "enum:not_observed|fixture_bytes|diagnostic_source_port|simulated_invalid_mutation|unknown",
+    "client_udp_source_port": "integer_or_unknown_or_diagnostic_only",
+    "remote_address": "string_or_unknown",
+    "endpoint_key": "string_or_unknown",
+    "challenge_value": "string_or_unknown",
+    "challenge_cache_key": "string_or_unknown",
+    "challenge_one_shot": "boolean_or_diagnostic_prerequisite_or_unknown",
+    "challenge_replay_detected": "boolean_or_diagnostic_prerequisite_or_unknown",
+    "userinfo_identity": "object_or_unknown",
+    "connect_ready": "boolean_or_diagnostic_prerequisite",
+    "netchan_started": "boolean_false",
+    "signon_started": "boolean_false",
+    "byte_level_evidence_sufficient": "boolean_false_until_separate_evidence_prompt",
+    "unresolved_fields": "array_of_strings",
+    "forbidden_promotions": "array_of_strings",
+    "required_before_promotion": "array_of_strings",
+    "expected_guard_reject_reason": "string",
+    "safe_preview": "object_with_no_raw_real_client_data",
+    "notes": "string"
+  },
+  "required_safety_fields": {
+    "diagnostic_only": true,
+    "real_client_used": false,
+    "socket_opened": false,
+    "public_socket_opened": false,
+    "lan_socket_opened": false,
+    "capture_executed": false,
+    "netchan_started": false,
+    "signon_started": false
+  },
+  "unresolved_field_policy": {
+    "unknown_byte_fields_must_use": "unknown",
+    "unknown_width_must_use": "unknown",
+    "unknown_endian_must_use": "unknown",
+    "unknown_order_must_remain_in_unresolved_fields": true,
+    "unknown_fields_cannot_be_promoted": true
+  },
+  "safe_preview_policy": {
+    "raw_real_client_bytes_allowed": false,
+    "steam_client_material_allowed": false,
+    "public_or_lan_endpoint_allowed": false,
+    "diagnostic_text_summary_allowed": true,
+    "hex_preview_allowed_only_for_checked_in_offline_fixture_bytes": true
+  },
+  "source_provenance_policy": {
+    "must_name_source_prompt_or_fixture": true,
+    "must_record_capture_executed_false_for_policy_fixtures": true,
+    "must_record_real_client_used_false": true,
+    "must_record_socket_opened_false": true
+  },
+  "promotion_policy": {
+    "unresolved_to_candidate_requires": [
+      "local_byte_level_fixture",
+      "qport_presence_evidence",
+      "qport_width_evidence",
+      "qport_endian_evidence",
+      "qport_order_evidence",
+      "endpoint_or_session_binding_evidence",
+      "validator_gate_pass"
+    ],
+    "diagnostic_prerequisite_to_real_netchan_proof_allowed": false,
+    "query_info_to_qport_session_allowed": false,
+    "qport_session_to_post_connect_allowed_without_evidence": false,
+    "qport_session_to_signon_allowed_without_evidence": false
+  },
+  "validator_design": {
+    "validator_implemented": false,
+    "disabled_by_default": true,
+    "mode": "offline_manifest_only",
+    "opens_sockets": false,
+    "runs_capture": false,
+    "invokes_real_client": false,
+    "runs_runtime_paths": false,
+    "required_future_scenarios": [
+      "happy_policy_fixtures_load",
+      "gate_real_client_claim_rejected",
+      "gate_public_socket_claim_rejected",
+      "gate_qport_promotion_without_byte_evidence_rejected",
+      "gate_query_info_stage_confusion_rejected",
+      "gate_address_challenge_not_real_netchan_proof"
+    ]
+  },
+  "fixture_allowlist": [
+    "fixtures/qport_session_unresolved.json",
+    "fixtures/diagnostic_endpoint_challenge_prerequisite.json",
+    "fixtures/invalid_real_client_claim.json",
+    "fixtures/invalid_public_socket_claim.json",
+    "fixtures/invalid_qport_promoted_without_byte_evidence.json"
+  ],
+  "invalid_fixture_expected_reject_reasons": {
+    "invalid_real_client_claim": "real_client_claim_rejected",
+    "invalid_public_socket_claim": "public_socket_claim_rejected",
+    "invalid_qport_promoted_without_byte_evidence": "qport_promoted_without_byte_evidence"
+  },
+  "blocked_until_separate_policy_prompt": [
+    "packet_capture",
+    "real_client_capture",
+    "steam_invocation",
+    "public_socket_exposure",
+    "lan_socket_exposure",
+    "connect_runtime",
+    "post_connect_serverinfo_runtime",
+    "signon_serverinfo_runtime",
+    "netchan_runtime",
+    "client_admission",
+    "real_compatibility_claim"
+  ]
+}

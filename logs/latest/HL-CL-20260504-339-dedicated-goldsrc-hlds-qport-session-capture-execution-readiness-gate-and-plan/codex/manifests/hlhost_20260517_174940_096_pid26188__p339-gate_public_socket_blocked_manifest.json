@@ -1,0 +1,15 @@
+{
+  "sessionId": "20260517_174940",
+  "runInstanceId": "20260517_174940_096_pid26188",
+  "runLabel": "p339-gate_public_socket_blocked",
+  "promptId": "HL-CL-20260504-339-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-gate-and-plan",
+  "regressionGuard": "<none>",
+  "stopOnChangelevelRequest": 0,
+  "frames": 1,
+  "frametime": 0.050000,
+  "gitBranch": "<unknown>",
+  "gitCommit": "<unknown>",
+  "currentFilePath": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p339-readiness-gate\\gate_public_socket_blocked\\hlhost_20260517_174940_096_pid26188__p339-gate_public_socket_blocked_part01.log",
+  "summaryFilePath": "G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p339-readiness-gate\\gate_public_socket_blocked\\hlhost_20260517_174940_096_pid26188__p339-gate_public_socket_blocked_summary.log",
+  "runtimeLogPaths": ["G:\\DEV\\СPP\\HLengine\\host-p316\\logs\\latest\\runtime\\p339-readiness-gate\\gate_public_socket_blocked\\hlhost_20260517_174940_096_pid26188__p339-gate_public_socket_blocked_part01.log"]
+}
