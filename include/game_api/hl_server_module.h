@@ -8535,6 +8535,26 @@ struct HldsQportSessionNoClientCaptureExecutionImplementationSummary
     bool final_gate_invoked = false;
 };
 
+struct HldsQportSessionCaptureExecutionImplementationCiDriftGateSummary
+    : HldsQportSessionNoClientCaptureExecutionImplementationSummary
+{
+    bool execution_implementation_ci_manifest_created = false;
+    bool execution_implementation_ci_manifest_loaded = false;
+    std::string execution_implementation_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_ci_manifest.json";
+    bool execution_implementation_drift_gate_enabled = false;
+    bool execution_implementation_drift_gate_disabled_by_default = true;
+    bool execution_implementation_drift_gate_passed = false;
+    std::string execution_implementation_source_commit = "disabled";
+    std::string execution_implementation_artifact_commit = "disabled";
+    bool execution_implementation_skeleton_ci_manifest_hash_recorded =
+        false;
+    bool execution_implementation_skeleton_ci_manifest_drift_detected =
+        false;
+    bool execution_implementation_drift_detected = false;
+    bool final_gate_drift_detected = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23287,6 +23307,12 @@ struct HlServerModuleInitOptions
         hlds_qport_session_no_client_capture_execution_implementation_probe_scenario =
             "happy";
     bool
+        hlds_qport_session_capture_execution_implementation_ci_drift_gate_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_capture_execution_implementation_ci_drift_gate_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -24190,6 +24216,8 @@ struct HlServerModuleSummary
         hlds_qport_session_capture_execution_implementation_final_gate;
     HldsQportSessionNoClientCaptureExecutionImplementationSummary
         hlds_qport_session_no_client_capture_execution_implementation;
+    HldsQportSessionCaptureExecutionImplementationCiDriftGateSummary
+        hlds_qport_session_capture_execution_implementation_ci_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
