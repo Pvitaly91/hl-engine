@@ -1,0 +1,26 @@
+PROMPT-ID: HL-CL-20260504-335-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-release-boundary-summary
+
+Initial worktree head: 7b65f1e5d767bf8102275e5237ef5ab1dd229f2b
+Source/docs commit: 3d6b5ebb8b144a230a0d631c485cf219cbbbec4e
+Artifact commit: pending_artifact_commit
+Artifact staging note: first artifact commit staged only JSON because markdown/text log artifacts are ignored; latest artifact commit is amended with forced-add prompt 335 markdown/text artifacts.
+
+Branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Known unrelated dirty/untracked files preserved:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/*
+- build-p333/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+
+Prompt 335 staged/committed paths are limited to:
+- docs/diagnostic/hlds/qport_session_capture_execution_implementation_release_boundary_summary.md
+- logs/latest/HL-CL-20260504-335-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-release-boundary-summary/codex/*
+
+Status after artifact creation before artifact commit:
+- branch is ahead of origin by 1 source/docs commit
+- prompt 335 artifact directory is untracked and ready to stage
+- unrelated build/runtime dirty files remain unstaged and preserved
