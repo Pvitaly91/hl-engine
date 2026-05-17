@@ -587,6 +587,41 @@ bool IsHldsQportSessionCaptureExecutionImplementationCiDriftGateScenario(
         || normalized == L"gate_public_socket_blocked";
 }
 
+bool IsHldsQportSessionCaptureExecutionReadinessGateScenario(
+    std::wstring_view normalized)
+{
+    return normalized == L"happy"
+        || normalized == L"gate_disabled_by_default"
+        || normalized == L"gate_readiness_policy_required"
+        || normalized == L"gate_execution_implementation_ci_required"
+        || normalized == L"gate_execution_implementation_boundary_required"
+        || normalized == L"gate_final_gate_required"
+        || normalized == L"gate_execution_skeleton_ci_required"
+        || normalized == L"gate_runtime_skeleton_ci_required"
+        || normalized == L"gate_offline_validator_required"
+        || normalized == L"gate_capture_policy_gate_required"
+        || normalized == L"gate_dry_run_validator_required"
+        || normalized == L"gate_wrapper_validation_required"
+        || normalized == L"gate_timeout_cleanup_policy_required"
+        || normalized == L"gate_artifact_schema_lock_required"
+        || normalized == L"gate_socket_policy_review_required"
+        || normalized == L"gate_datagram_policy_review_required"
+        || normalized == L"gate_capture_execution_blocked"
+        || normalized == L"gate_capture_runtime_blocked"
+        || normalized == L"gate_socket_open_blocked"
+        || normalized == L"gate_loopback_socket_blocked"
+        || normalized == L"gate_public_lan_blocked"
+        || normalized == L"gate_datagram_send_blocked"
+        || normalized == L"gate_datagram_receive_blocked"
+        || normalized == L"gate_real_client_blocked"
+        || normalized == L"gate_connect_signon_blocked"
+        || normalized == L"gate_netchan_runtime_blocked"
+        || normalized == L"gate_qport_evidence_promotion_blocked"
+        || normalized == L"gate_compatibility_claim_blocked"
+        || normalized == L"gate_no_real_client_used"
+        || normalized == L"gate_public_socket_blocked";
+}
+
 std::optional<std::string> SanitizeRunLabel(std::wstring_view value)
 {
     const std::wstring trimmed = TrimCopy(value);
@@ -5311,6 +5346,108 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
 
             result.options
                 .hlds_qport_session_capture_execution_implementation_ci_drift_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        if (argument == L"--hlds-qport-session-capture-execution-readiness-gate"
+            || argument
+                == L"--hlds-qport-session-capture-execution-readiness-gate-probe")
+        {
+            result.options
+                .hlds_qport_session_capture_execution_readiness_gate_probe_enabled =
+                true;
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_execution_readiness_gate_prefix =
+                L"--hlds-qport-session-capture-execution-readiness-gate=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_execution_readiness_gate_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_capture_execution_readiness_gate_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_capture_execution_readiness_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-capture-execution-readiness-gate"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_execution_readiness_gate_probe_prefix =
+                L"--hlds-qport-session-capture-execution-readiness-gate-probe=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_execution_readiness_gate_probe_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(
+                        hlds_qport_session_capture_execution_readiness_gate_probe_prefix
+                            .size()),
+                    &result.options
+                         .hlds_qport_session_capture_execution_readiness_gate_probe_enabled,
+                    &result.error_message,
+                    L"--hlds-qport-session-capture-execution-readiness-gate-probe"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument
+            == L"--hlds-qport-session-capture-execution-readiness-gate-probe-scenario")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --hlds-qport-session-capture-execution-readiness-gate-probe-scenario.";
+                return result;
+            }
+
+            const std::wstring normalized = ToLowerCopy(argv[++index]);
+            if (!IsHldsQportSessionCaptureExecutionReadinessGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-capture-execution-readiness-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_capture_execution_readiness_gate_probe_scenario =
+                NarrowAscii(normalized);
+            continue;
+        }
+
+        constexpr std::wstring_view
+            hlds_qport_session_capture_execution_readiness_gate_probe_scenario_prefix =
+                L"--hlds-qport-session-capture-execution-readiness-gate-probe-scenario=";
+        if (StartsWith(
+                argument,
+                hlds_qport_session_capture_execution_readiness_gate_probe_scenario_prefix))
+        {
+            const std::wstring normalized = ToLowerCopy(
+                argument.substr(
+                    hlds_qport_session_capture_execution_readiness_gate_probe_scenario_prefix
+                        .size()));
+            if (!IsHldsQportSessionCaptureExecutionReadinessGateScenario(
+                    normalized))
+            {
+                result.error_message =
+                    L"Invalid value for --hlds-qport-session-capture-execution-readiness-gate-probe-scenario.";
+                return result;
+            }
+
+            result.options
+                .hlds_qport_session_capture_execution_readiness_gate_probe_scenario =
                 NarrowAscii(normalized);
             continue;
         }
