@@ -1,10 +1,12 @@
-# HL-CL-20260504-331 Qport/Session Execution Implementation Wrapper And CI Release Summary
+# HL-CL-20260504-337 Qport/Session Execution Implementation Wrapper And CI Release Summary
 
 Compatibility claim level: diagnostic-qport-session-execution-implementation-wrapper-ci-release-summary-only; no real Steam Half-Life or HLDS-compatible client compatibility claimed
 
-This release summary closes the combined qport/session execution implementation skeleton, wrapper, and CI drift boundary after prompts 304 through 330. It documents the checked-in offline policy, fixtures, validators, dry-run wrapper, shell boundary, shell CI drift gate, final policy gate, runtime skeleton boundary, runtime skeleton CI drift gate, capture execution policy review, final execution policy gate, disabled-by-default execution skeleton, execution skeleton CI manifest and drift gate, execution implementation policy review, disabled-by-default execution implementation skeleton, implementation skeleton release boundary, and implementation skeleton CI manifest and drift gate as a diagnostic-only boundary.
+This release summary closes the combined qport/session execution implementation surface, wrapper, and CI drift boundary after prompts 304 through 336. It documents the checked-in offline policy, fixtures, validators, dry-run wrapper, shell boundary, shell CI drift gate, runtime skeleton boundary, runtime skeleton CI drift gate, execution skeleton boundary, execution skeleton CI drift gate, execution implementation skeleton boundary, execution implementation skeleton CI drift gate, final implementation policy review, final implementation gate, disabled-by-default execution implementation surface, execution implementation release boundary, and execution implementation CI manifest and drift gate as a diagnostic-only boundary.
 
 This summary does not allow capture execution, capture runtime execution, packet capture, socket opening, loopback socket opening, datagram send or receive, public or LAN exposure, Steam use, real client invocation, getchallenge/connect/post-connect/signon runtime paths, netchan startup, qport/session byte-evidence promotion, or compatibility claim expansion.
+
+Unknown byte-level qport/session behavior remains unknown.
 
 ## Stable Boundary
 
@@ -12,26 +14,26 @@ This summary does not allow capture execution, capture runtime execution, packet
 | --- | --- |
 | Boundary name | `qport_session_execution_implementation_wrapper_ci_boundary` |
 | Branch | `codex/HL-CL-20260401-081-target-runtime-completion-state` |
-| Covered prompt range | `HL-CL-20260504-304` through `HL-CL-20260504-330` |
+| Covered prompt range | `HL-CL-20260504-304` through `HL-CL-20260504-336` |
 | Related static/design prompts | `HL-CL-20260504-302`, `HL-CL-20260504-303` |
-| Focused implementation skeleton prompt | `HL-CL-20260504-328` |
-| Implementation skeleton release boundary prompt | `HL-CL-20260504-329` |
-| Implementation skeleton CI drift prompt | `HL-CL-20260504-330` |
+| Focused execution implementation prompt | `HL-CL-20260504-334` |
+| Execution implementation release boundary prompt | `HL-CL-20260504-335` |
+| Execution implementation CI drift prompt | `HL-CL-20260504-336` |
 | Fixture root | `fixtures/diagnostic/hlds/qport_session` |
 | Offline fixture policy | `fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json` |
-| Offline fixtures | `fixtures/diagnostic/hlds/qport_session/fixtures/*.json` |
 | Dry-run manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json` |
 | Shell CI manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json` |
 | Runtime skeleton CI manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_runtime_skeleton_ci_manifest.json` |
 | Execution skeleton CI manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_skeleton_ci_manifest.json` |
 | Execution implementation skeleton CI manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json` |
+| Execution implementation CI manifest | `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_ci_manifest.json` |
 | Dry-run wrapper | `scripts/run_hlds_qport_session_capture_dry_run.ps1` |
-| Execution skeleton wrapper/CI release summary | `docs/diagnostic/hlds/qport_session_execution_skeleton_wrapper_ci_release_summary.md` |
-| Execution implementation policy review | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md` |
-| Implementation skeleton release boundary docs | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_skeleton_release_boundary_summary.md` |
-| Implementation skeleton CI manifest and drift docs | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_skeleton_ci_manifest_and_drift_gate.md` |
-| Implementation skeleton source commit | `f44a6a7023495af33c8da05702d762e538e4b567` |
-| Implementation skeleton CI source commit | `bc1b9ca7f736a995603c35b515e45f6a5bf8b706` |
+| Execution implementation release boundary docs | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_release_boundary_summary.md` |
+| Execution implementation CI manifest and drift docs | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_ci_manifest_and_drift_gate.md` |
+| Final implementation policy review | `docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md` |
+| Execution implementation source commit | `2a1bcaed03bffa02d068b33a6f6e18f333e98714` |
+| Execution implementation CI source commit | `b6681508343ad915e4d779737bec45df44128761` |
+| Execution implementation CI artifact commit | `0f3d505aa0a1ed37991b3f4010394a9c8bfe32b6` |
 
 Related static/design context:
 
@@ -71,6 +73,12 @@ Relevant source commits:
 | 328 no-client execution implementation skeleton | `f44a6a7023495af33c8da05702d762e538e4b567` |
 | 329 implementation skeleton release boundary | `8551b3e0cca3a33a55fbe452510b382309cc7bb0` |
 | 330 implementation skeleton CI manifest and drift gate | `bc1b9ca7f736a995603c35b515e45f6a5bf8b706` |
+| 331 execution implementation wrapper CI release summary | `f4974c62290a01f98ace9599f00410f711b77d43` |
+| 332 final implementation policy review | `d35926c233dbef0016def499c1d9fa049666db7b` |
+| 333 final implementation gate | `580c7b760a3e5f4088125c65c51f59db1b15b472` |
+| 334 no-client execution implementation surface | `2a1bcaed03bffa02d068b33a6f6e18f333e98714` |
+| 335 execution implementation release boundary | `3d6b5ebb8b144a230a0d631c485cf219cbbbec4e` |
+| 336 execution implementation CI manifest and drift gate | `b6681508343ad915e4d779737bec45df44128761` |
 
 Relevant artifact commits:
 
@@ -103,36 +111,46 @@ Relevant artifact commits:
 | 328 no-client execution implementation skeleton | `2367e88b7ba4b04a2cae076e36cd321d8a5a1227` |
 | 329 implementation skeleton release boundary | `5a840cd0cf5652197b37af126044bdf8d96eea0f` |
 | 330 implementation skeleton CI manifest and drift gate | `76bd57271d05c099b150c82433c251dc1d7cb431` |
+| 331 execution implementation wrapper CI release summary | `064cd887511ea84920406538edfff79f26e62cff` |
+| 332 final implementation policy review | `16d20dff935b60b66df6738d159edb99feb17886` |
+| 333 final implementation gate | `50273d6929644103ca3ec664e3bde6801d09c287` |
+| 334 no-client execution implementation surface | `7b65f1e5d767bf8102275e5237ef5ab1dd229f2b` |
+| 335 execution implementation release boundary | `331bb0e20651fca3aa5114985e1b4ad91a609976` |
+| 336 execution implementation CI manifest and drift gate | `0f3d505aa0a1ed37991b3f4010394a9c8bfe32b6` |
 
-## Prompt 330 Drift Summary
+## Prompt 336 Drift Summary
 
-Prompt 330 created `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_skeleton_ci_manifest.json` and a disabled-by-default read-only implementation skeleton drift gate. Its required proof matrix passed for all 24 scenarios, including `happy`, disabled-by-default, missing CI manifest, implementation skeleton drift, policy review drift, execution skeleton CI manifest drift, runtime skeleton CI manifest drift, wrapper drift, dependency removal, capture execution permission drift, capture runtime permission drift, socket permission drift, loopback socket permission drift, datagram permission drift, capture execution drift, datagram execution drift, real client permission drift, connect/signon permission drift, netchan runtime drift, qport evidence promotion drift, address-scoped challenge real-netchan drift, compatibility claim expansion drift, no-real-client proof, and public socket blocking proof.
+Prompt 336 created `fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_ci_manifest.json` and a disabled-by-default read-only execution implementation drift gate. Its required proof matrix passed for the happy proof and every listed gate scenario.
 
 Expected positive markers:
 
-- `execution_implementation_skeleton_ci_manifest_created=1`
-- `execution_implementation_skeleton_drift_gate_disabled_by_default=1`
-- `execution_implementation_skeleton_drift_gate_passed=1`
-- `execution_implementation_skeleton_added=1`
-- `implementation_execution_plan_created=1`
-- `implementation_execution_plan_validated=1`
+- `execution_implementation_ci_manifest_created=1`
+- `execution_implementation_ci_manifest_loaded=1`
+- `execution_implementation_drift_gate_disabled_by_default=1`
+- `execution_implementation_drift_gate_passed=1`
+- `execution_implementation_surface_added=1`
+- `implementation_plan_created=1`
+- `implementation_plan_validated=1`
+- `final_gate_passed=1`
+- `implementation_skeleton_ci_drift_gate_passed=1`
 - `policy_review_passed=1`
 - `execution_skeleton_ci_drift_gate_passed=1`
-- `execution_skeleton_boundary_validated=1`
-- `final_execution_policy_gate_passed=1`
 - `runtime_skeleton_ci_drift_gate_passed=1`
 - `offline_fixture_validator_passed=1`
 - `capture_policy_gate_passed=1`
 - `dry_run_validator_passed=1`
 - `wrapper_validation_passed=1`
-- `future_minimal_no_client_execution_implementation_allowed_next=1`
+- `future_capture_execution_implementation_prompt_allowed_next=1`
 
 Expected no-drift markers:
 
+- `execution_implementation_drift_detected=0`
+- `final_gate_drift_detected=0`
 - `implementation_skeleton_drift_detected=0`
 - `policy_review_drift_detected=0`
 - `policy_drift_detected=0`
 - `dry_run_manifest_drift_detected=0`
+- `execution_implementation_skeleton_ci_manifest_drift_detected=0`
 - `execution_skeleton_ci_manifest_drift_detected=0`
 - `runtime_skeleton_ci_manifest_drift_detected=0`
 - `wrapper_drift_detected=0`
@@ -189,17 +207,17 @@ The positive contract for this combined execution implementation wrapper and CI 
 4. Capture policy gate passes while denying capture.
 5. Dry-run manifest exists.
 6. Dry-run validator passes.
-7. Dry-run wrapper plan mode passes.
-8. Dry-run wrapper validate mode passes.
-9. Shell CI manifest exists and its drift gate passes.
-10. Runtime skeleton CI manifest exists and its drift gate passes.
-11. Execution skeleton CI manifest exists and its drift gate passes.
-12. Execution implementation policy review passes.
-13. Disabled-by-default execution implementation skeleton exists.
-14. Implementation execution plan is created and validated.
-15. Execution implementation skeleton CI manifest exists.
-16. Execution implementation skeleton drift gate passes.
-17. Implementation skeleton boundary can be revalidated without capture.
+7. Dry-run wrapper plan and validate modes pass.
+8. Shell CI manifest exists and its drift gate passes.
+9. Runtime skeleton CI manifest exists and its drift gate passes.
+10. Execution skeleton CI manifest exists and its drift gate passes.
+11. Execution implementation skeleton CI manifest exists and its drift gate passes.
+12. Final implementation gate passes.
+13. Disabled-by-default execution implementation surface exists.
+14. Implementation plan is created and validated.
+15. Execution implementation CI manifest exists.
+16. Execution implementation drift gate passes.
+17. Implementation boundary can be revalidated without capture.
 
 ## Blocked And Not Proven
 
@@ -229,6 +247,12 @@ The following remain blocked or unproven:
 
 ## Operator Checklist
 
+Inspect the execution implementation CI manifest:
+
+```powershell
+Get-Content -Raw fixtures\diagnostic\hlds\qport_session\qport_session_capture_execution_implementation_ci_manifest.json | ConvertFrom-Json
+```
+
 Inspect the implementation skeleton CI manifest:
 
 ```powershell
@@ -247,55 +271,49 @@ Inspect the runtime skeleton CI manifest:
 Get-Content -Raw fixtures\diagnostic\hlds\qport_session\qport_session_capture_runtime_skeleton_ci_manifest.json | ConvertFrom-Json
 ```
 
-Run the implementation skeleton drift gate happy proof only in an explicit bounded diagnostic rerun:
+Run the execution implementation drift gate happy proof only in an explicit bounded diagnostic rerun:
 
 ```powershell
-.\build32\host\Debug\hlhost.exe `
+.\build-p336\Debug\hlhost.exe `
   --dedicated `
-  --gamedir logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture `
+  --gamedir ..\host\logs\latest\HL-CL-20260409-119-dedicated-goldsrc-signon-envelope-surface\runtime\valve-fixture `
   --maxclients 4 `
   --frames 1 `
   --log-summary-file 1 `
   --log-console-level error `
-  --prompt-id HL-CL-20260504-331-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary `
-  --run-label p331-implementation-skeleton-drift-happy `
-  --log-dir logs\latest\runtime\p331-implementation-skeleton-drift-happy `
-  --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe `
-  --hlds-qport-session-execution-implementation-skeleton-ci-drift-gate-probe-scenario happy
+  --prompt-id HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary `
+  --run-label p337-execution-implementation-drift-happy `
+  --log-dir logs\latest\runtime\p337-execution-implementation-drift-happy `
+  --hlds-qport-session-capture-execution-implementation-ci-drift-gate-probe `
+  --hlds-qport-session-capture-execution-implementation-ci-drift-gate-probe-scenario happy
 ```
 
 Run wrapper plan/validate only through the existing dry-run wrapper diagnostic modes. Wrapper plan and validate remain diagnostic and do not imply capture permission.
-
-Inspect policy review status through `docs/diagnostic/hlds/qport_session_capture_execution_implementation_policy_review.md` and prompt 327 artifacts. It may allow only a later minimal disabled-by-default no-client diagnostic execution implementation skeleton discussion; it still requires every current execution, socket, datagram, real-client, runtime-stage, evidence, and compatibility expansion marker to remain blocked.
 
 Fields that must remain `1`:
 
 - `capture_blocked_by_policy`
 - `address_scoped_challenge_reusable_as_diagnostic_prerequisite`
+- `execution_implementation_ci_manifest_created`
+- `execution_implementation_drift_gate_passed`
 - `execution_implementation_skeleton_ci_manifest_created`
-- `execution_implementation_skeleton_drift_gate_passed`
 - `execution_skeleton_ci_manifest_created`
-- `execution_skeleton_drift_gate_passed`
 - `runtime_skeleton_ci_manifest_created`
-- `runtime_skeleton_drift_gate_passed`
 - `wrapper_plan_passed`
 - `wrapper_validate_passed`
-- `policy_review_passed`
-- `execution_implementation_skeleton_added`
-- `implementation_execution_plan_created`
-- `implementation_execution_plan_validated`
-- `offline_fixture_validator_passed`
-- `capture_policy_gate_passed`
-- `dry_run_validator_passed`
-- `wrapper_validation_passed`
-- `future_minimal_no_client_execution_implementation_allowed_next`
+- `final_gate_passed`
+- `execution_implementation_surface_added`
+- `implementation_plan_created`
+- `implementation_plan_validated`
+- `future_capture_execution_implementation_prompt_allowed_next`
 
 Fields that must remain `0`:
 
+- `execution_implementation_drift_detected`
 - `implementation_skeleton_drift_detected`
-- `policy_review_drift_detected`
 - `policy_drift_detected`
 - `dry_run_manifest_drift_detected`
+- `execution_implementation_skeleton_ci_manifest_drift_detected`
 - `execution_skeleton_ci_manifest_drift_detected`
 - `runtime_skeleton_ci_manifest_drift_detected`
 - `wrapper_drift_detected`
@@ -337,7 +355,7 @@ Fields that must remain `0`:
 - `netchan_runtime_started`
 - `normal_host_behavior_changed`
 
-Detect implementation skeleton drift through `implementation_skeleton_drift_detected`. Detect policy, fixture, manifest, and wrapper drift through `policy_review_drift_detected`, `policy_drift_detected`, `dry_run_manifest_drift_detected`, `execution_skeleton_ci_manifest_drift_detected`, `runtime_skeleton_ci_manifest_drift_detected`, `wrapper_drift_detected`, and recorded manifest hashes. Detect unsafe capture/runtime expansion through any blocked field changing from `0` to `1`, any dependency marker changing from `1` to `0`, or the compatibility claim string changing away from the diagnostic-only wording above.
+Detect execution implementation drift through `execution_implementation_drift_detected`. Detect policy, fixture, manifest, and wrapper drift through the no-drift fields above and recorded manifest hashes. Detect unsafe capture/runtime expansion through any blocked field changing from `0` to `1`, any dependency marker changing from `1` to `0`, or the compatibility claim string changing away from the diagnostic-only wording above.
 
 If any blocked field changes, stop and treat the result as a boundary regression. Do not continue to capture execution, socket work, datagram work, real-client work, connect/post-connect/signon/netchan work, qport evidence promotion, or compatibility-claim work until a separate policy-hardening prompt resolves the drift.
 
@@ -345,15 +363,16 @@ If any blocked field changes, stop and treat the result as a boundary regression
 
 | Risk | Guard | Required response |
 | --- | --- | --- |
-| Fixture drift | Implementation skeleton CI manifest, file hashes, and offline fixture validator | Stop and review fixture policy. |
+| Fixture drift | Implementation CI manifest, file hashes, and offline fixture validator | Stop and review fixture policy. |
 | Policy drift | Policy hash, policy review marker, and capture policy gate | Stop and review policy before any runtime discussion. |
 | Dry-run manifest drift | Dry-run manifest hash and validator | Stop and harden the dry-run manifest. |
 | Shell CI manifest drift | Shell CI manifest hash and shell drift gate | Stop and restore shell CI boundary. |
 | Runtime skeleton CI manifest drift | Runtime skeleton CI manifest hash and drift gate | Stop and refresh manifest only through an explicit drift prompt. |
 | Execution skeleton CI manifest drift | Execution skeleton CI manifest hash and drift gate | Stop and refresh manifest only through an explicit drift prompt. |
 | Implementation skeleton CI manifest drift | Implementation skeleton CI manifest and drift gate | Stop and refresh manifest only through an explicit drift prompt. |
+| Execution implementation CI manifest drift | Execution implementation CI manifest and drift gate | Stop and refresh manifest only through an explicit drift prompt. |
 | Wrapper drift | Wrapper hash, plan marker, and validate marker | Stop and harden wrapper plan/validate behavior. |
-| Dependency drift | Policy review, execution skeleton CI, runtime skeleton CI, validators, and wrapper markers | Restore required dependencies before continuing. |
+| Dependency drift | Final gate, implementation skeleton CI, execution skeleton CI, runtime skeleton CI, validators, and wrapper markers | Restore required dependencies before continuing. |
 | Capture accidentally enabled | `capture_allowed_now=0` and `capture_execution_allowed_now=0` | Treat as a blocking regression. |
 | Capture execution accidentally triggered | `capture_executed=0` | Treat as a blocking regression. |
 | Capture runtime accidentally executed | `capture_runtime_executed=0` | Treat as a blocking regression. |
@@ -370,12 +389,12 @@ If any blocked field changes, stop and treat the result as a boundary regression
 
 ## Optional Proof Rerun
 
-Prompt 331 is a release-boundary summary prompt. The optional implementation skeleton drift gate happy proof was not rerun for this document-only boundary; this summary relies on the full 24-scenario prompt 330 proof matrix and records `not_run_with_reason=not_run_report_only_release_summary_uses_prompt_330_full_24_scenario_execution_implementation_skeleton_ci_drift_gate_proof_matrix`.
+Prompt 337 is a release-boundary summary prompt. The optional execution implementation drift gate happy proof was not rerun for this document-only boundary; this summary relies on the full prompt 336 proof matrix and records `not_run_with_reason=not_run_report_only_release_summary_uses_prompt_336_full_execution_implementation_ci_drift_gate_proof_matrix`.
 
 ## Next Prompt
 
 Recommended next prompt:
 
-`HL-CL-20260504-332-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-final-policy-review`
+`HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review`
 
-Recommended next task: review whether a future final execution implementation gate can be considered after the implementation skeleton and drift boundaries are closed.
+Recommended next task: review whether any future actual no-client execution readiness work can be considered after implementation and drift boundaries are closed.
