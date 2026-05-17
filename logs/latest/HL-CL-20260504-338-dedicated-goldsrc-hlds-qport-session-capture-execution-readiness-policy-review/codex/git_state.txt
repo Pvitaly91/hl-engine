@@ -1,0 +1,46 @@
+PROMPT-ID: HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review
+
+Initial branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Initial HEAD:
+34b4be4fe975dc2cc8a4a8265ed22aa40688dde4
+
+Source/docs commit:
+2443255002e9bb43c20e0846296c2194d7ad2630
+
+Artifact commit:
+pending_until_artifact_commit_created
+
+Descendant gate:
+- passed
+- commits_checked=102
+- base_commit=ef7d69a929b16f5f55b03f932ed46fd0594adbb4
+- checked_head=2443255002e9bb43c20e0846296c2194d7ad2630
+
+Unrelated working tree items preserved:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+- build-p333/
+- build-p336/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+- logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+
+Prompt-specific files for artifact commit:
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/HL-CL-20260504-338__full_handoff.txt
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_capture_execution_readiness_policy_review.md
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_future_execution_readiness_scope.md
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_future_execution_readiness_gate_matrix.md
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_execution_readiness_allowed_forbidden_actions.md
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_execution_readiness_risk_review.md
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/qport_session_capture_execution_readiness_policy_summary.json
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/command_log.txt
+- logs/latest/HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review/codex/git_state.txt

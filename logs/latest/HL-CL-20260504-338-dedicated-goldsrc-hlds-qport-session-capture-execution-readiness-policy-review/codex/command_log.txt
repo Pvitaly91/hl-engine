@@ -1,0 +1,27 @@
+PROMPT-ID: HL-CL-20260504-338-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-policy-review
+
+Commands run:
+- git rev-parse --show-toplevel; git branch --show-current; git rev-parse HEAD
+- git status --short --branch
+- git log --first-parent --oneline -20
+- Get-Content -Raw docs/diagnostic/hlds/qport_session_execution_implementation_wrapper_ci_release_summary.md
+- Get-Content -Raw fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_implementation_ci_manifest.json
+- Get-Content -Raw logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_release_summary.json
+- Get-Content -Raw docs/diagnostic/hlds/qport_session_capture_execution_implementation_final_policy_review.md
+- apply_patch docs/diagnostic/hlds/qport_session_capture_execution_readiness_policy_review.md
+- git add docs/diagnostic/hlds/qport_session_capture_execution_readiness_policy_review.md
+- git commit -m "HL-CL-20260504-338 review qport capture execution readiness policy"
+- Copy-Item stable policy review doc into prompt artifact directory
+- apply_patch prompt-specific handoff, scope, gate matrix, allowed/forbidden table, risk review, JSON summary, command log, and git state
+- git log --all --format="%H %s" --grep="HL-CL-20260504"
+- git log --first-parent --reverse --oneline ef7d69a929b16f5f55b03f932ed46fd0594adbb4..HEAD
+- PowerShell descendant gate against first-parent prompt commits from 287 through 338 plus explicit prompt 328-337 checkpoint commits
+
+Validation before artifact commit:
+- descendant gate passed: 102 commits checked, base_commit=ef7d69a929b16f5f55b03f932ed46fd0594adbb4, head=2443255002e9bb43c20e0846296c2194d7ad2630
+- rg inspections passed for qport_session, execution readiness policy, future_execution_readiness_work_allowed_next, capture_execution_allowed_now, capture_runtime_allowed_now, socket_open_allowed_now, loopback_socket_allowed_now, datagram_send_allowed_now, datagram_receive_allowed_now, public socket, LAN socket, real client, connect, post-connect, signon, and netchan
+- PowerShell ConvertFrom-Json validation passed for policy, dry-run manifest, execution implementation CI manifest, and prompt 338 JSON summary
+
+No runtime proof rerun:
+- optional wrapper plan/validate not run; this is a policy review only and uses prompt 337 boundary plus prompt 336 drift matrix.
+- no capture execution, capture runtime, socket, loopback socket, datagram, real-client runtime, public/LAN socket, post-connect/signon runtime, or netchan runtime proof was run.
