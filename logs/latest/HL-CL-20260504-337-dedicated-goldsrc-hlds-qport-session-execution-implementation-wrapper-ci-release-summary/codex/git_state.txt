@@ -1,0 +1,39 @@
+PROMPT-ID: HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary
+
+Initial branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Initial HEAD:
+0f3d505aa0a1ed37991b3f4010394a9c8bfe32b6
+
+Source/docs commit:
+0cbcc1c439bb6dd28c01b7eb52aedf725d4cee1d
+
+Artifact commit:
+pending_until_artifact_commit_created
+
+Unrelated working tree items preserved:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+- build-p333/
+- build-p336/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+- logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+
+Prompt-specific files staged for artifact commit only:
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/HL-CL-20260504-337__full_handoff.txt
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_release_summary.md
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_operator_checklist.md
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_risk_table.md
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/qport_session_execution_implementation_wrapper_ci_release_summary.json
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/command_log.txt
+- logs/latest/HL-CL-20260504-337-dedicated-goldsrc-hlds-qport-session-execution-implementation-wrapper-ci-release-summary/codex/git_state.txt
+
