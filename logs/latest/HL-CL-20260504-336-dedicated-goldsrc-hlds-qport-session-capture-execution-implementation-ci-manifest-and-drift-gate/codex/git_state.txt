@@ -1,0 +1,41 @@
+## git status --short --branch
+## codex/HL-CL-20260401-081-target-runtime-completion-state...origin/codex/HL-CL-20260401-081-target-runtime-completion-state [ahead 1]
+ M build32/host/hlhost.dir/Debug/hlhost.ilk
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+ M build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+?? build-p333/
+?? build-p336/
+?? logs/latest/HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate/
+?? logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+?? logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+?? logs/latest/runtime/p333-final-gate/
+?? logs/latest/runtime/p334-execution-implementation/
+?? logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+
+## git log -2 --oneline
+b668150 Add qport session execution implementation CI drift gate
+331bb0e HL-CL-20260504-335 add execution implementation boundary artifacts
+
+## staged files
+
+## untracked prompt artifacts
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\all_gate_summaries.txt
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\command_log.txt
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\happy_summary.txt
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\HL-CL-20260504-336__full_handoff.txt
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\qport_session_capture_execution_implementation_boundary_drift_matrix.md
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\qport_session_capture_execution_implementation_ci_manifest_report.md
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\qport_session_capture_execution_implementation_drift_gate_report.md
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\qport_session_capture_execution_implementation_drift_gate_summary.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_execution_implementation_ci_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_execution_implementation_skeleton_ci_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_execution_skeleton_ci_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_preflight_dry_run_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_runtime_skeleton_ci_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_capture_shell_ci_manifest.json
+G:\DEV\?PP\HLengine\host-p316\logs\latest\HL-CL-20260504-336-dedicated-goldsrc-hlds-qport-session-capture-execution-implementation-ci-manifest-and-drift-gate\codex\manifests\qport_session_offline_fixture_manifest_policy.json

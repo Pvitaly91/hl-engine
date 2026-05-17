@@ -1,0 +1,35 @@
+git status --short --branch
+rg inspections for qport_session, capture execution implementation, implementation CI manifest, drift gate, final gate, blocked fields, sockets, datagrams, real client, connect, post-connect, signon, netchan
+PowerShell ConvertFrom-Json validation for policy, dry-run, implementation skeleton CI manifest, and implementation CI manifest
+CMake configure: build-p336 with Visual Studio 17 2022 Win32, C++17, NOMINMAX, WIN32_LEAN_AND_MEAN, and HLSDK include paths
+CMake/MSBuild build: build-p336 Debug hlhost
+Runtime proof loop: 26 scenarios using --hlds-qport-session-capture-execution-implementation-ci-drift-gate-probe
+No capture execution proof via capture_executed=0 and capture_runtime_executed=0 in happy
+No socket proof via socket_open_attempted=0, public_socket_opened=0, lan_socket_opened=0, loopback_udp_socket_opened=0 in happy
+No datagram proof via datagram_sent=0 and datagram_received=0 in happy
+No real-client proof via real_steam_client_used=0 and real_client_binary_invoked=0 in happy and gate_no_real_client_used
+No post-connect/signon/netchan proof via connect_path_invoked=0, post_connect_serverinfo_path_invoked=0, signon_serverinfo_path_invoked=0, netchan_runtime_started=0 in happy
+Descendant gate checked supplied prompt 325-335 source/artifact commits:
+ancestor_ok:3d6b5ebb8b144a230a0d631c485cf219cbbbec4e
+ancestor_ok:331bb0e20651fca3aa5114985e1b4ad91a609976
+ancestor_ok:2a1bcaed03bffa02d068b33a6f6e18f333e98714
+ancestor_ok:7b65f1e5d767bf8102275e5237ef5ab1dd229f2b
+ancestor_ok:580c7b760a3e5f4088125c65c51f59db1b15b472
+ancestor_ok:50273d6929644103ca3ec664e3bde6801d09c287
+ancestor_ok:d35926c233dbef0016def499c1d9fa049666db7b
+ancestor_ok:16d20dff935b60b66df6738d159edb99feb17886
+ancestor_ok:f4974c62290a01f98ace9599f00410f711b77d43
+ancestor_ok:064cd887511ea84920406538edfff79f26e62cff
+ancestor_ok:bc1b9ca7f736a995603c35b515e45f6a5bf8b706
+ancestor_ok:76bd57271d05c099b150c82433c251dc1d7cb431
+ancestor_ok:8551b3e0cca3a33a55fbe452510b382309cc7bb0
+ancestor_ok:5a840cd0cf5652197b37af126044bdf8d96eea0f
+ancestor_ok:f44a6a7023495af33c8da05702d762e538e4b567
+ancestor_ok:2367e88b7ba4b04a2cae076e36cd321d8a5a1227
+ancestor_ok:ab0427abb333ef778d56b5552996bcde6a35276a
+ancestor_ok:66a024b79411170b0cb099080aa6eadf0b570531
+ancestor_ok:dba7e71c0aab335d6d10943e461410ace34c1f96
+ancestor_ok:ecfb1bfcc8a46be03bf623748a44113f9997c556
+ancestor_ok:42bd9ba0532ec600a543bc6fd580626c43951682
+ancestor_ok:786d1c51d8438c7b8dc8cda6dc935720a1ac40c9
+Build note: existing build32 project was path-bound to sibling worktree, so build-p336 was generated for this worktree and built successfully after matching C++17, NOMINMAX, WIN32_LEAN_AND_MEAN, and HLSDK include settings.
