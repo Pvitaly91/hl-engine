@@ -1,0 +1,31 @@
+branch: codex/HL-CL-20260401-081-target-runtime-completion-state
+pre_change_head: 2b655572d2825aba1228cf849bf8d3d4f00f7516
+source_commit: e31263363728d1aaf435a3831fadd98863ce67e9
+artifact_commit: pending_artifact_commit_created_after_git_state
+
+Required descendant checks:
+- 4c9419037978724ca888b687bf15707f4eecc258: ancestor
+- 2b655572d2825aba1228cf849bf8d3d4f00f7516: ancestor
+- e22b56166a3b2ea161a9776602b96513827f878c: ancestor
+- 6c5fb6502b2bc176f3a982948a6959ae34ea27c5: ancestor
+- 2443255002e9bb43c20e0846296c2194d7ad2630: ancestor
+- 1e8b1b5daf24261f6df7e80db13761ef2007d303: ancestor
+- 0cbcc1c439bb6dd28c01b7eb52aedf725d4cee1d: ancestor
+- 34b4be4fe975dc2cc8a4a8265ed22aa40688dde4: ancestor
+- b6681508343ad915e4d779737bec45df44128761: ancestor
+- 0f3d505aa0a1ed37991b3f4010394a9c8bfe32b6: ancestor
+- 2a1bcaed03bffa02d068b33a6f6e18f333e98714: ancestor
+- 7b65f1e5d767bf8102275e5237ef5ab1dd229f2b: ancestor
+
+Unrelated dirty/untracked files preserved:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/*
+- build-p333/
+- build-p336/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+- logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+- logs/latest/runtime/p339-readiness-gate/
+- logs/latest/runtime/p341-readiness-ci-drift-gate/

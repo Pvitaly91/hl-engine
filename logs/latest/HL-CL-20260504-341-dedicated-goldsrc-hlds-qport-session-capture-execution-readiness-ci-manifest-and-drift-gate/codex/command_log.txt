@@ -1,0 +1,17 @@
+git status --short --branch
+git rev-parse --abbrev-ref HEAD
+git rev-parse HEAD
+git merge-base --is-ancestor <required checkpoint> HEAD
+rg -n "CaptureExecutionReadinessGate|capture_execution_readiness_gate|readiness_gate|ExecutionReadinessGate|capture_execution_readiness_ci|readiness_ci" include/app include/game_api src/app src/game_api
+Get-Content include/game_api/hl_server_module.h / src/game_api/hl_server_module.cpp / src/app/launch_options.cpp / src/app/host_application.cpp sections for prompt 336 and 339 patterns
+Get-FileHash -Algorithm SHA256 <readiness manifest dependencies>
+apply_patch source/data/docs changes for prompt 341
+cmake --build build-p336 --target hlhost --config Debug --parallel
+build-p336/Debug/hlhost.exe --dedicated --gamedir <valve-fixture> --frames 1 --hlds-qport-session-capture-execution-readiness-ci-drift-gate-probe --hlds-qport-session-capture-execution-readiness-ci-drift-gate-probe-scenario happy
+build-p336/Debug/hlhost.exe repeated for 27 readiness CI drift gate scenarios
+ConvertFrom-Json validation for qport/session policy, dry-run manifest, execution implementation CI manifest, and readiness CI manifest
+rg search for readiness CI manifest, readiness drift gate, timeout cleanup, artifact schema, socket/datagram policy, capture/runtime/socket/datagram/client/connect/signon/netchan markers
+git diff --check
+git add prompt 341 source/data/docs files
+git commit -m "HL-CL-20260504-341 add readiness CI drift gate"
+apply_patch prompt 341 artifact files
