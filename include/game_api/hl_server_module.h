@@ -8579,6 +8579,30 @@ struct HldsQportSessionCaptureExecutionReadinessGateSummary
     bool datagram_policy_review_required = false;
 };
 
+struct HldsQportSessionCaptureExecutionReadinessCiDriftGateSummary
+    : HldsQportSessionCaptureExecutionReadinessGateSummary
+{
+    bool readiness_ci_manifest_created = false;
+    bool readiness_ci_manifest_loaded = false;
+    std::string readiness_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_readiness_ci_manifest.json";
+    bool readiness_drift_gate_enabled = false;
+    bool readiness_drift_gate_disabled_by_default = true;
+    bool readiness_drift_gate_passed = false;
+    std::string readiness_gate_source_commit = "disabled";
+    std::string readiness_gate_artifact_commit = "disabled";
+    bool execution_implementation_ci_manifest_hash_recorded = false;
+    bool execution_implementation_ci_manifest_drift_detected = false;
+    std::string shell_ci_manifest_path =
+        "fixtures/diagnostic/hlds/qport_session/qport_session_capture_shell_ci_manifest.json";
+    bool readiness_drift_detected = false;
+    bool readiness_policy_drift_detected = false;
+    bool timeout_cleanup_policy_drift_detected = false;
+    bool artifact_schema_lock_drift_detected = false;
+    bool socket_policy_review_drift_detected = false;
+    bool datagram_policy_review_drift_detected = false;
+};
+
 struct HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
     : HldsServerinfoContractBackedDiagnosticBuilderParserSummary
 {
@@ -23343,6 +23367,12 @@ struct HlServerModuleInitOptions
         hlds_qport_session_capture_execution_readiness_gate_probe_scenario =
             "happy";
     bool
+        hlds_qport_session_capture_execution_readiness_ci_drift_gate_probe_enabled =
+            false;
+    std::string
+        hlds_qport_session_capture_execution_readiness_ci_drift_gate_probe_scenario =
+            "happy";
+    bool
         hlds_serverinfo_contract_backed_diagnostic_path_integration_probe_enabled =
             false;
     std::string
@@ -24250,6 +24280,8 @@ struct HlServerModuleSummary
         hlds_qport_session_capture_execution_implementation_ci_drift_gate;
     HldsQportSessionCaptureExecutionReadinessGateSummary
         hlds_qport_session_capture_execution_readiness_gate;
+    HldsQportSessionCaptureExecutionReadinessCiDriftGateSummary
+        hlds_qport_session_capture_execution_readiness_ci_drift_gate;
     HldsServerinfoContractBackedDiagnosticPathIntegrationSummary
         hlds_serverinfo_contract_backed_diagnostic_path_integration;
     HldsServerinfoContractBackedDiagnosticLocalhostSmokeSwapSummary
