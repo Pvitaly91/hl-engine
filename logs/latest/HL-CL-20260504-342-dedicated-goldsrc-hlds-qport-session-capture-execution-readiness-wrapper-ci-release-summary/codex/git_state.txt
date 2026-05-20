@@ -1,0 +1,42 @@
+PROMPT-ID: HL-CL-20260504-342-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-wrapper-ci-release-summary
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+bfa3fe872d05670dead5b43742645895e32629d2
+
+Source/docs commit:
+1b3f3d44890625f4f9f0608df5f65b5af5ba203e
+
+Artifact commit:
+pending_artifact_commit_created_after_summary_json
+
+Tracked prompt 342 source change:
+docs/diagnostic/hlds/qport_session_capture_execution_readiness_wrapper_ci_release_summary.md
+
+Tracked prompt 342 artifact root:
+logs/latest/HL-CL-20260504-342-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-wrapper-ci-release-summary/codex
+
+Known unrelated dirty/untracked files preserved and not staged:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+- build-p333/
+- build-p336/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+- logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+- logs/latest/runtime/p339-readiness-gate/
+- logs/latest/runtime/p341-readiness-ci-drift-gate/
+- logs/latest/runtime/p342-readiness-wrapper-ci-release-summary/
+
+Descendant gate:
+Current HEAD at prompt start was a descendant of the listed prompt 341 through 334 source/artifact commits that were present locally, including e31263363728d1aaf435a3831fadd98863ce67e9 and bfa3fe872d05670dead5b43742645895e32629d2.
+

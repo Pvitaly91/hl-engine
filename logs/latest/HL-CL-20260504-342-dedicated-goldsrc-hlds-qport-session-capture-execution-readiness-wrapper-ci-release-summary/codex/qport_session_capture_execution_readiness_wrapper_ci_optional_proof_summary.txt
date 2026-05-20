@@ -1,0 +1,22 @@
+PROMPT-ID: HL-CL-20260504-342-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-wrapper-ci-release-summary
+
+Optional proof run: readiness CI drift gate happy probe
+Executable: build-p336\Debug\hlhost.exe
+Scenario: happy
+Run label: p342-readiness-ci-happy
+Summary file: logs/latest/runtime/p342-readiness-wrapper-ci-release-summary/happy/hlhost_20260520_125233_879_pid11924__p342-readiness-ci-happy_summary.log
+
+Observed proof values:
+- accepted=1
+- rejected=0
+- readiness_drift_gate_passed=1
+- readiness_ci_manifest_loaded=1
+- readiness_drift_detected=0
+- socket_open_attempted=0
+- datagram_sent=0
+- datagram_received=0
+- real_client_binary_invoked=0
+- netchan_runtime_started=0
+
+No capture execution, capture runtime execution, socket open, loopback socket open, public socket open, LAN socket open, datagram send/receive, real client invocation, connect/post-connect/signon runtime path, or netchan runtime proof was run.
+
