@@ -1,0 +1,42 @@
+PROMPT-ID: HL-CL-20260504-343-dedicated-goldsrc-hlds-qport-session-capture-execution-socket-policy-review
+
+Branch:
+codex/HL-CL-20260401-081-target-runtime-completion-state
+
+Pre-change HEAD:
+d2014e7141250807577eaa5d494875a67bd53fb9
+
+Source/docs commit:
+d53e3c93c89db5f198aaf51364f9f921b4494528
+
+Artifact commit:
+pending_artifact_commit_created_after_summary_json
+
+Tracked prompt 343 source change:
+docs/diagnostic/hlds/qport_session_capture_execution_socket_policy_review.md
+
+Tracked prompt 343 artifact root:
+logs/latest/HL-CL-20260504-343-dedicated-goldsrc-hlds-qport-session-capture-execution-socket-policy-review/codex
+
+Known unrelated dirty/untracked files preserved and not staged:
+- build32/host/hlhost.dir/Debug/hlhost.ilk
+- build32/host/hlhost.dir/Debug/hlhost.tlog/Cl.items.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/hlhost.lastbuildstate
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.command.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.read.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.secondary.1.tlog
+- build32/host/hlhost.dir/Debug/hlhost.tlog/link.write.1.tlog
+- build-p333/
+- build-p336/
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_part01.log
+- logs/latest/runtime/hlhost_20260517_004136_309_pid40188_summary.log
+- logs/latest/runtime/p333-final-gate/
+- logs/latest/runtime/p334-execution-implementation/
+- logs/latest/runtime/p336-execution-implementation-ci-drift-gate/
+- logs/latest/runtime/p339-readiness-gate/
+- logs/latest/runtime/p341-readiness-ci-drift-gate/
+- logs/latest/runtime/p342-readiness-wrapper-ci-release-summary/
+
+Descendant gate:
+Current HEAD at prompt start was a descendant of prompt 287 through 342 recorded source/artifact commits that were present locally, including 1b3f3d44890625f4f9f0608df5f65b5af5ba203e, d2014e7141250807577eaa5d494875a67bd53fb9, e31263363728d1aaf435a3831fadd98863ce67e9, bfa3fe872d05670dead5b43742645895e32629d2, 4c9419037978724ca888b687bf15707f4eecc258, 2b655572d2825aba1228cf849bf8d3d4f00f7516, e22b56166a3b2ea161a9776602b96513827f878c, and 6c5fb6502b2bc176f3a982948a6959ae34ea27c5.
+

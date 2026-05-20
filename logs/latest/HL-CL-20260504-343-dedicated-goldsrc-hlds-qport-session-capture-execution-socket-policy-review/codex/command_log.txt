@@ -1,0 +1,33 @@
+PROMPT-ID: HL-CL-20260504-343-dedicated-goldsrc-hlds-qport-session-capture-execution-socket-policy-review
+
+Command log:
+
+1. git status --short --branch
+2. git rev-parse --show-toplevel
+3. git rev-parse --abbrev-ref HEAD
+4. git rev-parse HEAD
+5. git merge-base --is-ancestor for prompt 287 through 342 recorded commits
+6. Get-Content logs/latest/HL-CL-20260504-342-dedicated-goldsrc-hlds-qport-session-capture-execution-readiness-wrapper-ci-release-summary/codex/qport_session_capture_execution_readiness_wrapper_ci_release_summary.json
+7. Get-Content fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_readiness_ci_manifest.json
+8. rg for prompt 287 through 303 checkpoint artifacts
+9. Get-Content docs/diagnostic/hlds/qport_session_capture_execution_readiness_wrapper_ci_release_summary.md
+10. Get-Content docs/diagnostic/hlds/qport_session_capture_execution_readiness_policy_review.md
+11. ConvertFrom-Json validation for fixtures/diagnostic/hlds/qport_session/qport_session_offline_fixture_manifest_policy.json
+12. ConvertFrom-Json validation for fixtures/diagnostic/hlds/qport_session/qport_session_capture_preflight_dry_run_manifest.json
+13. ConvertFrom-Json validation for fixtures/diagnostic/hlds/qport_session/qport_session_capture_execution_readiness_ci_manifest.json
+14. rg marker search for qport_session, socket policy, loopback-only socket, socket_open_allowed_now, loopback_socket_allowed_now, public_socket_allowed_now, lan_socket_allowed_now, datagram_send_allowed_now, datagram_receive_allowed_now, capture_execution_allowed_now, capture_runtime_allowed_now, real client, connect, post-connect, signon, netchan
+15. git diff --check -- docs/diagnostic/hlds/qport_session_capture_execution_socket_policy_review.md
+16. git status --short --branch
+17. git add -- docs/diagnostic/hlds/qport_session_capture_execution_socket_policy_review.md
+18. git diff --cached --stat
+19. git diff --cached --name-only
+20. git commit -m "HL-CL-20260504-343 add qport session socket policy review"
+21. git rev-parse HEAD
+22. New-Item -ItemType Directory -Force -Path logs/latest/HL-CL-20260504-343-dedicated-goldsrc-hlds-qport-session-capture-execution-socket-policy-review/codex
+23. apply_patch prompt 343 artifact files
+
+Optional wrapper plan/validate:
+Not run. Reason: not_run_policy_review_only_prompt_uses_prompt_342_readiness_wrapper_ci_boundary_evidence_and_does_not_execute_wrapper_or_runtime_paths.
+
+No socket proof, loopback socket proof, datagram proof, capture execution proof, capture runtime proof, real-client runtime proof, public/LAN socket proof, post-connect/signon runtime proof, or netchan runtime proof was run.
+
