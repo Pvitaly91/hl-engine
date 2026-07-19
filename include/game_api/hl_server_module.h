@@ -6015,6 +6015,17 @@ struct DedicatedPlayerSlotSummary
     bool connected = false;
     bool put_in_server = false;
     bool alive = false;
+    bool active = false;
+    std::string remote_endpoint;
+    int network_protocol = 0;
+    int qport = 0;
+    int channel_identifier = 0;
+    int challenge = 0;
+    int auth_protocol = 0;
+    int protocol_extensions = 0;
+    std::string protocol_info;
+    std::string user_info;
+    bool steam_authentication_performed = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
     bool baseline_ready = false;
@@ -6656,6 +6667,36 @@ struct DedicatedConnectProbeSummary
     std::string protocol_shape = "disabled";
     std::string compatibility = "disabled";
     std::string detail;
+};
+
+struct GoldSrcUdpHandshakeSummary
+{
+    bool enabled = false;
+    bool ready = false;
+    bool clean_shutdown = false;
+    bool timed_out = false;
+    std::string bind_address = "disabled";
+    int requested_port = 0;
+    int bound_port = 0;
+    int host_frames_pumped = 0;
+    int max_datagrams_per_frame = 0;
+    int datagrams_received = 0;
+    int malformed_packets = 0;
+    int challenge_requests = 0;
+    int challenges_issued = 0;
+    int connect_requests = 0;
+    int accepted = 0;
+    int rejected = 0;
+    std::string last_reject_reason = "<none>";
+    int session_count = 0;
+    int allocated_slot = 0;
+    std::string session_id = "<none>";
+    std::string remote_endpoint = "<none>";
+    std::string final_state = "none";
+    bool connected = false;
+    bool put_in_server = false;
+    bool spawned = false;
+    bool active = false;
 };
 
 struct HldsGetchallengeDiagnosticSurfaceSummary
@@ -22573,6 +22614,10 @@ struct HlServerModuleInitOptions
     bool query_surface_enabled = false;
     bool query_probe_enabled = false;
     int query_port = 0;
+    bool goldsrc_udp_handshake_enabled = false;
+    std::string bind_address = "0.0.0.0";
+    int server_port = 27015;
+    int goldsrc_handshake_timeout_ms = 10000;
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";
@@ -23519,6 +23564,7 @@ struct HlServerModuleSummary
     DedicatedQueryProbeSummary dedicated_query_probe;
     DedicatedConnectSurfaceSummary dedicated_connect_surface;
     DedicatedConnectProbeSummary dedicated_connect_probe;
+    GoldSrcUdpHandshakeSummary goldsrc_udp_handshake;
     HldsGetchallengeDiagnosticSurfaceSummary hlds_getchallenge_diagnostic_surface;
     HldsGetchallengeDiagnosticProbeSummary hlds_getchallenge_diagnostic_probe;
     HldsConnectDiagnosticSurfaceSummary hlds_connect_diagnostic_surface;
@@ -24085,6 +24131,9 @@ public:
 
     bool Load(const std::filesystem::path& path);
     bool InitializeEngineShim(const HlServerModuleInitOptions& options);
+    bool GoldSrcUdpHandshakePending() const noexcept;
+    bool PumpGoldSrcUdpHandshakeHostFrame();
+    bool FinishGoldSrcUdpHandshake();
 
     const HlServerModuleSummary& Summary() const noexcept;
 

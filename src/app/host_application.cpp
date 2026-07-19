@@ -1,9 +1,11 @@
 #include "app/host_application.h"
 
 #include <algorithm>
+#include <chrono>
 #include <exception>
 #include <string>
 #include <string_view>
+#include <thread>
 #include <vector>
 
 #include "common/logger.h"
@@ -22458,6 +22460,10 @@ bool HostApplication::RunServerEngineShim(
     init_options.query_surface_enabled = options.query_surface_enabled;
     init_options.query_probe_enabled = options.query_probe_enabled;
     init_options.query_port = options.query_port;
+    init_options.goldsrc_udp_handshake_enabled = options.goldsrc_udp_handshake_enabled;
+    init_options.bind_address = options.bind_address;
+    init_options.server_port = options.server_port;
+    init_options.goldsrc_handshake_timeout_ms = options.goldsrc_handshake_timeout_ms;
     init_options.connect_surface_enabled = options.connect_surface_enabled;
     init_options.connect_probe_enabled = options.connect_probe_enabled;
     init_options.connect_probe_scenario = options.connect_probe_scenario;
@@ -25703,6 +25709,28 @@ bool HostApplication::RunServerEngineShim(
             : init_options.frame_bootstrap.stop_on_node));
 
     if (!server_module.InitializeEngineShim(init_options))
+    {
+        return false;
+    }
+
+    // This repository has no persistent post-bootstrap gameplay loop yet. While
+    // the opt-in handshake is pending, this loop is the host-owned network-frame
+    // boundary: one bounded nonblocking batch per iteration, without advancing
+    // DLL gameplay frames.
+    while (server_module.GoldSrcUdpHandshakePending())
+    {
+        if (!server_module.PumpGoldSrcUdpHandshakeHostFrame())
+        {
+            (void)server_module.FinishGoldSrcUdpHandshake();
+            return false;
+        }
+
+        if (server_module.GoldSrcUdpHandshakePending())
+        {
+            std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+    }
+    if (!server_module.FinishGoldSrcUdpHandshake())
     {
         return false;
     }

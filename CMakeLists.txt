@@ -33,6 +33,20 @@ add_library(filesystem STATIC
 target_include_directories(filesystem PUBLIC "${HLHOST_INCLUDE_DIR}")
 set_target_properties(filesystem PROPERTIES FOLDER "host")
 
+add_library(goldsrc_network STATIC
+    include/network/ipv4_endpoint.h
+    include/network/goldsrc_connectionless.h
+    include/network/udp_socket.h
+    src/network/ipv4_endpoint.cpp
+    src/network/goldsrc_connectionless.cpp
+    src/network/udp_socket_win32.cpp
+)
+target_include_directories(goldsrc_network PUBLIC "${HLHOST_INCLUDE_DIR}")
+if(WIN32)
+    target_link_libraries(goldsrc_network PRIVATE ws2_32 bcrypt)
+endif()
+set_target_properties(goldsrc_network PROPERTIES FOLDER "host")
+
 add_library(game_api STATIC
     include/game_api/cfg_executor.h
     include/game_api/cvar_registry.h
@@ -76,6 +90,7 @@ add_library(game_api STATIC
     src/game_api/entity_var_access.cpp
     src/game_api/entity_var_access.h
     src/game_api/game_module_loader.cpp
+    src/game_api/goldsrc_udp_handshake_runtime.inc
     src/game_api/hl_server_module.cpp
     src/game_api/scripted_logic_tracker.cpp
     src/game_api/scripted_logic_tracker.h
@@ -106,7 +121,7 @@ target_include_directories(game_api
         "${HLSDK_ROOT_DIR}/engine"
         "${HLSDK_ROOT_DIR}/public"
 )
-target_link_libraries(game_api PRIVATE common filesystem)
+target_link_libraries(game_api PRIVATE common filesystem goldsrc_network)
 set_source_files_properties(
     src/game_api/hl_server_module.cpp
     PROPERTIES
@@ -135,6 +150,28 @@ set_target_properties(hlhost PROPERTIES
     FOLDER "host"
     VS_DEBUGGER_WORKING_DIRECTORY "${PROJECT_SOURCE_DIR}"
 )
+
+enable_testing()
+add_executable(goldsrc_connectionless_tests
+    src/tests/goldsrc_connectionless_tests.cpp
+)
+target_include_directories(goldsrc_connectionless_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_connectionless_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_connectionless_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_connectionless_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_connectionless_tests PROPERTIES FOLDER "host/tests")
+add_test(NAME goldsrc_connectionless_tests COMMAND goldsrc_connectionless_tests)
+
+add_custom_target(goldsrc_connectionless_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_connectionless_tests>"
+    DEPENDS goldsrc_connectionless_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc connectionless codec, challenge, and admission tests"
+)
+set_target_properties(goldsrc_connectionless_unit_tests PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

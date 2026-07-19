@@ -39,6 +39,10 @@ struct LaunchOptions
     bool query_surface_enabled = false;
     bool query_probe_enabled = false;
     int query_port = 0;
+    bool goldsrc_udp_handshake_enabled = false;
+    std::string bind_address = "0.0.0.0";
+    int server_port = 27015;
+    int goldsrc_handshake_timeout_ms = 10000;
     bool connect_surface_enabled = false;
     bool connect_probe_enabled = false;
     std::string connect_probe_scenario = "accept";

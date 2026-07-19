@@ -21,6 +21,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <chrono>
 #include <deque>
 #include <iomanip>
 #include <initializer_list>
@@ -28,6 +29,7 @@
 #include <limits>
 #include <optional>
 #include <sstream>
+#include <stdexcept>
 #include <string_view>
 #include <unordered_map>
 #include <unordered_set>
@@ -48,6 +50,8 @@
 #include "track_path_resolver.h"
 #include "game_api/server_command_buffer.h"
 #include "game_api/server_command_dispatcher.h"
+#include "network/goldsrc_connectionless.h"
+#include "network/udp_socket.h"
 #include "server_frame_loop.h"
 #include "server_bootstrap.h"
 #include "sound_precache_registry.h"
@@ -438,6 +442,16 @@ struct DedicatedPlayerRuntimeSlot
     bool connected = false;
     bool put_in_server = false;
     bool alive = false;
+    std::string remote_endpoint;
+    int network_protocol = 0;
+    int qport = 0;
+    int channel_identifier = 0;
+    int challenge = 0;
+    int auth_protocol = 0;
+    int protocol_extensions = 0;
+    std::string protocol_info;
+    std::string user_info;
+    bool steam_authentication_performed = false;
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
@@ -58583,6 +58597,32 @@ void LogCompactServerModuleSummary(const hl::game_api::HlServerModuleSummary& su
                 hl::common::LogCategory::Summary,
                 BuildDedicatedConnectProbeLine(summary.dedicated_connect_probe));
         }
+        if (summary.goldsrc_udp_handshake.enabled
+            && summary.goldsrc_udp_handshake.clean_shutdown)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_udp_summary: enabled=1,ready="
+                    + std::string(summary.goldsrc_udp_handshake.ready ? "1" : "0")
+                    + ",clean_shutdown="
+                    + (summary.goldsrc_udp_handshake.clean_shutdown ? "1" : "0")
+                    + ",datagrams="
+                    + std::to_string(summary.goldsrc_udp_handshake.datagrams_received)
+                    + ",challenges="
+                    + std::to_string(summary.goldsrc_udp_handshake.challenges_issued)
+                    + ",connects="
+                    + std::to_string(summary.goldsrc_udp_handshake.connect_requests)
+                    + ",accepted="
+                    + std::to_string(summary.goldsrc_udp_handshake.accepted)
+                    + ",rejected="
+                    + std::to_string(summary.goldsrc_udp_handshake.rejected)
+                    + ",last_reject_reason="
+                    + summary.goldsrc_udp_handshake.last_reject_reason
+                    + ",session_count="
+                    + std::to_string(summary.goldsrc_udp_handshake.session_count)
+                    + ",state="
+                    + summary.goldsrc_udp_handshake.final_state);
+        }
         if (summary.hlds_getchallenge_diagnostic_surface.enabled)
         {
             hl::common::Logger::Info(
@@ -86058,6 +86098,35 @@ DedicatedPlayerRuntimeSlot& EnsureDedicatedPlayerRuntimeSlot(
     return slot_state;
 }
 
+DedicatedPlayerRuntimeSlot& ResetDedicatedPlayerRuntimeSlotForAdmission(
+    DedicatedMultiplayerFoundationRuntime& runtime,
+    int slot,
+    std::string_view session_id,
+    std::string_view player_name)
+{
+    // Build every allocating per-session field before changing authoritative
+    // state. Reusing a disconnected slot must not inherit spawn/signon/network
+    // flags or counters from its previous occupant. The UDP commit boundary is
+    // noexcept, so a legacy move failure is fail-fast rather than reported as a
+    // protocol rejection after mutation.
+    DedicatedPlayerRuntimeSlot fresh_slot;
+    fresh_slot.slot = slot;
+    fresh_slot.session_id = std::string(session_id);
+    fresh_slot.player_name = std::string(player_name);
+    fresh_slot.occupied = true;
+
+    if (DedicatedPlayerRuntimeSlot* existing =
+            FindDedicatedPlayerRuntimeSlot(runtime, slot);
+        existing != nullptr)
+    {
+        *existing = std::move(fresh_slot);
+        return *existing;
+    }
+
+    runtime.slots.push_back(std::move(fresh_slot));
+    return runtime.slots.back();
+}
+
 void PrimeDedicatedClientEdict(
     EngineShimState& state,
     DedicatedPlayerRuntimeSlot& slot_state)
@@ -92289,6 +92358,18 @@ hl::game_api::DedicatedPlayerSlotSummary BuildDedicatedPlayerSlotSummary(
     summary.connected = slot_state.connected;
     summary.put_in_server = slot_state.put_in_server;
     summary.alive = slot_state.alive;
+    summary.active = slot_state.put_in_server && slot_state.alive;
+    summary.remote_endpoint = slot_state.remote_endpoint;
+    summary.network_protocol = slot_state.network_protocol;
+    summary.qport = slot_state.qport;
+    summary.channel_identifier = slot_state.channel_identifier;
+    summary.challenge = slot_state.challenge;
+    summary.auth_protocol = slot_state.auth_protocol;
+    summary.protocol_extensions = slot_state.protocol_extensions;
+    summary.protocol_info = slot_state.protocol_info;
+    summary.user_info = slot_state.user_info;
+    summary.steam_authentication_performed =
+        slot_state.steam_authentication_performed;
     summary.signon_ready = slot_state.signon_ready;
     summary.bootstrap_delivered = slot_state.bootstrap_delivered;
     summary.baseline_ready = slot_state.baseline_ready;
@@ -92664,30 +92745,38 @@ int FindFreeDedicatedAdmissionSlot(const EngineShimState& state)
     return 0;
 }
 
-bool AdmitDedicatedLoopbackPreauthPlayer(
-    EngineShimState& state,
+bool PlanDedicatedLoopbackPreauthPlayer(
+    const EngineShimState& state,
     std::string_view session_id,
-    std::string_view player_name,
-    bool count_surface_accept,
-    int* admitted_slot,
+    int* planned_slot,
     std::string* reject_reason)
 {
-    if (admitted_slot != nullptr)
+    if (planned_slot != nullptr)
     {
-        *admitted_slot = 0;
+        *planned_slot = 0;
     }
     if (reject_reason != nullptr)
     {
         reject_reason->clear();
     }
 
+    for (const DedicatedPlayerRuntimeSlot& candidate :
+         state.dedicated_multiplayer_foundation.slots)
+    {
+        if (IsDedicatedSlotConnectedOccupant(candidate)
+            && candidate.session_id == session_id)
+        {
+            if (reject_reason != nullptr)
+            {
+                *reject_reason = "duplicate-session";
+            }
+            return false;
+        }
+    }
+
     if (CountDedicatedQueryPlayers(state.dedicated_multiplayer_foundation)
         >= state.server_state.maxclients)
     {
-        if (count_surface_accept)
-        {
-            ++state.dedicated_connect_surface.rejected;
-        }
         if (reject_reason != nullptr)
         {
             *reject_reason = "server-full";
@@ -92698,10 +92787,6 @@ bool AdmitDedicatedLoopbackPreauthPlayer(
     const int slot = FindFreeDedicatedAdmissionSlot(state);
     if (slot <= 0)
     {
-        if (count_surface_accept)
-        {
-            ++state.dedicated_connect_surface.rejected;
-        }
         if (reject_reason != nullptr)
         {
             *reject_reason = "no-authoritative-slot";
@@ -92709,7 +92794,55 @@ bool AdmitDedicatedLoopbackPreauthPlayer(
         return false;
     }
 
-    DedicatedPlayerRuntimeSlot& slot_state = EnsureDedicatedPlayerRuntimeSlot(
+    if (planned_slot != nullptr)
+    {
+        *planned_slot = slot;
+    }
+    return true;
+}
+
+bool AdmitDedicatedLoopbackPreauthPlayer(
+    EngineShimState& state,
+    std::string_view session_id,
+    std::string_view player_name,
+    bool count_surface_accept,
+    int* admitted_slot,
+    std::string* reject_reason,
+    DedicatedPlayerRuntimeSlot** admitted_slot_state = nullptr)
+{
+    if (admitted_slot != nullptr)
+    {
+        *admitted_slot = 0;
+    }
+    if (admitted_slot_state != nullptr)
+    {
+        *admitted_slot_state = nullptr;
+    }
+    if (reject_reason != nullptr)
+    {
+        reject_reason->clear();
+    }
+
+    int slot = 0;
+    std::string planned_reject_reason;
+    if (!PlanDedicatedLoopbackPreauthPlayer(
+            state,
+            session_id,
+            &slot,
+            &planned_reject_reason))
+    {
+        if (count_surface_accept)
+        {
+            ++state.dedicated_connect_surface.rejected;
+        }
+        if (reject_reason != nullptr)
+        {
+            *reject_reason = std::move(planned_reject_reason);
+        }
+        return false;
+    }
+
+    DedicatedPlayerRuntimeSlot& slot_state = ResetDedicatedPlayerRuntimeSlotForAdmission(
         state.dedicated_multiplayer_foundation,
         slot,
         session_id,
@@ -92741,6 +92874,10 @@ bool AdmitDedicatedLoopbackPreauthPlayer(
     {
         *admitted_slot = slot;
     }
+    if (admitted_slot_state != nullptr)
+    {
+        *admitted_slot_state = &slot_state;
+    }
     return true;
 }
 
@@ -92763,6 +92900,8 @@ DedicatedPlayerRuntimeSlot* FindDedicatedPlayerRuntimeSlotBySession(
 
     return nullptr;
 }
+
+#include "goldsrc_udp_handshake_runtime.inc"
 
 bool ActivateDedicatedLoopbackSession(
     EngineShimState& state,
@@ -262767,6 +262906,7 @@ struct HlServerModule::Impl
     GetEntityAPI2Fn get_entity_api2 = nullptr;
     EngineShimState shim_state;
     HlServerModuleSummary summary;
+    std::unique_ptr<GoldSrcUdpHandshakeRuntime> goldsrc_udp_handshake_runtime;
 };
 
 HlServerModule::HlServerModule()
@@ -262776,6 +262916,7 @@ HlServerModule::HlServerModule()
 
 HlServerModule::~HlServerModule()
 {
+    impl_->goldsrc_udp_handshake_runtime.reset();
     if (g_active_shim_state == &impl_->shim_state)
     {
         g_active_shim_state = nullptr;
@@ -262784,6 +262925,7 @@ HlServerModule::~HlServerModule()
 
 bool HlServerModule::Load(const std::filesystem::path& path)
 {
+    impl_->goldsrc_udp_handshake_runtime.reset();
     if (g_active_shim_state == &impl_->shim_state)
     {
         g_active_shim_state = nullptr;
@@ -262830,6 +262972,7 @@ bool HlServerModule::Load(const std::filesystem::path& path)
 
 bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& options)
 {
+    impl_->goldsrc_udp_handshake_runtime.reset();
     impl_->summary.give_fnptrs_to_dll_called = false;
     impl_->summary.get_entity_api2_succeeded = false;
     impl_->summary.dll_functions_acquired = false;
@@ -262872,6 +263015,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
     impl_->summary.dedicated_query_probe = {};
     impl_->summary.dedicated_connect_surface = {};
     impl_->summary.dedicated_connect_probe = {};
+    impl_->summary.goldsrc_udp_handshake = {};
     impl_->summary.hlds_getchallenge_diagnostic_surface = {};
     impl_->summary.hlds_getchallenge_diagnostic_probe = {};
     impl_->summary.hlds_connect_diagnostic_surface = {};
@@ -267241,10 +267385,22 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
             SafeCallGameInit(impl_->shim_state.dll_functions.pfnGameInit);
     }
 
+    bool goldsrc_udp_handshake_started =
+        !options.goldsrc_udp_handshake_enabled;
     if (!impl_->summary.pfn_game_init_present || impl_->summary.pfn_game_init_succeeded)
     {
         ExecuteQueuedServerCommands(impl_->shim_state, "post-pfnGameInit");
         FinalizeServerBootstrapStep();
+        if (options.goldsrc_udp_handshake_enabled)
+        {
+            impl_->goldsrc_udp_handshake_runtime =
+                std::make_unique<GoldSrcUdpHandshakeRuntime>(
+                    impl_->shim_state,
+                    options,
+                    impl_->summary.goldsrc_udp_handshake);
+            goldsrc_udp_handshake_started =
+                impl_->goldsrc_udp_handshake_runtime->Start();
+        }
     }
 
     RefreshExecutionSummary(impl_->summary, impl_->shim_state, &impl_->shim_state.command_dispatch_stats);
@@ -278979,6 +279135,7 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !impl_->summary.server_frame_loop.any_seh
         && !dedicated_query_probe_failed
         && !dedicated_connect_probe_failed
+        && goldsrc_udp_handshake_started
         && !hlds_getchallenge_diagnostic_probe_failed
         && !hlds_connect_diagnostic_probe_failed
         && !hlds_serverinfo_diagnostic_probe_failed
@@ -279115,6 +279272,39 @@ bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& optio
         && !dedicated_signon_message_cursor_advance_probe_failed
         && !dedicated_signon_message_cursor_eof_probe_failed
         && !dedicated_signon_message_cursor_resume_denial_probe_failed;
+}
+
+bool HlServerModule::GoldSrcUdpHandshakePending() const noexcept
+{
+    return impl_->goldsrc_udp_handshake_runtime != nullptr
+        && impl_->goldsrc_udp_handshake_runtime->Pending();
+}
+
+bool HlServerModule::PumpGoldSrcUdpHandshakeHostFrame()
+{
+    if (impl_->goldsrc_udp_handshake_runtime == nullptr)
+    {
+        return true;
+    }
+    return impl_->goldsrc_udp_handshake_runtime->PumpHostFrame();
+}
+
+bool HlServerModule::FinishGoldSrcUdpHandshake()
+{
+    if (impl_->goldsrc_udp_handshake_runtime == nullptr)
+    {
+        return true;
+    }
+
+    impl_->goldsrc_udp_handshake_runtime->Shutdown();
+    const bool succeeded = impl_->goldsrc_udp_handshake_runtime->Succeeded();
+    RefreshExecutionSummary(
+        impl_->summary,
+        impl_->shim_state,
+        &impl_->shim_state.command_dispatch_stats);
+    PopulateBootstrapSummary(impl_->summary, impl_->shim_state);
+    RefreshInvokedCallbacks(impl_->summary, impl_->shim_state);
+    return succeeded;
 }
 
 const HlServerModuleSummary& HlServerModule::Summary() const noexcept
