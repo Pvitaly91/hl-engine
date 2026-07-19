@@ -6697,6 +6697,38 @@ struct GoldSrcUdpHandshakeSummary
     bool put_in_server = false;
     bool spawned = false;
     bool active = false;
+    bool netchan_enabled = false;
+    bool netchan_negative_proof = false;
+    bool netchan_initialized = false;
+    std::string netchan_state = "none";
+    int max_datagrams_sent_per_frame = 0;
+    int datagrams_sent = 0;
+    int sequenced_datagrams_received = 0;
+    int sequenced_datagrams_sent = 0;
+    std::uint32_t server_initial_sequence = 0;
+    std::uint32_t server_initial_acknowledgement = 0;
+    bool reliable_present = false;
+    bool fragment_present = false;
+    bool payload_transform_passed = false;
+    std::string first_payload = "none";
+    int reliable_queued = 0;
+    int reliable_sent = 0;
+    int reliable_resent = 0;
+    int reliable_acked = 0;
+    int reliable_ack_mismatch = 0;
+    int reliable_pending_bytes = 0;
+    int duplicate_rejected = 0;
+    int out_of_order_rejected = 0;
+    int malformed_rejected = 0;
+    int fragment_rejected = 0;
+    int stale_ack_rejected = 0;
+    int future_ack_rejected = 0;
+    int unsupported_payload_rejected = 0;
+    int endpoint_hijack_rejected = 0;
+    int qport_mismatch_rejected = 0;
+    int duplicate_sessions = 0;
+    int partial_sessions = 0;
+    bool server_still_responsive = false;
 };
 
 struct HldsGetchallengeDiagnosticSurfaceSummary
@@ -22615,6 +22647,8 @@ struct HlServerModuleInitOptions
     bool query_probe_enabled = false;
     int query_port = 0;
     bool goldsrc_udp_handshake_enabled = false;
+    bool goldsrc_netchan_enabled = false;
+    bool goldsrc_netchan_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

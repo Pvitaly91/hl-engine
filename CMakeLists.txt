@@ -36,9 +36,11 @@ set_target_properties(filesystem PROPERTIES FOLDER "host")
 add_library(goldsrc_network STATIC
     include/network/ipv4_endpoint.h
     include/network/goldsrc_connectionless.h
+    include/network/goldsrc_netchan.h
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
     src/network/goldsrc_connectionless.cpp
+    src/network/goldsrc_netchan.cpp
     src/network/udp_socket_win32.cpp
 )
 target_include_directories(goldsrc_network PUBLIC "${HLHOST_INCLUDE_DIR}")
@@ -172,6 +174,27 @@ add_custom_target(goldsrc_connectionless_unit_tests
     COMMENT "Running GoldSrc connectionless codec, challenge, and admission tests"
 )
 set_target_properties(goldsrc_connectionless_unit_tests PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_netchan_tests
+    src/tests/goldsrc_netchan_tests.cpp
+)
+target_include_directories(goldsrc_netchan_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_netchan_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_netchan_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_netchan_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_netchan_tests PROPERTIES FOLDER "host/tests")
+add_test(NAME goldsrc_netchan_tests COMMAND goldsrc_netchan_tests)
+
+add_custom_target(goldsrc_netchan_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_netchan_tests>"
+    DEPENDS goldsrc_netchan_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc netchan codec, sequence, and reliable-channel tests"
+)
+set_target_properties(goldsrc_netchan_unit_tests PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

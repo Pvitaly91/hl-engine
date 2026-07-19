@@ -40,6 +40,8 @@ struct LaunchOptions
     bool query_probe_enabled = false;
     int query_port = 0;
     bool goldsrc_udp_handshake_enabled = false;
+    bool goldsrc_netchan_enabled = false;
+    bool goldsrc_netchan_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

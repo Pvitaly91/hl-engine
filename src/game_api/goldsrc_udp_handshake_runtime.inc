@@ -7,6 +7,7 @@ public:
     static constexpr std::size_t kChallengeCapacity = 64;
     static constexpr auto kChallengeLifetime = std::chrono::seconds(30);
     static constexpr int kMaximumDatagramsPerHostFrame = 8;
+    static constexpr int kMaximumDatagramsSentPerHostFrame = 8;
 
     GoldSrcUdpHandshakeRuntime(
         EngineShimState& state,
@@ -17,6 +18,8 @@ public:
           bind_address_(options.bind_address),
           requested_port_(options.server_port),
           timeout_ms_(options.goldsrc_handshake_timeout_ms),
+          netchan_enabled_(options.goldsrc_netchan_enabled),
+          negative_proof_(options.goldsrc_netchan_negative_proof),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -25,6 +28,10 @@ public:
         summary_.bind_address = bind_address_;
         summary_.requested_port = requested_port_;
         summary_.max_datagrams_per_frame = kMaximumDatagramsPerHostFrame;
+        summary_.max_datagrams_sent_per_frame =
+            kMaximumDatagramsSentPerHostFrame;
+        summary_.netchan_enabled = netchan_enabled_;
+        summary_.netchan_negative_proof = negative_proof_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -44,6 +51,10 @@ public:
         if (!dedicated_runtime_)
         {
             return FailBind("dedicated-runtime-required");
+        }
+        if (negative_proof_ && !netchan_enabled_)
+        {
+            return FailBind("netchan-negative-proof-requires-netchan");
         }
         if (requested_port_ < 1 || requested_port_ > 65535)
         {
@@ -110,7 +121,10 @@ public:
                 + ",max_datagram_bytes="
                 + std::to_string(hl::network::kGoldSrcMaximumDatagramBytes)
                 + ",max_datagrams_per_frame="
-                + std::to_string(kMaximumDatagramsPerHostFrame));
+                + std::to_string(kMaximumDatagramsPerHostFrame)
+                + ",max_datagrams_sent_per_frame="
+                + std::to_string(kMaximumDatagramsSentPerHostFrame)
+                + ",netchan=" + (netchan_enabled_ ? "1" : "0"));
         return true;
     }
 
@@ -134,6 +148,15 @@ public:
         }
 
         ++summary_.host_frames_pumped;
+        datagrams_sent_this_frame_ = 0;
+        if (negative_advance_pending_)
+        {
+            negative_advance_pending_ = false;
+            if (!SendPendingOrdinaryAdvance())
+            {
+                return false;
+            }
+        }
         for (int packet_index = 0;
              packet_index < kMaximumDatagramsPerHostFrame;
              ++packet_index)
@@ -196,7 +219,7 @@ public:
 
     bool Succeeded() const noexcept
     {
-        return complete_
+        const bool handshake_succeeded = complete_
             && accepted_
             && !transport_failed_
             && summary_.accepted == 1
@@ -208,6 +231,31 @@ public:
             && !summary_.put_in_server
             && !summary_.spawned
             && !summary_.active;
+        if (!handshake_succeeded || !netchan_enabled_)
+        {
+            return handshake_succeeded;
+        }
+
+        const bool netchan_succeeded = summary_.netchan_initialized
+            && summary_.netchan_state == "established"
+            && summary_.reliable_acked == 1
+            && summary_.reliable_pending_bytes == 0
+            && summary_.session_count == 1
+            && summary_.duplicate_sessions == 0
+            && summary_.partial_sessions == 0;
+        if (!netchan_succeeded || !negative_proof_)
+        {
+            return netchan_succeeded;
+        }
+        return summary_.reliable_resent >= 1
+            && summary_.reliable_ack_mismatch >= 1
+            && summary_.duplicate_rejected >= 1
+            && summary_.out_of_order_rejected >= 1
+            && summary_.malformed_rejected >= 1
+            && summary_.fragment_rejected >= 1
+            && summary_.future_ack_rejected >= 1
+            && summary_.endpoint_hijack_rejected >= 1
+            && summary_.server_still_responsive;
     }
 
     void Shutdown() noexcept
@@ -226,6 +274,10 @@ public:
         }
 
         summary_.clean_shutdown = true;
+        if (netchan_enabled_)
+        {
+            RefreshAuthoritativeNetchanSessionSummary();
+        }
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
             "goldsrc_udp_shutdown: address=" + bind_address_
@@ -247,6 +299,63 @@ public:
                 + ",last_reject_reason=" + summary_.last_reject_reason
                 + ",session_count=" + std::to_string(summary_.session_count)
                 + ",state=" + summary_.final_state);
+        if (netchan_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_netchan_summary: enabled=1,initialized="
+                    + std::string(summary_.netchan_initialized ? "1" : "0")
+                    + ",netchan_state=" + summary_.netchan_state
+                    + ",server_initial_sequence="
+                    + std::to_string(summary_.server_initial_sequence)
+                    + ",server_initial_ack="
+                    + std::to_string(summary_.server_initial_acknowledgement)
+                    + ",reliable_present="
+                    + std::string(summary_.reliable_present ? "1" : "0")
+                    + ",fragment_present="
+                    + std::string(summary_.fragment_present ? "1" : "0")
+                    + ",payload_transform="
+                    + (summary_.payload_transform_passed ? "pass" : "fail")
+                    + ",first_payload=" + summary_.first_payload
+                    + ",reliable_queued="
+                    + std::to_string(summary_.reliable_queued)
+                    + ",reliable_sent=" + std::to_string(summary_.reliable_sent)
+                    + ",reliable_resent=" + std::to_string(summary_.reliable_resent)
+                    + ",reliable_acked=" + std::to_string(summary_.reliable_acked)
+                    + ",reliable_ack_mismatch="
+                    + std::to_string(summary_.reliable_ack_mismatch)
+                    + ",reliable_pending_bytes="
+                    + std::to_string(summary_.reliable_pending_bytes)
+                    + ",sequenced_received="
+                    + std::to_string(summary_.sequenced_datagrams_received)
+                    + ",sequenced_sent="
+                    + std::to_string(summary_.sequenced_datagrams_sent)
+                    + ",duplicate_rejected="
+                    + std::to_string(summary_.duplicate_rejected)
+                    + ",out_of_order_rejected="
+                    + std::to_string(summary_.out_of_order_rejected)
+                    + ",malformed_rejected="
+                    + std::to_string(summary_.malformed_rejected)
+                    + ",fragment_rejected="
+                    + std::to_string(summary_.fragment_rejected)
+                    + ",future_ack_rejected="
+                    + std::to_string(summary_.future_ack_rejected)
+                    + ",endpoint_hijack_rejected="
+                    + std::to_string(summary_.endpoint_hijack_rejected)
+                    + ",duplicate_sessions="
+                    + std::to_string(summary_.duplicate_sessions)
+                    + ",partial_sessions="
+                    + std::to_string(summary_.partial_sessions)
+                    + ",server_still_responsive="
+                    + std::string(summary_.server_still_responsive ? "1" : "0")
+                    + ",session_count=" + std::to_string(summary_.session_count)
+                    + ",state=" + summary_.final_state
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
+                    + ",active=" + std::string(summary_.active ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
     }
 
 private:
@@ -285,7 +394,9 @@ private:
     void MarkTimeout()
     {
         summary_.timed_out = true;
-        summary_.last_reject_reason = "handshake-timeout";
+        summary_.last_reject_reason = accepted_ && netchan_enabled_
+            ? "netchan-timeout"
+            : "handshake-timeout";
         complete_ = true;
         hl::common::Logger::Warn(
             hl::common::LogCategory::Server,
@@ -367,6 +478,8 @@ private:
         int challenge = 0;
         int auth_protocol = 0;
         int protocol_extensions = 0;
+        bool netchan_prepared = false;
+        hl::network::GoldSrcNetchanState netchan;
     };
 
     bool CommitAdmission(
@@ -389,6 +502,30 @@ private:
         metadata.challenge = request.connect.challenge;
         metadata.auth_protocol = request.connect.authentication_protocol;
         metadata.protocol_extensions = request.connect.extensions.value_or(0);
+        if (netchan_enabled_)
+        {
+            const std::optional<std::uint16_t> connect_qport =
+                request.connect.qport;
+            if (!metadata.netchan.Initialize(
+                    request.endpoint,
+                    connect_qport,
+                    static_cast<std::uint16_t>(metadata.channel_identifier),
+                    std::chrono::steady_clock::now()))
+            {
+                return false;
+            }
+            constexpr std::array<std::uint8_t, 1> kFirstReliablePayload = {
+                hl::network::kGoldSrcServerNop,
+            };
+            if (metadata.netchan.QueueReliablePayload(
+                    kFirstReliablePayload.data(),
+                    kFirstReliablePayload.size())
+                != hl::network::GoldSrcNetchanQueueResult::kQueued)
+            {
+                return false;
+            }
+            metadata.netchan_prepared = true;
+        }
         return CommitPreparedAdmission(request, plan, std::move(metadata));
     }
 
@@ -430,11 +567,34 @@ private:
         slot_state.protocol_info = std::move(metadata.protocol_info);
         slot_state.user_info = std::move(metadata.user_info);
         slot_state.steam_authentication_performed = false;
+        if (metadata.netchan_prepared)
+        {
+            slot_state.netchan = std::move(metadata.netchan);
+        }
         ++next_network_session_;
         return true;
     }
 
     bool ProcessDatagram(
+        const hl::network::Ipv4Endpoint& sender,
+        std::size_t received_size)
+    {
+        if (!netchan_enabled_)
+        {
+            return ProcessConnectionlessDatagram(sender, received_size);
+        }
+
+        const bool connectionless = received_size >= 4u
+            && buffer_[0] == 0xFFu
+            && buffer_[1] == 0xFFu
+            && buffer_[2] == 0xFFu
+            && buffer_[3] == 0xFFu;
+        return connectionless
+            ? ProcessConnectionlessDatagram(sender, received_size)
+            : ProcessSequencedDatagram(sender, received_size);
+    }
+
+    bool ProcessConnectionlessDatagram(
         const hl::network::Ipv4Endpoint& sender,
         std::size_t received_size)
     {
@@ -533,7 +693,7 @@ private:
         }
 
         if (handshake.response.has_value()
-            && !socket_.Send(
+            && !SendBoundedDatagram(
                 handshake.response->data(),
                 handshake.response->size(),
                 sender))
@@ -548,11 +708,418 @@ private:
         {
             ++summary_.accepted;
             accepted_ = true;
-            complete_ = true;
             if (!CaptureAcceptedSession(handshake))
             {
                 return false;
             }
+            if (netchan_enabled_)
+            {
+                if (!SendInitialNetchanDatagram())
+                {
+                    return false;
+                }
+                negative_advance_pending_ = negative_proof_;
+            }
+            else
+            {
+                complete_ = true;
+            }
+        }
+        return true;
+    }
+
+    DedicatedPlayerRuntimeSlot* FindAdmittedNetchanSlot()
+    {
+        if (admitted_session_id_.empty())
+        {
+            return nullptr;
+        }
+        return FindDedicatedPlayerRuntimeSlotBySession(
+            state_.dedicated_multiplayer_foundation,
+            admitted_session_id_);
+    }
+
+    DedicatedPlayerRuntimeSlot* FindNetchanSlotForSender(
+        const hl::network::Ipv4Endpoint& sender)
+    {
+        for (DedicatedPlayerRuntimeSlot& slot_state :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            if (IsDedicatedSlotConnectedOccupant(slot_state)
+                && slot_state.netchan.initialized()
+                && slot_state.netchan.remote_endpoint() == sender)
+            {
+                return &slot_state;
+            }
+        }
+        return nullptr;
+    }
+
+    bool SendBoundedDatagram(
+        const std::uint8_t* bytes,
+        std::size_t size,
+        const hl::network::Ipv4Endpoint& destination)
+    {
+        if (datagrams_sent_this_frame_ >= kMaximumDatagramsSentPerHostFrame)
+        {
+            return false;
+        }
+        if (!socket_.Send(bytes, size, destination))
+        {
+            return false;
+        }
+        ++datagrams_sent_this_frame_;
+        ++summary_.datagrams_sent;
+        return true;
+    }
+
+    void RefreshAuthoritativeNetchanSessionSummary()
+    {
+        const int session_count =
+            CountDedicatedQueryPlayers(state_.dedicated_multiplayer_foundation);
+        int partial_sessions = 0;
+        for (const DedicatedPlayerRuntimeSlot& slot_state :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            const bool connected = IsDedicatedSlotConnectedOccupant(slot_state);
+            const bool initialized = slot_state.netchan.initialized();
+            const bool has_external_transport_metadata =
+                !slot_state.remote_endpoint.empty() || initialized;
+            if (has_external_transport_metadata && connected != initialized)
+            {
+                ++partial_sessions;
+            }
+        }
+
+        summary_.session_count = session_count;
+        summary_.duplicate_sessions = std::max(0, session_count - 1);
+        summary_.partial_sessions = partial_sessions;
+    }
+
+    void SyncNetchanSummary(const DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        RefreshAuthoritativeNetchanSessionSummary();
+        const hl::network::GoldSrcNetchanState& netchan = slot_state.netchan;
+        const hl::network::GoldSrcNetchanDiagnostics& diagnostics =
+            netchan.diagnostics();
+        summary_.netchan_initialized = netchan.initialized();
+        summary_.netchan_state = std::string(
+            hl::network::NameFor(netchan.transport_phase()));
+        summary_.sequenced_datagrams_sent =
+            static_cast<int>(diagnostics.sequenced_sent);
+        summary_.reliable_queued =
+            static_cast<int>(diagnostics.reliable_queued);
+        summary_.reliable_sent =
+            static_cast<int>(diagnostics.reliable_sent);
+        summary_.reliable_resent =
+            static_cast<int>(diagnostics.reliable_resent);
+        summary_.reliable_acked =
+            static_cast<int>(diagnostics.reliable_acked);
+        summary_.reliable_ack_mismatch =
+            static_cast<int>(diagnostics.reliable_ack_mismatch);
+        summary_.reliable_pending_bytes =
+            static_cast<int>(netchan.reliable_pending_bytes());
+        summary_.duplicate_rejected =
+            static_cast<int>(diagnostics.duplicate_sequence);
+        summary_.out_of_order_rejected =
+            static_cast<int>(diagnostics.out_of_order_sequence);
+        summary_.malformed_rejected = static_cast<int>(
+            diagnostics.malformed_header
+            + diagnostics.unsupported_reserved_flags);
+        summary_.fragment_rejected =
+            static_cast<int>(diagnostics.unsupported_fragment);
+        summary_.stale_ack_rejected =
+            static_cast<int>(diagnostics.stale_ack);
+        summary_.future_ack_rejected =
+            static_cast<int>(diagnostics.future_ack);
+        summary_.unsupported_payload_rejected =
+            static_cast<int>(diagnostics.unsupported_payload);
+        summary_.qport_mismatch_rejected =
+            static_cast<int>(diagnostics.qport_mismatch);
+        summary_.final_state =
+            DedicatedPlayerLifecycleStateName(slot_state.lifecycle_state);
+        summary_.connected = slot_state.connected;
+        summary_.put_in_server = slot_state.put_in_server;
+        summary_.spawned = slot_state.spawn_count > 0 || slot_state.alive;
+        summary_.active = slot_state.put_in_server && slot_state.alive;
+    }
+
+    bool SendNetchanDatagram(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        bool expect_reliable,
+        std::string_view event_name)
+    {
+        hl::network::GoldSrcNetchanDatagram datagram;
+        if (!slot_state.netchan.BuildOutgoingDatagram(&datagram))
+        {
+            return FailTransport(
+                "netchan-encode-failed",
+                "goldsrc_netchan_send_failed: endpoint="
+                    + slot_state.netchan.remote_endpoint().ToString()
+                    + ",reason=encode-failed");
+        }
+        const hl::network::GoldSrcNetchanDecodeResult decoded =
+            hl::network::DecodeGoldSrcNetchanDatagram(
+                hl::network::GoldSrcNetchanDirection::kServerToClient,
+                datagram.bytes.data(),
+                datagram.size);
+        if (!decoded.ok() || decoded.packet.reliable_present != expect_reliable)
+        {
+            return FailTransport(
+                "netchan-self-check-failed",
+                "goldsrc_netchan_send_failed: endpoint="
+                    + slot_state.netchan.remote_endpoint().ToString()
+                    + ",reason=self-check-failed");
+        }
+        if (!SendBoundedDatagram(
+                datagram.bytes.data(),
+                datagram.size,
+                slot_state.netchan.remote_endpoint()))
+        {
+            return FailTransport(
+                "netchan-send-failed",
+                "goldsrc_netchan_send_failed: endpoint="
+                    + slot_state.netchan.remote_endpoint().ToString()
+                    + ",platform_error=" + socket_.LastError());
+        }
+
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            std::string(event_name)
+                + ": session_id=" + slot_state.session_id
+                + ",endpoint=" + slot_state.netchan.remote_endpoint().ToString()
+                + ",sequence=" + std::to_string(decoded.packet.sequence)
+                + ",ack=" + std::to_string(decoded.packet.acknowledgement)
+                + ",reliable="
+                + (decoded.packet.reliable_present ? "1" : "0")
+                + ",fragment=0,payload_bytes="
+                + std::to_string(decoded.packet.payload_size));
+        return true;
+    }
+
+    bool SendInitialNetchanDatagram()
+    {
+        DedicatedPlayerRuntimeSlot* slot_state = FindAdmittedNetchanSlot();
+        if (slot_state == nullptr || !slot_state->netchan.initialized())
+        {
+            return FailTransport(
+                "netchan-session-missing",
+                "goldsrc_netchan_send_failed: reason=session-missing");
+        }
+
+        summary_.netchan_initialized = true;
+        summary_.netchan_state = std::string(
+            hl::network::NameFor(slot_state->netchan.transport_phase()));
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_netchan_initialized: session_id=" + slot_state->session_id
+                + ",slot=" + std::to_string(slot_state->slot)
+                + ",endpoint=" + slot_state->netchan.remote_endpoint().ToString()
+                + ",outgoing_sequence=1,incoming_sequence=0,qport_wire=absent"
+                + ",channel_id="
+                + std::to_string(slot_state->netchan.channel_identifier()));
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_netchan_reliable_queued: session_id="
+                + slot_state->session_id
+                + ",payload=svc_nop,payload_bytes=1,reliable_toggle=1");
+
+        if (!SendNetchanDatagram(
+                *slot_state,
+                true,
+                "goldsrc_netchan_reliable_sent"))
+        {
+            return false;
+        }
+
+        summary_.server_initial_sequence = 1u;
+        summary_.server_initial_acknowledgement = 0u;
+        summary_.reliable_present = true;
+        summary_.fragment_present = false;
+        summary_.payload_transform_passed = true;
+        summary_.first_payload = "svc_nop";
+        return true;
+    }
+
+    bool SendPendingOrdinaryAdvance()
+    {
+        DedicatedPlayerRuntimeSlot* slot_state = FindAdmittedNetchanSlot();
+        if (slot_state == nullptr
+            || !slot_state->netchan.initialized()
+            || !slot_state->netchan.reliable_pending())
+        {
+            return FailTransport(
+                "netchan-negative-advance-invalid",
+                "goldsrc_netchan_send_failed: reason=negative-advance-invalid");
+        }
+        return SendNetchanDatagram(
+            *slot_state,
+            false,
+            "goldsrc_netchan_ordinary_sent");
+    }
+
+    bool NegativeEvidenceSatisfied() const noexcept
+    {
+        return summary_.duplicate_rejected >= 1
+            && summary_.out_of_order_rejected >= 1
+            && summary_.malformed_rejected >= 1
+            && summary_.fragment_rejected >= 1
+            && summary_.future_ack_rejected >= 1
+            && summary_.endpoint_hijack_rejected >= 1;
+    }
+
+    bool ProcessSequencedDatagram(
+        const hl::network::Ipv4Endpoint& sender,
+        std::size_t received_size)
+    {
+        ++summary_.sequenced_datagrams_received;
+        DedicatedPlayerRuntimeSlot* slot_state =
+            netchan_enabled_ ? FindNetchanSlotForSender(sender) : nullptr;
+        if (slot_state == nullptr)
+        {
+            ++summary_.endpoint_hijack_rejected;
+            RefreshAuthoritativeNetchanSessionSummary();
+            ++unknown_endpoint_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(unknown_endpoint_diagnostics_seen_))
+            {
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_netchan_unknown_endpoint: endpoint="
+                        + sender.ToString());
+            }
+            return true;
+        }
+
+        const hl::network::GoldSrcNetchanDecodeResult decoded =
+            hl::network::DecodeGoldSrcNetchanDatagram(
+                hl::network::GoldSrcNetchanDirection::kClientToServer,
+                buffer_.data(),
+                received_size);
+        if (!decoded.ok())
+        {
+            hl::network::GoldSrcNetchanProcessResult rejection =
+                hl::network::GoldSrcNetchanProcessResult::kMalformedHeader;
+            if (decoded.status
+                == hl::network::GoldSrcNetchanCodecStatus::kUnsupportedFragment)
+            {
+                rejection =
+                    hl::network::GoldSrcNetchanProcessResult::kUnsupportedFragment;
+            }
+            else if (decoded.status
+                == hl::network::GoldSrcNetchanCodecStatus::kUnsupportedReservedFlags)
+            {
+                rejection = hl::network::GoldSrcNetchanProcessResult::
+                    kUnsupportedReservedFlags;
+            }
+            slot_state->netchan.RecordRejected(rejection);
+            SyncNetchanSummary(*slot_state);
+            ++invalid_netchan_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(invalid_netchan_diagnostics_seen_))
+            {
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_netchan_rejected: endpoint=" + sender.ToString()
+                        + ",reason="
+                        + std::string(hl::network::ReasonFor(rejection)));
+            }
+            return true;
+        }
+
+        const hl::network::GoldSrcNetchanTransportPhase phase_before =
+            slot_state->netchan.transport_phase();
+        const hl::network::GoldSrcNetchanProcessResult process_result =
+            slot_state->netchan.ProcessIncomingDatagram(
+                sender,
+                decoded.packet,
+                std::chrono::steady_clock::now());
+        SyncNetchanSummary(*slot_state);
+        if (process_result != hl::network::GoldSrcNetchanProcessResult::kAccepted)
+        {
+            ++invalid_netchan_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(invalid_netchan_diagnostics_seen_))
+            {
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_netchan_rejected: endpoint=" + sender.ToString()
+                        + ",sequence=" + std::to_string(decoded.packet.sequence)
+                        + ",ack=" + std::to_string(decoded.packet.acknowledgement)
+                        + ",reason="
+                        + std::string(hl::network::ReasonFor(process_result)));
+            }
+            return true;
+        }
+
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_netchan_received: endpoint=" + sender.ToString()
+                + ",sequence=" + std::to_string(decoded.packet.sequence)
+                + ",ack=" + std::to_string(decoded.packet.acknowledgement)
+                + ",reliable="
+                + (decoded.packet.reliable_present ? "1" : "0")
+                + ",reliable_ack="
+                + (decoded.packet.reliable_acknowledgement ? "1" : "0")
+                + ",result=accepted");
+
+        const bool established_now =
+            phase_before != hl::network::GoldSrcNetchanTransportPhase::kEstablished
+            && slot_state->netchan.transport_phase()
+                == hl::network::GoldSrcNetchanTransportPhase::kEstablished;
+        if (established_now)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_netchan_established: session_id="
+                    + slot_state->session_id
+                    + ",session_count=" + std::to_string(summary_.session_count)
+                    + ",state=" + summary_.final_state
+                    + ",netchan_state=established,reliable_acked="
+                    + std::to_string(summary_.reliable_acked)
+                    + ",reliable_pending_bytes=0,put_in_server="
+                    + (summary_.put_in_server ? "1" : "0")
+                    + ",spawned=" + (summary_.spawned ? "1" : "0")
+                    + ",active=" + (summary_.active ? "1" : "0"));
+            if (!negative_proof_)
+            {
+                complete_ = true;
+            }
+            return true;
+        }
+
+        if (slot_state->netchan.reliable_pending())
+        {
+            const bool resend_expected =
+                hl::network::GoldSrcNetchanSentWindowContains(
+                    slot_state->netchan.highest_accepted_acknowledgement(),
+                    slot_state->netchan.highest_sequence_sent(),
+                    slot_state->netchan.diagnostics().sequenced_sent)
+                && hl::network::IsGoldSrcNetchanSequenceNewer(
+                    slot_state->netchan.highest_accepted_acknowledgement(),
+                    slot_state->netchan.last_reliable_sequence())
+                && slot_state->netchan.incoming_reliable_acknowledgement()
+                    != slot_state->netchan.local_reliable_sequence();
+            return SendNetchanDatagram(
+                *slot_state,
+                resend_expected,
+                resend_expected
+                    ? "goldsrc_netchan_reliable_resent"
+                    : "goldsrc_netchan_ordinary_sent");
+        }
+
+        if (negative_proof_
+            && slot_state->netchan.transport_phase()
+                == hl::network::GoldSrcNetchanTransportPhase::kEstablished
+            && NegativeEvidenceSatisfied())
+        {
+            if (!SendNetchanDatagram(
+                    *slot_state,
+                    false,
+                    "goldsrc_netchan_responsive_ack"))
+            {
+                return false;
+            }
+            summary_.server_still_responsive = true;
+            complete_ = true;
         }
         return true;
     }
@@ -582,6 +1149,7 @@ private:
             CountDedicatedQueryPlayers(state_.dedicated_multiplayer_foundation);
         summary_.allocated_slot = slot_state->slot;
         summary_.session_id = slot_state->session_id;
+        admitted_session_id_ = slot_state->session_id;
         summary_.remote_endpoint = slot_state->remote_endpoint;
         summary_.final_state =
             DedicatedPlayerLifecycleStateName(slot_state->lifecycle_state);
@@ -590,6 +1158,17 @@ private:
         summary_.spawned = slot_state->spawn_count > 0 || slot_state->alive;
         summary_.active = slot_state->put_in_server && slot_state->alive;
         summary_.last_reject_reason = "<none>";
+        if (netchan_enabled_)
+        {
+            if (!slot_state->netchan.initialized())
+            {
+                return FailTransport(
+                    "netchan-initialization-missing",
+                    "goldsrc_netchan_initialization_failed: session_id="
+                        + slot_state->session_id);
+            }
+            SyncNetchanSummary(*slot_state);
+        }
 
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
@@ -641,6 +1220,8 @@ private:
     std::string bind_address_;
     int requested_port_ = 0;
     int timeout_ms_ = 0;
+    bool netchan_enabled_ = false;
+    bool negative_proof_ = false;
     bool dedicated_runtime_ = false;
     hl::network::UdpSocket socket_;
     std::unique_ptr<hl::network::ChallengeTable> challenges_;
@@ -651,7 +1232,12 @@ private:
     std::uint64_t rejection_diagnostics_seen_ = 0;
     std::uint64_t malformed_diagnostics_seen_ = 0;
     std::uint64_t expired_diagnostics_seen_ = 0;
+    std::uint64_t unknown_endpoint_diagnostics_seen_ = 0;
+    std::uint64_t invalid_netchan_diagnostics_seen_ = 0;
     std::uint64_t next_network_session_ = 1;
+    std::string admitted_session_id_;
+    int datagrams_sent_this_frame_ = 0;
+    bool negative_advance_pending_ = false;
     bool deadline_started_ = false;
     bool started_ = false;
     bool complete_ = false;

@@ -51,6 +51,7 @@
 #include "game_api/server_command_buffer.h"
 #include "game_api/server_command_dispatcher.h"
 #include "network/goldsrc_connectionless.h"
+#include "network/goldsrc_netchan.h"
 #include "network/udp_socket.h"
 #include "server_frame_loop.h"
 #include "server_bootstrap.h"
@@ -452,6 +453,7 @@ struct DedicatedPlayerRuntimeSlot
     std::string protocol_info;
     std::string user_info;
     bool steam_authentication_performed = false;
+    hl::network::GoldSrcNetchanState netchan;
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
@@ -86119,6 +86121,14 @@ DedicatedPlayerRuntimeSlot& ResetDedicatedPlayerRuntimeSlotForAdmission(
             FindDedicatedPlayerRuntimeSlot(runtime, slot);
         existing != nullptr)
     {
+        if (existing->netchan.initialized())
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_netchan_reset: session_id=" + existing->session_id
+                    + ",slot=" + std::to_string(existing->slot)
+                    + ",reason=slot-reuse");
+        }
         *existing = std::move(fresh_slot);
         return *existing;
     }
@@ -92331,6 +92341,15 @@ void RecordDedicatedLifecycleTransition(
         slot_state.connected = false;
         slot_state.put_in_server = false;
         slot_state.alive = false;
+        if (slot_state.netchan.initialized())
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_netchan_reset: session_id=" + slot_state.session_id
+                    + ",slot=" + std::to_string(slot_state.slot)
+                    + ",reason=disconnect");
+            slot_state.netchan.Reset();
+        }
         break;
     case DedicatedPlayerLifecycleState::kIdle:
     default:
