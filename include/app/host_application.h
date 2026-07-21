@@ -23,6 +23,7 @@ private:
     bool RunDllSmokeTest(const std::filesystem::path& game_directory) const;
     bool RunServerEngineShim(
         const std::filesystem::path& game_directory,
+        const std::filesystem::path& client_dll_path,
         const LaunchOptions& options) const;
 
     filesystem::FileSystem file_system_;

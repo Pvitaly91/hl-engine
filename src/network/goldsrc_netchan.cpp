@@ -307,6 +307,20 @@ std::string_view NameFor(GoldSrcNetchanTransportPhase phase) noexcept
     }
 }
 
+std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept
+{
+    switch (kind)
+    {
+    case GoldSrcNetchanReliablePayloadKind::kTransportBootstrap:
+        return "transport_bootstrap";
+    case GoldSrcNetchanReliablePayloadKind::kServerInfo:
+        return "server_info";
+    case GoldSrcNetchanReliablePayloadKind::kNone:
+    default:
+        return "none";
+    }
+}
+
 std::string_view ReasonFor(GoldSrcNetchanQueueResult result) noexcept
 {
     switch (result)
@@ -321,6 +335,8 @@ std::string_view ReasonFor(GoldSrcNetchanQueueResult result) noexcept
         return "payload_too_large";
     case GoldSrcNetchanQueueResult::kReliableAlreadyPending:
         return "reliable_already_pending";
+    case GoldSrcNetchanQueueResult::kInvalidPayloadKind:
+        return "invalid_payload_kind";
     default:
         return "not_initialized";
     }
@@ -386,6 +402,17 @@ GoldSrcNetchanQueueResult GoldSrcNetchanState::QueueReliablePayload(
     const std::uint8_t* bytes,
     std::size_t size) noexcept
 {
+    return QueueReliablePayload(
+        bytes,
+        size,
+        GoldSrcNetchanReliablePayloadKind::kTransportBootstrap);
+}
+
+GoldSrcNetchanQueueResult GoldSrcNetchanState::QueueReliablePayload(
+    const std::uint8_t* bytes,
+    std::size_t size,
+    GoldSrcNetchanReliablePayloadKind kind) noexcept
+{
     if (!initialized_)
     {
         return GoldSrcNetchanQueueResult::kNotInitialized;
@@ -402,12 +429,21 @@ GoldSrcNetchanQueueResult GoldSrcNetchanState::QueueReliablePayload(
     {
         return GoldSrcNetchanQueueResult::kReliableAlreadyPending;
     }
+    if (kind == GoldSrcNetchanReliablePayloadKind::kNone)
+    {
+        return GoldSrcNetchanQueueResult::kInvalidPayloadKind;
+    }
 
     std::memcpy(pending_reliable_.data(), bytes, size);
     pending_reliable_size_ = size;
+    pending_reliable_kind_ = kind;
     pending_has_been_sent_ = false;
     local_reliable_sequence_ = !local_reliable_sequence_;
-    transport_phase_ = GoldSrcNetchanTransportPhase::kAwaitingFirstReliableAck;
+    if (kind == GoldSrcNetchanReliablePayloadKind::kTransportBootstrap)
+    {
+        transport_phase_ =
+            GoldSrcNetchanTransportPhase::kAwaitingFirstReliableAck;
+    }
     ++diagnostics_.reliable_queued;
     return GoldSrcNetchanQueueResult::kQueued;
 }
@@ -478,32 +514,44 @@ GoldSrcNetchanProcessResult GoldSrcNetchanState::ProcessIncomingDatagram(
     const GoldSrcNetchanPacket& packet,
     TimePoint now) noexcept
 {
+    return ProcessIncomingDatagramDetailed(sender, packet, now).result;
+}
+
+GoldSrcNetchanProcessOutcome
+GoldSrcNetchanState::ProcessIncomingDatagramDetailed(
+    const Ipv4Endpoint& sender,
+    const GoldSrcNetchanPacket& packet,
+    TimePoint now) noexcept
+{
+    GoldSrcNetchanProcessOutcome outcome{};
+    const auto reject = [this, &outcome](GoldSrcNetchanProcessResult result)
+    {
+        RecordRejected(result);
+        outcome.result = result;
+        return outcome;
+    };
+
     ++diagnostics_.sequenced_received;
     if (!initialized_ || sender != remote_endpoint_)
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kEndpointMismatch);
-        return GoldSrcNetchanProcessResult::kEndpointMismatch;
+        return reject(GoldSrcNetchanProcessResult::kEndpointMismatch);
     }
     if (packet.payload_size > packet.payload.size())
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kPayloadDecodeFailed);
-        return GoldSrcNetchanProcessResult::kPayloadDecodeFailed;
+        return reject(GoldSrcNetchanProcessResult::kPayloadDecodeFailed);
     }
     if (!PayloadIsSupported(packet))
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kUnsupportedPayload);
-        return GoldSrcNetchanProcessResult::kUnsupportedPayload;
+        return reject(GoldSrcNetchanProcessResult::kUnsupportedPayload);
     }
 
     if (packet.sequence == incoming_sequence_)
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kDuplicateSequence);
-        return GoldSrcNetchanProcessResult::kDuplicateSequence;
+        return reject(GoldSrcNetchanProcessResult::kDuplicateSequence);
     }
     if (!IsGoldSrcNetchanSequenceNewer(packet.sequence, incoming_sequence_))
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kOutOfOrderSequence);
-        return GoldSrcNetchanProcessResult::kOutOfOrderSequence;
+        return reject(GoldSrcNetchanProcessResult::kOutOfOrderSequence);
     }
 
     if (!AcknowledgementWasSent(packet.acknowledgement))
@@ -514,16 +562,14 @@ GoldSrcNetchanProcessResult GoldSrcNetchanState::ProcessIncomingDatagram(
                 highest_sequence_sent_)
             ? GoldSrcNetchanProcessResult::kFutureAck
             : GoldSrcNetchanProcessResult::kStaleAck;
-        RecordRejected(result);
-        return result;
+        return reject(result);
     }
     if (packet.acknowledgement != highest_accepted_acknowledgement_
         && IsGoldSrcNetchanSequenceNewer(
             highest_accepted_acknowledgement_,
             packet.acknowledgement))
     {
-        RecordRejected(GoldSrcNetchanProcessResult::kStaleAck);
-        return GoldSrcNetchanProcessResult::kStaleAck;
+        return reject(GoldSrcNetchanProcessResult::kStaleAck);
     }
 
     const std::uint32_t sequence_distance =
@@ -552,14 +598,29 @@ GoldSrcNetchanProcessResult GoldSrcNetchanState::ProcessIncomingDatagram(
     {
         if (packet.reliable_acknowledgement == local_reliable_sequence_)
         {
+            const GoldSrcNetchanReliablePayloadKind acknowledged_kind =
+                pending_reliable_kind_;
             std::fill(
                 pending_reliable_.begin(),
                 pending_reliable_.end(),
                 std::uint8_t{0});
             pending_reliable_size_ = 0u;
+            pending_reliable_kind_ =
+                GoldSrcNetchanReliablePayloadKind::kNone;
             pending_has_been_sent_ = false;
             ++diagnostics_.reliable_acked;
-            transport_phase_ = GoldSrcNetchanTransportPhase::kEstablished;
+            last_acknowledged_reliable_kind_ = acknowledged_kind;
+            ++reliable_acknowledgement_generation_;
+            outcome.acknowledged_reliable_kind = acknowledged_kind;
+            outcome.reliable_acknowledgement_generation =
+                reliable_acknowledgement_generation_;
+            if (acknowledged_kind
+                    == GoldSrcNetchanReliablePayloadKind::kTransportBootstrap
+                && transport_phase_
+                    == GoldSrcNetchanTransportPhase::kAwaitingFirstReliableAck)
+            {
+                transport_phase_ = GoldSrcNetchanTransportPhase::kEstablished;
+            }
         }
         else
         {
@@ -570,7 +631,8 @@ GoldSrcNetchanProcessResult GoldSrcNetchanState::ProcessIncomingDatagram(
     has_accepted_activity_ = true;
     last_accepted_at_ = now;
     ++diagnostics_.accepted;
-    return GoldSrcNetchanProcessResult::kAccepted;
+    outcome.result = GoldSrcNetchanProcessResult::kAccepted;
+    return outcome;
 }
 
 void GoldSrcNetchanState::RecordRejected(
@@ -615,6 +677,12 @@ void GoldSrcNetchanState::RecordRejected(
     default:
         break;
     }
+}
+
+void GoldSrcNetchanState::SetIncomingPayloadPolicy(
+    GoldSrcNetchanIncomingPayloadPolicy policy) noexcept
+{
+    incoming_payload_policy_ = policy;
 }
 
 bool GoldSrcNetchanState::initialized() const noexcept
@@ -694,6 +762,30 @@ const std::uint8_t* GoldSrcNetchanState::reliable_payload_data() const noexcept
     return pending_reliable_.data();
 }
 
+GoldSrcNetchanReliablePayloadKind
+GoldSrcNetchanState::pending_reliable_kind() const noexcept
+{
+    return pending_reliable_kind_;
+}
+
+GoldSrcNetchanReliablePayloadKind
+GoldSrcNetchanState::last_acknowledged_reliable_kind() const noexcept
+{
+    return last_acknowledged_reliable_kind_;
+}
+
+std::uint64_t
+GoldSrcNetchanState::reliable_acknowledgement_generation() const noexcept
+{
+    return reliable_acknowledgement_generation_;
+}
+
+GoldSrcNetchanIncomingPayloadPolicy
+GoldSrcNetchanState::incoming_payload_policy() const noexcept
+{
+    return incoming_payload_policy_;
+}
+
 bool GoldSrcNetchanState::has_accepted_activity() const noexcept
 {
     return has_accepted_activity_;
@@ -740,6 +832,13 @@ bool GoldSrcNetchanState::AcknowledgementIdentifiesSentSequence(
 bool GoldSrcNetchanState::PayloadIsSupported(
     const GoldSrcNetchanPacket& packet) const noexcept
 {
+    if (incoming_payload_policy_
+        == GoldSrcNetchanIncomingPayloadPolicy::
+            kAcceptBoundedApplicationPayload)
+    {
+        return true;
+    }
+
     for (std::size_t index = 0; index < packet.payload_size; ++index)
     {
         if (packet.payload[index] != kGoldSrcClientNop)

@@ -7,6 +7,7 @@
 #include <vector>
 
 #include "game_api/cvar_registry.h"
+#include "network/goldsrc_signon.h"
 
 namespace hl::game_api
 {
@@ -6699,6 +6700,8 @@ struct GoldSrcUdpHandshakeSummary
     bool active = false;
     bool netchan_enabled = false;
     bool netchan_negative_proof = false;
+    bool serverinfo_enabled = false;
+    bool serverinfo_negative_proof = false;
     bool netchan_initialized = false;
     std::string netchan_state = "none";
     int max_datagrams_sent_per_frame = 0;
@@ -6729,6 +6732,44 @@ struct GoldSrcUdpHandshakeSummary
     int duplicate_sessions = 0;
     int partial_sessions = 0;
     bool server_still_responsive = false;
+    int client_new_received = 0;
+    int client_new_delivered = 0;
+    int duplicate_new_deliveries = 0;
+    int inbound_reliable_detected = 0;
+    int inbound_reliable_retransmitted = 0;
+    int clc_stringcmd_decoded = 0;
+    int signon_state_resets = 0;
+    int malformed_stringcmd_rejected = 0;
+    int command_injection_rejected = 0;
+    int unsupported_command_rejected = 0;
+    int unsupported_opcode_rejected = 0;
+    bool serverinfo_context_built = false;
+    int serverinfo_generations = 0;
+    int serverinfo_queued = 0;
+    int serverinfo_sent = 0;
+    int serverinfo_resent = 0;
+    int serverinfo_acked = 0;
+    std::uint32_t serverinfo_first_carrier_sequence = 0;
+    std::uint32_t serverinfo_latest_carrier_sequence = 0;
+    int serverinfo_send_count = 0;
+    int serverinfo_protocol = 0;
+    std::uint32_t serverinfo_spawn_count = 0;
+    std::string serverinfo_checksum = "none";
+    std::string serverinfo_client_dll_md5 = "none";
+    int serverinfo_maxclients = 0;
+    int serverinfo_player_index = -1;
+    bool serverinfo_deathmatch = false;
+    std::string serverinfo_game_dir = "none";
+    std::string serverinfo_hostname = "none";
+    std::string serverinfo_map = "none";
+    std::string serverinfo_mapcycle = "none";
+    bool serverinfo_secure = false;
+    std::string serverinfo_fallback_dir = "none";
+    bool serverinfo_allow_cheats = false;
+    int serverinfo_payload_bytes = 0;
+    bool wrong_reliable_ack_rejected = false;
+    bool duplicate_client_reliable_suppressed = false;
+    std::string signon_phase = "none";
 };
 
 struct HldsGetchallengeDiagnosticSurfaceSummary
@@ -22634,6 +22675,7 @@ struct DedicatedSignonMessageCursorCarriedResumeDenialProbeSummary
 struct HlServerModuleInitOptions
 {
     std::filesystem::path game_directory;
+    std::filesystem::path client_dll_path;
     std::string mod_name = "valve";
     std::string map_name = "c0a0";
     std::string hostname = "HLengine Test Server";
@@ -22649,6 +22691,8 @@ struct HlServerModuleInitOptions
     bool goldsrc_udp_handshake_enabled = false;
     bool goldsrc_netchan_enabled = false;
     bool goldsrc_netchan_negative_proof = false;
+    bool goldsrc_serverinfo_enabled = false;
+    bool goldsrc_serverinfo_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

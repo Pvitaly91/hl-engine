@@ -1022,6 +1022,10 @@ void InitializeServerState(
     float deathmatch,
     float coop)
 {
+    const std::uint32_t next_map_spawn_count =
+        state.map_spawn_count == std::numeric_limits<std::uint32_t>::max()
+        ? 1u
+        : state.map_spawn_count + 1u;
     state = {};
     state.game_directory = game_directory;
     state.game_directory_utf8 = common::ToUtf8(game_directory);
@@ -1031,6 +1035,7 @@ void InitializeServerState(
     state.requested_maxclients = NormalizeMaxClients(maxclients);
     state.maxclients = NormalizeMaxClients(maxclients);
     state.map_name = NormalizeMapName(map_name);
+    state.map_spawn_count = next_map_spawn_count;
     state.startspot.clear();
     state.active = false;
     state.loading = true;

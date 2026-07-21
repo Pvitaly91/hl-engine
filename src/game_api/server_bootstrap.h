@@ -67,6 +67,7 @@ struct ServerState
     int requested_maxclients = 1;
     int maxclients = 1;
     std::string map_name;
+    std::uint32_t map_spawn_count = 0;
     std::string startspot;
     bool active = false;
     bool loading = true;

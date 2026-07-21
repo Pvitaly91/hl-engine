@@ -37,10 +37,12 @@ add_library(goldsrc_network STATIC
     include/network/ipv4_endpoint.h
     include/network/goldsrc_connectionless.h
     include/network/goldsrc_netchan.h
+    include/network/goldsrc_signon.h
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
     src/network/goldsrc_connectionless.cpp
     src/network/goldsrc_netchan.cpp
+    src/network/goldsrc_signon.cpp
     src/network/udp_socket_win32.cpp
 )
 target_include_directories(goldsrc_network PUBLIC "${HLHOST_INCLUDE_DIR}")
@@ -195,6 +197,27 @@ add_custom_target(goldsrc_netchan_unit_tests
     COMMENT "Running GoldSrc netchan codec, sequence, and reliable-channel tests"
 )
 set_target_properties(goldsrc_netchan_unit_tests PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_signon_tests
+    src/tests/goldsrc_signon_tests.cpp
+)
+target_include_directories(goldsrc_signon_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_signon_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_signon_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_signon_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_signon_tests PROPERTIES FOLDER "host/tests")
+add_test(NAME goldsrc_signon_tests COMMAND goldsrc_signon_tests)
+
+add_custom_target(goldsrc_signon_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_signon_tests>"
+    DEPENDS goldsrc_signon_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc signon command, serverinfo, checksum, and identity tests"
+)
+set_target_properties(goldsrc_signon_unit_tests PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

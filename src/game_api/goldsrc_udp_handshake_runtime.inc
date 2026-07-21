@@ -18,8 +18,11 @@ public:
           bind_address_(options.bind_address),
           requested_port_(options.server_port),
           timeout_ms_(options.goldsrc_handshake_timeout_ms),
+          client_dll_path_(options.client_dll_path),
           netchan_enabled_(options.goldsrc_netchan_enabled),
           negative_proof_(options.goldsrc_netchan_negative_proof),
+          serverinfo_enabled_(options.goldsrc_serverinfo_enabled),
+          serverinfo_negative_proof_(options.goldsrc_serverinfo_negative_proof),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -32,6 +35,8 @@ public:
             kMaximumDatagramsSentPerHostFrame;
         summary_.netchan_enabled = netchan_enabled_;
         summary_.netchan_negative_proof = negative_proof_;
+        summary_.serverinfo_enabled = serverinfo_enabled_;
+        summary_.serverinfo_negative_proof = serverinfo_negative_proof_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -55,6 +60,18 @@ public:
         if (negative_proof_ && !netchan_enabled_)
         {
             return FailBind("netchan-negative-proof-requires-netchan");
+        }
+        if (serverinfo_enabled_ && !netchan_enabled_)
+        {
+            return FailBind("serverinfo-requires-netchan");
+        }
+        if (serverinfo_negative_proof_ && !serverinfo_enabled_)
+        {
+            return FailBind("serverinfo-negative-proof-requires-serverinfo");
+        }
+        if (serverinfo_enabled_ && client_dll_path_.empty())
+        {
+            return FailBind("serverinfo-client-dll-path-missing");
         }
         if (requested_port_ < 1 || requested_port_ > 65535)
         {
@@ -238,14 +255,44 @@ public:
 
         const bool netchan_succeeded = summary_.netchan_initialized
             && summary_.netchan_state == "established"
-            && summary_.reliable_acked == 1
+            && summary_.reliable_acked == (serverinfo_enabled_ ? 2 : 1)
             && summary_.reliable_pending_bytes == 0
             && summary_.session_count == 1
             && summary_.duplicate_sessions == 0
             && summary_.partial_sessions == 0;
-        if (!netchan_succeeded || !negative_proof_)
+        if (!netchan_succeeded)
         {
-            return netchan_succeeded;
+            return false;
+        }
+        if (serverinfo_enabled_)
+        {
+            const bool serverinfo_succeeded = summary_.client_new_delivered == 1
+                && summary_.duplicate_new_deliveries == 0
+                && summary_.serverinfo_context_built
+                && summary_.serverinfo_generations == 1
+                && summary_.serverinfo_queued == 1
+                && summary_.serverinfo_sent == 1
+                && summary_.serverinfo_acked == 1
+                && summary_.signon_phase == "serverinfo_acknowledged";
+            if (!serverinfo_succeeded || !serverinfo_negative_proof_)
+            {
+                return serverinfo_succeeded;
+            }
+            return summary_.serverinfo_resent >= 1
+                && summary_.wrong_reliable_ack_rejected
+                && summary_.future_ack_rejected >= 1
+                && summary_.duplicate_client_reliable_suppressed
+                && summary_.duplicate_rejected >= 1
+                && summary_.malformed_stringcmd_rejected >= 1
+                && summary_.command_injection_rejected >= 1
+                && summary_.unsupported_command_rejected >= 1
+                && summary_.unsupported_opcode_rejected >= 1
+                && summary_.endpoint_hijack_rejected >= 1
+                && summary_.server_still_responsive;
+        }
+        if (!negative_proof_)
+        {
+            return true;
         }
         return summary_.reliable_resent >= 1
             && summary_.reliable_ack_mismatch >= 1
@@ -356,6 +403,95 @@ public:
                     + ",active=" + std::string(summary_.active ? "1" : "0")
                     + ",clean_shutdown=1");
         }
+        if (serverinfo_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_serverinfo_summary: enabled=1,negative_proof="
+                    + std::string(serverinfo_negative_proof_ ? "1" : "0")
+                    + ",client_new_received="
+                    + std::to_string(summary_.client_new_received)
+                    + ",client_new_delivered="
+                    + std::to_string(summary_.client_new_delivered)
+                    + ",duplicate_new_deliveries="
+                    + std::to_string(summary_.duplicate_new_deliveries)
+                    + ",malformed_stringcmd_rejected="
+                    + std::to_string(summary_.malformed_stringcmd_rejected)
+                    + ",command_injection_rejected="
+                    + std::to_string(summary_.command_injection_rejected)
+                    + ",unsupported_command_rejected="
+                    + std::to_string(summary_.unsupported_command_rejected)
+                    + ",unsupported_opcode_rejected="
+                    + std::to_string(summary_.unsupported_opcode_rejected)
+                    + ",serverinfo_context_built="
+                    + std::string(summary_.serverinfo_context_built ? "1" : "0")
+                    + ",serverinfo_generations="
+                    + std::to_string(summary_.serverinfo_generations)
+                    + ",serverinfo_queued="
+                    + std::to_string(summary_.serverinfo_queued)
+                    + ",serverinfo_sent="
+                    + std::to_string(summary_.serverinfo_sent)
+                    + ",serverinfo_resent="
+                    + std::to_string(summary_.serverinfo_resent)
+                    + ",serverinfo_acked="
+                    + std::to_string(summary_.serverinfo_acked)
+                    + ",serverinfo_first_carrier_sequence="
+                    + std::to_string(
+                        summary_.serverinfo_first_carrier_sequence)
+                    + ",serverinfo_latest_carrier_sequence="
+                    + std::to_string(
+                        summary_.serverinfo_latest_carrier_sequence)
+                    + ",serverinfo_send_count="
+                    + std::to_string(summary_.serverinfo_send_count)
+                    + ",serverinfo_protocol="
+                    + std::to_string(summary_.serverinfo_protocol)
+                    + ",serverinfo_spawn_count="
+                    + std::to_string(summary_.serverinfo_spawn_count)
+                    + ",serverinfo_checksum=" + summary_.serverinfo_checksum
+                    + ",serverinfo_client_dll_md5="
+                    + summary_.serverinfo_client_dll_md5
+                    + ",serverinfo_maxclients="
+                    + std::to_string(summary_.serverinfo_maxclients)
+                    + ",serverinfo_player_index="
+                    + std::to_string(summary_.serverinfo_player_index)
+                    + ",serverinfo_deathmatch="
+                    + std::string(summary_.serverinfo_deathmatch ? "1" : "0")
+                    + ",serverinfo_game_dir=" + summary_.serverinfo_game_dir
+                    + ",serverinfo_hostname=" + summary_.serverinfo_hostname
+                    + ",serverinfo_map=" + summary_.serverinfo_map
+                    + ",serverinfo_mapcycle=" + summary_.serverinfo_mapcycle
+                    + ",serverinfo_secure="
+                    + std::string(summary_.serverinfo_secure ? "1" : "0")
+                    + ",serverinfo_fallback_dir="
+                    + summary_.serverinfo_fallback_dir
+                    + ",serverinfo_allow_cheats="
+                    + std::string(summary_.serverinfo_allow_cheats ? "1" : "0")
+                    + ",serverinfo_payload_bytes="
+                    + std::to_string(summary_.serverinfo_payload_bytes)
+                    + ",wrong_reliable_ack_rejected="
+                    + std::string(
+                        summary_.wrong_reliable_ack_rejected ? "1" : "0")
+                    + ",future_ack_rejected="
+                    + std::to_string(summary_.future_ack_rejected)
+                    + ",duplicate_client_reliable_suppressed="
+                    + std::string(
+                        summary_.duplicate_client_reliable_suppressed
+                            ? "1"
+                            : "0")
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count=" + std::to_string(summary_.session_count)
+                    + ",state=" + summary_.final_state
+                    + ",netchan_state=" + summary_.netchan_state
+                    + ",reliable_pending_bytes="
+                    + std::to_string(summary_.reliable_pending_bytes)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
+                    + ",active=" + std::string(summary_.active ? "1" : "0")
+                    + ",server_still_responsive="
+                    + std::string(summary_.server_still_responsive ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
     }
 
 private:
@@ -394,7 +530,9 @@ private:
     void MarkTimeout()
     {
         summary_.timed_out = true;
-        summary_.last_reject_reason = accepted_ && netchan_enabled_
+        summary_.last_reject_reason = accepted_ && serverinfo_enabled_
+            ? "serverinfo-timeout"
+            : accepted_ && netchan_enabled_
             ? "netchan-timeout"
             : "handshake-timeout";
         complete_ = true;
@@ -514,12 +652,20 @@ private:
             {
                 return false;
             }
+            if (serverinfo_enabled_)
+            {
+                metadata.netchan.SetIncomingPayloadPolicy(
+                    hl::network::GoldSrcNetchanIncomingPayloadPolicy::
+                        kAcceptBoundedApplicationPayload);
+            }
             constexpr std::array<std::uint8_t, 1> kFirstReliablePayload = {
                 hl::network::kGoldSrcServerNop,
             };
             if (metadata.netchan.QueueReliablePayload(
                     kFirstReliablePayload.data(),
-                    kFirstReliablePayload.size())
+                    kFirstReliablePayload.size(),
+                    hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kTransportBootstrap)
                 != hl::network::GoldSrcNetchanQueueResult::kQueued)
             {
                 return false;
@@ -842,6 +988,383 @@ private:
         summary_.put_in_server = slot_state.put_in_server;
         summary_.spawned = slot_state.spawn_count > 0 || slot_state.alive;
         summary_.active = slot_state.put_in_server && slot_state.alive;
+        if (serverinfo_enabled_)
+        {
+            const hl::network::GoldSrcSignonDiagnostics& signon_diagnostics =
+                slot_state.goldsrc_signon.diagnostics();
+            summary_.client_new_received = static_cast<int>(
+                signon_diagnostics.client_new_received);
+            summary_.client_new_delivered = static_cast<int>(
+                signon_diagnostics.client_new_delivered);
+            summary_.duplicate_new_deliveries = std::max(
+                0,
+                summary_.client_new_delivered - 1);
+            summary_.serverinfo_queued = static_cast<int>(
+                signon_diagnostics.serverinfo_queued);
+            summary_.serverinfo_acked = static_cast<int>(
+                signon_diagnostics.serverinfo_acknowledged);
+            summary_.duplicate_client_reliable_suppressed =
+                signon_diagnostics.duplicate_new_suppressed > 0u;
+            summary_.signon_phase = std::string(
+                hl::network::NameFor(slot_state.goldsrc_signon.phase()));
+        }
+    }
+
+    static std::string HexUint32(std::uint32_t value)
+    {
+        std::ostringstream stream;
+        stream << std::hex << std::setfill('0') << std::setw(8) << value;
+        return stream.str();
+    }
+
+    static std::string HexDigest(
+        const std::array<
+            std::uint8_t,
+            hl::network::kGoldSrcClientDllDigestBytes>& digest)
+    {
+        std::ostringstream stream;
+        stream << std::hex << std::setfill('0');
+        for (const std::uint8_t byte : digest)
+        {
+            stream << std::setw(2) << static_cast<unsigned int>(byte);
+        }
+        return stream.str();
+    }
+
+    bool PrepareServerInfoContext(DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (slot_state.goldsrc_serverinfo_payload.has_value())
+        {
+            return true;
+        }
+        if (!state_.world_context.prepared
+            || !state_.world_context.bsp_loaded
+            || state_.world_context.file_path.empty())
+        {
+            return FailTransport(
+                "serverinfo-map-context-unavailable",
+                "goldsrc_serverinfo_context_failed: reason=map-context-unavailable");
+        }
+        if (state_.server_state.maxclients < 1
+            || state_.server_state.maxclients > 255
+            || slot_state.slot < 1
+            || slot_state.slot > state_.server_state.maxclients
+            || slot_state.slot > 256)
+        {
+            return FailTransport(
+                "serverinfo-slot-context-invalid",
+                "goldsrc_serverinfo_context_failed: reason=slot-context-invalid");
+        }
+
+        const hl::network::GoldSrcMapChecksumResult map_checksum =
+            hl::network::ComputeGoldSrcBsp30MapChecksum(
+                state_.world_context.file_path);
+        if (!map_checksum.ok())
+        {
+            return FailTransport(
+                "serverinfo-map-checksum-failed",
+                "goldsrc_serverinfo_context_failed: reason="
+                    + std::string(hl::network::ReasonFor(map_checksum.status)));
+        }
+        const hl::network::GoldSrcMd5Result client_dll_md5 =
+            hl::network::ComputeGoldSrcClientDllMd5(client_dll_path_);
+        if (!client_dll_md5.ok())
+        {
+            return FailTransport(
+                "serverinfo-client-dll-md5-failed",
+                "goldsrc_serverinfo_context_failed: reason="
+                    + std::string(hl::network::ReasonFor(client_dll_md5.status)));
+        }
+        const std::optional<hl::game_api::CvarSnapshot> mapcycle =
+            state_.cvar_registry.SnapshotOf("mapcyclefile");
+        if (!mapcycle.has_value())
+        {
+            return FailTransport(
+                "serverinfo-mapcycle-unavailable",
+                "goldsrc_serverinfo_context_failed: reason=mapcycle-unavailable");
+        }
+
+        hl::network::GoldSrcServerInfoContext context;
+        context.protocol_version =
+            hl::network::kGoldSrcServerInfoProtocolVersion;
+        context.spawn_count = state_.server_state.map_spawn_count;
+        context.canonical_map_checksum = map_checksum.checksum;
+        context.client_dll_md5 = client_dll_md5.digest;
+        context.max_clients = static_cast<std::uint8_t>(
+            state_.server_state.maxclients);
+        context.player_index = static_cast<std::uint8_t>(slot_state.slot - 1);
+        context.deathmatch = state_.server_state.coop == 0.0f
+            && state_.server_state.deathmatch != 0.0f;
+        context.game_directory = state_.server_state.mod_name;
+        context.hostname = state_.server_state.hostname;
+        context.map_model_path = state_.world_context.model_path;
+        context.mapcycle = mapcycle->string_value;
+        context.secure = false;
+        context.fallback_game_directory.clear();
+        context.cheats = false;
+
+        const hl::network::GoldSrcServerInfoValidationResult validation =
+            hl::network::ValidateGoldSrcServerInfoContext(context);
+        if (!validation.ok())
+        {
+            return FailTransport(
+                "serverinfo-context-validation-failed",
+                "goldsrc_serverinfo_context_failed: reason="
+                    + std::string(hl::network::ReasonFor(validation.status)));
+        }
+        hl::network::GoldSrcServerInfoEncodeResult encoded =
+            hl::network::EncodeGoldSrcServerInfo(context);
+        if (!encoded.ok())
+        {
+            return FailTransport(
+                "serverinfo-encode-failed",
+                "goldsrc_serverinfo_context_failed: reason="
+                    + std::string(hl::network::ReasonFor(encoded.status)));
+        }
+
+        summary_.serverinfo_context_built = true;
+        ++summary_.serverinfo_generations;
+        summary_.serverinfo_protocol = static_cast<int>(context.protocol_version);
+        summary_.serverinfo_spawn_count = context.spawn_count;
+        summary_.serverinfo_checksum = HexUint32(
+            hl::network::MungeGoldSrcServerInfoChecksum(
+                *context.canonical_map_checksum,
+                context.player_index));
+        summary_.serverinfo_client_dll_md5 = HexDigest(
+            *context.client_dll_md5);
+        summary_.serverinfo_maxclients = static_cast<int>(context.max_clients);
+        summary_.serverinfo_player_index = static_cast<int>(context.player_index);
+        summary_.serverinfo_deathmatch = context.deathmatch;
+        summary_.serverinfo_game_dir = SanitizeLogField(context.game_directory);
+        summary_.serverinfo_hostname = SanitizeLogField(context.hostname);
+        summary_.serverinfo_map = SanitizeLogField(context.map_model_path);
+        summary_.serverinfo_mapcycle = SanitizeLogField(context.mapcycle);
+        summary_.serverinfo_secure = context.secure;
+        summary_.serverinfo_fallback_dir = context.fallback_game_directory.empty()
+            ? "<empty>"
+            : SanitizeLogField(context.fallback_game_directory);
+        summary_.serverinfo_allow_cheats = context.cheats;
+        summary_.serverinfo_payload_bytes = static_cast<int>(encoded.payload.size);
+        slot_state.goldsrc_serverinfo_context = std::move(context);
+        slot_state.goldsrc_serverinfo_payload = std::move(encoded.payload);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_serverinfo_context_built: session_id="
+                + slot_state.session_id
+                + ",protocol=" + std::to_string(summary_.serverinfo_protocol)
+                + ",spawn_count="
+                + std::to_string(summary_.serverinfo_spawn_count)
+                + ",player_index="
+                + std::to_string(summary_.serverinfo_player_index)
+                + ",payload_bytes="
+                + std::to_string(summary_.serverinfo_payload_bytes));
+        return true;
+    }
+
+    static bool PayloadIsClientNopOnly(
+        const hl::network::GoldSrcNetchanPacket& packet) noexcept
+    {
+        for (std::size_t index = 0; index < packet.payload_size; ++index)
+        {
+            if (packet.payload[index] != hl::network::kGoldSrcClientNop)
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    static bool PayloadLooksLikeCommandInjection(
+        const hl::network::GoldSrcNetchanPacket& packet) noexcept
+    {
+        std::size_t index = 0;
+        while (index < packet.payload_size
+            && packet.payload[index] == hl::network::kGoldSrcClientNop)
+        {
+            ++index;
+        }
+        if (index >= packet.payload_size
+            || packet.payload[index]
+                != hl::network::kGoldSrcClientStringCommandOpcode)
+        {
+            return false;
+        }
+        ++index;
+        constexpr std::array<std::uint8_t, 3> kNew = {'n', 'e', 'w'};
+        std::size_t command_size = 0;
+        bool starts_with_new = true;
+        bool contains_separator = false;
+        for (; index < packet.payload_size && packet.payload[index] != 0u;
+             ++index, ++command_size)
+        {
+            if (command_size < kNew.size()
+                && packet.payload[index] != kNew[command_size])
+            {
+                starts_with_new = false;
+            }
+            contains_separator = contains_separator
+                || packet.payload[index] == ';'
+                || packet.payload[index] == '\n'
+                || packet.payload[index] == '\r';
+        }
+        return contains_separator
+            || (starts_with_new && command_size > kNew.size());
+    }
+
+    void RecordClientSignonRejection(
+        const hl::network::GoldSrcNetchanPacket& packet,
+        hl::network::GoldSrcClientSignonDecodeStatus status)
+    {
+        if (status == hl::network::GoldSrcClientSignonDecodeStatus::
+                kUnsupportedOpcode)
+        {
+            ++summary_.unsupported_opcode_rejected;
+        }
+        else if (status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kUnsupportedCommand
+            || status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kMultipleCommands
+            || status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kUnsupportedTrailingData)
+        {
+            if (PayloadLooksLikeCommandInjection(packet)
+                || status
+                    != hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCommand)
+            {
+                ++summary_.command_injection_rejected;
+            }
+            else
+            {
+                ++summary_.unsupported_command_rejected;
+            }
+        }
+        else
+        {
+            ++summary_.malformed_stringcmd_rejected;
+        }
+        hl::common::Logger::Warn(
+            hl::common::LogCategory::Server,
+            "goldsrc_client_signon_rejected: reason="
+                + std::string(hl::network::ReasonFor(status)));
+    }
+
+    bool HandleClientSignonPayload(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        const hl::network::GoldSrcNetchanPacket& packet,
+        bool* serverinfo_queued)
+    {
+        if (serverinfo_queued == nullptr)
+        {
+            return false;
+        }
+        *serverinfo_queued = false;
+        if (PayloadIsClientNopOnly(packet))
+        {
+            return true;
+        }
+        if (packet.reliable_present)
+        {
+            ++summary_.inbound_reliable_detected;
+        }
+        if (!packet.reliable_present)
+        {
+            ++summary_.unsupported_command_rejected;
+            hl::common::Logger::Warn(
+                hl::common::LogCategory::Server,
+                "goldsrc_client_signon_rejected: reason=unreliable-command");
+            return true;
+        }
+
+        const hl::network::GoldSrcClientSignonDecodeResult decoded =
+            hl::network::DecodeGoldSrcClientSignonPayload(
+                packet.payload.data(),
+                packet.payload_size);
+        if (!decoded.ok())
+        {
+            if (decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCommand
+                || decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kMultipleCommands
+                || decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedTrailingData)
+            {
+                ++summary_.clc_stringcmd_decoded;
+            }
+            RecordClientSignonRejection(packet, decoded.status);
+            return true;
+        }
+        ++summary_.clc_stringcmd_decoded;
+        if (decoded.command != hl::network::GoldSrcClientSignonCommand::kNew)
+        {
+            ++summary_.unsupported_command_rejected;
+            return true;
+        }
+
+        if (slot_state.goldsrc_signon.phase()
+            != hl::network::GoldSrcSignonPhase::kAwaitingNew)
+        {
+            const hl::network::GoldSrcSignonCommandDisposition disposition =
+                slot_state.goldsrc_signon.HandleClientCommand(decoded.command);
+            if (disposition
+                == hl::network::GoldSrcSignonCommandDisposition::
+                    kDuplicateSuppressed)
+            {
+                ++summary_.inbound_reliable_retransmitted;
+                summary_.duplicate_client_reliable_suppressed = true;
+                SyncNetchanSummary(slot_state);
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_client_new_suppressed: session_id="
+                        + slot_state.session_id + ",reason=already-delivered");
+                return true;
+            }
+            SyncNetchanSummary(slot_state);
+            return true;
+        }
+        if (!PrepareServerInfoContext(slot_state))
+        {
+            return false;
+        }
+        if (!slot_state.goldsrc_serverinfo_payload.has_value())
+        {
+            return FailTransport(
+                "serverinfo-payload-missing",
+                "goldsrc_serverinfo_queue_failed: reason=payload-missing");
+        }
+        const hl::network::GoldSrcNetchanQueueResult queue_result =
+            slot_state.netchan.QueueReliablePayload(
+                slot_state.goldsrc_serverinfo_payload->bytes.data(),
+                slot_state.goldsrc_serverinfo_payload->size,
+                hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo);
+        if (queue_result != hl::network::GoldSrcNetchanQueueResult::kQueued)
+        {
+            return FailTransport(
+                "serverinfo-reliable-queue-failed",
+                "goldsrc_serverinfo_queue_failed: reason="
+                    + std::string(hl::network::ReasonFor(queue_result)));
+        }
+        const hl::network::GoldSrcSignonCommandDisposition disposition =
+            slot_state.goldsrc_signon.HandleClientCommand(decoded.command);
+        if (disposition
+            != hl::network::GoldSrcSignonCommandDisposition::kDelivered)
+        {
+            return FailTransport(
+                "serverinfo-signon-commit-failed",
+                "goldsrc_serverinfo_queue_failed: reason=signon-commit-failed");
+        }
+        *serverinfo_queued = true;
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_serverinfo_queued: session_id=" + slot_state.session_id
+                + ",payload_bytes="
+                + std::to_string(slot_state.goldsrc_serverinfo_payload->size)
+                + ",signon_phase=" + summary_.signon_phase);
+        return true;
     }
 
     bool SendNetchanDatagram(
@@ -849,6 +1372,12 @@ private:
         bool expect_reliable,
         std::string_view event_name)
     {
+        const hl::network::GoldSrcNetchanReliablePayloadKind pending_kind =
+            slot_state.netchan.pending_reliable_kind();
+        const std::uint64_t reliable_sent_before =
+            slot_state.netchan.diagnostics().reliable_sent;
+        const std::uint64_t reliable_resent_before =
+            slot_state.netchan.diagnostics().reliable_resent;
         hl::network::GoldSrcNetchanDatagram datagram;
         if (!slot_state.netchan.BuildOutgoingDatagram(&datagram))
         {
@@ -883,6 +1412,38 @@ private:
                     + ",platform_error=" + socket_.LastError());
         }
 
+        if (serverinfo_enabled_
+            && pending_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo
+            && decoded.packet.reliable_present)
+        {
+            if (summary_.serverinfo_send_count == 0)
+            {
+                summary_.serverinfo_first_carrier_sequence =
+                    decoded.packet.sequence;
+            }
+            summary_.serverinfo_latest_carrier_sequence =
+                decoded.packet.sequence;
+            ++summary_.serverinfo_send_count;
+            const hl::network::GoldSrcNetchanDiagnostics& diagnostics =
+                slot_state.netchan.diagnostics();
+            if (diagnostics.reliable_resent > reliable_resent_before)
+            {
+                ++summary_.serverinfo_resent;
+            }
+            else if (diagnostics.reliable_sent > reliable_sent_before)
+            {
+                ++summary_.serverinfo_sent;
+                if (slot_state.goldsrc_signon.MarkServerInfoSent()
+                    != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+                {
+                    return FailTransport(
+                        "serverinfo-sent-transition-failed",
+                        "goldsrc_serverinfo_send_failed: reason=invalid-signon-phase");
+                }
+            }
+        }
+
         SyncNetchanSummary(slot_state);
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
@@ -894,7 +1455,15 @@ private:
                 + ",reliable="
                 + (decoded.packet.reliable_present ? "1" : "0")
                 + ",fragment=0,payload_bytes="
-                + std::to_string(decoded.packet.payload_size));
+                + std::to_string(decoded.packet.payload_size)
+                + (serverinfo_enabled_
+                        && pending_kind
+                            == hl::network::
+                                GoldSrcNetchanReliablePayloadKind::kServerInfo
+                    ? ",signon_phase=" + summary_.signon_phase
+                        + ",serverinfo_generations="
+                        + std::to_string(summary_.serverinfo_generations)
+                    : ""));
         return true;
     }
 
@@ -969,6 +1538,20 @@ private:
             && summary_.endpoint_hijack_rejected >= 1;
     }
 
+    bool ServerInfoNegativeEvidenceSatisfied() const noexcept
+    {
+        return summary_.serverinfo_resent >= 1
+            && summary_.wrong_reliable_ack_rejected
+            && summary_.future_ack_rejected >= 1
+            && summary_.duplicate_client_reliable_suppressed
+            && summary_.duplicate_rejected >= 1
+            && summary_.malformed_stringcmd_rejected >= 3
+            && summary_.command_injection_rejected >= 2
+            && summary_.unsupported_command_rejected >= 1
+            && summary_.unsupported_opcode_rejected >= 1
+            && summary_.endpoint_hijack_rejected >= 1;
+    }
+
     bool ProcessSequencedDatagram(
         const hl::network::Ipv4Endpoint& sender,
         std::size_t received_size)
@@ -1028,11 +1611,17 @@ private:
 
         const hl::network::GoldSrcNetchanTransportPhase phase_before =
             slot_state->netchan.transport_phase();
-        const hl::network::GoldSrcNetchanProcessResult process_result =
-            slot_state->netchan.ProcessIncomingDatagram(
+        const hl::network::GoldSrcNetchanReliablePayloadKind pending_kind_before =
+            slot_state->netchan.pending_reliable_kind();
+        const std::uint64_t reliable_ack_mismatch_before =
+            slot_state->netchan.diagnostics().reliable_ack_mismatch;
+        const hl::network::GoldSrcNetchanProcessOutcome process_outcome =
+            slot_state->netchan.ProcessIncomingDatagramDetailed(
                 sender,
                 decoded.packet,
                 std::chrono::steady_clock::now());
+        const hl::network::GoldSrcNetchanProcessResult process_result =
+            process_outcome.result;
         SyncNetchanSummary(*slot_state);
         if (process_result != hl::network::GoldSrcNetchanProcessResult::kAccepted)
         {
@@ -1048,6 +1637,38 @@ private:
                         + std::string(hl::network::ReasonFor(process_result)));
             }
             return true;
+        }
+
+        if (serverinfo_enabled_
+            && pending_kind_before
+                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo
+            && slot_state->netchan.diagnostics().reliable_ack_mismatch
+                > reliable_ack_mismatch_before)
+        {
+            summary_.wrong_reliable_ack_rejected = true;
+        }
+        if (serverinfo_enabled_
+            && process_outcome.acknowledged_reliable_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo)
+        {
+            if (slot_state->goldsrc_signon.MarkServerInfoAcknowledged()
+                != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+            {
+                return FailTransport(
+                    "serverinfo-ack-transition-failed",
+                    "goldsrc_serverinfo_ack_failed: reason=invalid-signon-phase");
+            }
+            SyncNetchanSummary(*slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_serverinfo_acknowledged: session_id="
+                    + slot_state->session_id
+                    + ",ack="
+                    + std::to_string(decoded.packet.acknowledgement)
+                    + ",ack_generation="
+                    + std::to_string(
+                        process_outcome.reliable_acknowledgement_generation)
+                    + ",signon_phase=" + summary_.signon_phase);
         }
 
         hl::common::Logger::Info(
@@ -1079,11 +1700,51 @@ private:
                     + (summary_.put_in_server ? "1" : "0")
                     + ",spawned=" + (summary_.spawned ? "1" : "0")
                     + ",active=" + (summary_.active ? "1" : "0"));
-            if (!negative_proof_)
+            if (serverinfo_enabled_)
             {
-                complete_ = true;
+                if (slot_state->goldsrc_signon.EnterAwaitingNew()
+                        != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+                {
+                    return FailTransport(
+                        "signon-session-binding-failed",
+                        "goldsrc_signon_transition_failed: reason=session-binding");
+                }
+                SyncNetchanSummary(*slot_state);
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_signon_awaiting_new: session_id="
+                        + slot_state->session_id
+                        + ",signon_phase=" + summary_.signon_phase);
             }
-            return true;
+            else
+            {
+                if (!negative_proof_)
+                {
+                    complete_ = true;
+                }
+                return true;
+            }
+        }
+
+        bool serverinfo_queued = false;
+        if (serverinfo_enabled_
+            && slot_state->netchan.transport_phase()
+                == hl::network::GoldSrcNetchanTransportPhase::kEstablished)
+        {
+            if (!HandleClientSignonPayload(
+                    *slot_state,
+                    decoded.packet,
+                    &serverinfo_queued))
+            {
+                return false;
+            }
+            if (serverinfo_queued)
+            {
+                return SendNetchanDatagram(
+                    *slot_state,
+                    true,
+                    "goldsrc_serverinfo_sent");
+            }
         }
 
         if (slot_state->netchan.reliable_pending())
@@ -1104,6 +1765,32 @@ private:
                 resend_expected
                     ? "goldsrc_netchan_reliable_resent"
                     : "goldsrc_netchan_ordinary_sent");
+        }
+
+        if (serverinfo_enabled_)
+        {
+            if (!SendNetchanDatagram(
+                    *slot_state,
+                    false,
+                    "goldsrc_serverinfo_ack_response"))
+            {
+                return false;
+            }
+            if (slot_state->goldsrc_signon.phase()
+                == hl::network::GoldSrcSignonPhase::
+                    kServerInfoAcknowledged)
+            {
+                if (!serverinfo_negative_proof_)
+                {
+                    complete_ = true;
+                }
+                else if (ServerInfoNegativeEvidenceSatisfied())
+                {
+                    summary_.server_still_responsive = true;
+                    complete_ = true;
+                }
+            }
+            return true;
         }
 
         if (negative_proof_
@@ -1158,6 +1845,15 @@ private:
         summary_.spawned = slot_state->spawn_count > 0 || slot_state->alive;
         summary_.active = slot_state->put_in_server && slot_state->alive;
         summary_.last_reject_reason = "<none>";
+        if (serverinfo_enabled_)
+        {
+            ++summary_.signon_state_resets;
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_signon_reset: session_id=" + slot_state->session_id
+                    + ",slot=" + std::to_string(slot_state->slot)
+                    + ",reason=admission,signon_phase=none");
+        }
         if (netchan_enabled_)
         {
             if (!slot_state->netchan.initialized())
@@ -1207,7 +1903,8 @@ private:
         for (char& character : value)
         {
             const unsigned char byte = static_cast<unsigned char>(character);
-            if (character == ',' || character == '=' || byte < 0x20 || byte > 0x7E)
+            if (character == ',' || character == '=' || character == ' '
+                || byte < 0x20 || byte > 0x7E)
             {
                 character = '_';
             }
@@ -1220,8 +1917,11 @@ private:
     std::string bind_address_;
     int requested_port_ = 0;
     int timeout_ms_ = 0;
+    std::filesystem::path client_dll_path_;
     bool netchan_enabled_ = false;
     bool negative_proof_ = false;
+    bool serverinfo_enabled_ = false;
+    bool serverinfo_negative_proof_ = false;
     bool dedicated_runtime_ = false;
     hl::network::UdpSocket socket_;
     std::unique_ptr<hl::network::ChallengeTable> challenges_;

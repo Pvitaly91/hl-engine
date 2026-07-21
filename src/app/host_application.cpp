@@ -22293,7 +22293,10 @@ int HostApplication::Run(const LaunchOptions& options) const
         }
 
         common::Logger::Info(common::LogCategory::Dll, L"DLL smoke test succeeded.");
-        if (!RunServerEngineShim(absolute_game_directory, options))
+        if (!RunServerEngineShim(
+                absolute_game_directory,
+                validation.client_dll.resolved_path,
+                options))
         {
             common::Logger::Error(common::LogCategory::Server, L"hl.dll engine shim initialization failed.");
             return 4;
@@ -22427,6 +22430,7 @@ bool HostApplication::RunDllSmokeTest(const std::filesystem::path& game_director
 
 bool HostApplication::RunServerEngineShim(
     const std::filesystem::path& game_directory,
+    const std::filesystem::path& client_dll_path,
     const LaunchOptions& options) const
 {
     common::Logger::Info(common::LogCategory::Server, L"Running hl.dll minimal engine shim.");
@@ -22443,6 +22447,7 @@ bool HostApplication::RunServerEngineShim(
 
     game_api::HlServerModuleInitOptions init_options;
     init_options.game_directory = game_directory;
+    init_options.client_dll_path = client_dll_path;
     init_options.mod_name = "valve";
     init_options.map_name = options.map_name.has_value()
         ? common::ToUtf8(*options.map_name)
@@ -22464,6 +22469,9 @@ bool HostApplication::RunServerEngineShim(
     init_options.goldsrc_netchan_enabled = options.goldsrc_netchan_enabled;
     init_options.goldsrc_netchan_negative_proof =
         options.goldsrc_netchan_negative_proof;
+    init_options.goldsrc_serverinfo_enabled = options.goldsrc_serverinfo_enabled;
+    init_options.goldsrc_serverinfo_negative_proof =
+        options.goldsrc_serverinfo_negative_proof;
     init_options.bind_address = options.bind_address;
     init_options.server_port = options.server_port;
     init_options.goldsrc_handshake_timeout_ms = options.goldsrc_handshake_timeout_ms;

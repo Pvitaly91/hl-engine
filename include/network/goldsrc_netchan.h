@@ -119,6 +119,21 @@ enum class GoldSrcNetchanTransportPhase
 
 std::string_view NameFor(GoldSrcNetchanTransportPhase phase) noexcept;
 
+enum class GoldSrcNetchanReliablePayloadKind
+{
+    kNone,
+    kTransportBootstrap,
+    kServerInfo,
+};
+
+std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept;
+
+enum class GoldSrcNetchanIncomingPayloadPolicy
+{
+    kStrictClientNopOnly,
+    kAcceptBoundedApplicationPayload,
+};
+
 enum class GoldSrcNetchanQueueResult
 {
     kQueued,
@@ -126,6 +141,7 @@ enum class GoldSrcNetchanQueueResult
     kEmptyPayload,
     kPayloadTooLarge,
     kReliableAlreadyPending,
+    kInvalidPayloadKind,
 };
 
 std::string_view ReasonFor(GoldSrcNetchanQueueResult result) noexcept;
@@ -147,6 +163,21 @@ enum class GoldSrcNetchanProcessResult
 };
 
 std::string_view ReasonFor(GoldSrcNetchanProcessResult result) noexcept;
+
+struct GoldSrcNetchanProcessOutcome final
+{
+    GoldSrcNetchanProcessResult result =
+        GoldSrcNetchanProcessResult::kMalformedHeader;
+    GoldSrcNetchanReliablePayloadKind acknowledged_reliable_kind =
+        GoldSrcNetchanReliablePayloadKind::kNone;
+    std::uint64_t reliable_acknowledgement_generation = 0;
+
+    bool reliable_payload_was_acknowledged() const noexcept
+    {
+        return acknowledged_reliable_kind
+            != GoldSrcNetchanReliablePayloadKind::kNone;
+    }
+};
 
 struct GoldSrcNetchanDiagnostics final
 {
@@ -189,12 +220,22 @@ public:
     GoldSrcNetchanQueueResult QueueReliablePayload(
         const std::uint8_t* bytes,
         std::size_t size) noexcept;
+    GoldSrcNetchanQueueResult QueueReliablePayload(
+        const std::uint8_t* bytes,
+        std::size_t size,
+        GoldSrcNetchanReliablePayloadKind kind) noexcept;
     bool BuildOutgoingDatagram(GoldSrcNetchanDatagram* datagram) noexcept;
     GoldSrcNetchanProcessResult ProcessIncomingDatagram(
         const Ipv4Endpoint& sender,
         const GoldSrcNetchanPacket& packet,
         TimePoint now) noexcept;
+    GoldSrcNetchanProcessOutcome ProcessIncomingDatagramDetailed(
+        const Ipv4Endpoint& sender,
+        const GoldSrcNetchanPacket& packet,
+        TimePoint now) noexcept;
     void RecordRejected(GoldSrcNetchanProcessResult result) noexcept;
+    void SetIncomingPayloadPolicy(
+        GoldSrcNetchanIncomingPayloadPolicy policy) noexcept;
 
     bool initialized() const noexcept;
     const Ipv4Endpoint& remote_endpoint() const noexcept;
@@ -211,6 +252,11 @@ public:
     bool reliable_pending() const noexcept;
     std::size_t reliable_pending_bytes() const noexcept;
     const std::uint8_t* reliable_payload_data() const noexcept;
+    GoldSrcNetchanReliablePayloadKind pending_reliable_kind() const noexcept;
+    GoldSrcNetchanReliablePayloadKind
+    last_acknowledged_reliable_kind() const noexcept;
+    std::uint64_t reliable_acknowledgement_generation() const noexcept;
+    GoldSrcNetchanIncomingPayloadPolicy incoming_payload_policy() const noexcept;
     bool has_accepted_activity() const noexcept;
     TimePoint last_accepted_at() const noexcept;
     GoldSrcNetchanTransportPhase transport_phase() const noexcept;
@@ -238,6 +284,13 @@ private:
     bool pending_has_been_sent_ = false;
     std::array<std::uint8_t, kGoldSrcNetchanMaximumReliableBytes> pending_reliable_{};
     std::size_t pending_reliable_size_ = 0;
+    GoldSrcNetchanReliablePayloadKind pending_reliable_kind_ =
+        GoldSrcNetchanReliablePayloadKind::kNone;
+    GoldSrcNetchanReliablePayloadKind last_acknowledged_reliable_kind_ =
+        GoldSrcNetchanReliablePayloadKind::kNone;
+    std::uint64_t reliable_acknowledgement_generation_ = 0;
+    GoldSrcNetchanIncomingPayloadPolicy incoming_payload_policy_ =
+        GoldSrcNetchanIncomingPayloadPolicy::kStrictClientNopOnly;
     bool has_accepted_activity_ = false;
     TimePoint initialized_at_{};
     TimePoint last_accepted_at_{};

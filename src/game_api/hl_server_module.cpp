@@ -454,6 +454,9 @@ struct DedicatedPlayerRuntimeSlot
     std::string user_info;
     bool steam_authentication_performed = false;
     hl::network::GoldSrcNetchanState netchan;
+    hl::network::GoldSrcSignonSessionState goldsrc_signon;
+    std::optional<hl::network::GoldSrcServerInfoContext> goldsrc_serverinfo_context;
+    std::optional<hl::network::GoldSrcServerInfoPayload> goldsrc_serverinfo_payload;
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
@@ -92350,6 +92353,9 @@ void RecordDedicatedLifecycleTransition(
                     + ",reason=disconnect");
             slot_state.netchan.Reset();
         }
+        slot_state.goldsrc_signon.Reset();
+        slot_state.goldsrc_serverinfo_context.reset();
+        slot_state.goldsrc_serverinfo_payload.reset();
         break;
     case DedicatedPlayerLifecycleState::kIdle:
     default:
