@@ -1,0 +1,6 @@
+# type	index	download_size	flags	path
+generic	1	16	1	gfx/prompt236.dat
+sound	1	32	0	ambience/wind1.wav
+model	1	1024	0	maps/c0a0.bsp
+decal	0	8	0	decals/lambda
+event	1	24	1	events/train.sc

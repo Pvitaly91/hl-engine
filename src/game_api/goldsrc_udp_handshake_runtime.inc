@@ -23,6 +23,12 @@ public:
           negative_proof_(options.goldsrc_netchan_negative_proof),
           serverinfo_enabled_(options.goldsrc_serverinfo_enabled),
           serverinfo_negative_proof_(options.goldsrc_serverinfo_negative_proof),
+          resource_manifest_enabled_(
+              options.goldsrc_resource_manifest_enabled),
+          resource_manifest_negative_proof_(
+              options.goldsrc_resource_manifest_negative_proof),
+          resource_manifest_fixture_(
+              options.goldsrc_resource_manifest_fixture),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -37,6 +43,9 @@ public:
         summary_.netchan_negative_proof = negative_proof_;
         summary_.serverinfo_enabled = serverinfo_enabled_;
         summary_.serverinfo_negative_proof = serverinfo_negative_proof_;
+        summary_.resource_manifest_enabled = resource_manifest_enabled_;
+        summary_.resource_manifest_negative_proof =
+            resource_manifest_negative_proof_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -68,6 +77,24 @@ public:
         if (serverinfo_negative_proof_ && !serverinfo_enabled_)
         {
             return FailBind("serverinfo-negative-proof-requires-serverinfo");
+        }
+        if (resource_manifest_enabled_ && !serverinfo_enabled_)
+        {
+            return FailBind("resource-manifest-requires-serverinfo");
+        }
+        if (resource_manifest_negative_proof_ && !resource_manifest_enabled_)
+        {
+            return FailBind(
+                "resource-manifest-negative-proof-requires-resource-manifest");
+        }
+        if (resource_manifest_fixture_.has_value()
+            && !resource_manifest_enabled_)
+        {
+            return FailBind("resource-manifest-fixture-requires-resource-manifest");
+        }
+        if (resource_manifest_enabled_ && bind_address_ != "127.0.0.1")
+        {
+            return FailBind("resource-manifest-loopback-required");
         }
         if (serverinfo_enabled_ && client_dll_path_.empty())
         {
@@ -253,9 +280,20 @@ public:
             return handshake_succeeded;
         }
 
+        const bool fragmentation_proof_succeeded =
+            resource_manifest_enabled_
+            && resource_manifest_negative_proof_
+            && summary_.requires_fragmentation_reported
+            && summary_.oversized_manifest_not_truncated
+            && summary_.resource_manifest_preparation_attempts == 1
+            && summary_.resource_manifest_cached_outcome_reuses >= 1;
+        const int expected_reliable_acknowledgements =
+            resource_manifest_enabled_ && !fragmentation_proof_succeeded
+            ? 3
+            : (serverinfo_enabled_ ? 2 : 1);
         const bool netchan_succeeded = summary_.netchan_initialized
             && summary_.netchan_state == "established"
-            && summary_.reliable_acked == (serverinfo_enabled_ ? 2 : 1)
+            && summary_.reliable_acked == expected_reliable_acknowledgements
             && summary_.reliable_pending_bytes == 0
             && summary_.session_count == 1
             && summary_.duplicate_sessions == 0
@@ -272,11 +310,47 @@ public:
                 && summary_.serverinfo_generations == 1
                 && summary_.serverinfo_queued == 1
                 && summary_.serverinfo_sent == 1
-                && summary_.serverinfo_acked == 1
-                && summary_.signon_phase == "serverinfo_acknowledged";
-            if (!serverinfo_succeeded || !serverinfo_negative_proof_)
+                && summary_.serverinfo_acked == 1;
+            if (!serverinfo_succeeded)
             {
-                return serverinfo_succeeded;
+                return false;
+            }
+            if (resource_manifest_enabled_)
+            {
+                if (fragmentation_proof_succeeded)
+                {
+                    return summary_.resource_manifest_generations == 0
+                        && summary_.resource_manifest_queued == 0
+                        && summary_.resource_manifest_sent == 0
+                        && summary_.resource_manifest_acked == 0
+                        && summary_.reliable_pending_bytes == 0
+                        && summary_.signon_phase
+                            == "awaiting_resource_request";
+                }
+                const bool resource_manifest_succeeded =
+                    summary_.resource_request_deliveries == 1
+                    && summary_.resource_manifest_preparation_attempts == 1
+                    && summary_.resource_manifest_cached_outcome_reuses == 0
+                    && summary_.resource_manifest_context_built
+                    && summary_.resource_manifest_generations == 1
+                    && summary_.resource_manifest_queued == 1
+                    && summary_.resource_manifest_sent == 1
+                    && summary_.resource_manifest_acked == 1
+                    && summary_.signon_phase
+                        == "resource_manifest_acknowledged";
+                if (!resource_manifest_succeeded
+                    || !resource_manifest_negative_proof_)
+                {
+                    return resource_manifest_succeeded;
+                }
+                return ResourceManifestNegativeEvidenceSatisfied()
+                    && summary_.server_still_responsive;
+            }
+            const bool serverinfo_phase_succeeded =
+                summary_.signon_phase == "serverinfo_acknowledged";
+            if (!serverinfo_phase_succeeded || !serverinfo_negative_proof_)
+            {
+                return serverinfo_phase_succeeded;
             }
             return summary_.serverinfo_resent >= 1
                 && summary_.wrong_reliable_ack_rejected
@@ -401,6 +475,94 @@ public:
                     + std::string(summary_.put_in_server ? "1" : "0")
                     + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
                     + ",active=" + std::string(summary_.active ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
+        if (resource_manifest_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_resource_manifest_summary: enabled=1,negative_proof="
+                    + std::string(
+                        resource_manifest_negative_proof_ ? "1" : "0")
+                    + ",resource_request_received="
+                    + std::to_string(summary_.resource_request_received)
+                    + ",resource_request_deliveries="
+                    + std::to_string(summary_.resource_request_deliveries)
+                    + ",duplicate_resource_requests_suppressed="
+                    + std::to_string(
+                        summary_.duplicate_resource_requests_suppressed)
+                    + ",resource_manifest_preparation_attempts="
+                    + std::to_string(
+                        summary_.resource_manifest_preparation_attempts)
+                    + ",resource_manifest_cached_outcome_reuses="
+                    + std::to_string(
+                        summary_.resource_manifest_cached_outcome_reuses)
+                    + ",resource_manifest_context_built="
+                    + std::string(
+                        summary_.resource_manifest_context_built ? "1" : "0")
+                    + ",resource_manifest_generations="
+                    + std::to_string(summary_.resource_manifest_generations)
+                    + ",resource_manifest_queued="
+                    + std::to_string(summary_.resource_manifest_queued)
+                    + ",resource_manifest_sent="
+                    + std::to_string(summary_.resource_manifest_sent)
+                    + ",resource_manifest_resent="
+                    + std::to_string(summary_.resource_manifest_resent)
+                    + ",resource_manifest_acked="
+                    + std::to_string(summary_.resource_manifest_acked)
+                    + ",resource_manifest_entry_count="
+                    + std::to_string(summary_.resource_manifest_entry_count)
+                    + ",resource_manifest_payload_bytes="
+                    + std::to_string(summary_.resource_manifest_payload_bytes)
+                    + ",resource_manifest_first_carrier_sequence="
+                    + std::to_string(
+                        summary_.resource_manifest_first_carrier_sequence)
+                    + ",resource_manifest_latest_carrier_sequence="
+                    + std::to_string(
+                        summary_.resource_manifest_latest_carrier_sequence)
+                    + ",resource_manifest_send_count="
+                    + std::to_string(summary_.resource_manifest_send_count)
+                    + ",resource_manifest_retransmitted="
+                    + std::string(
+                        summary_.resource_manifest_retransmitted
+                            ? "true"
+                            : "false")
+                    + ",duplicate_request_suppressed="
+                    + std::string(
+                        summary_.duplicate_resource_request_suppressed
+                            ? "true"
+                            : "false")
+                    + ",oversized_manifest_not_truncated="
+                    + std::string(
+                        summary_.oversized_manifest_not_truncated
+                            ? "true"
+                            : "false")
+                    + ",requires_fragmentation_reported="
+                    + std::string(
+                        summary_.requires_fragmentation_reported
+                            ? "true"
+                            : "false")
+                    + ",final_manifest_ack="
+                    + std::string(
+                        summary_.resource_manifest_acked == 1
+                            ? "true"
+                            : "false")
+                    + ",wrong_reliable_ack_rejected="
+                    + std::string(
+                        summary_.wrong_reliable_ack_rejected ? "1" : "0")
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count=" + std::to_string(summary_.session_count)
+                    + ",lifecycle_state=" + summary_.final_state
+                    + ",netchan_state=" + summary_.netchan_state
+                    + ",reliable_pending_bytes="
+                    + std::to_string(summary_.reliable_pending_bytes)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
+                    + ",active=" + std::string(summary_.active ? "1" : "0")
+                    + ",server_still_responsive="
+                    + std::string(
+                        summary_.server_still_responsive ? "true" : "false")
                     + ",clean_shutdown=1");
         }
         if (serverinfo_enabled_)
@@ -530,7 +692,9 @@ private:
     void MarkTimeout()
     {
         summary_.timed_out = true;
-        summary_.last_reject_reason = accepted_ && serverinfo_enabled_
+        summary_.last_reject_reason = accepted_ && resource_manifest_enabled_
+            ? "resource-manifest-timeout"
+            : accepted_ && serverinfo_enabled_
             ? "serverinfo-timeout"
             : accepted_ && netchan_enabled_
             ? "netchan-timeout"
@@ -1005,9 +1169,49 @@ private:
                 signon_diagnostics.serverinfo_acknowledged);
             summary_.duplicate_client_reliable_suppressed =
                 signon_diagnostics.duplicate_new_suppressed > 0u;
+            summary_.resource_request_received = static_cast<int>(
+                signon_diagnostics.resource_request_received);
+            summary_.resource_request_deliveries = static_cast<int>(
+                signon_diagnostics.resource_request_delivered);
+            summary_.duplicate_resource_requests_suppressed =
+                static_cast<int>(
+                    signon_diagnostics
+                        .duplicate_resource_request_suppressed);
+            summary_.resource_manifest_queued = static_cast<int>(
+                signon_diagnostics.resource_manifest_queued);
+            summary_.resource_manifest_acked = static_cast<int>(
+                signon_diagnostics.resource_manifest_acknowledged);
+            summary_.duplicate_resource_request_suppressed =
+                signon_diagnostics
+                    .duplicate_resource_request_suppressed > 0u;
             summary_.signon_phase = std::string(
                 hl::network::NameFor(slot_state.goldsrc_signon.phase()));
         }
+    }
+
+    void ResetResourceManifestSessionSummary() noexcept
+    {
+        summary_.resource_request_received = 0;
+        summary_.resource_request_deliveries = 0;
+        summary_.duplicate_resource_requests_suppressed = 0;
+        summary_.resource_manifest_preparation_attempts = 0;
+        summary_.resource_manifest_cached_outcome_reuses = 0;
+        summary_.resource_manifest_context_built = false;
+        summary_.resource_manifest_generations = 0;
+        summary_.resource_manifest_queued = 0;
+        summary_.resource_manifest_sent = 0;
+        summary_.resource_manifest_resent = 0;
+        summary_.resource_manifest_acked = 0;
+        summary_.resource_manifest_entry_count = 0;
+        summary_.resource_manifest_payload_bytes = 0;
+        summary_.resource_manifest_first_carrier_sequence = 0u;
+        summary_.resource_manifest_latest_carrier_sequence = 0u;
+        summary_.resource_manifest_send_count = 0;
+        summary_.resource_manifest_retransmitted = false;
+        summary_.duplicate_resource_request_suppressed = false;
+        summary_.requires_fragmentation_reported = false;
+        summary_.oversized_manifest_not_truncated = false;
+        summary_.wrong_reliable_ack_rejected = false;
     }
 
     static std::string HexUint32(std::uint32_t value)
@@ -1161,6 +1365,617 @@ private:
         return true;
     }
 
+    enum class ResourceManifestPrepareResult
+    {
+        kReady,
+        kRequiresFragmentation,
+        kFailed,
+    };
+
+    static bool ParseFixtureUnsigned(
+        std::string_view text,
+        std::uint32_t* value) noexcept
+    {
+        if (value == nullptr || text.empty())
+        {
+            return false;
+        }
+        std::uint32_t parsed = 0;
+        const char* const begin = text.data();
+        const char* const end = begin + text.size();
+        const std::from_chars_result result =
+            std::from_chars(begin, end, parsed, 10);
+        if (result.ec != std::errc{} || result.ptr != end)
+        {
+            return false;
+        }
+        *value = parsed;
+        return true;
+    }
+
+    static bool FixtureResourceType(
+        std::string_view name,
+        hl::network::GoldSrcResourceType* type) noexcept
+    {
+        if (type == nullptr)
+        {
+            return false;
+        }
+        if (name == "generic")
+        {
+            *type = hl::network::GoldSrcResourceType::kGeneric;
+            return true;
+        }
+        if (name == "sound")
+        {
+            *type = hl::network::GoldSrcResourceType::kSound;
+            return true;
+        }
+        if (name == "model")
+        {
+            *type = hl::network::GoldSrcResourceType::kModel;
+            return true;
+        }
+        if (name == "decal")
+        {
+            *type = hl::network::GoldSrcResourceType::kDecal;
+            return true;
+        }
+        if (name == "event")
+        {
+            *type = hl::network::GoldSrcResourceType::kEvent;
+            return true;
+        }
+        return false;
+    }
+
+    bool AppendResourceManifestEntry(
+        hl::network::GoldSrcResourceManifest* manifest,
+        hl::network::GoldSrcResourceType type,
+        std::uint32_t index,
+        std::uintmax_t download_size,
+        std::uint32_t flags,
+        std::string_view path,
+        std::string* failure_reason) const
+    {
+        if (manifest == nullptr || failure_reason == nullptr)
+        {
+            return false;
+        }
+        if (index > hl::network::kGoldSrcMaximumResourceIndex)
+        {
+            *failure_reason = "resource-index-out-of-range";
+            return false;
+        }
+        if (download_size
+            > hl::network::kGoldSrcMaximumResourceDownloadBytes)
+        {
+            *failure_reason = "resource-download-size-out-of-range";
+            return false;
+        }
+        if (flags > hl::network::kGoldSrcMaximumResourceFlags)
+        {
+            *failure_reason = "resource-flags-out-of-range";
+            return false;
+        }
+        const hl::network::GoldSrcNormalizedResourcePath normalized =
+            hl::network::NormalizeGoldSrcResourcePath(path);
+        if (!normalized.ok())
+        {
+            *failure_reason = std::string(
+                hl::network::ReasonFor(normalized.status));
+            return false;
+        }
+
+        hl::network::GoldSrcResourceEntry entry;
+        entry.type = type;
+        entry.index = static_cast<std::uint16_t>(index);
+        entry.download_size = static_cast<std::uint32_t>(download_size);
+        entry.flags = static_cast<std::uint8_t>(flags);
+        entry.path = normalized.value;
+        manifest->entries.push_back(std::move(entry));
+        return true;
+    }
+
+    static bool NormalizeRuntimeResourcePath(
+        std::string_view path,
+        std::string* normalized_path,
+        std::string* failure_reason)
+    {
+        if (normalized_path == nullptr || failure_reason == nullptr)
+        {
+            return false;
+        }
+        const hl::network::GoldSrcNormalizedResourcePath normalized =
+            hl::network::NormalizeGoldSrcResourcePath(path);
+        if (!normalized.ok())
+        {
+            *failure_reason = std::string(
+                hl::network::ReasonFor(normalized.status));
+            return false;
+        }
+        *normalized_path = normalized.value;
+        return true;
+    }
+
+    static std::uintmax_t ResourceFileSize(
+        const std::filesystem::path& path) noexcept
+    {
+        if (path.empty())
+        {
+            return 0u;
+        }
+        std::error_code error;
+        const std::uintmax_t size = std::filesystem::file_size(path, error);
+        return error ? 0u : size;
+    }
+
+    bool BuildResourceManifestFromFixture(
+        hl::network::GoldSrcResourceManifest* manifest,
+        std::string* failure_reason) const
+    {
+        if (manifest == nullptr || failure_reason == nullptr
+            || !resource_manifest_fixture_.has_value())
+        {
+            return false;
+        }
+        std::ifstream fixture(*resource_manifest_fixture_);
+        if (!fixture.is_open())
+        {
+            *failure_reason = "fixture-open-failed";
+            return false;
+        }
+
+        std::string line;
+        while (std::getline(fixture, line))
+        {
+            if (line.empty() || line[0] == '#')
+            {
+                continue;
+            }
+            if (line.size() > 4096u)
+            {
+                *failure_reason = "fixture-line-too-long";
+                return false;
+            }
+            if (std::count(line.begin(), line.end(), '\t') != 4)
+            {
+                *failure_reason = "fixture-field-count-invalid";
+                return false;
+            }
+
+            std::array<std::string_view, 5> fields{};
+            std::size_t field_count = 0u;
+            std::size_t field_begin = 0u;
+            while (field_count < fields.size())
+            {
+                const std::size_t separator = line.find('\t', field_begin);
+                const std::size_t field_end = separator == std::string::npos
+                    ? line.size()
+                    : separator;
+                fields[field_count++] = std::string_view(
+                    line.data() + field_begin,
+                    field_end - field_begin);
+                if (separator == std::string::npos)
+                {
+                    break;
+                }
+                field_begin = separator + 1u;
+            }
+            if (field_count != fields.size())
+            {
+                *failure_reason = "fixture-field-count-invalid";
+                return false;
+            }
+
+            hl::network::GoldSrcResourceType type{};
+            std::uint32_t index = 0;
+            std::uint32_t download_size = 0;
+            std::uint32_t flags = 0;
+            if (!FixtureResourceType(fields[0], &type)
+                || !ParseFixtureUnsigned(fields[1], &index)
+                || !ParseFixtureUnsigned(fields[2], &download_size)
+                || !ParseFixtureUnsigned(fields[3], &flags))
+            {
+                *failure_reason = "fixture-field-invalid";
+                return false;
+            }
+            if (!AppendResourceManifestEntry(
+                    manifest,
+                    type,
+                    index,
+                    download_size,
+                    flags,
+                    fields[4],
+                    failure_reason))
+            {
+                return false;
+            }
+            if (manifest->entries.size()
+                > hl::network::kGoldSrcMaximumResourceCount)
+            {
+                *failure_reason = "resource-count-exceeded";
+                return false;
+            }
+        }
+        if (!fixture.eof())
+        {
+            *failure_reason = "fixture-read-failed";
+            return false;
+        }
+        if (manifest->entries.empty())
+        {
+            *failure_reason = "fixture-empty";
+            return false;
+        }
+        return true;
+    }
+
+    bool BuildResourceManifestFromRuntime(
+        hl::network::GoldSrcResourceManifest* manifest,
+        std::string* failure_reason) const
+    {
+        if (manifest == nullptr || failure_reason == nullptr)
+        {
+            return false;
+        }
+
+        const std::filesystem::path& game_directory =
+            state_.server_state.game_directory;
+        for (std::size_t offset = 0;
+             offset < state_.generic_precache_registry.Size();
+             ++offset)
+        {
+            const int index = static_cast<int>(offset + 1u);
+            const std::string* path =
+                state_.generic_precache_registry.ValueOf(index);
+            if (path == nullptr)
+            {
+                *failure_reason = "generic-registry-gap";
+                return false;
+            }
+            std::string normalized_path;
+            if (!NormalizeRuntimeResourcePath(
+                    *path,
+                    &normalized_path,
+                    failure_reason)
+                || !AppendResourceManifestEntry(
+                    manifest,
+                    hl::network::GoldSrcResourceType::kGeneric,
+                    static_cast<std::uint32_t>(index),
+                    ResourceFileSize(game_directory / normalized_path),
+                    hl::network::kGoldSrcResourceFatalIfMissingFlag,
+                    normalized_path,
+                    failure_reason))
+            {
+                return false;
+            }
+        }
+
+        for (std::size_t offset = 0;
+             offset < state_.sound_precache_registry.RegistrySize();
+             ++offset)
+        {
+            const int index = static_cast<int>(offset + 1u);
+            const hl::game_api::detail::SoundPrecacheEntry* entry =
+                state_.sound_precache_registry.EntryByIndex(index);
+            if (entry == nullptr)
+            {
+                *failure_reason = "sound-registry-gap";
+                return false;
+            }
+            std::string normalized_path;
+            if (!NormalizeRuntimeResourcePath(
+                    entry->normalized_path,
+                    &normalized_path,
+                    failure_reason)
+                || !AppendResourceManifestEntry(
+                    manifest,
+                    hl::network::GoldSrcResourceType::kSound,
+                    static_cast<std::uint32_t>(index),
+                    ResourceFileSize(
+                        game_directory / "sound" / normalized_path),
+                    0u,
+                    normalized_path,
+                    failure_reason))
+            {
+                return false;
+            }
+        }
+
+        for (std::size_t offset = 0;
+             offset < state_.precache_registry.ModelCount();
+             ++offset)
+        {
+            const int index = static_cast<int>(offset + 1u);
+            const std::string* path = state_.precache_registry.ModelName(index);
+            if (path == nullptr)
+            {
+                *failure_reason = "model-registry-gap";
+                return false;
+            }
+            std::string normalized_path;
+            if (!NormalizeRuntimeResourcePath(
+                    *path,
+                    &normalized_path,
+                    failure_reason))
+            {
+                return false;
+            }
+            const std::uintmax_t size = index == 1
+                ? state_.world_context.bsp_file_size
+                : (!normalized_path.empty() && normalized_path[0] == '*'
+                    ? 0u
+                    : ResourceFileSize(game_directory / normalized_path));
+            if (!AppendResourceManifestEntry(
+                    manifest,
+                    hl::network::GoldSrcResourceType::kModel,
+                    static_cast<std::uint32_t>(index),
+                    size,
+                    0u,
+                    normalized_path,
+                    failure_reason))
+            {
+                return false;
+            }
+        }
+
+        for (std::size_t offset = 0;
+             offset < state_.decal_registry.Size();
+             ++offset)
+        {
+            const int registry_index = static_cast<int>(offset + 1u);
+            const std::string* name =
+                state_.decal_registry.ValueOf(registry_index);
+            if (name == nullptr)
+            {
+                *failure_reason = "decal-registry-gap";
+                return false;
+            }
+            std::string normalized_name;
+            if (!NormalizeRuntimeResourcePath(
+                    *name,
+                    &normalized_name,
+                    failure_reason)
+                || !AppendResourceManifestEntry(
+                    manifest,
+                    hl::network::GoldSrcResourceType::kDecal,
+                    static_cast<std::uint32_t>(offset),
+                    0u,
+                    0u,
+                    normalized_name,
+                    failure_reason))
+            {
+                return false;
+            }
+        }
+
+        for (std::size_t offset = 0;
+             offset < state_.event_precache_registry.Size();
+             ++offset)
+        {
+            const int index = static_cast<int>(offset + 1u);
+            const std::string* value =
+                state_.event_precache_registry.ValueOf(index);
+            if (value == nullptr)
+            {
+                *failure_reason = "event-registry-gap";
+                return false;
+            }
+            const std::size_t separator = value->find(':');
+            if (separator == std::string::npos
+                || separator + 1u >= value->size())
+            {
+                *failure_reason = "event-registry-value-invalid";
+                return false;
+            }
+            const std::string_view path(
+                value->data() + separator + 1u,
+                value->size() - separator - 1u);
+            std::string normalized_path;
+            if (!NormalizeRuntimeResourcePath(
+                    path,
+                    &normalized_path,
+                    failure_reason)
+                || !AppendResourceManifestEntry(
+                    manifest,
+                    hl::network::GoldSrcResourceType::kEvent,
+                    static_cast<std::uint32_t>(index),
+                    ResourceFileSize(game_directory / normalized_path),
+                    hl::network::kGoldSrcResourceFatalIfMissingFlag,
+                    normalized_path,
+                    failure_reason))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    ResourceManifestPrepareResult PrepareResourceManifestContext(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        using PreparationState =
+            hl::network::GoldSrcResourceManifestPreparationState;
+        const PreparationState preparation_state =
+            slot_state.goldsrc_resource_manifest_preparation.state();
+        if (preparation_state == PreparationState::kRequiresFragmentation)
+        {
+            ++summary_.resource_manifest_cached_outcome_reuses;
+            return ResourceManifestPrepareResult::kRequiresFragmentation;
+        }
+        if (preparation_state == PreparationState::kReady)
+        {
+            if (!slot_state.goldsrc_resource_manifest.has_value()
+                || slot_state.goldsrc_resource_manifest_response_size == 0u)
+            {
+                FailTransport(
+                    "resource-manifest-preparation-cache-inconsistent",
+                    "goldsrc_resource_manifest_context_failed: reason=ready-cache-missing-payload");
+                return ResourceManifestPrepareResult::kFailed;
+            }
+            return ResourceManifestPrepareResult::kReady;
+        }
+        if (slot_state.goldsrc_resource_manifest.has_value()
+            || slot_state.goldsrc_resource_manifest_response_size != 0u)
+        {
+            FailTransport(
+                "resource-manifest-preparation-cache-inconsistent",
+                "goldsrc_resource_manifest_context_failed: reason=unrecorded-payload");
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        ++summary_.resource_manifest_preparation_attempts;
+
+        hl::network::GoldSrcResourceManifest manifest;
+        std::string failure_reason;
+        const hl::network::GoldSrcResourceManifestSource manifest_source =
+            resource_manifest_fixture_.has_value()
+            ? hl::network::GoldSrcResourceManifestSource::kExplicitTestFixture
+            : hl::network::GoldSrcResourceManifestSource::
+                kAuthoritativeRuntime;
+        const bool built =
+            hl::network::DispatchGoldSrcResourceManifestBuild(
+                manifest_source,
+                [&]()
+                {
+                    return BuildResourceManifestFromRuntime(
+                        &manifest,
+                        &failure_reason);
+                },
+                [&]()
+                {
+                    return BuildResourceManifestFromFixture(
+                        &manifest,
+                        &failure_reason);
+                });
+        if (!built)
+        {
+            FailTransport(
+                "resource-manifest-context-invalid",
+                "goldsrc_resource_manifest_context_failed: reason="
+                    + SanitizeLogField(failure_reason));
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        const hl::network::GoldSrcResourceManifestValidationResult validation =
+            hl::network::ValidateGoldSrcResourceManifest(manifest);
+        if (!validation.ok()
+            && validation.status
+                != hl::network::GoldSrcResourceManifestStatus::
+                    kRequiresFragmentation)
+        {
+            FailTransport(
+                "resource-manifest-validation-failed",
+                "goldsrc_resource_manifest_context_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(validation.status)));
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        const hl::network::GoldSrcResourceRequestEncodeResult companion =
+            hl::network::EncodeGoldSrcResourceRequest(
+                state_.server_state.map_spawn_count);
+        if (!companion.ok())
+        {
+            FailTransport(
+                "resource-manifest-companion-encode-failed",
+                "goldsrc_resource_manifest_context_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(companion.status)));
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        const std::size_t list_capacity =
+            hl::network::kGoldSrcMaximumResourceManifestBytes
+            - companion.payload.size;
+        const hl::network::GoldSrcResourceManifestEncodeResult encoded =
+            hl::network::EncodeGoldSrcResourceManifest(
+                manifest,
+                list_capacity);
+        if (encoded.status
+                == hl::network::GoldSrcResourceManifestStatus::
+                    kRequiresFragmentation
+            || encoded.status
+                == hl::network::GoldSrcResourceManifestStatus::
+                    kOutputCapacityExceeded)
+        {
+            if (!slot_state.goldsrc_resource_manifest_preparation.TryStore(
+                    PreparationState::kRequiresFragmentation))
+            {
+                FailTransport(
+                    "resource-manifest-preparation-cache-store-failed",
+                    "goldsrc_resource_manifest_context_failed: reason=preparation-cache-store-failed");
+                return ResourceManifestPrepareResult::kFailed;
+            }
+            slot_state.goldsrc_resource_manifest.reset();
+            slot_state.goldsrc_resource_manifest_response.fill(0u);
+            slot_state.goldsrc_resource_manifest_response_size = 0u;
+            summary_.requires_fragmentation_reported = true;
+            summary_.oversized_manifest_not_truncated = true;
+            hl::common::Logger::Warn(
+                hl::common::LogCategory::Server,
+                "goldsrc_resource_manifest_not_queued: reason=requires_fragmentation"
+                ",resource_count="
+                    + std::to_string(manifest.entries.size())
+                    + ",encoded_bytes="
+                    + std::to_string(validation.encoded_size)
+                    + ",source="
+                    + std::string(hl::network::NameFor(manifest_source))
+                    + ",signon_phase=" + summary_.signon_phase);
+            return ResourceManifestPrepareResult::kRequiresFragmentation;
+        }
+        if (!encoded.ok())
+        {
+            FailTransport(
+                "resource-manifest-encode-failed",
+                "goldsrc_resource_manifest_context_failed: reason="
+                    + std::string(hl::network::ReasonFor(encoded.status)));
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        if (!slot_state.goldsrc_resource_manifest_preparation.TryStore(
+                PreparationState::kReady))
+        {
+            FailTransport(
+                "resource-manifest-preparation-cache-store-failed",
+                "goldsrc_resource_manifest_context_failed: reason=preparation-cache-store-failed");
+            return ResourceManifestPrepareResult::kFailed;
+        }
+
+        slot_state.goldsrc_resource_manifest_response.fill(0u);
+        std::copy_n(
+            companion.payload.bytes.begin(),
+            companion.payload.size,
+            slot_state.goldsrc_resource_manifest_response.begin());
+        std::copy_n(
+            encoded.payload.bytes.begin(),
+            encoded.payload.size,
+            slot_state.goldsrc_resource_manifest_response.begin()
+                + companion.payload.size);
+        slot_state.goldsrc_resource_manifest_response_size =
+            companion.payload.size + encoded.payload.size;
+        slot_state.goldsrc_resource_manifest = std::move(manifest);
+
+        summary_.resource_manifest_context_built = true;
+        ++summary_.resource_manifest_generations;
+        summary_.resource_manifest_entry_count = static_cast<int>(
+            slot_state.goldsrc_resource_manifest->entries.size());
+        summary_.resource_manifest_payload_bytes = static_cast<int>(
+            slot_state.goldsrc_resource_manifest_response_size);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_resource_manifest_context_built: session_id="
+                + slot_state.session_id
+                + ",resource_count="
+                + std::to_string(summary_.resource_manifest_entry_count)
+                + ",payload_bytes="
+                + std::to_string(summary_.resource_manifest_payload_bytes)
+                + ",source="
+                + std::string(hl::network::NameFor(manifest_source)));
+        return ResourceManifestPrepareResult::kReady;
+    }
+
     static bool PayloadIsClientNopOnly(
         const hl::network::GoldSrcNetchanPacket& packet) noexcept
     {
@@ -1252,13 +2067,13 @@ private:
     bool HandleClientSignonPayload(
         DedicatedPlayerRuntimeSlot& slot_state,
         const hl::network::GoldSrcNetchanPacket& packet,
-        bool* serverinfo_queued)
+        hl::network::GoldSrcNetchanReliablePayloadKind* queued_kind)
     {
-        if (serverinfo_queued == nullptr)
+        if (queued_kind == nullptr)
         {
             return false;
         }
-        *serverinfo_queued = false;
+        *queued_kind = hl::network::GoldSrcNetchanReliablePayloadKind::kNone;
         if (PayloadIsClientNopOnly(packet))
         {
             return true;
@@ -1298,14 +2113,88 @@ private:
             return true;
         }
         ++summary_.clc_stringcmd_decoded;
-        if (decoded.command != hl::network::GoldSrcClientSignonCommand::kNew)
+
+        if (decoded.command
+            == hl::network::GoldSrcClientSignonCommand::kNew)
+        {
+            if (slot_state.goldsrc_signon.phase()
+                != hl::network::GoldSrcSignonPhase::kAwaitingNew)
+            {
+                const hl::network::GoldSrcSignonCommandDisposition disposition =
+                    slot_state.goldsrc_signon.HandleClientCommand(
+                        decoded.command);
+                if (disposition
+                    == hl::network::GoldSrcSignonCommandDisposition::
+                        kDuplicateSuppressed)
+                {
+                    ++summary_.inbound_reliable_retransmitted;
+                    summary_.duplicate_client_reliable_suppressed = true;
+                    SyncNetchanSummary(slot_state);
+                    hl::common::Logger::Info(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_client_new_suppressed: session_id="
+                            + slot_state.session_id
+                            + ",reason=already-delivered");
+                    return true;
+                }
+                SyncNetchanSummary(slot_state);
+                return true;
+            }
+            if (!PrepareServerInfoContext(slot_state))
+            {
+                return false;
+            }
+            if (!slot_state.goldsrc_serverinfo_payload.has_value())
+            {
+                return FailTransport(
+                    "serverinfo-payload-missing",
+                    "goldsrc_serverinfo_queue_failed: reason=payload-missing");
+            }
+            const hl::network::GoldSrcNetchanQueueResult queue_result =
+                slot_state.netchan.QueueReliablePayload(
+                    slot_state.goldsrc_serverinfo_payload->bytes.data(),
+                    slot_state.goldsrc_serverinfo_payload->size,
+                    hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kServerInfo);
+            if (queue_result != hl::network::GoldSrcNetchanQueueResult::kQueued)
+            {
+                return FailTransport(
+                    "serverinfo-reliable-queue-failed",
+                    "goldsrc_serverinfo_queue_failed: reason="
+                        + std::string(hl::network::ReasonFor(queue_result)));
+            }
+            const hl::network::GoldSrcSignonCommandDisposition disposition =
+                slot_state.goldsrc_signon.HandleClientCommand(decoded.command);
+            if (disposition
+                != hl::network::GoldSrcSignonCommandDisposition::kDelivered)
+            {
+                return FailTransport(
+                    "serverinfo-signon-commit-failed",
+                    "goldsrc_serverinfo_queue_failed: reason=signon-commit-failed");
+            }
+            *queued_kind =
+                hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo;
+            SyncNetchanSummary(slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_serverinfo_queued: session_id=" + slot_state.session_id
+                    + ",payload_bytes="
+                    + std::to_string(
+                        slot_state.goldsrc_serverinfo_payload->size)
+                    + ",signon_phase=" + summary_.signon_phase);
+            return true;
+        }
+
+        if (decoded.command
+            != hl::network::GoldSrcClientSignonCommand::kSendResources
+            || !resource_manifest_enabled_)
         {
             ++summary_.unsupported_command_rejected;
             return true;
         }
 
         if (slot_state.goldsrc_signon.phase()
-            != hl::network::GoldSrcSignonPhase::kAwaitingNew)
+            != hl::network::GoldSrcSignonPhase::kAwaitingResourceRequest)
         {
             const hl::network::GoldSrcSignonCommandDisposition disposition =
                 slot_state.goldsrc_signon.HandleClientCommand(decoded.command);
@@ -1314,37 +2203,60 @@ private:
                     kDuplicateSuppressed)
             {
                 ++summary_.inbound_reliable_retransmitted;
-                summary_.duplicate_client_reliable_suppressed = true;
+                summary_.duplicate_resource_request_suppressed = true;
                 SyncNetchanSummary(slot_state);
                 hl::common::Logger::Info(
                     hl::common::LogCategory::Server,
-                    "goldsrc_client_new_suppressed: session_id="
+                    "goldsrc_resource_request_suppressed: session_id="
                         + slot_state.session_id + ",reason=already-delivered");
                 return true;
             }
             SyncNetchanSummary(slot_state);
             return true;
         }
-        if (!PrepareServerInfoContext(slot_state))
+
+        const bool reusing_cached_fragmentation_outcome =
+            slot_state.goldsrc_resource_manifest_preparation.state()
+            == hl::network::GoldSrcResourceManifestPreparationState::
+                kRequiresFragmentation;
+        const ResourceManifestPrepareResult prepare_result =
+            PrepareResourceManifestContext(slot_state);
+        if (prepare_result == ResourceManifestPrepareResult::kFailed)
         {
             return false;
         }
-        if (!slot_state.goldsrc_serverinfo_payload.has_value())
+        if (prepare_result
+            == ResourceManifestPrepareResult::kRequiresFragmentation)
+        {
+            if (reusing_cached_fragmentation_outcome)
+            {
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_resource_request_suppressed: session_id="
+                        + slot_state.session_id
+                        + ",reason=requires-fragmentation-cached");
+            }
+            SyncNetchanSummary(slot_state);
+            return true;
+        }
+        if (!slot_state.goldsrc_resource_manifest.has_value()
+            || slot_state.goldsrc_resource_manifest_response_size == 0u)
         {
             return FailTransport(
-                "serverinfo-payload-missing",
-                "goldsrc_serverinfo_queue_failed: reason=payload-missing");
+                "resource-manifest-payload-missing",
+                "goldsrc_resource_manifest_queue_failed: reason=payload-missing");
         }
         const hl::network::GoldSrcNetchanQueueResult queue_result =
             slot_state.netchan.QueueReliablePayload(
-                slot_state.goldsrc_serverinfo_payload->bytes.data(),
-                slot_state.goldsrc_serverinfo_payload->size,
-                hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo);
+                slot_state.goldsrc_resource_manifest_response.data(),
+                slot_state.goldsrc_resource_manifest_response_size,
+                hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kResourceManifest);
         if (queue_result != hl::network::GoldSrcNetchanQueueResult::kQueued)
         {
             return FailTransport(
-                "serverinfo-reliable-queue-failed",
-                "goldsrc_serverinfo_queue_failed: reason="
+                "resource-manifest-reliable-queue-failed",
+                "goldsrc_resource_manifest_queue_failed: reason="
                     + std::string(hl::network::ReasonFor(queue_result)));
         }
         const hl::network::GoldSrcSignonCommandDisposition disposition =
@@ -1353,16 +2265,19 @@ private:
             != hl::network::GoldSrcSignonCommandDisposition::kDelivered)
         {
             return FailTransport(
-                "serverinfo-signon-commit-failed",
-                "goldsrc_serverinfo_queue_failed: reason=signon-commit-failed");
+                "resource-manifest-signon-commit-failed",
+                "goldsrc_resource_manifest_queue_failed: reason=signon-commit-failed");
         }
-        *serverinfo_queued = true;
+        *queued_kind =
+            hl::network::GoldSrcNetchanReliablePayloadKind::kResourceManifest;
         SyncNetchanSummary(slot_state);
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
-            "goldsrc_serverinfo_queued: session_id=" + slot_state.session_id
+            "goldsrc_resource_manifest_queued: session_id="
+                + slot_state.session_id
                 + ",payload_bytes="
-                + std::to_string(slot_state.goldsrc_serverinfo_payload->size)
+                + std::to_string(
+                    slot_state.goldsrc_resource_manifest_response_size)
                 + ",signon_phase=" + summary_.signon_phase);
         return true;
     }
@@ -1443,6 +2358,39 @@ private:
                 }
             }
         }
+        if (resource_manifest_enabled_
+            && pending_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kResourceManifest
+            && decoded.packet.reliable_present)
+        {
+            if (summary_.resource_manifest_send_count == 0)
+            {
+                summary_.resource_manifest_first_carrier_sequence =
+                    decoded.packet.sequence;
+            }
+            summary_.resource_manifest_latest_carrier_sequence =
+                decoded.packet.sequence;
+            ++summary_.resource_manifest_send_count;
+            const hl::network::GoldSrcNetchanDiagnostics& diagnostics =
+                slot_state.netchan.diagnostics();
+            if (diagnostics.reliable_resent > reliable_resent_before)
+            {
+                ++summary_.resource_manifest_resent;
+                summary_.resource_manifest_retransmitted = true;
+            }
+            else if (diagnostics.reliable_sent > reliable_sent_before)
+            {
+                ++summary_.resource_manifest_sent;
+                if (slot_state.goldsrc_signon.MarkResourceManifestSent()
+                    != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+                {
+                    return FailTransport(
+                        "resource-manifest-sent-transition-failed",
+                        "goldsrc_resource_manifest_send_failed: reason=invalid-signon-phase");
+                }
+            }
+        }
 
         SyncNetchanSummary(slot_state);
         hl::common::Logger::Info(
@@ -1463,6 +2411,15 @@ private:
                     ? ",signon_phase=" + summary_.signon_phase
                         + ",serverinfo_generations="
                         + std::to_string(summary_.serverinfo_generations)
+                    : resource_manifest_enabled_
+                            && pending_kind
+                                == hl::network::
+                                    GoldSrcNetchanReliablePayloadKind::
+                                        kResourceManifest
+                    ? ",signon_phase=" + summary_.signon_phase
+                        + ",resource_manifest_generations="
+                        + std::to_string(
+                            summary_.resource_manifest_generations)
                     : ""));
         return true;
     }
@@ -1550,6 +2507,16 @@ private:
             && summary_.unsupported_command_rejected >= 1
             && summary_.unsupported_opcode_rejected >= 1
             && summary_.endpoint_hijack_rejected >= 1;
+    }
+
+    bool ResourceManifestNegativeEvidenceSatisfied() const noexcept
+    {
+        return summary_.resource_manifest_resent >= 1
+            && summary_.wrong_reliable_ack_rejected
+            && summary_.duplicate_resource_request_suppressed
+            && summary_.unsupported_command_rejected >= 1
+            && summary_.resource_request_deliveries == 1
+            && summary_.resource_manifest_generations == 1;
     }
 
     bool ProcessSequencedDatagram(
@@ -1640,8 +2607,12 @@ private:
         }
 
         if (serverinfo_enabled_
-            && pending_kind_before
-                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo
+            && (pending_kind_before
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kServerInfo
+                || pending_kind_before
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kResourceManifest)
             && slot_state->netchan.diagnostics().reliable_ack_mismatch
                 > reliable_ack_mismatch_before)
         {
@@ -1658,10 +2629,42 @@ private:
                     "serverinfo-ack-transition-failed",
                     "goldsrc_serverinfo_ack_failed: reason=invalid-signon-phase");
             }
+            if (resource_manifest_enabled_
+                && slot_state->goldsrc_signon.EnterAwaitingResourceRequest()
+                    != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+            {
+                return FailTransport(
+                    "resource-request-await-transition-failed",
+                    "goldsrc_resource_manifest_transition_failed: reason=invalid-signon-phase");
+            }
             SyncNetchanSummary(*slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
                 "goldsrc_serverinfo_acknowledged: session_id="
+                    + slot_state->session_id
+                    + ",ack="
+                    + std::to_string(decoded.packet.acknowledgement)
+                    + ",ack_generation="
+                    + std::to_string(
+                        process_outcome.reliable_acknowledgement_generation)
+                    + ",signon_phase=" + summary_.signon_phase);
+        }
+        if (resource_manifest_enabled_
+            && process_outcome.acknowledged_reliable_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kResourceManifest)
+        {
+            if (slot_state->goldsrc_signon.MarkResourceManifestAcknowledged()
+                != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+            {
+                return FailTransport(
+                    "resource-manifest-ack-transition-failed",
+                    "goldsrc_resource_manifest_ack_failed: reason=invalid-signon-phase");
+            }
+            SyncNetchanSummary(*slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_resource_manifest_acknowledged: session_id="
                     + slot_state->session_id
                     + ",ack="
                     + std::to_string(decoded.packet.acknowledgement)
@@ -1726,7 +2729,8 @@ private:
             }
         }
 
-        bool serverinfo_queued = false;
+        hl::network::GoldSrcNetchanReliablePayloadKind queued_kind =
+            hl::network::GoldSrcNetchanReliablePayloadKind::kNone;
         if (serverinfo_enabled_
             && slot_state->netchan.transport_phase()
                 == hl::network::GoldSrcNetchanTransportPhase::kEstablished)
@@ -1734,16 +2738,21 @@ private:
             if (!HandleClientSignonPayload(
                     *slot_state,
                     decoded.packet,
-                    &serverinfo_queued))
+                    &queued_kind))
             {
                 return false;
             }
-            if (serverinfo_queued)
+            if (queued_kind
+                != hl::network::GoldSrcNetchanReliablePayloadKind::kNone)
             {
                 return SendNetchanDatagram(
                     *slot_state,
                     true,
-                    "goldsrc_serverinfo_sent");
+                    queued_kind
+                            == hl::network::
+                                GoldSrcNetchanReliablePayloadKind::kServerInfo
+                        ? "goldsrc_serverinfo_sent"
+                        : "goldsrc_resource_manifest_sent");
             }
         }
 
@@ -1765,6 +2774,40 @@ private:
                 resend_expected
                     ? "goldsrc_netchan_reliable_resent"
                     : "goldsrc_netchan_ordinary_sent");
+        }
+
+        if (resource_manifest_enabled_)
+        {
+            if (!SendNetchanDatagram(
+                    *slot_state,
+                    false,
+                    "goldsrc_resource_manifest_ack_response"))
+            {
+                return false;
+            }
+            if (slot_state->goldsrc_signon.phase()
+                == hl::network::GoldSrcSignonPhase::
+                    kResourceManifestAcknowledged)
+            {
+                if (!resource_manifest_negative_proof_)
+                {
+                    complete_ = true;
+                }
+                else if (ResourceManifestNegativeEvidenceSatisfied())
+                {
+                    summary_.server_still_responsive = true;
+                    complete_ = true;
+                }
+            }
+            else if (resource_manifest_negative_proof_
+                && summary_.requires_fragmentation_reported
+                && summary_.oversized_manifest_not_truncated
+                && summary_.resource_manifest_cached_outcome_reuses >= 1)
+            {
+                summary_.server_still_responsive = true;
+                complete_ = true;
+            }
+            return true;
         }
 
         if (serverinfo_enabled_)
@@ -1845,6 +2888,10 @@ private:
         summary_.spawned = slot_state->spawn_count > 0 || slot_state->alive;
         summary_.active = slot_state->put_in_server && slot_state->alive;
         summary_.last_reject_reason = "<none>";
+        if (resource_manifest_enabled_)
+        {
+            ResetResourceManifestSessionSummary();
+        }
         if (serverinfo_enabled_)
         {
             ++summary_.signon_state_resets;
@@ -1922,6 +2969,9 @@ private:
     bool negative_proof_ = false;
     bool serverinfo_enabled_ = false;
     bool serverinfo_negative_proof_ = false;
+    bool resource_manifest_enabled_ = false;
+    bool resource_manifest_negative_proof_ = false;
+    std::optional<std::filesystem::path> resource_manifest_fixture_;
     bool dedicated_runtime_ = false;
     hl::network::UdpSocket socket_;
     std::unique_ptr<hl::network::ChallengeTable> challenges_;

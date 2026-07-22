@@ -1178,6 +1178,161 @@ void TestServerInfoReliableKindAckMetadataAndEstablishedPhase()
     AssertCleanState(state);
 }
 
+void TestResourceManifestReliableKindAckRetransmitAndReset()
+{
+    using namespace std::chrono_literals;
+    const Ipv4Endpoint endpoint{{127u, 0u, 0u, 1u}, 28005u};
+    const GoldSrcNetchanState::TimePoint start{};
+    GoldSrcNetchanState state;
+    assert(state.Initialize(endpoint, std::uint16_t{781u}, 0u, start));
+    assert(
+        NameFor(GoldSrcNetchanReliablePayloadKind::kResourceManifest)
+        == "resource_manifest");
+
+    const std::uint8_t nop = kGoldSrcServerNop;
+    assert(
+        state.QueueReliablePayload(&nop, 1u)
+        == GoldSrcNetchanQueueResult::kQueued);
+    GoldSrcNetchanDatagram bootstrap{};
+    assert(state.BuildOutgoingDatagram(&bootstrap));
+    const GoldSrcNetchanProcessOutcome bootstrap_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(1u, 1u, false, state.local_reliable_sequence()),
+            start + 1s);
+    assert(bootstrap_ack.result == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        bootstrap_ack.acknowledged_reliable_kind
+        == GoldSrcNetchanReliablePayloadKind::kTransportBootstrap);
+    assert(state.transport_phase() == GoldSrcNetchanTransportPhase::kEstablished);
+
+    std::array<std::uint8_t, 5> resource_manifest = {
+        0x2Bu, 0x01u, 0x02u, 0x03u, 0x04u,
+    };
+    const std::array<std::uint8_t, 5> frozen_manifest = resource_manifest;
+    assert(
+        state.QueueReliablePayload(
+            resource_manifest.data(),
+            resource_manifest.size(),
+            GoldSrcNetchanReliablePayloadKind::kResourceManifest)
+        == GoldSrcNetchanQueueResult::kQueued);
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kResourceManifest);
+    const bool resource_toggle = state.local_reliable_sequence();
+
+    resource_manifest.fill(0xFFu);
+    assert(std::equal(
+        frozen_manifest.begin(),
+        frozen_manifest.end(),
+        state.reliable_payload_data()));
+
+    GoldSrcNetchanDatagram first_manifest{};
+    assert(state.BuildOutgoingDatagram(&first_manifest));
+    const GoldSrcNetchanDecodeResult first_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            first_manifest.bytes.data(),
+            first_manifest.size);
+    assert(first_decoded.ok());
+    assert(first_decoded.packet.sequence == 2u);
+    assert(first_decoded.packet.reliable_present);
+    assert(std::equal(
+        frozen_manifest.begin(),
+        frozen_manifest.end(),
+        first_decoded.packet.payload.begin()));
+
+    const GoldSrcNetchanProcessOutcome wrong_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(2u, 2u, false, !resource_toggle),
+            start + 2s);
+    assert(wrong_toggle.result == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!wrong_toggle.reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kResourceManifest);
+
+    GoldSrcNetchanDatagram ordinary_followup{};
+    assert(state.BuildOutgoingDatagram(&ordinary_followup));
+    const GoldSrcNetchanDecodeResult ordinary_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            ordinary_followup.bytes.data(),
+            ordinary_followup.size);
+    assert(ordinary_decoded.ok());
+    assert(ordinary_decoded.packet.sequence == 3u);
+    assert(!ordinary_decoded.packet.reliable_present);
+
+    const GoldSrcNetchanProcessOutcome covering_wrong_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(3u, 3u, false, !resource_toggle),
+            start + 3s);
+    assert(
+        covering_wrong_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!covering_wrong_toggle.reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+
+    GoldSrcNetchanDatagram retransmission{};
+    assert(state.BuildOutgoingDatagram(&retransmission));
+    const GoldSrcNetchanDecodeResult retransmission_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            retransmission.bytes.data(),
+            retransmission.size);
+    assert(retransmission_decoded.ok());
+    assert(retransmission_decoded.packet.sequence == 4u);
+    assert(retransmission_decoded.packet.reliable_present);
+    assert(std::equal(
+        frozen_manifest.begin(),
+        frozen_manifest.end(),
+        retransmission_decoded.packet.payload.begin()));
+    assert(state.diagnostics().reliable_resent == 1u);
+
+    const GoldSrcNetchanProcessOutcome non_covering_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(4u, 3u, false, resource_toggle),
+            start + 4s);
+    assert(
+        non_covering_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!non_covering_ack.reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kResourceManifest);
+
+    const GoldSrcNetchanProcessOutcome correct_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(5u, 4u, false, resource_toggle),
+            start + 5s);
+    assert(correct_ack.result == GoldSrcNetchanProcessResult::kAccepted);
+    assert(correct_ack.reliable_payload_was_acknowledged());
+    assert(
+        correct_ack.acknowledged_reliable_kind
+        == GoldSrcNetchanReliablePayloadKind::kResourceManifest);
+    assert(correct_ack.reliable_acknowledgement_generation == 2u);
+    assert(!state.reliable_pending());
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kNone);
+    assert(
+        state.last_acknowledged_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kResourceManifest);
+    assert(state.reliable_acknowledgement_generation() == 2u);
+    assert(state.transport_phase() == GoldSrcNetchanTransportPhase::kEstablished);
+    assert(state.diagnostics().reliable_acked == 2u);
+    assert(state.diagnostics().reliable_ack_mismatch == 2u);
+
+    state.Reset();
+    AssertCleanState(state);
+}
+
 void TestOptInBoundedApplicationPayloadPolicy()
 {
     using namespace std::chrono_literals;
@@ -1779,6 +1934,7 @@ int main()
     TestReliableQueueBoundsAndSecondQueue();
     TestFirstReliableSendAndCorrectAcknowledgement();
     TestServerInfoReliableKindAckMetadataAndEstablishedPhase();
+    TestResourceManifestReliableKindAckRetransmitAndReset();
     TestOptInBoundedApplicationPayloadPolicy();
     TestReliableCoverageWrongToggleAndReferenceResend();
     TestForgedAckAndCodecRejectionsPreserveReliableState();

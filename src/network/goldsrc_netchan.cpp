@@ -315,6 +315,8 @@ std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept
         return "transport_bootstrap";
     case GoldSrcNetchanReliablePayloadKind::kServerInfo:
         return "server_info";
+    case GoldSrcNetchanReliablePayloadKind::kResourceManifest:
+        return "resource_manifest";
     case GoldSrcNetchanReliablePayloadKind::kNone:
     default:
         return "none";

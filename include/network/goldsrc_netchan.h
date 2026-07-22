@@ -124,6 +124,7 @@ enum class GoldSrcNetchanReliablePayloadKind
     kNone,
     kTransportBootstrap,
     kServerInfo,
+    kResourceManifest,
 };
 
 std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept;

@@ -23,6 +23,7 @@
 #include <cmath>
 #include <chrono>
 #include <deque>
+#include <fstream>
 #include <iomanip>
 #include <initializer_list>
 #include <intrin.h>
@@ -52,6 +53,7 @@
 #include "game_api/server_command_dispatcher.h"
 #include "network/goldsrc_connectionless.h"
 #include "network/goldsrc_netchan.h"
+#include "network/goldsrc_resource_manifest.h"
 #include "network/udp_socket.h"
 #include "server_frame_loop.h"
 #include "server_bootstrap.h"
@@ -457,6 +459,14 @@ struct DedicatedPlayerRuntimeSlot
     hl::network::GoldSrcSignonSessionState goldsrc_signon;
     std::optional<hl::network::GoldSrcServerInfoContext> goldsrc_serverinfo_context;
     std::optional<hl::network::GoldSrcServerInfoPayload> goldsrc_serverinfo_payload;
+    std::optional<hl::network::GoldSrcResourceManifest> goldsrc_resource_manifest;
+    hl::network::GoldSrcResourceManifestPreparationCache
+        goldsrc_resource_manifest_preparation;
+    std::array<
+        std::uint8_t,
+        hl::network::kGoldSrcMaximumResourceManifestBytes>
+        goldsrc_resource_manifest_response{};
+    std::size_t goldsrc_resource_manifest_response_size = 0;
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
@@ -92356,6 +92366,10 @@ void RecordDedicatedLifecycleTransition(
         slot_state.goldsrc_signon.Reset();
         slot_state.goldsrc_serverinfo_context.reset();
         slot_state.goldsrc_serverinfo_payload.reset();
+        slot_state.goldsrc_resource_manifest.reset();
+        slot_state.goldsrc_resource_manifest_preparation.Reset();
+        slot_state.goldsrc_resource_manifest_response.fill(0u);
+        slot_state.goldsrc_resource_manifest_response_size = 0u;
         break;
     case DedicatedPlayerLifecycleState::kIdle:
     default:

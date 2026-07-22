@@ -123,6 +123,36 @@ void TestStrictClientNewDecoder()
     assert(decoded_padded.leading_nop_count == 2u);
     assert(decoded_padded.trailing_nop_count == 2u);
 
+    constexpr std::array<std::uint8_t, 9> exact_send_resources = {
+        0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
+    };
+    const GoldSrcClientSignonDecodeResult decoded_send_resources =
+        DecodeGoldSrcClientSignonPayload(
+            exact_send_resources.data(),
+            exact_send_resources.size());
+    assert(decoded_send_resources.ok());
+    assert(
+        decoded_send_resources.command
+        == GoldSrcClientSignonCommand::kSendResources);
+    assert(decoded_send_resources.leading_nop_count == 0u);
+    assert(decoded_send_resources.trailing_nop_count == 0u);
+
+    constexpr std::array<std::uint8_t, 11> padded_send_resources = {
+        0x01u,
+        0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
+        0x01u,
+    };
+    const GoldSrcClientSignonDecodeResult decoded_padded_send_resources =
+        DecodeGoldSrcClientSignonPayload(
+            padded_send_resources.data(),
+            padded_send_resources.size());
+    assert(decoded_padded_send_resources.ok());
+    assert(
+        decoded_padded_send_resources.command
+        == GoldSrcClientSignonCommand::kSendResources);
+    assert(decoded_padded_send_resources.leading_nop_count == 1u);
+    assert(decoded_padded_send_resources.trailing_nop_count == 1u);
+
     assert(
         DecodeGoldSrcClientSignonPayload(nullptr, 1u).status
         == GoldSrcClientSignonDecodeStatus::kNullInput);
@@ -183,6 +213,42 @@ void TestStrictClientNewDecoder()
         DecodeGoldSrcClientSignonPayload(
             new_with_argument.data(),
             new_with_argument.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
+
+    constexpr std::array<std::uint8_t, 8> send_resources_missing_nul = {
+        3u, 's', 'e', 'n', 'd', 'r', 'e', 's',
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_missing_nul.data(),
+            send_resources_missing_nul.size()).status
+        == GoldSrcClientSignonDecodeStatus::kMissingStringTerminator);
+
+    constexpr std::array<std::uint8_t, 10> send_resources_suffix = {
+        3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 'x', 0u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_suffix.data(),
+            send_resources_suffix.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
+
+    constexpr std::array<std::uint8_t, 10> send_resources_argument = {
+        3u, 's', 'e', 'n', 'd', 'r', 'e', 's', ' ', 0u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_argument.data(),
+            send_resources_argument.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
+
+    constexpr std::array<std::uint8_t, 9> send_resources_wrong_case = {
+        3u, 'S', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_wrong_case.data(),
+            send_resources_wrong_case.size()).status
         == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
 
     constexpr std::array<std::uint8_t, 8> unrelated_command = {
@@ -251,6 +317,15 @@ void TestSignonStateExactOnceAndReset()
         state.MarkServerInfoAcknowledged()
         == GoldSrcSignonTransitionResult::kInvalidPhase);
     assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkResourceManifestSent()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkResourceManifestAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
         state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
         == GoldSrcSignonCommandDisposition::kWrongPhase);
     assert(state.diagnostics().client_new_received == 1u);
@@ -310,6 +385,92 @@ void TestSignonStateExactOnceAndReset()
         state.EnterAwaitingNew()
         == GoldSrcSignonTransitionResult::kInvalidPhase);
 
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kSendResources)
+        == GoldSrcSignonCommandDisposition::kWrongPhase);
+    assert(state.phase() == GoldSrcSignonPhase::kServerInfoAcknowledged);
+    assert(state.diagnostics().resource_request_received == 1u);
+    assert(state.diagnostics().resource_request_delivered == 0u);
+    assert(state.diagnostics().resource_request_wrong_phase == 1u);
+
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(state.phase() == GoldSrcSignonPhase::kAwaitingResourceRequest);
+    assert(NameFor(state.phase()) == "awaiting_resource_request");
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkResourceManifestSent()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kSendResources)
+        == GoldSrcSignonCommandDisposition::kDelivered);
+    assert(state.phase() == GoldSrcSignonPhase::kResourceManifestQueued);
+    assert(NameFor(state.phase()) == "resource_manifest_queued");
+    assert(state.diagnostics().resource_request_received == 2u);
+    assert(state.diagnostics().resource_request_delivered == 1u);
+    assert(state.diagnostics().resource_manifest_queued == 1u);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kSendResources)
+        == GoldSrcSignonCommandDisposition::kDuplicateSuppressed);
+    assert(state.diagnostics().resource_request_received == 3u);
+    assert(state.diagnostics().resource_request_delivered == 1u);
+    assert(
+        state.diagnostics().duplicate_resource_request_suppressed == 1u);
+    assert(
+        state.MarkResourceManifestAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+
+    assert(
+        state.MarkResourceManifestSent()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(
+        state.phase()
+        == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck);
+    assert(NameFor(state.phase()) == "resource_manifest_sent_awaiting_ack");
+    assert(state.diagnostics().resource_manifest_sent == 1u);
+    assert(
+        state.MarkResourceManifestSent()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kSendResources)
+        == GoldSrcSignonCommandDisposition::kDuplicateSuppressed);
+    assert(state.diagnostics().resource_request_received == 4u);
+    assert(state.diagnostics().resource_request_delivered == 1u);
+    assert(
+        state.diagnostics().duplicate_resource_request_suppressed == 2u);
+
+    assert(
+        state.MarkResourceManifestAcknowledged()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(state.phase() == GoldSrcSignonPhase::kResourceManifestAcknowledged);
+    assert(NameFor(state.phase()) == "resource_manifest_acknowledged");
+    assert(state.diagnostics().resource_manifest_acknowledged == 1u);
+    assert(
+        state.MarkResourceManifestAcknowledged()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkServerInfoAcknowledged()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kSendResources)
+        == GoldSrcSignonCommandDisposition::kDuplicateSuppressed);
+    assert(state.diagnostics().resource_request_received == 5u);
+    assert(state.diagnostics().resource_request_delivered == 1u);
+    assert(
+        state.diagnostics().duplicate_resource_request_suppressed == 3u);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
+        == GoldSrcSignonCommandDisposition::kDuplicateSuppressed);
+    assert(state.diagnostics().client_new_delivered == 1u);
+    assert(state.diagnostics().duplicate_new_suppressed == 4u);
+
     state.Reset();
     assert(state.phase() == GoldSrcSignonPhase::kNone);
     assert(state.diagnostics().client_new_received == 0u);
@@ -318,6 +479,14 @@ void TestSignonStateExactOnceAndReset()
     assert(state.diagnostics().serverinfo_queued == 0u);
     assert(state.diagnostics().serverinfo_sent == 0u);
     assert(state.diagnostics().serverinfo_acknowledged == 0u);
+    assert(state.diagnostics().resource_request_received == 0u);
+    assert(state.diagnostics().resource_request_delivered == 0u);
+    assert(
+        state.diagnostics().duplicate_resource_request_suppressed == 0u);
+    assert(state.diagnostics().resource_request_wrong_phase == 0u);
+    assert(state.diagnostics().resource_manifest_queued == 0u);
+    assert(state.diagnostics().resource_manifest_sent == 0u);
+    assert(state.diagnostics().resource_manifest_acknowledged == 0u);
 }
 
 void TestMunge3AndServerInfoGoldenBytes()

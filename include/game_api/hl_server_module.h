@@ -6702,6 +6702,8 @@ struct GoldSrcUdpHandshakeSummary
     bool netchan_negative_proof = false;
     bool serverinfo_enabled = false;
     bool serverinfo_negative_proof = false;
+    bool resource_manifest_enabled = false;
+    bool resource_manifest_negative_proof = false;
     bool netchan_initialized = false;
     std::string netchan_state = "none";
     int max_datagrams_sent_per_frame = 0;
@@ -6769,6 +6771,26 @@ struct GoldSrcUdpHandshakeSummary
     int serverinfo_payload_bytes = 0;
     bool wrong_reliable_ack_rejected = false;
     bool duplicate_client_reliable_suppressed = false;
+    int resource_request_received = 0;
+    int resource_request_deliveries = 0;
+    int duplicate_resource_requests_suppressed = 0;
+    int resource_manifest_preparation_attempts = 0;
+    int resource_manifest_cached_outcome_reuses = 0;
+    bool resource_manifest_context_built = false;
+    int resource_manifest_generations = 0;
+    int resource_manifest_queued = 0;
+    int resource_manifest_sent = 0;
+    int resource_manifest_resent = 0;
+    int resource_manifest_acked = 0;
+    int resource_manifest_entry_count = 0;
+    int resource_manifest_payload_bytes = 0;
+    std::uint32_t resource_manifest_first_carrier_sequence = 0;
+    std::uint32_t resource_manifest_latest_carrier_sequence = 0;
+    int resource_manifest_send_count = 0;
+    bool resource_manifest_retransmitted = false;
+    bool duplicate_resource_request_suppressed = false;
+    bool requires_fragmentation_reported = false;
+    bool oversized_manifest_not_truncated = false;
     std::string signon_phase = "none";
 };
 
@@ -22693,6 +22715,9 @@ struct HlServerModuleInitOptions
     bool goldsrc_netchan_negative_proof = false;
     bool goldsrc_serverinfo_enabled = false;
     bool goldsrc_serverinfo_negative_proof = false;
+    bool goldsrc_resource_manifest_enabled = false;
+    bool goldsrc_resource_manifest_negative_proof = false;
+    std::optional<std::filesystem::path> goldsrc_resource_manifest_fixture;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

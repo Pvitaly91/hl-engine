@@ -35,6 +35,7 @@ enum class GoldSrcClientSignonCommand
 {
     kNone,
     kNew,
+    kSendResources,
 };
 
 enum class GoldSrcClientSignonDecodeStatus
@@ -71,8 +72,8 @@ struct GoldSrcClientSignonDecodeResult final
 };
 
 // Decodes one bounded application message after the client qport has already
-// been removed by the netchan layer. The only accepted non-NOP message is the
-// exact byte string: 03 6e 65 77 00.
+// been removed by the netchan layer. Only the exact `new` and `sendres`
+// string commands are accepted, optionally surrounded by NOP messages.
 GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     const std::uint8_t* bytes,
     std::size_t size) noexcept;
@@ -84,6 +85,10 @@ enum class GoldSrcSignonPhase
     kServerInfoQueued,
     kServerInfoSentAwaitingAck,
     kServerInfoAcknowledged,
+    kAwaitingResourceRequest,
+    kResourceManifestQueued,
+    kResourceManifestSentAwaitingAck,
+    kResourceManifestAcknowledged,
 };
 
 std::string_view NameFor(GoldSrcSignonPhase phase) noexcept;
@@ -116,6 +121,13 @@ struct GoldSrcSignonDiagnostics final
     std::uint64_t serverinfo_queued = 0;
     std::uint64_t serverinfo_sent = 0;
     std::uint64_t serverinfo_acknowledged = 0;
+    std::uint64_t resource_request_received = 0;
+    std::uint64_t resource_request_delivered = 0;
+    std::uint64_t duplicate_resource_request_suppressed = 0;
+    std::uint64_t resource_request_wrong_phase = 0;
+    std::uint64_t resource_manifest_queued = 0;
+    std::uint64_t resource_manifest_sent = 0;
+    std::uint64_t resource_manifest_acknowledged = 0;
 };
 
 class GoldSrcSignonSessionState final
@@ -127,6 +139,9 @@ public:
         GoldSrcClientSignonCommand command) noexcept;
     GoldSrcSignonTransitionResult MarkServerInfoSent() noexcept;
     GoldSrcSignonTransitionResult MarkServerInfoAcknowledged() noexcept;
+    GoldSrcSignonTransitionResult EnterAwaitingResourceRequest() noexcept;
+    GoldSrcSignonTransitionResult MarkResourceManifestSent() noexcept;
+    GoldSrcSignonTransitionResult MarkResourceManifestAcknowledged() noexcept;
 
     GoldSrcSignonPhase phase() const noexcept;
     const GoldSrcSignonDiagnostics& diagnostics() const noexcept;
