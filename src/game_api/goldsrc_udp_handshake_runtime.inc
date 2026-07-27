@@ -190,6 +190,17 @@ public:
             MarkTimeout();
             return true;
         }
+        if (DedicatedPlayerRuntimeSlot* slot_state =
+                FindAdmittedNetchanSlot();
+            slot_state != nullptr
+            && slot_state->netchan.ExpireFragmentTransfer(frame_time))
+        {
+            SyncNetchanSummary(*slot_state);
+            return FailTransport(
+                "fragment-transfer-timeout",
+                "goldsrc_fragment_transfer_failed: session_id="
+                    + slot_state->session_id + ",reason=timeout");
+        }
 
         ++summary_.host_frames_pumped;
         datagrams_sent_this_frame_ = 0;
@@ -280,7 +291,7 @@ public:
             return handshake_succeeded;
         }
 
-        const bool fragmentation_proof_succeeded =
+        const bool legacy_fragmentation_rejection_succeeded =
             resource_manifest_enabled_
             && resource_manifest_negative_proof_
             && summary_.requires_fragmentation_reported
@@ -288,9 +299,12 @@ public:
             && summary_.resource_manifest_preparation_attempts == 1
             && summary_.resource_manifest_cached_outcome_reuses >= 1;
         const int expected_reliable_acknowledgements =
-            resource_manifest_enabled_ && !fragmentation_proof_succeeded
-            ? 3
-            : (serverinfo_enabled_ ? 2 : 1);
+            summary_.fragment_transfer_started
+            ? 2 + summary_.fragment_acknowledged_count
+            : (resource_manifest_enabled_
+                    && !legacy_fragmentation_rejection_succeeded
+                ? 3
+                : (serverinfo_enabled_ ? 2 : 1));
         const bool netchan_succeeded = summary_.netchan_initialized
             && summary_.netchan_state == "established"
             && summary_.reliable_acked == expected_reliable_acknowledgements
@@ -317,7 +331,7 @@ public:
             }
             if (resource_manifest_enabled_)
             {
-                if (fragmentation_proof_succeeded)
+                if (legacy_fragmentation_rejection_succeeded)
                 {
                     return summary_.resource_manifest_generations == 0
                         && summary_.resource_manifest_queued == 0
@@ -336,6 +350,12 @@ public:
                     && summary_.resource_manifest_queued == 1
                     && summary_.resource_manifest_sent == 1
                     && summary_.resource_manifest_acked == 1
+                    && (!summary_.fragment_transfer_started
+                        || (summary_.fragment_count > 1
+                            && summary_.fragment_transfer_completed
+                            && !summary_.fragment_transfer_active
+                            && summary_.fragment_acknowledged_count
+                                == summary_.fragment_count))
                     && summary_.signon_phase
                         == "resource_manifest_acknowledged";
                 if (!resource_manifest_succeeded
@@ -447,6 +467,27 @@ public:
                     + std::to_string(summary_.reliable_ack_mismatch)
                     + ",reliable_pending_bytes="
                     + std::to_string(summary_.reliable_pending_bytes)
+                    + ",fragment_transfer_started="
+                    + std::string(
+                        summary_.fragment_transfer_started ? "1" : "0")
+                    + ",fragment_transfer_completed="
+                    + std::string(
+                        summary_.fragment_transfer_completed ? "1" : "0")
+                    + ",fragment_transfer_active="
+                    + std::string(
+                        summary_.fragment_transfer_active ? "1" : "0")
+                    + ",fragment_transfer_phase="
+                    + summary_.fragment_transfer_phase
+                    + ",fragment_count="
+                    + std::to_string(summary_.fragment_count)
+                    + ",fragment_send_count="
+                    + std::to_string(summary_.fragment_send_count)
+                    + ",fragment_resend_count="
+                    + std::to_string(summary_.fragment_resend_count)
+                    + ",fragment_acknowledged_count="
+                    + std::to_string(summary_.fragment_acknowledged_count)
+                    + ",fragment_transfer_expired="
+                    + std::to_string(summary_.fragment_transfer_expired)
                     + ",sequenced_received="
                     + std::to_string(summary_.sequenced_datagrams_received)
                     + ",sequenced_sent="
@@ -542,6 +583,9 @@ public:
                         summary_.requires_fragmentation_reported
                             ? "true"
                             : "false")
+                    + ",payload_too_large="
+                    + std::string(
+                        summary_.payload_too_large ? "true" : "false")
                     + ",final_manifest_ack="
                     + std::string(
                         summary_.resource_manifest_acked == 1
@@ -1138,6 +1182,28 @@ private:
             + diagnostics.unsupported_reserved_flags);
         summary_.fragment_rejected =
             static_cast<int>(diagnostics.unsupported_fragment);
+        const hl::network::GoldSrcFragmentSender& fragment_sender =
+            netchan.fragment_sender();
+        const hl::network::GoldSrcFragmentTransferDiagnostics&
+            fragment_diagnostics = fragment_sender.diagnostics();
+        summary_.fragment_transfer_started =
+            fragment_diagnostics.transfers_planned > 0u;
+        summary_.fragment_transfer_completed =
+            fragment_diagnostics.transfers_completed > 0u;
+        summary_.fragment_transfer_active = fragment_sender.active();
+        summary_.fragment_transfer_phase =
+            std::string(hl::network::NameFor(fragment_sender.phase()));
+        summary_.fragment_count =
+            static_cast<int>(fragment_sender.fragment_count());
+        summary_.fragment_send_count =
+            static_cast<int>(fragment_sender.send_count());
+        summary_.fragment_resend_count =
+            static_cast<int>(fragment_sender.resend_count());
+        summary_.fragment_acknowledged_count =
+            static_cast<int>(
+                fragment_diagnostics.fragments_acknowledged);
+        summary_.fragment_transfer_expired =
+            static_cast<int>(fragment_diagnostics.transfers_expired);
         summary_.stale_ack_rejected =
             static_cast<int>(diagnostics.stale_ack);
         summary_.future_ack_rejected =
@@ -1209,6 +1275,16 @@ private:
         summary_.resource_manifest_send_count = 0;
         summary_.resource_manifest_retransmitted = false;
         summary_.duplicate_resource_request_suppressed = false;
+        summary_.fragment_transfer_started = false;
+        summary_.fragment_transfer_completed = false;
+        summary_.fragment_transfer_active = false;
+        summary_.fragment_transfer_phase = "none";
+        summary_.fragment_count = 0;
+        summary_.fragment_send_count = 0;
+        summary_.fragment_resend_count = 0;
+        summary_.fragment_acknowledged_count = 0;
+        summary_.fragment_transfer_expired = 0;
+        summary_.payload_too_large = false;
         summary_.requires_fragmentation_reported = false;
         summary_.oversized_manifest_not_truncated = false;
         summary_.wrong_reliable_ack_rejected = false;
@@ -1886,9 +1962,22 @@ private:
             return ResourceManifestPrepareResult::kFailed;
         }
 
+        const bool preserve_legacy_unfragmented_limit =
+            resource_manifest_negative_proof_
+            && !resource_manifest_fixture_.has_value();
+        const std::size_t response_capacity =
+            preserve_legacy_unfragmented_limit
+            ? hl::network::kGoldSrcNetchanMaximumReliableBytes
+            : hl::network::kGoldSrcMaximumFragmentTransferBytes;
+        if (companion.payload.size > response_capacity)
+        {
+            FailTransport(
+                "resource-manifest-response-capacity-invalid",
+                "goldsrc_resource_manifest_context_failed: reason=companion-exceeds-response-capacity");
+            return ResourceManifestPrepareResult::kFailed;
+        }
         const std::size_t list_capacity =
-            hl::network::kGoldSrcMaximumResourceManifestBytes
-            - companion.payload.size;
+            response_capacity - companion.payload.size;
         const hl::network::GoldSrcResourceManifestEncodeResult encoded =
             hl::network::EncodeGoldSrcResourceManifest(
                 manifest,
@@ -1913,6 +2002,12 @@ private:
             slot_state.goldsrc_resource_manifest_response_size = 0u;
             summary_.requires_fragmentation_reported = true;
             summary_.oversized_manifest_not_truncated = true;
+            summary_.payload_too_large =
+                companion.payload.size
+                    > hl::network::kGoldSrcMaximumFragmentTransferBytes
+                || validation.encoded_size
+                    > hl::network::kGoldSrcMaximumFragmentTransferBytes
+                        - companion.payload.size;
             hl::common::Logger::Warn(
                 hl::common::LogCategory::Server,
                 "goldsrc_resource_manifest_not_queued: reason=requires_fragmentation"
@@ -1920,6 +2015,10 @@ private:
                     + std::to_string(manifest.entries.size())
                     + ",encoded_bytes="
                     + std::to_string(validation.encoded_size)
+                    + ",response_capacity="
+                    + std::to_string(response_capacity)
+                    + ",payload_too_large="
+                    + std::string(summary_.payload_too_large ? "1" : "0")
                     + ",source="
                     + std::string(hl::network::NameFor(manifest_source))
                     + ",signon_phase=" + summary_.signon_phase);
@@ -2379,7 +2478,8 @@ private:
                 ++summary_.resource_manifest_resent;
                 summary_.resource_manifest_retransmitted = true;
             }
-            else if (diagnostics.reliable_sent > reliable_sent_before)
+            else if (diagnostics.reliable_sent > reliable_sent_before
+                && summary_.resource_manifest_sent == 0)
             {
                 ++summary_.resource_manifest_sent;
                 if (slot_state.goldsrc_signon.MarkResourceManifestSent()
@@ -2402,8 +2502,22 @@ private:
                 + ",ack=" + std::to_string(decoded.packet.acknowledgement)
                 + ",reliable="
                 + (decoded.packet.reliable_present ? "1" : "0")
-                + ",fragment=0,payload_bytes="
+                + ",fragment="
+                + (decoded.packet.fragment_present ? "1" : "0")
+                + ",payload_bytes="
                 + std::to_string(decoded.packet.payload_size)
+                + (decoded.packet.fragment_present
+                        ? ",fragment_index="
+                            + std::to_string(
+                                decoded.packet.fragment_metadata
+                                    .descriptors[0]
+                                    .fragment_index)
+                            + ",fragment_count="
+                            + std::to_string(
+                                decoded.packet.fragment_metadata
+                                    .descriptors[0]
+                                    .fragment_count)
+                        : "")
                 + (serverinfo_enabled_
                         && pending_kind
                             == hl::network::
@@ -2511,12 +2625,26 @@ private:
 
     bool ResourceManifestNegativeEvidenceSatisfied() const noexcept
     {
-        return summary_.resource_manifest_resent >= 1
+        const bool base_evidence =
+            summary_.resource_manifest_resent >= 1
             && summary_.wrong_reliable_ack_rejected
-            && summary_.duplicate_resource_request_suppressed
-            && summary_.unsupported_command_rejected >= 1
             && summary_.resource_request_deliveries == 1
             && summary_.resource_manifest_generations == 1;
+        if (!base_evidence)
+        {
+            return false;
+        }
+        if (summary_.fragment_transfer_started)
+        {
+            return summary_.fragment_transfer_completed
+                && !summary_.fragment_transfer_active
+                && summary_.fragment_count > 1
+                && summary_.fragment_acknowledged_count
+                    == summary_.fragment_count
+                && summary_.future_ack_rejected >= 1;
+        }
+        return summary_.duplicate_resource_request_suppressed
+            && summary_.unsupported_command_rejected >= 1;
     }
 
     bool ProcessSequencedDatagram(
@@ -2551,7 +2679,9 @@ private:
             hl::network::GoldSrcNetchanProcessResult rejection =
                 hl::network::GoldSrcNetchanProcessResult::kMalformedHeader;
             if (decoded.status
-                == hl::network::GoldSrcNetchanCodecStatus::kUnsupportedFragment)
+                    == hl::network::GoldSrcNetchanCodecStatus::kUnsupportedFragment
+                || decoded.status
+                    == hl::network::GoldSrcNetchanCodecStatus::kMalformedFragment)
             {
                 rejection =
                     hl::network::GoldSrcNetchanProcessResult::kUnsupportedFragment;
@@ -2756,18 +2886,18 @@ private:
             }
         }
 
+        if (slot_state->netchan.fragment_sender().needs_fragment_staging())
+        {
+            return SendNetchanDatagram(
+                *slot_state,
+                true,
+                "goldsrc_fragment_sent");
+        }
+
         if (slot_state->netchan.reliable_pending())
         {
             const bool resend_expected =
-                hl::network::GoldSrcNetchanSentWindowContains(
-                    slot_state->netchan.highest_accepted_acknowledgement(),
-                    slot_state->netchan.highest_sequence_sent(),
-                    slot_state->netchan.diagnostics().sequenced_sent)
-                && hl::network::IsGoldSrcNetchanSequenceNewer(
-                    slot_state->netchan.highest_accepted_acknowledgement(),
-                    slot_state->netchan.last_reliable_sequence())
-                && slot_state->netchan.incoming_reliable_acknowledgement()
-                    != slot_state->netchan.local_reliable_sequence();
+                slot_state->netchan.next_datagram_will_include_reliable();
             return SendNetchanDatagram(
                 *slot_state,
                 resend_expected,

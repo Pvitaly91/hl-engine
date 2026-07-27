@@ -327,7 +327,7 @@ void TestCodecBoundsFlagsAndDirections()
             GoldSrcNetchanDirection::kClientToServer,
             fragment.data(),
             fragment.size());
-    assert(fragmented.status == GoldSrcNetchanCodecStatus::kUnsupportedFragment);
+    assert(fragmented.status == GoldSrcNetchanCodecStatus::kMalformedFragment);
     assert(fragmented.packet.raw_sequence == 0x40000001u);
     assert(fragmented.packet.sequence == 1u);
     assert(fragmented.packet.fragment_present);
@@ -896,14 +896,31 @@ void TestReliableQueueBoundsAndSecondQueue()
             GoldSrcNetchanReliablePayloadKind::kNone)
         == GoldSrcNetchanQueueResult::kInvalidPayloadKind);
 
-    std::vector<std::uint8_t> oversized(
-        kGoldSrcNetchanMaximumReliableBytes + 1u,
+    std::vector<std::uint8_t> too_large(
+        kGoldSrcMaximumFragmentTransferBytes + 1u,
         0x01u);
     assert(
-        state.QueueReliablePayload(oversized.data(), oversized.size())
+        state.QueueReliablePayload(too_large.data(), too_large.size())
         == GoldSrcNetchanQueueResult::kPayloadTooLarge);
     assert(!state.reliable_pending());
     assert(!state.local_reliable_sequence());
+
+    GoldSrcNetchanState fragmented_state;
+    assert(fragmented_state.Initialize(endpoint, std::nullopt, 3u, start));
+    std::vector<std::uint8_t> fragmented(
+        kGoldSrcNetchanMaximumReliableBytes + 1u,
+        0x01u);
+    assert(
+        fragmented_state.QueueReliablePayload(
+            fragmented.data(),
+            fragmented.size())
+        == GoldSrcNetchanQueueResult::kQueued);
+    assert(!fragmented_state.reliable_pending());
+    assert(fragmented_state.fragment_sender().active());
+    assert(fragmented_state.next_datagram_will_include_reliable());
+    assert(
+        fragmented_state.QueueReliablePayload(second.data(), second.size())
+        == GoldSrcNetchanQueueResult::kReliableAlreadyPending);
 
     assert(
         state.QueueReliablePayload(original.data(), original.size())
@@ -1561,7 +1578,7 @@ void TestForgedAckAndCodecRejectionsPreserveReliableState()
             GoldSrcNetchanDirection::kClientToServer,
             fragment.data(),
             fragment.size()).status
-        == GoldSrcNetchanCodecStatus::kUnsupportedFragment);
+        == GoldSrcNetchanCodecStatus::kMalformedFragment);
     state.RecordRejected(GoldSrcNetchanProcessResult::kUnsupportedFragment);
     AssertMutationStateEquals(before_future, state);
 

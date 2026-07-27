@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <cstring>
+#include <limits>
 
 namespace hl::network
 {
@@ -93,6 +94,8 @@ std::string_view ReasonFor(GoldSrcNetchanCodecStatus status) noexcept
         return "ok";
     case GoldSrcNetchanCodecStatus::kMalformedHeader:
         return "malformed_header";
+    case GoldSrcNetchanCodecStatus::kMalformedFragment:
+        return "malformed_fragment";
     case GoldSrcNetchanCodecStatus::kOversized:
         return "oversized_packet";
     case GoldSrcNetchanCodecStatus::kUnsupportedReservedFlags:
@@ -137,28 +140,67 @@ GoldSrcNetchanDecodeResult DecodeGoldSrcNetchanDatagram(
     result.packet.fragment_present =
         (result.packet.raw_sequence & kGoldSrcNetchanFragmentFlag) != 0u;
 
-    if (result.packet.fragment_present)
-    {
-        result.status = GoldSrcNetchanCodecStatus::kUnsupportedFragment;
-        return result;
-    }
     if ((result.packet.raw_acknowledgement & kGoldSrcNetchanFragmentFlag) != 0u)
     {
         result.status = GoldSrcNetchanCodecStatus::kUnsupportedReservedFlags;
         return result;
     }
 
-    result.packet.payload_size = size - kGoldSrcNetchanBaseHeaderBytes;
-    if (result.packet.payload_size > 0u)
+    const std::size_t transformed_payload_size =
+        size - kGoldSrcNetchanBaseHeaderBytes;
+    result.packet.payload_size = transformed_payload_size;
+    if (transformed_payload_size > 0u)
     {
         std::memcpy(
             result.packet.payload.data(),
             bytes + kGoldSrcNetchanBaseHeaderBytes,
-            result.packet.payload_size);
+            transformed_payload_size);
         UnmungeGoldSrcNetchanPayload(
             result.packet.payload.data(),
-            result.packet.payload_size,
+            transformed_payload_size,
             result.packet.sequence);
+    }
+    if (result.packet.fragment_present)
+    {
+        if (!result.packet.reliable_present)
+        {
+            result.status = GoldSrcNetchanCodecStatus::kMalformedFragment;
+            return result;
+        }
+        const GoldSrcFragmentDecodeResult fragment =
+            DecodeGoldSrcFragmentMetadata(
+                result.packet.payload.data(),
+                transformed_payload_size);
+        if (!fragment.ok()
+            || fragment.metadata.encoded_size > transformed_payload_size)
+        {
+            result.status = GoldSrcNetchanCodecStatus::kMalformedFragment;
+            return result;
+        }
+
+        result.packet.fragment_metadata = fragment.metadata;
+        result.packet.fragment_metadata_size =
+            fragment.metadata.encoded_size;
+        result.packet.payload_size =
+            transformed_payload_size - fragment.metadata.encoded_size;
+        if (ValidateGoldSrcFragmentRanges(
+                result.packet.fragment_metadata,
+                result.packet.payload_size)
+            != GoldSrcFragmentCodecStatus::kOk)
+        {
+            result.status = GoldSrcNetchanCodecStatus::kMalformedFragment;
+            return result;
+        }
+        std::memmove(
+            result.packet.payload.data(),
+            result.packet.payload.data()
+                + result.packet.fragment_metadata_size,
+            result.packet.payload_size);
+        std::fill(
+            result.packet.payload.begin()
+                + static_cast<std::ptrdiff_t>(result.packet.payload_size),
+            result.packet.payload.end(),
+            std::uint8_t{0});
     }
     result.status = GoldSrcNetchanCodecStatus::kOk;
     return result;
@@ -224,6 +266,87 @@ GoldSrcNetchanCodecStatus EncodeGoldSrcNetchanDatagram(
     MungeGoldSrcNetchanPayload(
         datagram->bytes.data() + kGoldSrcNetchanBaseHeaderBytes,
         datagram->size - kGoldSrcNetchanBaseHeaderBytes,
+        masked_sequence);
+    return GoldSrcNetchanCodecStatus::kOk;
+}
+
+GoldSrcNetchanCodecStatus EncodeGoldSrcFragmentDatagram(
+    GoldSrcNetchanDirection direction,
+    std::uint32_t sequence,
+    std::uint32_t acknowledgement,
+    bool reliable_acknowledgement,
+    const GoldSrcFragmentDescriptor& descriptor,
+    const std::uint8_t* payload,
+    std::size_t payload_size,
+    GoldSrcNetchanDatagram* datagram) noexcept
+{
+    (void)direction;
+    if (datagram == nullptr || payload == nullptr || payload_size == 0u)
+    {
+        return GoldSrcNetchanCodecStatus::kMalformedFragment;
+    }
+    if (payload_size != descriptor.payload_length
+        || descriptor.payload_offset != 0u)
+    {
+        return GoldSrcNetchanCodecStatus::kMalformedFragment;
+    }
+
+    std::array<
+        std::uint8_t,
+        kGoldSrcNormalOnlyFragmentMetadataBytes + kGoldSrcMaximumFragmentBytes>
+        encoded_payload{};
+    std::size_t metadata_size = 0u;
+    const GoldSrcFragmentCodecStatus fragment_status =
+        EncodeGoldSrcNormalFragmentMetadata(
+            descriptor,
+            encoded_payload.data(),
+            encoded_payload.size(),
+            &metadata_size);
+    if (fragment_status != GoldSrcFragmentCodecStatus::kOk)
+    {
+        return GoldSrcNetchanCodecStatus::kMalformedFragment;
+    }
+    if (payload_size > encoded_payload.size() - metadata_size)
+    {
+        return GoldSrcNetchanCodecStatus::kPayloadTooLarge;
+    }
+    const std::size_t encoded_payload_size = metadata_size + payload_size;
+    if (kGoldSrcNetchanBaseHeaderBytes + encoded_payload_size
+        > kGoldSrcNetchanMaximumRouteableBytes)
+    {
+        return GoldSrcNetchanCodecStatus::kOversized;
+    }
+    std::copy_n(
+        payload,
+        payload_size,
+        encoded_payload.begin() + static_cast<std::ptrdiff_t>(metadata_size));
+
+    *datagram = {};
+    const std::uint32_t masked_sequence =
+        sequence & kGoldSrcNetchanSequenceMask;
+    const std::uint32_t masked_acknowledgement =
+        acknowledgement & kGoldSrcNetchanSequenceMask;
+    WriteLittleEndian32(
+        datagram->bytes.data(),
+        masked_sequence
+            | kGoldSrcNetchanReliableFlag
+            | kGoldSrcNetchanFragmentFlag);
+    WriteLittleEndian32(
+        datagram->bytes.data() + 4u,
+        masked_acknowledgement
+            | (reliable_acknowledgement
+                    ? kGoldSrcNetchanReliableFlag
+                    : 0u));
+    std::copy_n(
+        encoded_payload.begin(),
+        encoded_payload_size,
+        datagram->bytes.begin()
+            + static_cast<std::ptrdiff_t>(kGoldSrcNetchanBaseHeaderBytes));
+    datagram->size =
+        kGoldSrcNetchanBaseHeaderBytes + encoded_payload_size;
+    MungeGoldSrcNetchanPayload(
+        datagram->bytes.data() + kGoldSrcNetchanBaseHeaderBytes,
+        encoded_payload_size,
         masked_sequence);
     return GoldSrcNetchanCodecStatus::kOk;
 }
@@ -423,17 +546,42 @@ GoldSrcNetchanQueueResult GoldSrcNetchanState::QueueReliablePayload(
     {
         return GoldSrcNetchanQueueResult::kEmptyPayload;
     }
-    if (size > pending_reliable_.size())
+    if (size > kGoldSrcMaximumFragmentTransferBytes)
     {
         return GoldSrcNetchanQueueResult::kPayloadTooLarge;
     }
-    if (pending_reliable_size_ != 0u)
+    if (pending_reliable_size_ != 0u || fragment_sender_.active())
     {
         return GoldSrcNetchanQueueResult::kReliableAlreadyPending;
     }
     if (kind == GoldSrcNetchanReliablePayloadKind::kNone)
     {
         return GoldSrcNetchanQueueResult::kInvalidPayloadKind;
+    }
+    if (size > pending_reliable_.size())
+    {
+        if (fragment_transfer_generation_
+            == std::numeric_limits<std::uint64_t>::max())
+        {
+            return GoldSrcNetchanQueueResult::kPayloadTooLarge;
+        }
+        const std::uint64_t next_generation =
+            fragment_transfer_generation_ + 1u;
+        const GoldSrcFragmentPlanResult plan = fragment_sender_.Plan(
+            bytes,
+            size,
+            next_generation,
+            Clock::now());
+        if (plan != GoldSrcFragmentPlanResult::kPlanned)
+        {
+            return plan == GoldSrcFragmentPlanResult::kTransferBusy
+                ? GoldSrcNetchanQueueResult::kReliableAlreadyPending
+                : GoldSrcNetchanQueueResult::kPayloadTooLarge;
+        }
+        fragment_transfer_generation_ = next_generation;
+        fragment_reliable_kind_ = kind;
+        ++diagnostics_.reliable_queued;
+        return GoldSrcNetchanQueueResult::kQueued;
     }
 
     std::memcpy(pending_reliable_.data(), bytes, size);
@@ -458,6 +606,13 @@ bool GoldSrcNetchanState::BuildOutgoingDatagram(
         return false;
     }
 
+    if (pending_reliable_size_ == 0u
+        && fragment_sender_.needs_fragment_staging()
+        && !StageNextFragment())
+    {
+        return false;
+    }
+
     const bool resend_reliable = pending_reliable_size_ != 0u
         && pending_has_been_sent_
         && AcknowledgementIdentifiesSentSequence(
@@ -475,16 +630,30 @@ bool GoldSrcNetchanState::BuildOutgoingDatagram(
         ? pending_reliable_size_
         : 0u;
     const std::uint32_t sequence = outgoing_sequence_;
-    const GoldSrcNetchanCodecStatus status = EncodeGoldSrcNetchanDatagram(
-        GoldSrcNetchanDirection::kServerToClient,
-        sequence,
-        incoming_sequence_,
-        send_reliable,
-        incoming_reliable_sequence_,
-        payload,
-        payload_size,
-        true,
-        datagram);
+    const bool fragment_reliable = send_reliable
+        && fragment_sender_.active()
+        && fragment_sender_.current_fragment() != nullptr
+        && pending_reliable_kind_ == fragment_reliable_kind_;
+    const GoldSrcNetchanCodecStatus status = fragment_reliable
+        ? EncodeGoldSrcFragmentDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            sequence,
+            incoming_sequence_,
+            incoming_reliable_sequence_,
+            fragment_sender_.current_fragment()->descriptor,
+            payload,
+            payload_size,
+            datagram)
+        : EncodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            sequence,
+            incoming_sequence_,
+            send_reliable,
+            incoming_reliable_sequence_,
+            payload,
+            payload_size,
+            true,
+            datagram);
     if (status != GoldSrcNetchanCodecStatus::kOk)
     {
         return false;
@@ -497,6 +666,7 @@ bool GoldSrcNetchanState::BuildOutgoingDatagram(
 
     if (send_reliable)
     {
+        const bool retransmission = pending_has_been_sent_;
         if (pending_has_been_sent_)
         {
             ++diagnostics_.reliable_resent;
@@ -507,6 +677,15 @@ bool GoldSrcNetchanState::BuildOutgoingDatagram(
         }
         pending_has_been_sent_ = true;
         last_reliable_sequence_ = sequence;
+        if (fragment_reliable
+            && !fragment_sender_.RecordSent(
+                sequence,
+                local_reliable_sequence_,
+                retransmission,
+                Clock::now()))
+        {
+            return false;
+        }
     }
     return true;
 }
@@ -541,6 +720,10 @@ GoldSrcNetchanState::ProcessIncomingDatagramDetailed(
     if (packet.payload_size > packet.payload.size())
     {
         return reject(GoldSrcNetchanProcessResult::kPayloadDecodeFailed);
+    }
+    if (packet.fragment_present)
+    {
+        return reject(GoldSrcNetchanProcessResult::kUnsupportedFragment);
     }
     if (!PayloadIsSupported(packet))
     {
@@ -602,6 +785,9 @@ GoldSrcNetchanState::ProcessIncomingDatagramDetailed(
         {
             const GoldSrcNetchanReliablePayloadKind acknowledged_kind =
                 pending_reliable_kind_;
+            const bool fragment_acknowledgement =
+                fragment_sender_.awaiting_acknowledgement()
+                && acknowledged_kind == fragment_reliable_kind_;
             std::fill(
                 pending_reliable_.begin(),
                 pending_reliable_.end(),
@@ -611,12 +797,36 @@ GoldSrcNetchanState::ProcessIncomingDatagramDetailed(
                 GoldSrcNetchanReliablePayloadKind::kNone;
             pending_has_been_sent_ = false;
             ++diagnostics_.reliable_acked;
-            last_acknowledged_reliable_kind_ = acknowledged_kind;
-            ++reliable_acknowledgement_generation_;
-            outcome.acknowledged_reliable_kind = acknowledged_kind;
-            outcome.reliable_acknowledgement_generation =
-                reliable_acknowledgement_generation_;
-            if (acknowledged_kind
+            if (fragment_acknowledgement)
+            {
+                if (!fragment_sender_.AcknowledgeCurrent(now))
+                {
+                    fragment_sender_.Fail();
+                    fragment_reliable_kind_ =
+                        GoldSrcNetchanReliablePayloadKind::kNone;
+                }
+                else if (fragment_sender_.phase()
+                    == GoldSrcFragmentTransferPhase::kCompleted)
+                {
+                    last_acknowledged_reliable_kind_ = acknowledged_kind;
+                    fragment_reliable_kind_ =
+                        GoldSrcNetchanReliablePayloadKind::kNone;
+                    ++reliable_acknowledgement_generation_;
+                    outcome.acknowledged_reliable_kind = acknowledged_kind;
+                    outcome.reliable_acknowledgement_generation =
+                        reliable_acknowledgement_generation_;
+                }
+            }
+            else
+            {
+                last_acknowledged_reliable_kind_ = acknowledged_kind;
+                ++reliable_acknowledgement_generation_;
+                outcome.acknowledged_reliable_kind = acknowledged_kind;
+                outcome.reliable_acknowledgement_generation =
+                    reliable_acknowledgement_generation_;
+            }
+            if (!fragment_acknowledgement
+                && acknowledged_kind
                     == GoldSrcNetchanReliablePayloadKind::kTransportBootstrap
                 && transport_phase_
                     == GoldSrcNetchanTransportPhase::kAwaitingFirstReliableAck)
@@ -687,6 +897,26 @@ void GoldSrcNetchanState::SetIncomingPayloadPolicy(
     incoming_payload_policy_ = policy;
 }
 
+bool GoldSrcNetchanState::ExpireFragmentTransfer(TimePoint now) noexcept
+{
+    if (!fragment_sender_.Expire(
+            now,
+            std::chrono::duration_cast<std::chrono::milliseconds>(
+                kGoldSrcFragmentTransferTimeout)))
+    {
+        return false;
+    }
+    std::fill(
+        pending_reliable_.begin(),
+        pending_reliable_.end(),
+        std::uint8_t{0});
+    pending_reliable_size_ = 0u;
+    pending_reliable_kind_ = GoldSrcNetchanReliablePayloadKind::kNone;
+    fragment_reliable_kind_ = GoldSrcNetchanReliablePayloadKind::kNone;
+    pending_has_been_sent_ = false;
+    return true;
+}
+
 bool GoldSrcNetchanState::initialized() const noexcept
 {
     return initialized_;
@@ -754,6 +984,24 @@ bool GoldSrcNetchanState::reliable_pending() const noexcept
     return pending_reliable_size_ != 0u;
 }
 
+bool GoldSrcNetchanState::next_datagram_will_include_reliable() const noexcept
+{
+    if (fragment_sender_.needs_fragment_staging())
+    {
+        return true;
+    }
+    const bool resend_reliable = pending_reliable_size_ != 0u
+        && pending_has_been_sent_
+        && AcknowledgementIdentifiesSentSequence(
+            highest_accepted_acknowledgement_)
+        && IsGoldSrcNetchanSequenceNewer(
+            highest_accepted_acknowledgement_,
+            last_reliable_sequence_)
+        && incoming_reliable_acknowledgement_ != local_reliable_sequence_;
+    return pending_reliable_size_ != 0u
+        && (!pending_has_been_sent_ || resend_reliable);
+}
+
 std::size_t GoldSrcNetchanState::reliable_pending_bytes() const noexcept
 {
     return pending_reliable_size_;
@@ -767,7 +1015,9 @@ const std::uint8_t* GoldSrcNetchanState::reliable_payload_data() const noexcept
 GoldSrcNetchanReliablePayloadKind
 GoldSrcNetchanState::pending_reliable_kind() const noexcept
 {
-    return pending_reliable_kind_;
+    return pending_reliable_kind_ != GoldSrcNetchanReliablePayloadKind::kNone
+        ? pending_reliable_kind_
+        : fragment_reliable_kind_;
 }
 
 GoldSrcNetchanReliablePayloadKind
@@ -811,6 +1061,12 @@ GoldSrcNetchanState::diagnostics() const noexcept
     return diagnostics_;
 }
 
+const GoldSrcFragmentSender&
+GoldSrcNetchanState::fragment_sender() const noexcept
+{
+    return fragment_sender_;
+}
+
 bool GoldSrcNetchanState::AcknowledgementWasSent(
     std::uint32_t acknowledgement) const noexcept
 {
@@ -848,6 +1104,37 @@ bool GoldSrcNetchanState::PayloadIsSupported(
             return false;
         }
     }
+    return true;
+}
+
+bool GoldSrcNetchanState::StageNextFragment() noexcept
+{
+    const GoldSrcFragmentPlanEntry* fragment =
+        fragment_sender_.current_fragment();
+    const std::uint8_t* data = fragment_sender_.current_fragment_data();
+    if (fragment == nullptr || data == nullptr
+        || fragment->payload_length == 0u
+        || fragment->payload_length > pending_reliable_.size()
+        || fragment_reliable_kind_
+            == GoldSrcNetchanReliablePayloadKind::kNone)
+    {
+        fragment_sender_.Fail();
+        fragment_reliable_kind_ =
+            GoldSrcNetchanReliablePayloadKind::kNone;
+        return false;
+    }
+    std::fill(
+        pending_reliable_.begin(),
+        pending_reliable_.end(),
+        std::uint8_t{0});
+    std::copy_n(
+        data,
+        fragment->payload_length,
+        pending_reliable_.begin());
+    pending_reliable_size_ = fragment->payload_length;
+    pending_reliable_kind_ = fragment_reliable_kind_;
+    pending_has_been_sent_ = false;
+    local_reliable_sequence_ = !local_reliable_sequence_;
     return true;
 }
 

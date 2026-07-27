@@ -6789,6 +6789,16 @@ struct GoldSrcUdpHandshakeSummary
     int resource_manifest_send_count = 0;
     bool resource_manifest_retransmitted = false;
     bool duplicate_resource_request_suppressed = false;
+    bool fragment_transfer_started = false;
+    bool fragment_transfer_completed = false;
+    bool fragment_transfer_active = false;
+    std::string fragment_transfer_phase = "none";
+    int fragment_count = 0;
+    int fragment_send_count = 0;
+    int fragment_resend_count = 0;
+    int fragment_acknowledged_count = 0;
+    int fragment_transfer_expired = 0;
+    bool payload_too_large = false;
     bool requires_fragmentation_reported = false;
     bool oversized_manifest_not_truncated = false;
     std::string signon_phase = "none";

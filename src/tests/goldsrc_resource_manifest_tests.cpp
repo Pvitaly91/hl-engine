@@ -1,4 +1,5 @@
 #include "network/goldsrc_resource_manifest.h"
+#include "network/goldsrc_netchan.h"
 
 #ifdef NDEBUG
 #undef NDEBUG
@@ -123,7 +124,7 @@ void TestProtocolConstantsAndStableReasons()
     static_assert(kGoldSrcResourceListOpcode == 43u);
     static_assert(kGoldSrcResourceRequestOpcode == 45u);
     static_assert(kGoldSrcMaximumResourceCount == 1280u);
-    static_assert(kGoldSrcMaximumResourceManifestBytes == 1200u);
+    static_assert(kGoldSrcMaximumResourceManifestBytes == 65536u);
 
     assert(ReasonFor(GoldSrcResourceManifestStatus::kOk) == "ok");
     assert(
@@ -541,10 +542,17 @@ void TestCountCapacityFragmentationAndZeroInitialization()
          at_count_limit.entries.size() < kGoldSrcMaximumResourceCount;
          ++index)
     {
+        const std::string suffix = std::to_string(index);
         at_count_limit.entries.push_back(Resource(
             GoldSrcResourceType::kGeneric,
             static_cast<std::uint16_t>(index),
-            "g/" + std::to_string(index)));
+            "generic/"
+                + std::string(
+                    kGoldSrcMaximumResourcePathBytes
+                        - std::string("generic/").size()
+                        - suffix.size(),
+                    'x')
+                + suffix));
     }
     const GoldSrcResourceManifestValidationResult at_limit =
         ValidateGoldSrcResourceManifest(at_count_limit);
@@ -572,7 +580,9 @@ void TestCountCapacityFragmentationAndZeroInitialization()
             "g/" + std::to_string(index)));
         const GoldSrcResourceManifestValidationResult validation =
             ValidateGoldSrcResourceManifest(candidate);
-        if (validation.status == GoldSrcResourceManifestStatus::kRequiresFragmentation)
+        if (validation.ok()
+            && validation.encoded_size
+                > kGoldSrcNetchanMaximumReliableBytes)
         {
             first_fragmenting = std::move(candidate);
             break;
@@ -585,11 +595,17 @@ void TestCountCapacityFragmentationAndZeroInitialization()
     const GoldSrcResourceManifestEncodeResult maximum_encoded =
         EncodeGoldSrcResourceManifest(maximum_fitting);
     assert(maximum_encoded.ok());
-    assert(maximum_encoded.payload.size <= kGoldSrcMaximumResourceManifestBytes);
+    assert(
+        maximum_encoded.payload.size
+        <= kGoldSrcNetchanMaximumReliableBytes);
     AssertUnusedBytesAreZero(maximum_encoded.payload);
     assert(
-        EncodeGoldSrcResourceManifest(first_fragmenting).status
-        == GoldSrcResourceManifestStatus::kRequiresFragmentation);
+        EncodeGoldSrcResourceManifest(first_fragmenting).ok());
+    assert(
+        EncodeGoldSrcResourceManifest(
+            first_fragmenting,
+            kGoldSrcNetchanMaximumReliableBytes).status
+        == GoldSrcResourceManifestStatus::kOutputCapacityExceeded);
 
     assert(maximum_encoded.payload.size > 0u);
     const GoldSrcResourceManifestEncodeResult too_small =

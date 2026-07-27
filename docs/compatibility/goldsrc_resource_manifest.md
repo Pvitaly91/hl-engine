@@ -9,11 +9,13 @@ established one authoritative connected session, delivered the reliable
 client `new` command exactly once, sent bounded serverinfo, and correlated its
 reliable acknowledgement.
 
-The slice accepts only the reference-observed next client request, builds one
-bounded resource/precache manifest from authoritative host state, and sends it
-through the existing single-payload reliable netchan. It stops when the
-netchan acknowledgement covering that manifest is accepted. The client is not
-put in the game, spawned, or made active.
+The slice accepts only the reference-observed next client request and builds
+one bounded resource/precache manifest from authoritative host state. Prompt
+237 extends its transport so a response above the ordinary reliable limit may
+use protocol-compatible normal-stream fragments; the manifest model and
+signon contract remain unchanged. See
+`docs/compatibility/goldsrc_netchan_fragmentation.md` for the exact wire,
+sender, reassembly, ACK, timeout, and reset contract.
 
 This is an independently implemented compatibility slice. It is not a claim
 of complete HLDS compatibility. The automated acceptance client is a separate
@@ -199,19 +201,20 @@ Normalization does not change a resource's authoritative index or category.
 - Download-size metadata is limited to 0 through 16,777,215 bytes.
 - The protocol count field is 12 bits; this implementation applies the
   stricter compatibility cap of 1280 entries.
-- The complete companion-plus-manifest reliable payload must fit the existing
-  1200-byte reliable capacity.
+- The complete companion-plus-manifest reliable payload is limited to 65536
+  bytes. Responses through 1200 bytes keep the ordinary reliable path;
+  responses above 1200 use the bounded fragmentation slice.
 - Every scalar and bit field is written explicitly. No native structure memory
   is serialized, no output byte is left uninitialized, and final padding is
   deterministic.
 
 Validation and capacity checks are atomic. If the semantic list is legal but
-cannot fit the current non-fragmented reliable capacity, the encoder returns
-the typed `requires_fragmentation` result. It emits no partial manifest,
-queues no reliable payload, leaves the signon phase consistent, and does not
-increment the generation counter. That typed preparation outcome is cached for
-the session, so a repeated reliable request reuses it without rebuilding or
-changing signon state. Fragmentation is not added by this task.
+the complete companion-plus-list exceeds the verified 65536-byte transfer
+bound, preparation returns a typed oversized result. It emits no partial
+manifest or fragment, queues no reliable payload, leaves signon consistent,
+and does not increment the generation counter. The outcome is cached for the
+session. A response that exceeds only the 1200-byte ordinary capacity is now
+frozen and passed to the transport-generic fragment sender.
 
 ## Reliable ACK correlation and retransmission
 
@@ -264,9 +267,9 @@ does not prove that an unmodified Steam Half-Life client accepts the manifest.
 
 ## Limitations and non-goals
 
-- Only one authoritative external session and one pending server reliable
-  payload are supported.
-- Fragment creation/reassembly and multiple simultaneous reliable payloads are
+- Only one authoritative external session and one pending server reliable or
+  fragment transfer are supported.
+- Multiple simultaneous fragment streams or application reliable payloads are
   not implemented.
 - Client resource uploads, custom spray propagation, resource downloads,
   FastDL, and consistency enforcement are not implemented.

@@ -1,5 +1,38 @@
 # hl-engine
 
+## GoldSrc reliable fragmentation validation
+
+The opt-in protocol-48 signon supports one bounded server-to-client normal
+fragment transfer for a large resource manifest. The compatibility contract is
+documented in
+`docs/compatibility/goldsrc_netchan_fragmentation.md`.
+
+Build and run the platform-independent codec, planner, reassembly, and session
+target:
+
+```powershell
+cmake --build out/build/vs2022-win32-reference-sdk `
+  --config Release --target goldsrc_fragmentation_unit_tests
+```
+
+Run the external localhost proofs against a built Win32 host and legally
+available local `valve` fixture:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts/run_goldsrc_fragmented_manifest_proof.ps1 `
+  -ExecutablePath out/build/vs2022-win32-reference-sdk/Release/hlhost.exe `
+  -GameDir out/runtime/valve-fixture -SkipServerOutput
+
+powershell -NoProfile -ExecutionPolicy Bypass `
+  -File scripts/run_goldsrc_fragmented_manifest_proof.ps1 `
+  -ExecutablePath out/build/vs2022-win32-reference-sdk/Release/hlhost.exe `
+  -GameDir out/runtime/valve-fixture -NegativeProof -SkipServerOutput
+```
+
+Both proof modes enforce `127.0.0.1`, use an external UDP socket, check process
+cleanup, and reject repository mutation.
+
 ## Changelevel Policy Regressions
 
 Run the accepted changelevel regression pair with one command:

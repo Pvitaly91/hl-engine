@@ -1,5 +1,6 @@
 #pragma once
 
+#include "network/goldsrc_fragmentation.h"
 #include "network/ipv4_endpoint.h"
 
 #include <array>
@@ -17,6 +18,16 @@ inline constexpr std::size_t kGoldSrcNetchanMaximumRouteableBytes = 1400;
 inline constexpr std::size_t kGoldSrcNetchanMaximumPayloadBytes =
     kGoldSrcNetchanMaximumRouteableBytes - kGoldSrcNetchanBaseHeaderBytes;
 inline constexpr std::size_t kGoldSrcNetchanMaximumReliableBytes = 1200;
+inline constexpr std::size_t kGoldSrcNetchanFragmentPayloadCapacity =
+    (kGoldSrcNetchanMaximumPayloadBytes
+            - kGoldSrcNormalOnlyFragmentMetadataBytes)
+        < kGoldSrcMaximumFragmentBytes
+    ? (kGoldSrcNetchanMaximumPayloadBytes
+        - kGoldSrcNormalOnlyFragmentMetadataBytes)
+    : kGoldSrcMaximumFragmentBytes;
+static_assert(
+    kGoldSrcNetchanFragmentPayloadCapacity
+    == kGoldSrcMaximumFragmentBytes);
 inline constexpr std::uint32_t kGoldSrcNetchanSequenceMask = 0x3FFFFFFFu;
 inline constexpr std::uint32_t kGoldSrcNetchanFragmentFlag = 0x40000000u;
 inline constexpr std::uint32_t kGoldSrcNetchanReliableFlag = 0x80000000u;
@@ -33,6 +44,7 @@ enum class GoldSrcNetchanCodecStatus
 {
     kOk,
     kMalformedHeader,
+    kMalformedFragment,
     kOversized,
     kUnsupportedReservedFlags,
     kUnsupportedFragment,
@@ -50,6 +62,8 @@ struct GoldSrcNetchanPacket final
     bool reliable_present = false;
     bool reliable_acknowledgement = false;
     bool fragment_present = false;
+    GoldSrcFragmentMetadata fragment_metadata;
+    std::size_t fragment_metadata_size = 0;
     std::array<std::uint8_t, kGoldSrcNetchanMaximumPayloadBytes> payload{};
     std::size_t payload_size = 0;
 };
@@ -85,6 +99,16 @@ GoldSrcNetchanCodecStatus EncodeGoldSrcNetchanDatagram(
     const std::uint8_t* payload,
     std::size_t payload_size,
     bool pad_to_minimum,
+    GoldSrcNetchanDatagram* datagram) noexcept;
+
+GoldSrcNetchanCodecStatus EncodeGoldSrcFragmentDatagram(
+    GoldSrcNetchanDirection direction,
+    std::uint32_t sequence,
+    std::uint32_t acknowledgement,
+    bool reliable_acknowledgement,
+    const GoldSrcFragmentDescriptor& descriptor,
+    const std::uint8_t* payload,
+    std::size_t payload_size,
     GoldSrcNetchanDatagram* datagram) noexcept;
 
 // GoldSrc protocol 48 transforms only complete four-byte groups after the
@@ -237,6 +261,7 @@ public:
     void RecordRejected(GoldSrcNetchanProcessResult result) noexcept;
     void SetIncomingPayloadPolicy(
         GoldSrcNetchanIncomingPayloadPolicy policy) noexcept;
+    bool ExpireFragmentTransfer(TimePoint now) noexcept;
 
     bool initialized() const noexcept;
     const Ipv4Endpoint& remote_endpoint() const noexcept;
@@ -251,6 +276,7 @@ public:
     bool incoming_reliable_sequence() const noexcept;
     bool incoming_reliable_acknowledgement() const noexcept;
     bool reliable_pending() const noexcept;
+    bool next_datagram_will_include_reliable() const noexcept;
     std::size_t reliable_pending_bytes() const noexcept;
     const std::uint8_t* reliable_payload_data() const noexcept;
     GoldSrcNetchanReliablePayloadKind pending_reliable_kind() const noexcept;
@@ -262,12 +288,14 @@ public:
     TimePoint last_accepted_at() const noexcept;
     GoldSrcNetchanTransportPhase transport_phase() const noexcept;
     const GoldSrcNetchanDiagnostics& diagnostics() const noexcept;
+    const GoldSrcFragmentSender& fragment_sender() const noexcept;
 
 private:
     bool AcknowledgementWasSent(std::uint32_t acknowledgement) const noexcept;
     bool AcknowledgementIdentifiesSentSequence(
         std::uint32_t acknowledgement) const noexcept;
     bool PayloadIsSupported(const GoldSrcNetchanPacket& packet) const noexcept;
+    bool StageNextFragment() noexcept;
 
     bool initialized_ = false;
     Ipv4Endpoint remote_endpoint_{};
@@ -287,6 +315,10 @@ private:
     std::size_t pending_reliable_size_ = 0;
     GoldSrcNetchanReliablePayloadKind pending_reliable_kind_ =
         GoldSrcNetchanReliablePayloadKind::kNone;
+    GoldSrcFragmentSender fragment_sender_;
+    GoldSrcNetchanReliablePayloadKind fragment_reliable_kind_ =
+        GoldSrcNetchanReliablePayloadKind::kNone;
+    std::uint64_t fragment_transfer_generation_ = 0u;
     GoldSrcNetchanReliablePayloadKind last_acknowledged_reliable_kind_ =
         GoldSrcNetchanReliablePayloadKind::kNone;
     std::uint64_t reliable_acknowledgement_generation_ = 0;
