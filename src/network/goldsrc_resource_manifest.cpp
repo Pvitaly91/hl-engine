@@ -1,5 +1,7 @@
 #include "network/goldsrc_resource_manifest.h"
 
+#include "network/goldsrc_bitstream.h"
+
 #include <algorithm>
 #include <set>
 #include <utility>
@@ -222,113 +224,8 @@ GoldSrcResourceManifestStatus PrepareManifest(
     return GoldSrcResourceManifestStatus::kOk;
 }
 
-class BitWriter final
-{
-public:
-    BitWriter(std::uint8_t* bytes, std::size_t capacity) noexcept
-        : bytes_(bytes), capacity_bits_(capacity * 8u)
-    {
-    }
-
-    bool WriteBits(std::uint32_t value, std::size_t count) noexcept
-    {
-        if (bytes_ == nullptr || count > capacity_bits_ - bit_position_)
-        {
-            return false;
-        }
-        for (std::size_t bit = 0; bit < count; ++bit)
-        {
-            if ((value & (1u << bit)) != 0u)
-            {
-                bytes_[bit_position_ / 8u] |= static_cast<std::uint8_t>(
-                    1u << (bit_position_ % 8u));
-            }
-            ++bit_position_;
-        }
-        return true;
-    }
-
-    bool WriteBytes(const std::uint8_t* bytes, std::size_t size) noexcept
-    {
-        if (bytes == nullptr && size != 0u)
-        {
-            return false;
-        }
-        for (std::size_t index = 0; index < size; ++index)
-        {
-            if (!WriteBits(bytes[index], 8u))
-            {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    bool WriteString(std::string_view value) noexcept
-    {
-        for (const char character : value)
-        {
-            if (!WriteBits(static_cast<std::uint8_t>(character), 8u))
-            {
-                return false;
-            }
-        }
-        return WriteBits(0u, 8u);
-    }
-
-    std::size_t bit_position() const noexcept
-    {
-        return bit_position_;
-    }
-
-private:
-    std::uint8_t* bytes_ = nullptr;
-    std::size_t capacity_bits_ = 0;
-    std::size_t bit_position_ = 0;
-};
-
-class BitReader final
-{
-public:
-    BitReader(const std::uint8_t* bytes, std::size_t size) noexcept
-        : bytes_(bytes), size_bits_(size * 8u)
-    {
-    }
-
-    bool ReadBits(std::size_t count, std::uint32_t* value) noexcept
-    {
-        if (value == nullptr || bytes_ == nullptr
-            || count > size_bits_ - bit_position_)
-        {
-            return false;
-        }
-        std::uint32_t output = 0;
-        for (std::size_t bit = 0; bit < count; ++bit)
-        {
-            const std::uint8_t source = bytes_[bit_position_ / 8u];
-            if ((source & (1u << (bit_position_ % 8u))) != 0u)
-            {
-                output |= 1u << bit;
-            }
-            ++bit_position_;
-        }
-        *value = output;
-        return true;
-    }
-
-    std::size_t bit_position() const noexcept
-    {
-        return bit_position_;
-    }
-
-private:
-    const std::uint8_t* bytes_ = nullptr;
-    std::size_t size_bits_ = 0;
-    std::size_t bit_position_ = 0;
-};
-
 GoldSrcResourceManifestStatus ReadProtocolPath(
-    BitReader* reader,
+    GoldSrcBitReader* reader,
     std::string* output) noexcept
 {
     if (reader == nullptr || output == nullptr)
@@ -630,7 +527,7 @@ GoldSrcResourceManifestEncodeResult EncodeGoldSrcResourceManifest(
     const std::size_t bounded_capacity = std::min(
         output_capacity,
         result.payload.bytes.size());
-    BitWriter writer(result.payload.bytes.data(), bounded_capacity);
+    GoldSrcBitWriter writer(result.payload.bytes.data(), bounded_capacity);
     bool wrote = writer.WriteBits(kGoldSrcResourceListOpcode, 8u)
         && writer.WriteBits(
             static_cast<std::uint32_t>(prepared.entries.size()),
@@ -753,7 +650,7 @@ GoldSrcResourceManifestDecodeResult DecodeGoldSrcResourceManifest(
         return result;
     }
 
-    BitReader reader(bytes, size);
+    GoldSrcBitReader reader(bytes, size);
     std::uint32_t value = 0;
     if (!reader.ReadBits(8u, &value))
     {

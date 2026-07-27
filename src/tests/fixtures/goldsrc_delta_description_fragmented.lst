@@ -1,0 +1,86 @@
+// Bounded synthetic fragmentation fixture. Field names come only from public
+// HLSDK declarations; values are intentionally synthetic and do not reproduce
+// an installed game's complete delta.lst.
+
+event_t none {
+    DEFINE_DELTA(entindex, DT_INTEGER | DT_SIGNED, 11, 1.0)
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(angles[0], DT_ANGLE, 16, 1.0)
+}
+
+weapon_data_t none {
+    DEFINE_DELTA(m_iId, DT_INTEGER, 6, 1.0)
+    DEFINE_DELTA(m_iClip, DT_INTEGER | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(m_flNextPrimaryAttack, DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+usercmd_t none {
+    DEFINE_DELTA(lerp_msec, DT_SHORT, 9, 1.0)
+    DEFINE_DELTA(msec, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(viewangles[1], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(viewangles[0], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(buttons, DT_SHORT, 16, 1.0)
+    DEFINE_DELTA(forwardmove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(lightlevel, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(sidemove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(upmove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(impulse, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(viewangles[2], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(impact_index, DT_INTEGER, 6, 1.0)
+    DEFINE_DELTA(impact_position[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(impact_position[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(impact_position[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+custom_entity_state_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_player_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_t none {
+    // The expanded public-field subset makes the combined serverinfo/delta
+    // bootstrap exceed one normal routeable reliable payload.
+    DEFINE_DELTA(animtime, DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(frame, DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(origin[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(origin[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(angles[0], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(angles[1], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(angles[2], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(sequence, DT_INTEGER, 12, 1.0)
+    DEFINE_DELTA(modelindex, DT_INTEGER, 12, 1.0)
+    DEFINE_DELTA(movetype, DT_INTEGER, 8, 1.0)
+    DEFINE_DELTA(solid, DT_INTEGER, 8, 1.0)
+    DEFINE_DELTA(mins[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(mins[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(mins[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(maxs[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(maxs[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(maxs[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(endpos[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(endpos[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(endpos[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(startpos[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(startpos[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(startpos[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(impacttime, DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(starttime, DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(weaponmodel, DT_INTEGER, 12, 1.0)
+    DEFINE_DELTA(owner, DT_INTEGER, 11, 1.0)
+    DEFINE_DELTA(effects, DT_INTEGER, 16, 1.0)
+    DEFINE_DELTA(eflags, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(colormap, DT_INTEGER, 16, 1.0)
+    DEFINE_DELTA(framerate, DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(skin, DT_SHORT | DT_SIGNED, 16, 1.0)
+    DEFINE_DELTA(controller[0], DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(controller[1], DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(controller[2], DT_BYTE, 8, 1.0)
+}
+
+clientdata_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}

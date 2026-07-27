@@ -1290,6 +1290,76 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-delta-descriptions")
+        {
+            result.options.goldsrc_udp_handshake_enabled = true;
+            result.options.goldsrc_netchan_enabled = true;
+            result.options.goldsrc_serverinfo_enabled = true;
+            result.options.goldsrc_delta_descriptions_enabled = true;
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_delta_descriptions_prefix =
+            L"--goldsrc-delta-descriptions=";
+        if (StartsWith(argument, goldsrc_delta_descriptions_prefix))
+        {
+            if (!ParseBoolValue(
+                    argument.substr(goldsrc_delta_descriptions_prefix.size()),
+                    &result.options.goldsrc_delta_descriptions_enabled,
+                    &result.error_message,
+                    L"--goldsrc-delta-descriptions"))
+            {
+                return result;
+            }
+            continue;
+        }
+
+        if (argument == L"--goldsrc-delta-descriptions-negative-proof")
+        {
+            result.options.goldsrc_udp_handshake_enabled = true;
+            result.options.goldsrc_netchan_enabled = true;
+            result.options.goldsrc_serverinfo_enabled = true;
+            result.options.goldsrc_delta_descriptions_enabled = true;
+            result.options.goldsrc_delta_descriptions_negative_proof = true;
+            continue;
+        }
+
+        if (argument == L"--goldsrc-delta-descriptions-fixture")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --goldsrc-delta-descriptions-fixture.";
+                return result;
+            }
+            const std::filesystem::path fixture_path(argv[++index]);
+            if (fixture_path.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-delta-descriptions-fixture.";
+                return result;
+            }
+            result.options.goldsrc_delta_descriptions_fixture = fixture_path;
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_delta_descriptions_fixture_prefix =
+            L"--goldsrc-delta-descriptions-fixture=";
+        if (StartsWith(argument, goldsrc_delta_descriptions_fixture_prefix))
+        {
+            const std::wstring_view value = argument.substr(
+                goldsrc_delta_descriptions_fixture_prefix.size());
+            if (value.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-delta-descriptions-fixture.";
+                return result;
+            }
+            result.options.goldsrc_delta_descriptions_fixture =
+                std::filesystem::path(value);
+            continue;
+        }
+
         if (argument == L"--goldsrc-resource-manifest")
         {
             result.options.goldsrc_udp_handshake_enabled = true;
@@ -19963,6 +20033,18 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options.goldsrc_serverinfo_enabled = true;
     }
+    if (result.options.goldsrc_delta_descriptions_fixture.has_value())
+    {
+        result.options.goldsrc_delta_descriptions_enabled = true;
+    }
+    if (result.options.goldsrc_delta_descriptions_negative_proof)
+    {
+        result.options.goldsrc_delta_descriptions_enabled = true;
+    }
+    if (result.options.goldsrc_delta_descriptions_enabled)
+    {
+        result.options.goldsrc_serverinfo_enabled = true;
+    }
     if (result.options.goldsrc_serverinfo_negative_proof)
     {
         result.options.goldsrc_serverinfo_enabled = true;
@@ -19995,7 +20077,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
     return L"Usage:\n"
            L"  "
            + executable_name
-           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--goldsrc-handshake] [--goldsrc-netchan] [--goldsrc-netchan-negative-proof] [--goldsrc-serverinfo] [--goldsrc-serverinfo-negative-proof] [--goldsrc-resource-manifest] [--goldsrc-resource-manifest-negative-proof] [--goldsrc-resource-manifest-fixture <path>] [--ip <IPv4>] [--port <1..65535>] [--goldsrc-handshake-timeout-ms <100..300000>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--activation-surface] [--activation-probe] [--activation-probe-scenario <happy|gate>] [--bootstrap-surface] [--bootstrap-probe] [--bootstrap-probe-scenario <happy|gate>] [--bootstrap-sequence-surface] [--bootstrap-sequence-probe] [--bootstrap-sequence-probe-scenario <happy|gate>] [--signon-catalog-surface] [--signon-catalog-probe] [--signon-catalog-probe-scenario <happy|gate>] [--signon-template-surface] [--signon-template-probe] [--signon-template-probe-scenario <happy|gate>] [--signon-template-completion-surface] [--signon-template-completion-probe] [--signon-template-completion-probe-scenario <happy|gate>] [--signon-envelope-surface] [--signon-envelope-probe] [--signon-envelope-probe-scenario <happy|gate>] [--signon-batch-surface] [--signon-batch-probe] [--signon-batch-probe-scenario <happy|gate>] [--signon-wiremap-surface] [--signon-wiremap-probe] [--signon-wiremap-probe-scenario <happy|gate>] [--signon-burst-surface] [--signon-burst-probe] [--signon-burst-probe-scenario <happy|gate>] [--signon-stream-surface] [--signon-stream-probe] [--signon-stream-probe-scenario <happy|gate>] [--signon-stream-window-surface] [--signon-stream-window-probe] [--signon-stream-window-probe-scenario <happy|gate>] [--signon-message-catalog-surface] [--signon-message-catalog-probe] [--signon-message-catalog-probe-scenario <happy|gate>] [--signon-message-fetch-surface] [--signon-message-fetch-probe] [--signon-message-fetch-probe-scenario <happy|gate>] [--signon-multi-message-fetch-surface] [--signon-multi-message-fetch-probe] [--signon-multi-message-fetch-probe-scenario <happy|gate>] [--signon-message-range-fetch-surface] [--signon-message-range-fetch-probe] [--signon-message-range-fetch-probe-scenario <happy|gate>] [--signon-message-cursor-surface] [--signon-message-cursor-probe] [--signon-message-cursor-probe-scenario <happy|gate>] [--signon-message-cursor-advance-surface] [--signon-message-cursor-advance-probe] [--signon-message-cursor-advance-probe-scenario <happy|gate>] [--signon-message-cursor-eof-surface] [--signon-message-cursor-eof-probe] [--signon-message-cursor-eof-probe-scenario <happy|gate>] [--signon-message-cursor-resume-denial-surface] [--signon-message-cursor-resume-denial-probe] [--signon-message-cursor-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-resume-allow-surface] [--signon-message-cursor-resume-allow-probe] [--signon-message-cursor-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carryover-surface] [--signon-message-cursor-carryover-probe] [--signon-message-cursor-carryover-probe-scenario <happy|gate>] [--signon-message-cursor-carried-range-surface] [--signon-message-cursor-carried-range-probe] [--signon-message-cursor-carried-range-probe-scenario <happy|gate>] [--signon-message-cursor-carried-eof-surface] [--signon-message-cursor-carried-eof-probe] [--signon-message-cursor-carried-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-allow-surface] [--signon-message-cursor-carried-resume-allow-probe] [--signon-message-cursor-carried-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-surface] [--signon-message-cursor-carried-checkpoint-probe] [--signon-message-cursor-carried-checkpoint-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-allow-surface] [--signon-message-cursor-carried-checkpoint-resume-allow-probe] [--signon-message-cursor-carried-checkpoint-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-eof-surface] [--signon-message-cursor-carried-checkpoint-resume-eof-probe] [--signon-message-cursor-carried-checkpoint-resume-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resumed-denial-surface] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-advance-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-eof-surface] [--signon-message-cursor-carried-checkpoint-eof-probe] [--signon-message-cursor-carried-checkpoint-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-denial-surface] [--signon-message-cursor-carried-checkpoint-resume-denial-probe] [--signon-message-cursor-carried-checkpoint-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-denial-surface] [--signon-message-cursor-carried-resume-denial-probe] [--signon-message-cursor-carried-resume-denial-probe-scenario <happy|gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
+           + L" [--dedicated] [--gamedir <path>] [--map <name>] [--deathmatch <0|1>] [--coop <0|1>] [--maxclients <count>] [--synthetic-players <0|2>] [--goldsrc-handshake] [--goldsrc-netchan] [--goldsrc-netchan-negative-proof] [--goldsrc-serverinfo] [--goldsrc-serverinfo-negative-proof] [--goldsrc-delta-descriptions] [--goldsrc-delta-descriptions-negative-proof] [--goldsrc-delta-descriptions-fixture <path>] [--goldsrc-resource-manifest] [--goldsrc-resource-manifest-negative-proof] [--goldsrc-resource-manifest-fixture <path>] [--ip <IPv4>] [--port <1..65535>] [--goldsrc-handshake-timeout-ms <100..300000>] [--query-surface] [--query-probe] [--query-port <0..65535>] [--connect-surface] [--connect-probe] [--connect-probe-scenario <accept|capacity-gate>] [--activation-surface] [--activation-probe] [--activation-probe-scenario <happy|gate>] [--bootstrap-surface] [--bootstrap-probe] [--bootstrap-probe-scenario <happy|gate>] [--bootstrap-sequence-surface] [--bootstrap-sequence-probe] [--bootstrap-sequence-probe-scenario <happy|gate>] [--signon-catalog-surface] [--signon-catalog-probe] [--signon-catalog-probe-scenario <happy|gate>] [--signon-template-surface] [--signon-template-probe] [--signon-template-probe-scenario <happy|gate>] [--signon-template-completion-surface] [--signon-template-completion-probe] [--signon-template-completion-probe-scenario <happy|gate>] [--signon-envelope-surface] [--signon-envelope-probe] [--signon-envelope-probe-scenario <happy|gate>] [--signon-batch-surface] [--signon-batch-probe] [--signon-batch-probe-scenario <happy|gate>] [--signon-wiremap-surface] [--signon-wiremap-probe] [--signon-wiremap-probe-scenario <happy|gate>] [--signon-burst-surface] [--signon-burst-probe] [--signon-burst-probe-scenario <happy|gate>] [--signon-stream-surface] [--signon-stream-probe] [--signon-stream-probe-scenario <happy|gate>] [--signon-stream-window-surface] [--signon-stream-window-probe] [--signon-stream-window-probe-scenario <happy|gate>] [--signon-message-catalog-surface] [--signon-message-catalog-probe] [--signon-message-catalog-probe-scenario <happy|gate>] [--signon-message-fetch-surface] [--signon-message-fetch-probe] [--signon-message-fetch-probe-scenario <happy|gate>] [--signon-multi-message-fetch-surface] [--signon-multi-message-fetch-probe] [--signon-multi-message-fetch-probe-scenario <happy|gate>] [--signon-message-range-fetch-surface] [--signon-message-range-fetch-probe] [--signon-message-range-fetch-probe-scenario <happy|gate>] [--signon-message-cursor-surface] [--signon-message-cursor-probe] [--signon-message-cursor-probe-scenario <happy|gate>] [--signon-message-cursor-advance-surface] [--signon-message-cursor-advance-probe] [--signon-message-cursor-advance-probe-scenario <happy|gate>] [--signon-message-cursor-eof-surface] [--signon-message-cursor-eof-probe] [--signon-message-cursor-eof-probe-scenario <happy|gate>] [--signon-message-cursor-resume-denial-surface] [--signon-message-cursor-resume-denial-probe] [--signon-message-cursor-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-resume-allow-surface] [--signon-message-cursor-resume-allow-probe] [--signon-message-cursor-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carryover-surface] [--signon-message-cursor-carryover-probe] [--signon-message-cursor-carryover-probe-scenario <happy|gate>] [--signon-message-cursor-carried-range-surface] [--signon-message-cursor-carried-range-probe] [--signon-message-cursor-carried-range-probe-scenario <happy|gate>] [--signon-message-cursor-carried-eof-surface] [--signon-message-cursor-carried-eof-probe] [--signon-message-cursor-carried-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-allow-surface] [--signon-message-cursor-carried-resume-allow-probe] [--signon-message-cursor-carried-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-surface] [--signon-message-cursor-carried-checkpoint-probe] [--signon-message-cursor-carried-checkpoint-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-allow-surface] [--signon-message-cursor-carried-checkpoint-resume-allow-probe] [--signon-message-cursor-carried-checkpoint-resume-allow-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-eof-surface] [--signon-message-cursor-carried-checkpoint-resume-eof-probe] [--signon-message-cursor-carried-checkpoint-resume-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resumed-denial-surface] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe] [--signon-message-cursor-carried-checkpoint-resumed-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-advance-surface] [--signon-message-cursor-carried-checkpoint-advance-probe] [--signon-message-cursor-carried-checkpoint-advance-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-eof-surface] [--signon-message-cursor-carried-checkpoint-eof-probe] [--signon-message-cursor-carried-checkpoint-eof-probe-scenario <happy|gate>] [--signon-message-cursor-carried-checkpoint-resume-denial-surface] [--signon-message-cursor-carried-checkpoint-resume-denial-probe] [--signon-message-cursor-carried-checkpoint-resume-denial-probe-scenario <happy|gate>] [--signon-message-cursor-carried-resume-denial-surface] [--signon-message-cursor-carried-resume-denial-probe] [--signon-message-cursor-carried-resume-denial-probe-scenario <happy|gate>] [--regression-guard <profile>] [--run-label <label>] [--prompt-id <id>] [--frames <count>] [--frametime <seconds>] [--think-limit <count>] [--use-limit <count>] [--scheduled-use-limit <count>] [--path-arrival-epsilon <distance>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-allow-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-resume-token-probe-scenario <happy|gate>]\n"
              L"    [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-surface] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-probe] [--signon-message-cursor-carried-checkpoint-claimed-checkpoint-successor-checkpoint-resume-token-claim-probe-scenario <happy|gate>]\n"
@@ -20027,6 +20109,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --goldsrc-netchan-negative-proof  Keep the netchan alive for the bounded retransmit/negative proof\n"
              L"  --goldsrc-serverinfo          Continue through reliable client `new` and byte-verified svc_serverinfo ACK\n"
              L"  --goldsrc-serverinfo-negative-proof  Keep signon alive for bounded retransmit/invalid-command proof\n"
+             L"  --goldsrc-delta-descriptions  Add the protocol-48 canonical delta-description bundle to the serverinfo bootstrap\n"
+             L"  --goldsrc-delta-descriptions-negative-proof  Keep the delta bootstrap alive for bounded retransmit/validation proof\n"
+             L"  --goldsrc-delta-descriptions-fixture <path>  Use an explicit deterministic test-only delta definition fixture\n"
              L"  --goldsrc-resource-manifest  Continue through reliable `sendres` and bounded resource manifest ACK\n"
              L"  --goldsrc-resource-manifest-negative-proof  Keep resource signon alive for bounded retransmit/rejection proof\n"
              L"  --goldsrc-resource-manifest-fixture <path>  Use an explicit deterministic test-only resource fixture\n"

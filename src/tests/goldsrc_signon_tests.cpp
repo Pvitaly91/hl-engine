@@ -9,8 +9,10 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <filesystem>
 #include <fstream>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <system_error>
@@ -161,6 +163,42 @@ void TestStrictClientNewDecoder()
     assert(decoded_padded_send_resources.leading_nop_count == 1u);
     assert(decoded_padded_send_resources.trailing_nop_count == 1u);
     assert(decoded_padded_send_resources.companion_count == 0u);
+
+    constexpr std::array<std::uint8_t, 13> exact_disconnect = {
+        0x03u,
+        'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't', '\n',
+        0x00u,
+    };
+    const GoldSrcClientSignonDecodeResult decoded_disconnect =
+        DecodeGoldSrcClientSignonPayload(
+            exact_disconnect.data(),
+            exact_disconnect.size());
+    assert(decoded_disconnect.ok());
+    assert(
+        decoded_disconnect.command
+        == GoldSrcClientSignonCommand::kDisconnect);
+    assert(decoded_disconnect.companion_count == 0u);
+
+    constexpr std::array<std::uint8_t, 12> missing_disconnect_line_feed = {
+        0x03u,
+        'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't',
+        0x00u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            missing_disconnect_line_feed.data(),
+            missing_disconnect_line_feed.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
+    constexpr std::array<std::uint8_t, 12> invented_disconnect = {
+        0x03u,
+        'd', 'i', 's', 'c', 'o', 'n', 'n', 'e', 'c', 't',
+        0x00u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            invented_disconnect.data(),
+            invented_disconnect.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
 
     constexpr std::array<std::uint8_t, 37> observed_send_resources = {
         0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
@@ -620,6 +658,174 @@ void TestSignonStateExactOnceAndReset()
     assert(state.diagnostics().resource_manifest_queued == 0u);
     assert(state.diagnostics().resource_manifest_sent == 0u);
     assert(state.diagnostics().resource_manifest_acknowledged == 0u);
+}
+
+void TestCombinedSignonBootstrapExactOnceAndReset()
+{
+    GoldSrcSignonSessionState state;
+
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::
+                kServerInfoWithDeltaDescriptions)
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::
+                kServerInfoWithDeltaDescriptions)
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::kServerInfoOnly)
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(state.phase() == GoldSrcSignonPhase::kAwaitingNew);
+
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
+        == GoldSrcSignonCommandDisposition::kDelivered);
+    assert(state.phase() == GoldSrcSignonPhase::kSignonBootstrapQueued);
+    assert(NameFor(state.phase()) == "signon_bootstrap_queued");
+    assert(state.diagnostics().client_new_received == 1u);
+    assert(state.diagnostics().client_new_delivered == 1u);
+    assert(state.diagnostics().serverinfo_queued == 1u);
+    assert(state.diagnostics().delta_descriptions_queued == 1u);
+    assert(state.diagnostics().signon_bootstrap_queued == 1u);
+
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
+        == GoldSrcSignonCommandDisposition::kDuplicateSuppressed);
+    assert(state.phase() == GoldSrcSignonPhase::kSignonBootstrapQueued);
+    assert(state.diagnostics().client_new_received == 2u);
+    assert(state.diagnostics().client_new_delivered == 1u);
+    assert(state.diagnostics().duplicate_new_suppressed == 1u);
+    assert(state.diagnostics().serverinfo_queued == 1u);
+    assert(state.diagnostics().delta_descriptions_queued == 1u);
+    assert(state.diagnostics().signon_bootstrap_queued == 1u);
+
+    assert(
+        state.MarkServerInfoSent()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkServerInfoAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkSignonBootstrapAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(state.phase() == GoldSrcSignonPhase::kSignonBootstrapQueued);
+
+    assert(
+        state.MarkSignonBootstrapSent()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(
+        state.phase()
+        == GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck);
+    assert(NameFor(state.phase()) == "signon_bootstrap_sent_awaiting_ack");
+    assert(
+        state.MarkSignonBootstrapSent()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkServerInfoSent()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkServerInfoAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(state.diagnostics().serverinfo_sent == 1u);
+    assert(state.diagnostics().delta_descriptions_sent == 1u);
+    assert(state.diagnostics().signon_bootstrap_sent == 1u);
+
+    assert(
+        state.MarkSignonBootstrapAcknowledged()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(state.phase() == GoldSrcSignonPhase::kSignonBootstrapAcknowledged);
+    assert(NameFor(state.phase()) == "signon_bootstrap_acknowledged");
+    assert(
+        state.MarkSignonBootstrapAcknowledged()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkServerInfoAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(state.diagnostics().serverinfo_acknowledged == 1u);
+    assert(state.diagnostics().delta_descriptions_acknowledged == 1u);
+    assert(state.diagnostics().signon_bootstrap_acknowledged == 1u);
+
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(state.phase() == GoldSrcSignonPhase::kAwaitingResourceRequest);
+    assert(
+        state.EnterAwaitingResourceRequest()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkSignonBootstrapSent()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(
+        state.MarkSignonBootstrapAcknowledged()
+        == GoldSrcSignonTransitionResult::kAlreadyApplied);
+    assert(state.diagnostics().serverinfo_queued == 1u);
+    assert(state.diagnostics().serverinfo_sent == 1u);
+    assert(state.diagnostics().serverinfo_acknowledged == 1u);
+    assert(state.diagnostics().delta_descriptions_queued == 1u);
+    assert(state.diagnostics().delta_descriptions_sent == 1u);
+    assert(state.diagnostics().delta_descriptions_acknowledged == 1u);
+    assert(state.diagnostics().signon_bootstrap_queued == 1u);
+    assert(state.diagnostics().signon_bootstrap_sent == 1u);
+    assert(state.diagnostics().signon_bootstrap_acknowledged == 1u);
+    state.Reset();
+    assert(state.phase() == GoldSrcSignonPhase::kNone);
+    assert(state.diagnostics().client_new_received == 0u);
+    assert(state.diagnostics().client_new_delivered == 0u);
+    assert(state.diagnostics().duplicate_new_suppressed == 0u);
+    assert(state.diagnostics().serverinfo_queued == 0u);
+    assert(state.diagnostics().serverinfo_sent == 0u);
+    assert(state.diagnostics().serverinfo_acknowledged == 0u);
+    assert(state.diagnostics().delta_descriptions_queued == 0u);
+    assert(state.diagnostics().delta_descriptions_sent == 0u);
+    assert(state.diagnostics().delta_descriptions_acknowledged == 0u);
+    assert(state.diagnostics().signon_bootstrap_queued == 0u);
+    assert(state.diagnostics().signon_bootstrap_sent == 0u);
+    assert(state.diagnostics().signon_bootstrap_acknowledged == 0u);
+
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::kServerInfoOnly)
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::
+                kServerInfoWithDeltaDescriptions)
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
+        == GoldSrcSignonCommandDisposition::kDelivered);
+    assert(state.phase() == GoldSrcSignonPhase::kServerInfoQueued);
+    assert(
+        state.MarkSignonBootstrapSent()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(
+        state.MarkSignonBootstrapAcknowledged()
+        == GoldSrcSignonTransitionResult::kInvalidPhase);
+    assert(state.diagnostics().serverinfo_queued == 1u);
+    assert(state.diagnostics().delta_descriptions_queued == 0u);
+    assert(state.diagnostics().signon_bootstrap_queued == 0u);
+
+    state.Reset();
+    assert(
+        state.EnterAwaitingNew(
+            GoldSrcSignonBootstrapMode::
+                kServerInfoWithDeltaDescriptions)
+        == GoldSrcSignonTransitionResult::kAdvanced);
+    assert(
+        state.HandleClientCommand(GoldSrcClientSignonCommand::kNew)
+        == GoldSrcSignonCommandDisposition::kDelivered);
+    assert(state.phase() == GoldSrcSignonPhase::kSignonBootstrapQueued);
+    assert(state.diagnostics().client_new_received == 1u);
+    assert(state.diagnostics().client_new_delivered == 1u);
+    assert(state.diagnostics().serverinfo_queued == 1u);
+    assert(state.diagnostics().delta_descriptions_queued == 1u);
+    assert(state.diagnostics().signon_bootstrap_queued == 1u);
 }
 
 void TestMunge3AndServerInfoGoldenBytes()
@@ -1332,12 +1538,140 @@ void TestMd5MemoryAndClientDllFile()
         ComputeGoldSrcClientDllMd5(path).status
         == GoldSrcMd5Status::kOpenFailed);
 }
+
+float ReadFixtureFloat(
+    const GoldSrcBootstrapTailPayload& payload,
+    std::size_t offset)
+{
+    assert(offset <= payload.size);
+    assert(payload.size - offset >= sizeof(float));
+    const std::uint32_t bits =
+        static_cast<std::uint32_t>(payload.bytes[offset])
+        | (static_cast<std::uint32_t>(payload.bytes[offset + 1u]) << 8u)
+        | (static_cast<std::uint32_t>(payload.bytes[offset + 2u]) << 16u)
+        | (static_cast<std::uint32_t>(payload.bytes[offset + 3u]) << 24u);
+    float value = 0.0f;
+    std::memcpy(&value, &bits, sizeof(value));
+    return value;
+}
+
+void TestBootstrapTailReferenceOrderAndBounds()
+{
+    GoldSrcBootstrapTailContext context{};
+    context.gravity = 1.0f;
+    context.stop_speed = 2.0f;
+    context.maximum_speed = 3.0f;
+    context.spectator_maximum_speed = 4.0f;
+    context.accelerate = 5.0f;
+    context.air_accelerate = 6.0f;
+    context.water_accelerate = 7.0f;
+    context.friction = 8.0f;
+    context.edge_friction = 9.0f;
+    context.water_friction = 10.0f;
+    context.entity_gravity = 11.0f;
+    context.bounce = 12.0f;
+    context.step_size = 13.0f;
+    context.maximum_velocity = 14.0f;
+    context.z_maximum = 15.0f;
+    context.wave_height = 16.0f;
+    context.footsteps = true;
+    context.roll_angle = 17.0f;
+    context.roll_speed = 18.0f;
+    context.sky_color_red = 19.0f;
+    context.sky_color_green = 20.0f;
+    context.sky_color_blue = 21.0f;
+    context.sky_vector_x = 22.0f;
+    context.sky_vector_y = 23.0f;
+    context.sky_vector_z = 24.0f;
+    context.sky_name = "desert";
+    context.cd_audio_track = 3u;
+    context.view_entity = 1u;
+
+    const GoldSrcBootstrapTailEncodeResult encoded =
+        EncodeGoldSrcBootstrapTail(context);
+    assert(encoded.ok());
+    assert(encoded.payload.size == 111u);
+    assert(encoded.payload.bytes[0u] == kGoldSrcNewMoveVarsOpcode);
+    for (std::size_t index = 0u; index < 16u; ++index)
+    {
+        assert(
+            ReadFixtureFloat(encoded.payload, 1u + (index * 4u))
+            == static_cast<float>(index + 1u));
+    }
+    assert(encoded.payload.bytes[65u] == 1u);
+    for (std::size_t index = 0u; index < 8u; ++index)
+    {
+        assert(
+            ReadFixtureFloat(encoded.payload, 66u + (index * 4u))
+            == static_cast<float>(index + 17u));
+    }
+    assert(std::equal(
+        context.sky_name.begin(),
+        context.sky_name.end(),
+        encoded.payload.bytes.begin() + 98u));
+    assert(encoded.payload.bytes[104u] == 0u);
+    assert(encoded.payload.bytes[105u] == kGoldSrcCdTrackOpcode);
+    assert(encoded.payload.bytes[106u] == 3u);
+    assert(encoded.payload.bytes[107u] == 3u);
+    assert(encoded.payload.bytes[108u] == kGoldSrcSetViewOpcode);
+    assert(encoded.payload.bytes[109u] == 1u);
+    assert(encoded.payload.bytes[110u] == 0u);
+
+    const GoldSrcBootstrapTailEncodeResult repeated =
+        EncodeGoldSrcBootstrapTail(context);
+    assert(repeated.ok());
+    assert(repeated.payload.size == encoded.payload.size);
+    assert(std::equal(
+        encoded.payload.bytes.begin(),
+        encoded.payload.bytes.begin() + encoded.payload.size,
+        repeated.payload.bytes.begin()));
+
+    GoldSrcBootstrapTailContext invalid = context;
+    invalid.gravity = std::numeric_limits<float>::infinity();
+    assert(
+        EncodeGoldSrcBootstrapTail(invalid).status
+        == GoldSrcBootstrapTailCodecStatus::kNonFiniteMoveVariable);
+    invalid = context;
+    invalid.sky_name.assign(kGoldSrcMaximumSkyNameBytes + 1u, 'x');
+    assert(
+        EncodeGoldSrcBootstrapTail(invalid).status
+        == GoldSrcBootstrapTailCodecStatus::kSkyNameTooLong);
+    invalid = context;
+    invalid.sky_name = std::string("sky\0name", 8u);
+    assert(
+        EncodeGoldSrcBootstrapTail(invalid).status
+        == GoldSrcBootstrapTailCodecStatus::kEmbeddedNul);
+    invalid = context;
+    invalid.sky_name = "sky\nname";
+    assert(
+        EncodeGoldSrcBootstrapTail(invalid).status
+        == GoldSrcBootstrapTailCodecStatus::kInvalidControlByte);
+    invalid = context;
+    invalid.view_entity = 0u;
+    assert(
+        EncodeGoldSrcBootstrapTail(invalid).status
+        == GoldSrcBootstrapTailCodecStatus::kInvalidViewEntity);
+
+    GoldSrcBootstrapTailContext maximum{};
+    maximum.sky_name.assign(kGoldSrcMaximumSkyNameBytes, 'x');
+    maximum.view_entity = kGoldSrcMaximumViewEntity;
+    const GoldSrcBootstrapTailEncodeResult maximum_encoded =
+        EncodeGoldSrcBootstrapTail(maximum);
+    assert(maximum_encoded.ok());
+    assert(maximum_encoded.payload.size == kGoldSrcMaximumBootstrapTailBytes);
+    maximum.view_entity =
+        static_cast<std::uint16_t>(kGoldSrcMaximumViewEntity + 1u);
+    assert(
+        EncodeGoldSrcBootstrapTail(maximum).status
+        == GoldSrcBootstrapTailCodecStatus::kInvalidViewEntity);
+}
 } // namespace
 
 int main()
 {
     TestStrictClientNewDecoder();
     TestSignonStateExactOnceAndReset();
+    TestCombinedSignonBootstrapExactOnceAndReset();
     TestMunge3AndServerInfoGoldenBytes();
     TestStandaloneSendExtraInfoGoldenAndBoundaries();
     TestServerInfoDecoderGoldenRoundTripAndNoMutation();
@@ -1346,5 +1680,6 @@ int main()
     TestServerInfoContextStringBoundariesAndDeterminism();
     TestBsp30MapChecksumGoldenBoundsAndFile();
     TestMd5MemoryAndClientDllFile();
+    TestBootstrapTailReferenceOrderAndBounds();
     return 0;
 }

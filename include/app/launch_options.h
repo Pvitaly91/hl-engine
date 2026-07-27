@@ -44,6 +44,9 @@ struct LaunchOptions
     bool goldsrc_netchan_negative_proof = false;
     bool goldsrc_serverinfo_enabled = false;
     bool goldsrc_serverinfo_negative_proof = false;
+    bool goldsrc_delta_descriptions_enabled = false;
+    bool goldsrc_delta_descriptions_negative_proof = false;
+    std::optional<std::filesystem::path> goldsrc_delta_descriptions_fixture;
     bool goldsrc_resource_manifest_enabled = false;
     bool goldsrc_resource_manifest_negative_proof = false;
     std::optional<std::filesystem::path> goldsrc_resource_manifest_fixture;

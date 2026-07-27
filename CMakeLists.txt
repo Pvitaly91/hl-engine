@@ -35,14 +35,18 @@ set_target_properties(filesystem PROPERTIES FOLDER "host")
 
 add_library(goldsrc_network STATIC
     include/network/ipv4_endpoint.h
+    include/network/goldsrc_bitstream.h
     include/network/goldsrc_connectionless.h
+    include/network/goldsrc_delta_description.h
     include/network/goldsrc_fragmentation.h
     include/network/goldsrc_netchan.h
     include/network/goldsrc_resource_manifest.h
     include/network/goldsrc_signon.h
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
+    src/network/goldsrc_bitstream.cpp
     src/network/goldsrc_connectionless.cpp
+    src/network/goldsrc_delta_description.cpp
     src/network/goldsrc_fragmentation.cpp
     src/network/goldsrc_netchan.cpp
     src/network/goldsrc_resource_manifest.cpp
@@ -98,6 +102,8 @@ add_library(game_api STATIC
     src/game_api/entity_var_access.cpp
     src/game_api/entity_var_access.h
     src/game_api/game_module_loader.cpp
+    src/game_api/goldsrc_delta_runtime_registry.cpp
+    src/game_api/goldsrc_delta_runtime_registry.h
     src/game_api/goldsrc_udp_handshake_runtime.inc
     src/game_api/hl_server_module.cpp
     src/game_api/scripted_logic_tracker.cpp
@@ -127,6 +133,7 @@ target_include_directories(game_api
         "${HLSDK_ROOT_DIR}/common"
         "${HLSDK_ROOT_DIR}/dlls"
         "${HLSDK_ROOT_DIR}/engine"
+        "${HLSDK_ROOT_DIR}/pm_shared"
         "${HLSDK_ROOT_DIR}/public"
 )
 target_link_libraries(game_api PRIVATE common filesystem goldsrc_network)
@@ -264,6 +271,32 @@ add_custom_target(goldsrc_resource_manifest_unit_tests
     COMMENT "Running GoldSrc resource manifest model, codec, and bounds tests"
 )
 set_target_properties(goldsrc_resource_manifest_unit_tests PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_delta_description_tests
+    src/tests/goldsrc_delta_description_tests.cpp
+)
+target_include_directories(goldsrc_delta_description_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_delta_description_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_delta_description_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_delta_description_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_delta_description_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_delta_description_tests
+    COMMAND goldsrc_delta_description_tests
+)
+
+add_custom_target(goldsrc_delta_description_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_delta_description_tests>"
+    DEPENDS goldsrc_delta_description_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc delta parser, meta-delta, and bundle tests"
+)
+set_target_properties(
+    goldsrc_delta_description_unit_tests
+    PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

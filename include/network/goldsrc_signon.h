@@ -12,7 +12,10 @@ namespace hl::network
 {
 inline constexpr std::uint8_t kGoldSrcClientNopOpcode = 1u;
 inline constexpr std::uint8_t kGoldSrcClientStringCommandOpcode = 3u;
+inline constexpr std::uint8_t kGoldSrcSetViewOpcode = 5u;
 inline constexpr std::uint8_t kGoldSrcServerInfoOpcode = 11u;
+inline constexpr std::uint8_t kGoldSrcCdTrackOpcode = 32u;
+inline constexpr std::uint8_t kGoldSrcNewMoveVarsOpcode = 44u;
 inline constexpr std::uint8_t kGoldSrcSendExtraInfoOpcode = 54u;
 inline constexpr std::uint32_t kGoldSrcServerInfoProtocolVersion = 48u;
 inline constexpr std::size_t kGoldSrcClientDllDigestBytes = 16u;
@@ -24,8 +27,14 @@ inline constexpr std::size_t kGoldSrcMaximumHostnameBytes = 255u;
 inline constexpr std::size_t kGoldSrcMaximumModelPathBytes = 63u;
 inline constexpr std::size_t kGoldSrcMaximumMapcycleBytes = 1023u;
 inline constexpr std::size_t kGoldSrcMaximumFallbackDirectoryBytes = 63u;
+inline constexpr std::size_t kGoldSrcMaximumSkyNameBytes = 31u;
+inline constexpr std::uint16_t kGoldSrcMaximumViewEntity = 899u;
 inline constexpr std::size_t kGoldSrcMaximumSendExtraInfoPayloadBytes =
     1u + kGoldSrcMaximumFallbackDirectoryBytes + 1u + 1u;
+inline constexpr std::size_t kGoldSrcMaximumBootstrapTailBytes =
+    1u + (24u * sizeof(float)) + 1u
+    + kGoldSrcMaximumSkyNameBytes + 1u
+    + 3u + 3u;
 inline constexpr std::size_t kGoldSrcBspLumpCount = 15u;
 inline constexpr std::size_t kGoldSrcBsp30HeaderBytes =
     4u + (kGoldSrcBspLumpCount * 8u);
@@ -37,6 +46,7 @@ enum class GoldSrcClientSignonCommand
     kNone,
     kNew,
     kSendResources,
+    kDisconnect,
 };
 
 enum class GoldSrcClientSignonCompanionCommand
@@ -85,12 +95,12 @@ struct GoldSrcClientSignonDecodeResult final
 };
 
 // Decodes one bounded application payload after the client qport has already
-// been removed by the netchan layer. The primary command must be exact `new`
-// or `sendres`. The observed stock-client `sendres` payload may additionally
-// contain exactly two `closemenus` companion commands with the observed
-// single-space/LF suffix. NOP messages may surround or separate accepted
-// commands. Companions are typed metadata only and are never routed for
-// generic command execution.
+// been removed by the netchan layer. The primary command must be exact `new`,
+// `sendres`, or the GoldSrc disconnect string `dropclient\n`. The observed
+// stock-client `sendres` payload may additionally contain exactly two
+// `closemenus` companion commands with the observed single-space/LF suffix.
+// NOP messages may surround or separate accepted commands. Companions are
+// typed metadata only and are never routed for generic command execution.
 GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     const std::uint8_t* bytes,
     std::size_t size) noexcept;
@@ -102,6 +112,9 @@ enum class GoldSrcSignonPhase
     kServerInfoQueued,
     kServerInfoSentAwaitingAck,
     kServerInfoAcknowledged,
+    kSignonBootstrapQueued,
+    kSignonBootstrapSentAwaitingAck,
+    kSignonBootstrapAcknowledged,
     kAwaitingResourceRequest,
     kResourceManifestQueued,
     kResourceManifestSentAwaitingAck,
@@ -109,6 +122,12 @@ enum class GoldSrcSignonPhase
 };
 
 std::string_view NameFor(GoldSrcSignonPhase phase) noexcept;
+
+enum class GoldSrcSignonBootstrapMode
+{
+    kServerInfoOnly,
+    kServerInfoWithDeltaDescriptions,
+};
 
 enum class GoldSrcSignonTransitionResult
 {
@@ -138,6 +157,12 @@ struct GoldSrcSignonDiagnostics final
     std::uint64_t serverinfo_queued = 0;
     std::uint64_t serverinfo_sent = 0;
     std::uint64_t serverinfo_acknowledged = 0;
+    std::uint64_t delta_descriptions_queued = 0;
+    std::uint64_t delta_descriptions_sent = 0;
+    std::uint64_t delta_descriptions_acknowledged = 0;
+    std::uint64_t signon_bootstrap_queued = 0;
+    std::uint64_t signon_bootstrap_sent = 0;
+    std::uint64_t signon_bootstrap_acknowledged = 0;
     std::uint64_t resource_request_received = 0;
     std::uint64_t resource_request_delivered = 0;
     std::uint64_t duplicate_resource_request_suppressed = 0;
@@ -151,11 +176,15 @@ class GoldSrcSignonSessionState final
 {
 public:
     void Reset() noexcept;
-    GoldSrcSignonTransitionResult EnterAwaitingNew() noexcept;
+    GoldSrcSignonTransitionResult EnterAwaitingNew(
+        GoldSrcSignonBootstrapMode mode =
+            GoldSrcSignonBootstrapMode::kServerInfoOnly) noexcept;
     GoldSrcSignonCommandDisposition HandleClientCommand(
         GoldSrcClientSignonCommand command) noexcept;
     GoldSrcSignonTransitionResult MarkServerInfoSent() noexcept;
     GoldSrcSignonTransitionResult MarkServerInfoAcknowledged() noexcept;
+    GoldSrcSignonTransitionResult MarkSignonBootstrapSent() noexcept;
+    GoldSrcSignonTransitionResult MarkSignonBootstrapAcknowledged() noexcept;
     GoldSrcSignonTransitionResult EnterAwaitingResourceRequest() noexcept;
     GoldSrcSignonTransitionResult MarkResourceManifestSent() noexcept;
     GoldSrcSignonTransitionResult MarkResourceManifestAcknowledged() noexcept;
@@ -165,6 +194,8 @@ public:
 
 private:
     GoldSrcSignonPhase phase_ = GoldSrcSignonPhase::kNone;
+    GoldSrcSignonBootstrapMode bootstrap_mode_ =
+        GoldSrcSignonBootstrapMode::kServerInfoOnly;
     GoldSrcSignonDiagnostics diagnostics_{};
 };
 
@@ -279,6 +310,75 @@ struct GoldSrcSendExtraInfoEncodeResult final
 GoldSrcSendExtraInfoEncodeResult EncodeGoldSrcSendExtraInfo(
     std::string_view fallback_game_directory,
     bool cheats) noexcept;
+
+struct GoldSrcBootstrapTailContext final
+{
+    float gravity = 800.0f;
+    float stop_speed = 100.0f;
+    float maximum_speed = 320.0f;
+    float spectator_maximum_speed = 500.0f;
+    float accelerate = 10.0f;
+    float air_accelerate = 10.0f;
+    float water_accelerate = 10.0f;
+    float friction = 4.0f;
+    float edge_friction = 2.0f;
+    float water_friction = 1.0f;
+    float entity_gravity = 1.0f;
+    float bounce = 1.0f;
+    float step_size = 18.0f;
+    float maximum_velocity = 2000.0f;
+    float z_maximum = 4096.0f;
+    float wave_height = 0.0f;
+    bool footsteps = true;
+    float roll_angle = 0.0f;
+    float roll_speed = 0.0f;
+    float sky_color_red = 0.0f;
+    float sky_color_green = 0.0f;
+    float sky_color_blue = 0.0f;
+    float sky_vector_x = 0.0f;
+    float sky_vector_y = 0.0f;
+    float sky_vector_z = 0.0f;
+    std::string sky_name;
+    std::uint8_t cd_audio_track = 0u;
+    std::uint16_t view_entity = 0u;
+};
+
+enum class GoldSrcBootstrapTailCodecStatus
+{
+    kOk,
+    kNonFiniteMoveVariable,
+    kSkyNameTooLong,
+    kEmbeddedNul,
+    kInvalidControlByte,
+    kInvalidViewEntity,
+    kPayloadTooLarge,
+};
+
+std::string_view ReasonFor(GoldSrcBootstrapTailCodecStatus status) noexcept;
+
+struct GoldSrcBootstrapTailPayload final
+{
+    std::array<std::uint8_t, kGoldSrcMaximumBootstrapTailBytes> bytes{};
+    std::size_t size = 0u;
+};
+
+struct GoldSrcBootstrapTailEncodeResult final
+{
+    GoldSrcBootstrapTailCodecStatus status =
+        GoldSrcBootstrapTailCodecStatus::kNonFiniteMoveVariable;
+    GoldSrcBootstrapTailPayload payload;
+
+    bool ok() const noexcept
+    {
+        return status == GoldSrcBootstrapTailCodecStatus::kOk;
+    }
+};
+
+// Encodes the reference-compatible tail that immediately follows the seven
+// svc_deltadescription messages in the logical `new` response:
+// svc_newmovevars, svc_cdtrack, and svc_setview.
+GoldSrcBootstrapTailEncodeResult EncodeGoldSrcBootstrapTail(
+    const GoldSrcBootstrapTailContext& context) noexcept;
 
 template <std::size_t Capacity>
 struct GoldSrcBoundedProtocolString final

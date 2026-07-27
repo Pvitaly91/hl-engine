@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <cstring>
 #include <fstream>
 #include <limits>
@@ -137,6 +138,20 @@ public:
             value);
         payload_->size += value_size_;
         return true;
+    }
+
+    bool WriteLittleEndian16(std::uint16_t value) noexcept
+    {
+        return WriteByte(static_cast<std::uint8_t>(value & 0xFFu))
+            && WriteByte(static_cast<std::uint8_t>((value >> 8u) & 0xFFu));
+    }
+
+    bool WriteFloat(float value) noexcept
+    {
+        static_assert(sizeof(float) == sizeof(std::uint32_t));
+        std::uint32_t bits = 0u;
+        std::memcpy(&bits, &value, sizeof(bits));
+        return WriteLittleEndian32(bits);
     }
 
     bool WriteBytes(const std::uint8_t* bytes, std::size_t size) noexcept
@@ -604,7 +619,20 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
             return result;
         }
         const std::uint8_t byte = bytes[cursor];
-        if (byte < 0x20u || byte == 0x7Fu)
+        constexpr std::array<std::uint8_t, 10> kDropClientText = {
+            'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't',
+        };
+        const bool exact_dropclient_line_feed =
+            byte == '\n'
+            && cursor - command_begin == kDropClientText.size()
+            && cursor + 1u < size
+            && bytes[cursor + 1u] == 0u
+            && std::equal(
+                kDropClientText.begin(),
+                kDropClientText.end(),
+                bytes + command_begin);
+        if ((byte < 0x20u && !exact_dropclient_line_feed)
+            || byte == 0x7Fu)
         {
             result.status = GoldSrcClientSignonDecodeStatus::kInvalidControlByte;
             return result;
@@ -627,6 +655,9 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     constexpr std::array<std::uint8_t, 7> kSendResources = {
         's', 'e', 'n', 'd', 'r', 'e', 's',
     };
+    constexpr std::array<std::uint8_t, 11> kDropClient = {
+        'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't', '\n',
+    };
     GoldSrcClientSignonCommand command = GoldSrcClientSignonCommand::kNone;
     if (command_size == kNew.size()
         && std::equal(kNew.begin(), kNew.end(), bytes + command_begin))
@@ -640,6 +671,14 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
             bytes + command_begin))
     {
         command = GoldSrcClientSignonCommand::kSendResources;
+    }
+    else if (command_size == kDropClient.size()
+        && std::equal(
+            kDropClient.begin(),
+            kDropClient.end(),
+            bytes + command_begin))
+    {
+        command = GoldSrcClientSignonCommand::kDisconnect;
     }
     else
     {
@@ -747,6 +786,12 @@ std::string_view NameFor(GoldSrcSignonPhase phase) noexcept
         return "serverinfo_sent_awaiting_ack";
     case GoldSrcSignonPhase::kServerInfoAcknowledged:
         return "serverinfo_acknowledged";
+    case GoldSrcSignonPhase::kSignonBootstrapQueued:
+        return "signon_bootstrap_queued";
+    case GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck:
+        return "signon_bootstrap_sent_awaiting_ack";
+    case GoldSrcSignonPhase::kSignonBootstrapAcknowledged:
+        return "signon_bootstrap_acknowledged";
     case GoldSrcSignonPhase::kAwaitingResourceRequest:
         return "awaiting_resource_request";
     case GoldSrcSignonPhase::kResourceManifestQueued:
@@ -795,18 +840,22 @@ std::string_view ReasonFor(
 void GoldSrcSignonSessionState::Reset() noexcept
 {
     phase_ = GoldSrcSignonPhase::kNone;
+    bootstrap_mode_ = GoldSrcSignonBootstrapMode::kServerInfoOnly;
     diagnostics_ = {};
 }
 
 GoldSrcSignonTransitionResult
-GoldSrcSignonSessionState::EnterAwaitingNew() noexcept
+GoldSrcSignonSessionState::EnterAwaitingNew(
+    GoldSrcSignonBootstrapMode mode) noexcept
 {
     if (phase_ == GoldSrcSignonPhase::kNone)
     {
+        bootstrap_mode_ = mode;
         phase_ = GoldSrcSignonPhase::kAwaitingNew;
         return GoldSrcSignonTransitionResult::kAdvanced;
     }
-    if (phase_ == GoldSrcSignonPhase::kAwaitingNew)
+    if (phase_ == GoldSrcSignonPhase::kAwaitingNew
+        && bootstrap_mode_ == mode)
     {
         return GoldSrcSignonTransitionResult::kAlreadyApplied;
     }
@@ -822,7 +871,18 @@ GoldSrcSignonSessionState::HandleClientCommand(
         ++diagnostics_.client_new_received;
         if (phase_ == GoldSrcSignonPhase::kAwaitingNew)
         {
-            phase_ = GoldSrcSignonPhase::kServerInfoQueued;
+            if (bootstrap_mode_
+                == GoldSrcSignonBootstrapMode::
+                    kServerInfoWithDeltaDescriptions)
+            {
+                phase_ = GoldSrcSignonPhase::kSignonBootstrapQueued;
+                ++diagnostics_.delta_descriptions_queued;
+                ++diagnostics_.signon_bootstrap_queued;
+            }
+            else
+            {
+                phase_ = GoldSrcSignonPhase::kServerInfoQueued;
+            }
             ++diagnostics_.client_new_delivered;
             ++diagnostics_.serverinfo_queued;
             return GoldSrcSignonCommandDisposition::kDelivered;
@@ -830,6 +890,10 @@ GoldSrcSignonSessionState::HandleClientCommand(
         if (phase_ == GoldSrcSignonPhase::kServerInfoQueued
             || phase_ == GoldSrcSignonPhase::kServerInfoSentAwaitingAck
             || phase_ == GoldSrcSignonPhase::kServerInfoAcknowledged
+            || phase_ == GoldSrcSignonPhase::kSignonBootstrapQueued
+            || phase_
+                == GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck
+            || phase_ == GoldSrcSignonPhase::kSignonBootstrapAcknowledged
             || phase_ == GoldSrcSignonPhase::kAwaitingResourceRequest
             || phase_ == GoldSrcSignonPhase::kResourceManifestQueued
             || phase_
@@ -912,9 +976,55 @@ GoldSrcSignonSessionState::MarkServerInfoAcknowledged() noexcept
 }
 
 GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::MarkSignonBootstrapSent() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kSignonBootstrapQueued)
+    {
+        phase_ = GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck;
+        ++diagnostics_.serverinfo_sent;
+        ++diagnostics_.delta_descriptions_sent;
+        ++diagnostics_.signon_bootstrap_sent;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kSignonBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingResourceRequest
+        || phase_ == GoldSrcSignonPhase::kResourceManifestQueued
+        || phase_ == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::MarkSignonBootstrapAcknowledged() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kSignonBootstrapSentAwaitingAck)
+    {
+        phase_ = GoldSrcSignonPhase::kSignonBootstrapAcknowledged;
+        ++diagnostics_.serverinfo_acknowledged;
+        ++diagnostics_.delta_descriptions_acknowledged;
+        ++diagnostics_.signon_bootstrap_acknowledged;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kSignonBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingResourceRequest
+        || phase_ == GoldSrcSignonPhase::kResourceManifestQueued
+        || phase_ == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
 GoldSrcSignonSessionState::EnterAwaitingResourceRequest() noexcept
 {
-    if (phase_ == GoldSrcSignonPhase::kServerInfoAcknowledged)
+    if (phase_ == GoldSrcSignonPhase::kServerInfoAcknowledged
+        || phase_ == GoldSrcSignonPhase::kSignonBootstrapAcknowledged)
     {
         phase_ = GoldSrcSignonPhase::kAwaitingResourceRequest;
         return GoldSrcSignonTransitionResult::kAdvanced;
@@ -1252,6 +1362,123 @@ GoldSrcSendExtraInfoEncodeResult EncodeGoldSrcSendExtraInfo(
     }
 
     result.status = GoldSrcServerInfoCodecStatus::kOk;
+    return result;
+}
+
+std::string_view ReasonFor(GoldSrcBootstrapTailCodecStatus status) noexcept
+{
+    switch (status)
+    {
+    case GoldSrcBootstrapTailCodecStatus::kOk:
+        return "ok";
+    case GoldSrcBootstrapTailCodecStatus::kNonFiniteMoveVariable:
+        return "non_finite_move_variable";
+    case GoldSrcBootstrapTailCodecStatus::kSkyNameTooLong:
+        return "sky_name_too_long";
+    case GoldSrcBootstrapTailCodecStatus::kEmbeddedNul:
+        return "embedded_nul";
+    case GoldSrcBootstrapTailCodecStatus::kInvalidControlByte:
+        return "invalid_control_byte";
+    case GoldSrcBootstrapTailCodecStatus::kInvalidViewEntity:
+        return "invalid_view_entity";
+    case GoldSrcBootstrapTailCodecStatus::kPayloadTooLarge:
+        return "payload_too_large";
+    default:
+        return "invalid_bootstrap_tail";
+    }
+}
+
+GoldSrcBootstrapTailEncodeResult EncodeGoldSrcBootstrapTail(
+    const GoldSrcBootstrapTailContext& context) noexcept
+{
+    GoldSrcBootstrapTailEncodeResult result{};
+    const std::array<float, 24> move_variables = {
+        context.gravity,
+        context.stop_speed,
+        context.maximum_speed,
+        context.spectator_maximum_speed,
+        context.accelerate,
+        context.air_accelerate,
+        context.water_accelerate,
+        context.friction,
+        context.edge_friction,
+        context.water_friction,
+        context.entity_gravity,
+        context.bounce,
+        context.step_size,
+        context.maximum_velocity,
+        context.z_maximum,
+        context.wave_height,
+        context.roll_angle,
+        context.roll_speed,
+        context.sky_color_red,
+        context.sky_color_green,
+        context.sky_color_blue,
+        context.sky_vector_x,
+        context.sky_vector_y,
+        context.sky_vector_z,
+    };
+    if (!std::all_of(
+            move_variables.begin(),
+            move_variables.end(),
+            [](float value)
+            {
+                return std::isfinite(value);
+            }))
+    {
+        result.status =
+            GoldSrcBootstrapTailCodecStatus::kNonFiniteMoveVariable;
+        return result;
+    }
+    const GoldSrcServerInfoCodecStatus sky_status = ValidateString(
+        context.sky_name,
+        kGoldSrcMaximumSkyNameBytes,
+        false);
+    if (sky_status != GoldSrcServerInfoCodecStatus::kOk)
+    {
+        result.status =
+            sky_status == GoldSrcServerInfoCodecStatus::kStringTooLong
+            ? GoldSrcBootstrapTailCodecStatus::kSkyNameTooLong
+            : sky_status == GoldSrcServerInfoCodecStatus::kEmbeddedNul
+            ? GoldSrcBootstrapTailCodecStatus::kEmbeddedNul
+            : GoldSrcBootstrapTailCodecStatus::kInvalidControlByte;
+        return result;
+    }
+    if (context.view_entity == 0u
+        || context.view_entity > kGoldSrcMaximumViewEntity)
+    {
+        result.status = GoldSrcBootstrapTailCodecStatus::kInvalidViewEntity;
+        return result;
+    }
+
+    PayloadWriter<GoldSrcBootstrapTailPayload> writer(&result.payload);
+    bool encoded = writer.WriteByte(kGoldSrcNewMoveVarsOpcode);
+    for (std::size_t index = 0u; encoded && index < 16u; ++index)
+    {
+        encoded = writer.WriteFloat(move_variables[index]);
+    }
+    encoded = encoded && writer.WriteByte(context.footsteps ? 1u : 0u);
+    for (std::size_t index = 16u;
+         encoded && index < move_variables.size();
+         ++index)
+    {
+        encoded = writer.WriteFloat(move_variables[index]);
+    }
+    encoded = encoded
+        && writer.WriteString(context.sky_name)
+        && writer.WriteByte(kGoldSrcCdTrackOpcode)
+        && writer.WriteByte(context.cd_audio_track)
+        && writer.WriteByte(context.cd_audio_track)
+        && writer.WriteByte(kGoldSrcSetViewOpcode)
+        && writer.WriteLittleEndian16(context.view_entity);
+    if (!encoded)
+    {
+        result.payload = {};
+        result.status = GoldSrcBootstrapTailCodecStatus::kPayloadTooLarge;
+        return result;
+    }
+
+    result.status = GoldSrcBootstrapTailCodecStatus::kOk;
     return result;
 }
 

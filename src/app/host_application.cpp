@@ -22472,6 +22472,12 @@ bool HostApplication::RunServerEngineShim(
     init_options.goldsrc_serverinfo_enabled = options.goldsrc_serverinfo_enabled;
     init_options.goldsrc_serverinfo_negative_proof =
         options.goldsrc_serverinfo_negative_proof;
+    init_options.goldsrc_delta_descriptions_enabled =
+        options.goldsrc_delta_descriptions_enabled;
+    init_options.goldsrc_delta_descriptions_negative_proof =
+        options.goldsrc_delta_descriptions_negative_proof;
+    init_options.goldsrc_delta_descriptions_fixture =
+        options.goldsrc_delta_descriptions_fixture;
     init_options.goldsrc_resource_manifest_enabled =
         options.goldsrc_resource_manifest_enabled;
     init_options.goldsrc_resource_manifest_negative_proof =

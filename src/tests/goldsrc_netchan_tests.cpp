@@ -1350,6 +1350,528 @@ void TestResourceManifestReliableKindAckRetransmitAndReset()
     AssertCleanState(state);
 }
 
+void TestSignonBootstrapReliableKindUnfragmentedAndFragmented()
+{
+    using namespace std::chrono_literals;
+    const Ipv4Endpoint endpoint{{127u, 0u, 0u, 1u}, 28006u};
+    const Ipv4Endpoint reused_endpoint{{127u, 0u, 0u, 1u}, 28007u};
+    const GoldSrcNetchanState::TimePoint start{};
+    GoldSrcNetchanState state;
+    assert(state.Initialize(endpoint, std::uint16_t{782u}, 0u, start));
+    assert(
+        NameFor(GoldSrcNetchanReliablePayloadKind::kSignonBootstrap)
+        == "signon_bootstrap");
+
+    std::array<std::uint8_t, 8> bootstrap = {
+        0x0Bu, 0x36u, 0x0Eu, 0x75u, 0x73u, 0x65u, 0x72u, 0x00u,
+    };
+    const std::array<std::uint8_t, 8> frozen_bootstrap = bootstrap;
+    assert(
+        state.QueueReliablePayload(
+            bootstrap.data(),
+            bootstrap.size(),
+            GoldSrcNetchanReliablePayloadKind::kSignonBootstrap)
+        == GoldSrcNetchanQueueResult::kQueued);
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    assert(state.reliable_pending_bytes() == frozen_bootstrap.size());
+    const bool bootstrap_toggle = state.local_reliable_sequence();
+    bootstrap.fill(0xFFu);
+    assert(std::equal(
+        frozen_bootstrap.begin(),
+        frozen_bootstrap.end(),
+        state.reliable_payload_data()));
+
+    GoldSrcNetchanDatagram first_bootstrap{};
+    assert(state.BuildOutgoingDatagram(&first_bootstrap));
+    const GoldSrcNetchanDecodeResult first_bootstrap_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            first_bootstrap.bytes.data(),
+            first_bootstrap.size);
+    assert(first_bootstrap_decoded.ok());
+    assert(first_bootstrap_decoded.packet.sequence == 1u);
+    assert(first_bootstrap_decoded.packet.reliable_present);
+    assert(!first_bootstrap_decoded.packet.fragment_present);
+    assert(
+        first_bootstrap_decoded.packet.payload_size
+        == frozen_bootstrap.size());
+    assert(std::equal(
+        frozen_bootstrap.begin(),
+        frozen_bootstrap.end(),
+        first_bootstrap_decoded.packet.payload.begin()));
+
+    const GoldSrcNetchanProcessOutcome wrong_bootstrap_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(1u, 1u, false, !bootstrap_toggle),
+            start + 1ms);
+    assert(
+        wrong_bootstrap_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!wrong_bootstrap_toggle.reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+
+    GoldSrcNetchanDatagram bootstrap_followup{};
+    assert(state.BuildOutgoingDatagram(&bootstrap_followup));
+    const GoldSrcNetchanDecodeResult bootstrap_followup_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            bootstrap_followup.bytes.data(),
+            bootstrap_followup.size);
+    assert(bootstrap_followup_decoded.ok());
+    assert(bootstrap_followup_decoded.packet.sequence == 2u);
+    assert(!bootstrap_followup_decoded.packet.reliable_present);
+    assert(!bootstrap_followup_decoded.packet.fragment_present);
+
+    const GoldSrcNetchanProcessOutcome covering_wrong_bootstrap_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(2u, 2u, false, !bootstrap_toggle),
+            start + 2ms);
+    assert(
+        covering_wrong_bootstrap_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !covering_wrong_bootstrap_toggle
+             .reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+
+    GoldSrcNetchanDatagram bootstrap_retransmission{};
+    assert(state.BuildOutgoingDatagram(&bootstrap_retransmission));
+    const GoldSrcNetchanDecodeResult bootstrap_retransmission_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            bootstrap_retransmission.bytes.data(),
+            bootstrap_retransmission.size);
+    assert(bootstrap_retransmission_decoded.ok());
+    assert(bootstrap_retransmission_decoded.packet.sequence == 3u);
+    assert(bootstrap_retransmission_decoded.packet.reliable_present);
+    assert(!bootstrap_retransmission_decoded.packet.fragment_present);
+    assert(
+        bootstrap_retransmission_decoded.packet.payload_size
+        == first_bootstrap_decoded.packet.payload_size);
+    assert(std::equal(
+        first_bootstrap_decoded.packet.payload.begin(),
+        first_bootstrap_decoded.packet.payload.begin()
+            + static_cast<std::ptrdiff_t>(
+                first_bootstrap_decoded.packet.payload_size),
+        bootstrap_retransmission_decoded.packet.payload.begin()));
+    assert(state.local_reliable_sequence() == bootstrap_toggle);
+    assert(state.diagnostics().reliable_resent == 1u);
+
+    const GoldSrcNetchanProcessOutcome non_covering_bootstrap_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(3u, 2u, false, bootstrap_toggle),
+            start + 3ms);
+    assert(
+        non_covering_bootstrap_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!non_covering_bootstrap_ack.reliable_payload_was_acknowledged());
+    assert(state.reliable_pending());
+    assert(state.reliable_acknowledgement_generation() == 0u);
+
+    const GoldSrcNetchanProcessOutcome bootstrap_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(4u, 3u, false, bootstrap_toggle),
+            start + 4ms);
+    assert(bootstrap_ack.result == GoldSrcNetchanProcessResult::kAccepted);
+    assert(bootstrap_ack.reliable_payload_was_acknowledged());
+    assert(
+        bootstrap_ack.acknowledged_reliable_kind
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    assert(bootstrap_ack.reliable_acknowledgement_generation == 1u);
+    assert(!state.reliable_pending());
+    assert(
+        state.last_acknowledged_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    assert(state.reliable_acknowledgement_generation() == 1u);
+    assert(state.diagnostics().reliable_queued == 1u);
+    assert(state.diagnostics().reliable_sent == 1u);
+    assert(state.diagnostics().reliable_resent == 1u);
+    assert(state.diagnostics().reliable_acked == 1u);
+    assert(state.diagnostics().reliable_ack_mismatch == 2u);
+
+    state.Reset();
+    AssertCleanState(state);
+
+    assert(
+        state.Initialize(
+            endpoint,
+            std::uint16_t{782u},
+            0u,
+            start + 10ms));
+    std::vector<std::uint8_t> fragmented_bootstrap(
+        kGoldSrcNetchanMaximumReliableBytes + 137u);
+    for (std::size_t index = 0u;
+         index < fragmented_bootstrap.size();
+         ++index)
+    {
+        fragmented_bootstrap[index] =
+            static_cast<std::uint8_t>((index * 29u + 7u) & 0xFFu);
+    }
+    const std::vector<std::uint8_t> frozen_fragmented_bootstrap =
+        fragmented_bootstrap;
+    assert(
+        state.QueueReliablePayload(
+            fragmented_bootstrap.data(),
+            fragmented_bootstrap.size(),
+            GoldSrcNetchanReliablePayloadKind::kSignonBootstrap)
+        == GoldSrcNetchanQueueResult::kQueued);
+    assert(!state.reliable_pending());
+    assert(state.fragment_sender().active());
+    assert(state.fragment_sender().fragment_count() == 2u);
+    assert(
+        state.fragment_sender().total_payload_size()
+        == frozen_fragmented_bootstrap.size());
+    fragmented_bootstrap.assign(fragmented_bootstrap.size(), 0xEEu);
+
+    GoldSrcNetchanDatagram first_fragment{};
+    assert(state.BuildOutgoingDatagram(&first_fragment));
+    const GoldSrcNetchanDecodeResult first_fragment_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            first_fragment.bytes.data(),
+            first_fragment.size);
+    assert(first_fragment_decoded.ok());
+    assert(first_fragment_decoded.packet.sequence == 1u);
+    assert(first_fragment_decoded.packet.reliable_present);
+    assert(first_fragment_decoded.packet.fragment_present);
+    assert(state.reliable_pending());
+    assert(
+        first_fragment_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .fragment_index
+        == 1u);
+    assert(
+        first_fragment_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .fragment_count
+        == 2u);
+    assert(
+        first_fragment_decoded.packet.payload_size
+        == kGoldSrcMaximumFragmentBytes);
+    assert(std::equal(
+        frozen_fragmented_bootstrap.begin(),
+        frozen_fragmented_bootstrap.begin()
+            + static_cast<std::ptrdiff_t>(
+                kGoldSrcMaximumFragmentBytes),
+        first_fragment_decoded.packet.payload.begin()));
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    const bool first_fragment_toggle = state.local_reliable_sequence();
+    const GoldSrcFragmentDescriptor first_fragment_descriptor =
+        first_fragment_decoded.packet.fragment_metadata.descriptors[0];
+
+    const GoldSrcNetchanProcessOutcome wrong_first_fragment_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(1u, 1u, false, !first_fragment_toggle),
+            start + 11ms);
+    assert(
+        wrong_first_fragment_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !wrong_first_fragment_toggle
+             .reliable_payload_was_acknowledged());
+    assert(state.fragment_sender().current_fragment_index() == 0u);
+    assert(state.fragment_sender().awaiting_acknowledgement());
+
+    GoldSrcNetchanDatagram first_fragment_followup{};
+    assert(state.BuildOutgoingDatagram(&first_fragment_followup));
+    const GoldSrcNetchanDecodeResult first_fragment_followup_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            first_fragment_followup.bytes.data(),
+            first_fragment_followup.size);
+    assert(first_fragment_followup_decoded.ok());
+    assert(first_fragment_followup_decoded.packet.sequence == 2u);
+    assert(!first_fragment_followup_decoded.packet.reliable_present);
+    assert(!first_fragment_followup_decoded.packet.fragment_present);
+
+    const GoldSrcNetchanProcessOutcome
+        covering_wrong_first_fragment_toggle =
+            state.ProcessIncomingDatagramDetailed(
+                endpoint,
+                Packet(2u, 2u, false, !first_fragment_toggle),
+                start + 12ms);
+    assert(
+        covering_wrong_first_fragment_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !covering_wrong_first_fragment_toggle
+             .reliable_payload_was_acknowledged());
+
+    GoldSrcNetchanDatagram first_fragment_retransmission{};
+    assert(state.BuildOutgoingDatagram(&first_fragment_retransmission));
+    const GoldSrcNetchanDecodeResult first_fragment_retransmission_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            first_fragment_retransmission.bytes.data(),
+            first_fragment_retransmission.size);
+    assert(first_fragment_retransmission_decoded.ok());
+    assert(first_fragment_retransmission_decoded.packet.sequence == 3u);
+    assert(first_fragment_retransmission_decoded.packet.reliable_present);
+    assert(first_fragment_retransmission_decoded.packet.fragment_present);
+    assert(
+        first_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .raw_fragment_id
+        == first_fragment_descriptor.raw_fragment_id);
+    assert(
+        first_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .payload_offset
+        == first_fragment_descriptor.payload_offset);
+    assert(
+        first_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .payload_length
+        == first_fragment_descriptor.payload_length);
+    assert(
+        first_fragment_retransmission_decoded.packet.payload_size
+        == first_fragment_decoded.packet.payload_size);
+    assert(std::equal(
+        first_fragment_decoded.packet.payload.begin(),
+        first_fragment_decoded.packet.payload.begin()
+            + static_cast<std::ptrdiff_t>(
+                first_fragment_decoded.packet.payload_size),
+        first_fragment_retransmission_decoded.packet.payload.begin()));
+    assert(state.local_reliable_sequence() == first_fragment_toggle);
+    assert(state.fragment_sender().resend_count() == 1u);
+
+    const GoldSrcNetchanProcessOutcome
+        non_covering_first_fragment_ack =
+            state.ProcessIncomingDatagramDetailed(
+                endpoint,
+                Packet(3u, 2u, false, first_fragment_toggle),
+                start + 13ms);
+    assert(
+        non_covering_first_fragment_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !non_covering_first_fragment_ack
+             .reliable_payload_was_acknowledged());
+    assert(state.fragment_sender().current_fragment_index() == 0u);
+    assert(state.reliable_acknowledgement_generation() == 0u);
+
+    const GoldSrcNetchanProcessOutcome first_fragment_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(4u, 3u, false, first_fragment_toggle),
+            start + 14ms);
+    assert(
+        first_fragment_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(!first_fragment_ack.reliable_payload_was_acknowledged());
+    assert(
+        first_fragment_ack.acknowledged_reliable_kind
+        == GoldSrcNetchanReliablePayloadKind::kNone);
+    assert(first_fragment_ack.reliable_acknowledgement_generation == 0u);
+    assert(state.reliable_acknowledgement_generation() == 0u);
+    assert(state.fragment_sender().current_fragment_index() == 1u);
+    assert(state.fragment_sender().needs_fragment_staging());
+
+    GoldSrcNetchanDatagram final_fragment{};
+    assert(state.BuildOutgoingDatagram(&final_fragment));
+    const GoldSrcNetchanDecodeResult final_fragment_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            final_fragment.bytes.data(),
+            final_fragment.size);
+    assert(final_fragment_decoded.ok());
+    assert(final_fragment_decoded.packet.sequence == 4u);
+    assert(final_fragment_decoded.packet.reliable_present);
+    assert(final_fragment_decoded.packet.fragment_present);
+    assert(
+        final_fragment_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .fragment_index
+        == 2u);
+    assert(
+        final_fragment_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .fragment_count
+        == 2u);
+    assert(
+        final_fragment_decoded.packet.payload_size
+        == frozen_fragmented_bootstrap.size()
+            - kGoldSrcMaximumFragmentBytes);
+    assert(std::equal(
+        frozen_fragmented_bootstrap.begin()
+            + static_cast<std::ptrdiff_t>(
+                kGoldSrcMaximumFragmentBytes),
+        frozen_fragmented_bootstrap.end(),
+        final_fragment_decoded.packet.payload.begin()));
+    const bool final_fragment_toggle = state.local_reliable_sequence();
+    assert(final_fragment_toggle != first_fragment_toggle);
+    const GoldSrcFragmentDescriptor final_fragment_descriptor =
+        final_fragment_decoded.packet.fragment_metadata.descriptors[0];
+
+    const GoldSrcNetchanProcessOutcome wrong_final_fragment_toggle =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(5u, 4u, false, !final_fragment_toggle),
+            start + 15ms);
+    assert(
+        wrong_final_fragment_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !wrong_final_fragment_toggle
+             .reliable_payload_was_acknowledged());
+    assert(!state.fragment_sender().completion_acknowledged());
+
+    GoldSrcNetchanDatagram final_fragment_followup{};
+    assert(state.BuildOutgoingDatagram(&final_fragment_followup));
+    const GoldSrcNetchanDecodeResult final_fragment_followup_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            final_fragment_followup.bytes.data(),
+            final_fragment_followup.size);
+    assert(final_fragment_followup_decoded.ok());
+    assert(final_fragment_followup_decoded.packet.sequence == 5u);
+    assert(!final_fragment_followup_decoded.packet.reliable_present);
+    assert(!final_fragment_followup_decoded.packet.fragment_present);
+
+    const GoldSrcNetchanProcessOutcome
+        covering_wrong_final_fragment_toggle =
+            state.ProcessIncomingDatagramDetailed(
+                endpoint,
+                Packet(6u, 5u, false, !final_fragment_toggle),
+                start + 16ms);
+    assert(
+        covering_wrong_final_fragment_toggle.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !covering_wrong_final_fragment_toggle
+             .reliable_payload_was_acknowledged());
+
+    GoldSrcNetchanDatagram final_fragment_retransmission{};
+    assert(state.BuildOutgoingDatagram(&final_fragment_retransmission));
+    const GoldSrcNetchanDecodeResult final_fragment_retransmission_decoded =
+        DecodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            final_fragment_retransmission.bytes.data(),
+            final_fragment_retransmission.size);
+    assert(final_fragment_retransmission_decoded.ok());
+    assert(final_fragment_retransmission_decoded.packet.sequence == 6u);
+    assert(final_fragment_retransmission_decoded.packet.reliable_present);
+    assert(final_fragment_retransmission_decoded.packet.fragment_present);
+    assert(
+        final_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .raw_fragment_id
+        == final_fragment_descriptor.raw_fragment_id);
+    assert(
+        final_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .payload_offset
+        == final_fragment_descriptor.payload_offset);
+    assert(
+        final_fragment_retransmission_decoded.packet.fragment_metadata
+            .descriptors[0]
+            .payload_length
+        == final_fragment_descriptor.payload_length);
+    assert(
+        final_fragment_retransmission_decoded.packet.payload_size
+        == final_fragment_decoded.packet.payload_size);
+    assert(std::equal(
+        final_fragment_decoded.packet.payload.begin(),
+        final_fragment_decoded.packet.payload.begin()
+            + static_cast<std::ptrdiff_t>(
+                final_fragment_decoded.packet.payload_size),
+        final_fragment_retransmission_decoded.packet.payload.begin()));
+    assert(state.local_reliable_sequence() == final_fragment_toggle);
+    assert(state.fragment_sender().resend_count() == 2u);
+
+    const GoldSrcNetchanProcessOutcome
+        non_covering_final_fragment_ack =
+            state.ProcessIncomingDatagramDetailed(
+                endpoint,
+                Packet(7u, 5u, false, final_fragment_toggle),
+                start + 17ms);
+    assert(
+        non_covering_final_fragment_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(
+        !non_covering_final_fragment_ack
+             .reliable_payload_was_acknowledged());
+    assert(!state.fragment_sender().completion_acknowledged());
+    assert(state.reliable_acknowledgement_generation() == 0u);
+
+    const GoldSrcNetchanProcessOutcome final_fragment_ack =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            Packet(8u, 6u, false, final_fragment_toggle),
+            start + 18ms);
+    assert(
+        final_fragment_ack.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(final_fragment_ack.reliable_payload_was_acknowledged());
+    assert(
+        final_fragment_ack.acknowledged_reliable_kind
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    assert(final_fragment_ack.reliable_acknowledgement_generation == 1u);
+    assert(
+        state.last_acknowledged_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kSignonBootstrap);
+    assert(state.reliable_acknowledgement_generation() == 1u);
+    assert(state.fragment_sender().completion_acknowledged());
+    assert(
+        state.fragment_sender().phase()
+        == GoldSrcFragmentTransferPhase::kCompleted);
+    assert(!state.fragment_sender().active());
+    assert(!state.reliable_pending());
+    assert(state.diagnostics().reliable_queued == 1u);
+    assert(state.diagnostics().reliable_sent == 2u);
+    assert(state.diagnostics().reliable_resent == 2u);
+    assert(state.diagnostics().reliable_acked == 2u);
+    assert(state.diagnostics().reliable_ack_mismatch == 4u);
+    assert(
+        state.fragment_sender().diagnostics().transfers_planned == 1u);
+    assert(
+        state.fragment_sender().diagnostics().fragments_sent == 2u);
+    assert(
+        state.fragment_sender().diagnostics().fragments_resent == 2u);
+    assert(
+        state.fragment_sender().diagnostics().fragments_acknowledged == 2u);
+    assert(
+        state.fragment_sender().diagnostics().transfers_completed == 1u);
+
+    state.Reset();
+    AssertCleanState(state);
+    assert(
+        state.fragment_sender().phase()
+        == GoldSrcFragmentTransferPhase::kNone);
+    assert(state.fragment_sender().fragment_count() == 0u);
+    assert(
+        state.fragment_sender().diagnostics().transfers_planned == 0u);
+    assert(
+        state.Initialize(
+            reused_endpoint,
+            std::nullopt,
+            1u,
+            start + 20ms));
+    assert(state.remote_endpoint() == reused_endpoint);
+    assert(!state.reliable_pending());
+    assert(
+        state.pending_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kNone);
+    assert(
+        state.last_acknowledged_reliable_kind()
+        == GoldSrcNetchanReliablePayloadKind::kNone);
+    assert(state.reliable_acknowledgement_generation() == 0u);
+    assert(!state.fragment_sender().active());
+    assert(
+        state.fragment_sender().phase()
+        == GoldSrcFragmentTransferPhase::kNone);
+    AssertDiagnosticsAreZero(state.diagnostics());
+}
+
 void TestOptInBoundedApplicationPayloadPolicy()
 {
     using namespace std::chrono_literals;
@@ -1952,6 +2474,7 @@ int main()
     TestFirstReliableSendAndCorrectAcknowledgement();
     TestServerInfoReliableKindAckMetadataAndEstablishedPhase();
     TestResourceManifestReliableKindAckRetransmitAndReset();
+    TestSignonBootstrapReliableKindUnfragmentedAndFragmented();
     TestOptInBoundedApplicationPayloadPolicy();
     TestReliableCoverageWrongToggleAndReferenceResend();
     TestForgedAckAndCodecRejectionsPreserveReliableState();

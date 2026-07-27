@@ -148,6 +148,7 @@ enum class GoldSrcNetchanReliablePayloadKind
     kNone,
     kTransportBootstrap,
     kServerInfo,
+    kSignonBootstrap,
     kResourceManifest,
 };
 

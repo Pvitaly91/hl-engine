@@ -1,0 +1,6 @@
+// Deliberately malformed bounded fixture: DT_NOT_A_PROTOCOL_TYPE must produce
+// the stable unknown_field_type parser rejection before any bootstrap send.
+
+event_t none {
+    DEFINE_DELTA(entindex, DT_NOT_A_PROTOCOL_TYPE, 11, 1.0)
+}

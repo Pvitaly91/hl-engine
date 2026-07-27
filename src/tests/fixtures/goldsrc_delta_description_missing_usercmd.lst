@@ -1,0 +1,26 @@
+// Valid bounded definitions for six canonical tables. The required usercmd_t
+// table is deliberately absent so the runtime must reject before transmission.
+
+event_t none {
+    DEFINE_DELTA(entindex, DT_INTEGER | DT_SIGNED, 11, 1.0)
+}
+
+weapon_data_t none {
+    DEFINE_DELTA(m_iId, DT_INTEGER, 6, 1.0)
+}
+
+custom_entity_state_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_player_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+clientdata_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}

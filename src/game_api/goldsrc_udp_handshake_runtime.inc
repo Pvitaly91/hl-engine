@@ -23,6 +23,12 @@ public:
           negative_proof_(options.goldsrc_netchan_negative_proof),
           serverinfo_enabled_(options.goldsrc_serverinfo_enabled),
           serverinfo_negative_proof_(options.goldsrc_serverinfo_negative_proof),
+          delta_descriptions_enabled_(
+              options.goldsrc_delta_descriptions_enabled),
+          delta_descriptions_negative_proof_(
+              options.goldsrc_delta_descriptions_negative_proof),
+          delta_descriptions_fixture_(
+              options.goldsrc_delta_descriptions_fixture),
           resource_manifest_enabled_(
               options.goldsrc_resource_manifest_enabled),
           resource_manifest_negative_proof_(
@@ -43,6 +49,9 @@ public:
         summary_.netchan_negative_proof = negative_proof_;
         summary_.serverinfo_enabled = serverinfo_enabled_;
         summary_.serverinfo_negative_proof = serverinfo_negative_proof_;
+        summary_.delta_descriptions_enabled = delta_descriptions_enabled_;
+        summary_.delta_descriptions_negative_proof =
+            delta_descriptions_negative_proof_;
         summary_.resource_manifest_enabled = resource_manifest_enabled_;
         summary_.resource_manifest_negative_proof =
             resource_manifest_negative_proof_;
@@ -78,6 +87,22 @@ public:
         {
             return FailBind("serverinfo-negative-proof-requires-serverinfo");
         }
+        if (delta_descriptions_enabled_ && !serverinfo_enabled_)
+        {
+            return FailBind("delta-descriptions-require-serverinfo");
+        }
+        if (delta_descriptions_negative_proof_
+            && !delta_descriptions_enabled_)
+        {
+            return FailBind(
+                "delta-descriptions-negative-proof-requires-delta-descriptions");
+        }
+        if (delta_descriptions_fixture_.has_value()
+            && !delta_descriptions_enabled_)
+        {
+            return FailBind(
+                "delta-descriptions-fixture-requires-delta-descriptions");
+        }
         if (resource_manifest_enabled_ && !serverinfo_enabled_)
         {
             return FailBind("resource-manifest-requires-serverinfo");
@@ -92,9 +117,10 @@ public:
         {
             return FailBind("resource-manifest-fixture-requires-resource-manifest");
         }
-        if (resource_manifest_enabled_ && bind_address_ != "127.0.0.1")
+        if ((resource_manifest_enabled_ || delta_descriptions_enabled_)
+            && bind_address_ != "127.0.0.1")
         {
-            return FailBind("resource-manifest-loopback-required");
+            return FailBind("extended-signon-loopback-required");
         }
         if (serverinfo_enabled_ && client_dll_path_.empty())
         {
@@ -274,10 +300,12 @@ public:
 
     bool Succeeded() const noexcept
     {
+        const int expected_accept_count =
+            summary_.delta_slot_resets > 0 ? 2 : 1;
         const bool handshake_succeeded = complete_
             && accepted_
             && !transport_failed_
-            && summary_.accepted == 1
+            && summary_.accepted == expected_accept_count
             && summary_.session_count >= 1
             && summary_.allocated_slot > 0
             && !summary_.session_id.empty()
@@ -298,13 +326,23 @@ public:
             && summary_.oversized_manifest_not_truncated
             && summary_.resource_manifest_preparation_attempts == 1
             && summary_.resource_manifest_cached_outcome_reuses >= 1;
-        const int expected_reliable_acknowledgements =
-            summary_.fragment_transfer_started
-            ? 2 + summary_.fragment_acknowledged_count
-            : (resource_manifest_enabled_
-                    && !legacy_fragmentation_rejection_succeeded
-                ? 3
-                : (serverinfo_enabled_ ? 2 : 1));
+        int expected_reliable_acknowledgements = 1;
+        if (serverinfo_enabled_)
+        {
+            expected_reliable_acknowledgements +=
+                delta_descriptions_enabled_
+                    && summary_.signon_bootstrap_fragmented
+                ? summary_.signon_bootstrap_fragment_count
+                : 1;
+        }
+        if (resource_manifest_enabled_
+            && !legacy_fragmentation_rejection_succeeded)
+        {
+            expected_reliable_acknowledgements +=
+                summary_.resource_manifest_fragmented
+                ? summary_.resource_manifest_fragment_count
+                : 1;
+        }
         const bool netchan_succeeded = summary_.netchan_initialized
             && summary_.netchan_state == "established"
             && summary_.reliable_acked == expected_reliable_acknowledgements
@@ -329,6 +367,39 @@ public:
             {
                 return false;
             }
+            if (delta_descriptions_enabled_)
+            {
+                const bool delta_succeeded =
+                    summary_.delta_registry_built
+                    && summary_.delta_preparation_attempts == 1
+                    && summary_.delta_table_count
+                        == static_cast<int>(
+                            hl::network::
+                                kGoldSrcCanonicalDeltaTableCount)
+                    && summary_.usercmd_delta_present
+                    && summary_.delta_bundle_bytes > 0
+                    && summary_.signon_bootstrap_tail_bytes > 0
+                    && summary_.signon_bootstrap_bytes
+                        == summary_.serverinfo_payload_bytes
+                            + summary_.delta_bundle_bytes
+                            + summary_.signon_bootstrap_tail_bytes
+                    && summary_.delta_descriptions_queued == 1
+                    && summary_.delta_descriptions_sent == 1
+                    && summary_.delta_descriptions_acked == 1
+                    && summary_.signon_bootstrap_queued == 1
+                    && summary_.signon_bootstrap_sent == 1
+                    && summary_.signon_bootstrap_acked == 1
+                    && (!summary_.signon_bootstrap_fragmented
+                        || (summary_.signon_bootstrap_fragment_count > 1
+                            && summary_
+                                .signon_bootstrap_fragment_acknowledged_count
+                                == summary_
+                                    .signon_bootstrap_fragment_count));
+                if (!delta_succeeded)
+                {
+                    return false;
+                }
+            }
             if (resource_manifest_enabled_)
             {
                 if (legacy_fragmentation_rejection_succeeded)
@@ -350,38 +421,41 @@ public:
                     && summary_.resource_manifest_queued == 1
                     && summary_.resource_manifest_sent == 1
                     && summary_.resource_manifest_acked == 1
-                    && (!summary_.fragment_transfer_started
-                        || (summary_.fragment_count > 1
-                            && summary_.fragment_transfer_completed
-                            && !summary_.fragment_transfer_active
-                            && summary_.fragment_acknowledged_count
-                                == summary_.fragment_count))
+                    && (!summary_.resource_manifest_fragmented
+                        || (summary_.resource_manifest_fragment_count > 1
+                            && summary_
+                                .resource_manifest_fragment_acknowledged_count
+                                == summary_
+                                    .resource_manifest_fragment_count))
                     && summary_.signon_phase
                         == "resource_manifest_acknowledged";
                 if (!resource_manifest_succeeded
-                    || !resource_manifest_negative_proof_)
+                    || (!resource_manifest_negative_proof_
+                        && !delta_descriptions_negative_proof_))
                 {
                     return resource_manifest_succeeded;
                 }
-                return ResourceManifestNegativeEvidenceSatisfied()
+                return (!resource_manifest_negative_proof_
+                        || ResourceManifestNegativeEvidenceSatisfied())
+                    && (!delta_descriptions_negative_proof_
+                        || DeltaDescriptionsNegativeEvidenceSatisfied())
                     && summary_.server_still_responsive;
             }
             const bool serverinfo_phase_succeeded =
-                summary_.signon_phase == "serverinfo_acknowledged";
-            if (!serverinfo_phase_succeeded || !serverinfo_negative_proof_)
+                summary_.signon_phase
+                    == (delta_descriptions_enabled_
+                            ? "signon_bootstrap_acknowledged"
+                            : "serverinfo_acknowledged");
+            if (!serverinfo_phase_succeeded
+                || (!serverinfo_negative_proof_
+                    && !delta_descriptions_negative_proof_))
             {
                 return serverinfo_phase_succeeded;
             }
-            return summary_.serverinfo_resent >= 1
-                && summary_.wrong_reliable_ack_rejected
-                && summary_.future_ack_rejected >= 1
-                && summary_.duplicate_client_reliable_suppressed
-                && summary_.duplicate_rejected >= 1
-                && summary_.malformed_stringcmd_rejected >= 1
-                && summary_.command_injection_rejected >= 1
-                && summary_.unsupported_command_rejected >= 1
-                && summary_.unsupported_opcode_rejected >= 1
-                && summary_.endpoint_hijack_rejected >= 1
+            return (!serverinfo_negative_proof_
+                    || ServerInfoNegativeEvidenceSatisfied())
+                && (!delta_descriptions_negative_proof_
+                    || DeltaDescriptionsNegativeEvidenceSatisfied())
                 && summary_.server_still_responsive;
         }
         if (!negative_proof_)
@@ -589,6 +663,18 @@ public:
                         summary_.resource_manifest_retransmitted
                             ? "true"
                             : "false")
+                    + ",resource_manifest_fragmented="
+                    + std::string(
+                        summary_.resource_manifest_fragmented
+                            ? "true"
+                            : "false")
+                    + ",resource_manifest_fragment_count="
+                    + std::to_string(
+                        summary_.resource_manifest_fragment_count)
+                    + ",resource_manifest_fragment_acknowledged_count="
+                    + std::to_string(
+                        summary_
+                            .resource_manifest_fragment_acknowledged_count)
                     + ",duplicate_request_suppressed="
                     + std::string(
                         summary_.duplicate_resource_request_suppressed
@@ -719,6 +805,104 @@ public:
                     + std::string(summary_.server_still_responsive ? "1" : "0")
                     + ",clean_shutdown=1");
         }
+        if (delta_descriptions_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_delta_description_summary: enabled=1,negative_proof="
+                    + std::string(
+                        delta_descriptions_negative_proof_ ? "1" : "0")
+                    + ",source=" + summary_.delta_source
+                    + ",registry_built="
+                    + std::string(
+                        summary_.delta_registry_built ? "true" : "false")
+                    + ",preparation_attempts="
+                    + std::to_string(
+                        summary_.delta_preparation_attempts)
+                    + ",cached_outcome_reuses="
+                    + std::to_string(
+                        summary_.delta_cached_outcome_reuses)
+                    + ",table_count="
+                    + std::to_string(summary_.delta_table_count)
+                    + ",field_count="
+                    + std::to_string(summary_.delta_field_count)
+                    + ",usercmd_table_present="
+                    + std::string(
+                        summary_.usercmd_delta_present ? "true" : "false")
+                    + ",delta_bundle_bytes="
+                    + std::to_string(summary_.delta_bundle_bytes)
+                    + ",bootstrap_tail_bytes="
+                    + std::to_string(
+                        summary_.signon_bootstrap_tail_bytes)
+                    + ",bootstrap_bytes="
+                    + std::to_string(summary_.signon_bootstrap_bytes)
+                    + ",delta_queued="
+                    + std::to_string(
+                        summary_.delta_descriptions_queued)
+                    + ",delta_sent="
+                    + std::to_string(
+                        summary_.delta_descriptions_sent)
+                    + ",delta_acked="
+                    + std::to_string(
+                        summary_.delta_descriptions_acked)
+                    + ",bootstrap_queued="
+                    + std::to_string(summary_.signon_bootstrap_queued)
+                    + ",bootstrap_sent="
+                    + std::to_string(summary_.signon_bootstrap_sent)
+                    + ",bootstrap_resent="
+                    + std::to_string(summary_.signon_bootstrap_resent)
+                    + ",bootstrap_acked="
+                    + std::to_string(summary_.signon_bootstrap_acked)
+                    + ",first_carrier_sequence="
+                    + std::to_string(
+                        summary_
+                            .signon_bootstrap_first_carrier_sequence)
+                    + ",latest_carrier_sequence="
+                    + std::to_string(
+                        summary_
+                            .signon_bootstrap_latest_carrier_sequence)
+                    + ",carrier_send_count="
+                    + std::to_string(
+                        summary_.signon_bootstrap_send_count)
+                    + ",fragmented="
+                    + std::string(
+                        summary_.signon_bootstrap_fragmented
+                            ? "true"
+                            : "false")
+                    + ",fragment_count="
+                    + std::to_string(
+                        summary_.signon_bootstrap_fragment_count)
+                    + ",fragment_acknowledged_count="
+                    + std::to_string(
+                        summary_
+                            .signon_bootstrap_fragment_acknowledged_count)
+                    + ",slot_resets="
+                    + std::to_string(summary_.delta_slot_resets)
+                    + ",pending_state_cleared_on_reset="
+                    + std::string(
+                        summary_.delta_pending_state_cleared_on_reset
+                            ? "true"
+                            : "false")
+                    + ",fresh_sessions_after_reset="
+                    + std::to_string(
+                        summary_.delta_fresh_sessions_after_reset)
+                    + ",slot_reused_after_reset="
+                    + std::string(
+                        summary_.delta_slot_reused_after_reset
+                            ? "true"
+                            : "false")
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server="
+                    + std::string(
+                        summary_.put_in_server ? "1" : "0")
+                    + ",spawned="
+                    + std::string(summary_.spawned ? "1" : "0")
+                    + ",active="
+                    + std::string(summary_.active ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
     }
 
 private:
@@ -759,6 +943,8 @@ private:
         summary_.timed_out = true;
         summary_.last_reject_reason = accepted_ && resource_manifest_enabled_
             ? "resource-manifest-timeout"
+            : accepted_ && delta_descriptions_enabled_
+            ? "delta-descriptions-timeout"
             : accepted_ && serverinfo_enabled_
             ? "serverinfo-timeout"
             : accepted_ && netchan_enabled_
@@ -1254,6 +1440,18 @@ private:
                 signon_diagnostics.serverinfo_queued);
             summary_.serverinfo_acked = static_cast<int>(
                 signon_diagnostics.serverinfo_acknowledged);
+            summary_.delta_descriptions_queued = static_cast<int>(
+                signon_diagnostics.delta_descriptions_queued);
+            summary_.delta_descriptions_sent = static_cast<int>(
+                signon_diagnostics.delta_descriptions_sent);
+            summary_.delta_descriptions_acked = static_cast<int>(
+                signon_diagnostics.delta_descriptions_acknowledged);
+            summary_.signon_bootstrap_queued = static_cast<int>(
+                signon_diagnostics.signon_bootstrap_queued);
+            summary_.signon_bootstrap_sent = static_cast<int>(
+                signon_diagnostics.signon_bootstrap_sent);
+            summary_.signon_bootstrap_acked = static_cast<int>(
+                signon_diagnostics.signon_bootstrap_acknowledged);
             summary_.duplicate_client_reliable_suppressed =
                 signon_diagnostics.duplicate_new_suppressed > 0u;
             summary_.resource_request_received = static_cast<int>(
@@ -1300,6 +1498,9 @@ private:
         summary_.resource_manifest_latest_carrier_sequence = 0u;
         summary_.resource_manifest_send_count = 0;
         summary_.resource_manifest_retransmitted = false;
+        summary_.resource_manifest_fragmented = false;
+        summary_.resource_manifest_fragment_count = 0;
+        summary_.resource_manifest_fragment_acknowledged_count = 0;
         summary_.duplicate_resource_request_suppressed = false;
         summary_.fragment_transfer_started = false;
         summary_.fragment_transfer_completed = false;
@@ -1314,6 +1515,61 @@ private:
         summary_.requires_fragmentation_reported = false;
         summary_.oversized_manifest_not_truncated = false;
         summary_.wrong_reliable_ack_rejected = false;
+    }
+
+    void ResetDeltaDescriptionSessionSummary() noexcept
+    {
+        summary_.delta_registry_built = false;
+        summary_.delta_source = "none";
+        summary_.delta_preparation_attempts = 0;
+        summary_.delta_cached_outcome_reuses = 0;
+        summary_.delta_table_count = 0;
+        summary_.delta_field_count = 0;
+        summary_.usercmd_delta_present = false;
+        summary_.delta_bundle_bytes = 0;
+        summary_.signon_bootstrap_tail_bytes = 0;
+        summary_.signon_bootstrap_bytes = 0;
+        summary_.delta_descriptions_queued = 0;
+        summary_.delta_descriptions_sent = 0;
+        summary_.delta_descriptions_acked = 0;
+        summary_.signon_bootstrap_queued = 0;
+        summary_.signon_bootstrap_sent = 0;
+        summary_.signon_bootstrap_resent = 0;
+        summary_.signon_bootstrap_acked = 0;
+        summary_.signon_bootstrap_first_carrier_sequence = 0u;
+        summary_.signon_bootstrap_latest_carrier_sequence = 0u;
+        summary_.signon_bootstrap_send_count = 0;
+        summary_.signon_bootstrap_fragmented = false;
+        summary_.signon_bootstrap_fragment_count = 0;
+        summary_.signon_bootstrap_fragment_acknowledged_count = 0;
+    }
+
+    void ResetServerInfoSessionSummary() noexcept
+    {
+        summary_.serverinfo_context_built = false;
+        summary_.serverinfo_generations = 0;
+        summary_.serverinfo_queued = 0;
+        summary_.serverinfo_sent = 0;
+        summary_.serverinfo_resent = 0;
+        summary_.serverinfo_acked = 0;
+        summary_.serverinfo_first_carrier_sequence = 0u;
+        summary_.serverinfo_latest_carrier_sequence = 0u;
+        summary_.serverinfo_send_count = 0;
+        summary_.serverinfo_protocol = 0;
+        summary_.serverinfo_spawn_count = 0u;
+        summary_.serverinfo_checksum = "none";
+        summary_.serverinfo_client_dll_md5 = "none";
+        summary_.serverinfo_maxclients = 0;
+        summary_.serverinfo_player_index = -1;
+        summary_.serverinfo_deathmatch = false;
+        summary_.serverinfo_game_dir = "none";
+        summary_.serverinfo_hostname = "none";
+        summary_.serverinfo_map = "none";
+        summary_.serverinfo_mapcycle = "none";
+        summary_.serverinfo_secure = false;
+        summary_.serverinfo_fallback_dir = "none";
+        summary_.serverinfo_allow_cheats = false;
+        summary_.serverinfo_payload_bytes = 0;
     }
 
     static std::string HexUint32(std::uint32_t value)
@@ -1464,6 +1720,251 @@ private:
                 + std::to_string(summary_.serverinfo_player_index)
                 + ",payload_bytes="
                 + std::to_string(summary_.serverinfo_payload_bytes));
+        return true;
+    }
+
+    bool PrepareDeltaDescriptions(DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (slot_state.goldsrc_delta_registry.has_value()
+            && slot_state.goldsrc_delta_bundle.has_value()
+            && slot_state.goldsrc_signon_bootstrap_size != 0u)
+        {
+            ++summary_.delta_cached_outcome_reuses;
+            return true;
+        }
+        if (!slot_state.goldsrc_serverinfo_payload.has_value())
+        {
+            return FailTransport(
+                "delta-serverinfo-payload-missing",
+                "goldsrc_delta_description_failed: reason=serverinfo-payload-missing");
+        }
+
+        ++summary_.delta_preparation_attempts;
+        const std::filesystem::path definition_path =
+            delta_descriptions_fixture_.has_value()
+            ? *delta_descriptions_fixture_
+            : state_.server_state.game_directory / L"delta.lst";
+        summary_.delta_source = delta_descriptions_fixture_.has_value()
+            ? "synthetic_fixture"
+            : "runtime_game_dir";
+
+        std::error_code file_error;
+        const std::uintmax_t file_size =
+            std::filesystem::file_size(definition_path, file_error);
+        if (file_error)
+        {
+            return FailTransport(
+                "delta-definition-missing",
+                "goldsrc_delta_description_failed: reason=definition-missing");
+        }
+        if (file_size == 0u
+            || file_size
+                > hl::network::kGoldSrcMaximumDeltaDefinitionBytes)
+        {
+            return FailTransport(
+                "delta-definition-size-invalid",
+                "goldsrc_delta_description_failed: reason=definition-size-invalid");
+        }
+
+        std::ifstream input(definition_path, std::ios::binary);
+        if (!input)
+        {
+            return FailTransport(
+                "delta-definition-open-failed",
+                "goldsrc_delta_description_failed: reason=definition-open-failed");
+        }
+        std::string definitions(
+            static_cast<std::size_t>(file_size),
+            '\0');
+        if (!input.read(
+                definitions.data(),
+                static_cast<std::streamsize>(definitions.size()))
+            || input.peek() != std::char_traits<char>::eof())
+        {
+            return FailTransport(
+                "delta-definition-read-failed",
+                "goldsrc_delta_description_failed: reason=definition-read-failed");
+        }
+
+        const hl::network::GoldSrcDeltaLayoutRegistry layouts =
+            hl::game_api::detail::BuildGoldSrcProtocol48DeltaLayouts();
+        hl::network::GoldSrcDeltaParseResult parsed =
+            hl::network::ParseGoldSrcDeltaDefinitions(definitions, layouts);
+        if (!parsed.ok())
+        {
+            return FailTransport(
+                "delta-definition-parse-failed",
+                "goldsrc_delta_description_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(parsed.status))
+                    + ",offset="
+                    + std::to_string(parsed.error_offset));
+        }
+
+        std::size_t field_count = 0u;
+        bool usercmd_present = false;
+        for (const hl::network::GoldSrcDeltaTable& table :
+             parsed.registry.tables)
+        {
+            field_count += table.fields.size();
+            if (table.name == "usercmd_t" && !table.fields.empty())
+            {
+                usercmd_present = true;
+            }
+        }
+        if (!usercmd_present)
+        {
+            return FailTransport(
+                "delta-usercmd-table-missing",
+                "goldsrc_delta_description_failed: reason=missing-usercmd-table");
+        }
+
+        hl::network::GoldSrcDeltaBundleEncodeResult encoded =
+            hl::network::EncodeGoldSrcCanonicalDeltaBundle(parsed.registry);
+        if (!encoded.ok())
+        {
+            return FailTransport(
+                "delta-bundle-encode-failed",
+                "goldsrc_delta_description_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(encoded.status)));
+        }
+
+        const auto move_variable =
+            [this](std::string_view name, float fallback)
+            {
+                const std::optional<hl::game_api::CvarSnapshot> snapshot =
+                    state_.cvar_registry.SnapshotOf(name);
+                return snapshot.has_value() ? snapshot->value : fallback;
+            };
+        hl::network::GoldSrcBootstrapTailContext tail_context{};
+        tail_context.gravity = move_variable("sv_gravity", 800.0f);
+        tail_context.stop_speed = move_variable("sv_stopspeed", 100.0f);
+        tail_context.maximum_speed = move_variable("sv_maxspeed", 320.0f);
+        tail_context.spectator_maximum_speed =
+            move_variable("sv_spectatormaxspeed", 500.0f);
+        tail_context.accelerate = move_variable("sv_accelerate", 10.0f);
+        tail_context.air_accelerate =
+            move_variable("sv_airaccelerate", 10.0f);
+        tail_context.water_accelerate =
+            move_variable("sv_wateraccelerate", 10.0f);
+        tail_context.friction = move_variable("sv_friction", 4.0f);
+        tail_context.edge_friction =
+            move_variable("edgefriction", 2.0f);
+        tail_context.water_friction =
+            move_variable("sv_waterfriction", 1.0f);
+        tail_context.entity_gravity = 1.0f;
+        tail_context.bounce = move_variable("sv_bounce", 1.0f);
+        tail_context.step_size = move_variable("sv_stepsize", 18.0f);
+        tail_context.maximum_velocity =
+            move_variable("sv_maxvelocity", 2000.0f);
+        tail_context.z_maximum = move_variable("sv_zmax", 4096.0f);
+        tail_context.wave_height = move_variable("sv_wateramp", 0.0f);
+        tail_context.footsteps =
+            move_variable("mp_footsteps", 1.0f) != 0.0f;
+        tail_context.roll_angle = move_variable("sv_rollangle", 0.0f);
+        tail_context.roll_speed = move_variable("sv_rollspeed", 0.0f);
+        tail_context.sky_color_red =
+            move_variable("sv_skycolor_r", 0.0f);
+        tail_context.sky_color_green =
+            move_variable("sv_skycolor_g", 0.0f);
+        tail_context.sky_color_blue =
+            move_variable("sv_skycolor_b", 0.0f);
+        tail_context.sky_vector_x = move_variable("sv_skyvec_x", 0.0f);
+        tail_context.sky_vector_y = move_variable("sv_skyvec_y", 0.0f);
+        tail_context.sky_vector_z = move_variable("sv_skyvec_z", 0.0f);
+        if (const std::optional<hl::game_api::CvarSnapshot> sky_name =
+                state_.cvar_registry.SnapshotOf("sv_skyname");
+            sky_name.has_value() && !sky_name->string_value.empty())
+        {
+            tail_context.sky_name = sky_name->string_value;
+        }
+        else
+        {
+            tail_context.sky_name = "desert";
+        }
+        if (state_.globalvars.cdAudioTrack < 0
+            || state_.globalvars.cdAudioTrack
+                > std::numeric_limits<std::uint8_t>::max()
+            || slot_state.slot <= 0
+            || slot_state.slot
+                > std::numeric_limits<std::uint16_t>::max())
+        {
+            return FailTransport(
+                "delta-bootstrap-tail-context-invalid",
+                "goldsrc_delta_description_failed: reason=bootstrap-tail-context-invalid");
+        }
+        tail_context.cd_audio_track =
+            static_cast<std::uint8_t>(state_.globalvars.cdAudioTrack);
+        tail_context.view_entity =
+            static_cast<std::uint16_t>(slot_state.slot);
+        const hl::network::GoldSrcBootstrapTailEncodeResult tail =
+            hl::network::EncodeGoldSrcBootstrapTail(tail_context);
+        if (!tail.ok())
+        {
+            return FailTransport(
+                "delta-bootstrap-tail-encode-failed",
+                "goldsrc_delta_description_failed: reason="
+                    + std::string(hl::network::ReasonFor(tail.status)));
+        }
+        const std::size_t combined_size =
+            slot_state.goldsrc_serverinfo_payload->size
+            + encoded.payload.size
+            + tail.payload.size;
+        if (combined_size
+            > slot_state.goldsrc_signon_bootstrap.size())
+        {
+            return FailTransport(
+                "delta-bootstrap-capacity-exceeded",
+                "goldsrc_delta_description_failed: reason=bootstrap-capacity-exceeded");
+        }
+
+        slot_state.goldsrc_signon_bootstrap.fill(0u);
+        std::copy_n(
+            slot_state.goldsrc_serverinfo_payload->bytes.begin(),
+            slot_state.goldsrc_serverinfo_payload->size,
+            slot_state.goldsrc_signon_bootstrap.begin());
+        std::copy_n(
+            encoded.payload.bytes.begin(),
+            encoded.payload.size,
+            slot_state.goldsrc_signon_bootstrap.begin()
+                + slot_state.goldsrc_serverinfo_payload->size);
+        std::copy_n(
+            tail.payload.bytes.begin(),
+            tail.payload.size,
+            slot_state.goldsrc_signon_bootstrap.begin()
+                + slot_state.goldsrc_serverinfo_payload->size
+                + encoded.payload.size);
+        slot_state.goldsrc_signon_bootstrap_size = combined_size;
+        slot_state.goldsrc_delta_registry = std::move(parsed.registry);
+        slot_state.goldsrc_delta_bundle = std::move(encoded.payload);
+
+        summary_.delta_registry_built = true;
+        summary_.delta_table_count = static_cast<int>(
+            slot_state.goldsrc_delta_registry->tables.size());
+        summary_.delta_field_count = static_cast<int>(field_count);
+        summary_.usercmd_delta_present = true;
+        summary_.delta_bundle_bytes = static_cast<int>(
+            slot_state.goldsrc_delta_bundle->size);
+        summary_.signon_bootstrap_tail_bytes =
+            static_cast<int>(tail.payload.size);
+        summary_.signon_bootstrap_bytes =
+            static_cast<int>(combined_size);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_delta_description_built: session_id="
+                + slot_state.session_id
+                + ",source=" + summary_.delta_source
+                + ",tables="
+                + std::to_string(summary_.delta_table_count)
+                + ",fields="
+                + std::to_string(summary_.delta_field_count)
+                + ",usercmd=present,delta_bytes="
+                + std::to_string(summary_.delta_bundle_bytes)
+                + ",tail_bytes="
+                + std::to_string(summary_.signon_bootstrap_tail_bytes)
+                + ",bootstrap_bytes="
+                + std::to_string(summary_.signon_bootstrap_bytes));
         return true;
     }
 
@@ -2452,6 +2953,64 @@ private:
         ++summary_.clc_stringcmd_decoded;
 
         if (decoded.command
+            == hl::network::GoldSrcClientSignonCommand::kDisconnect)
+        {
+            const int disconnected_slot = slot_state.slot;
+            const std::string disconnected_session = slot_state.session_id;
+            const bool delta_pending =
+                slot_state.goldsrc_signon_bootstrap_size > 0u
+                && slot_state.netchan.pending_reliable_kind()
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap
+                && (slot_state.netchan.reliable_pending()
+                    || slot_state.netchan.fragment_sender().active());
+            ApplyDedicatedClientDisconnect(state_, slot_state);
+            RecordDedicatedLifecycleTransition(
+                state_.dedicated_multiplayer_foundation,
+                slot_state,
+                DedicatedPlayerLifecycleState::kDisconnected,
+                "bounded client disconnect during GoldSrc signon");
+            const bool state_cleared =
+                !slot_state.netchan.initialized()
+                && slot_state.goldsrc_signon.phase()
+                    == hl::network::GoldSrcSignonPhase::kNone
+                && !slot_state.goldsrc_serverinfo_context.has_value()
+                && !slot_state.goldsrc_serverinfo_payload.has_value()
+                && !slot_state.goldsrc_delta_registry.has_value()
+                && !slot_state.goldsrc_delta_bundle.has_value()
+                && slot_state.goldsrc_signon_bootstrap_size == 0u
+                && !slot_state.goldsrc_resource_manifest.has_value()
+                && slot_state.goldsrc_resource_manifest_response_size == 0u;
+            ++summary_.delta_slot_resets;
+            summary_.delta_pending_state_cleared_on_reset =
+                summary_.delta_pending_state_cleared_on_reset
+                || (delta_pending && state_cleared);
+            delta_reset_slot_ = disconnected_slot;
+            awaiting_fresh_session_after_delta_reset_ = true;
+            admitted_session_id_.clear();
+            negative_advance_pending_ = false;
+            summary_.final_state = "disconnected";
+            summary_.connected = false;
+            summary_.put_in_server = false;
+            summary_.spawned = false;
+            summary_.active = false;
+            SyncNetchanSummary(slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_delta_session_reset: session_id="
+                    + disconnected_session
+                    + ",slot=" + std::to_string(disconnected_slot)
+                    + ",pending_before_reset="
+                    + std::string(delta_pending ? "true" : "false")
+                    + ",state_cleared="
+                    + std::string(state_cleared ? "true" : "false")
+                    + ",session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server=0,spawned=0,active=0");
+            return true;
+        }
+
+        if (decoded.command
             == hl::network::GoldSrcClientSignonCommand::kNew)
         {
             if (slot_state.goldsrc_signon.phase()
@@ -2481,18 +3040,42 @@ private:
             {
                 return false;
             }
+            if (delta_descriptions_enabled_
+                && !PrepareDeltaDescriptions(slot_state))
+            {
+                return false;
+            }
             if (!slot_state.goldsrc_serverinfo_payload.has_value())
             {
                 return FailTransport(
                     "serverinfo-payload-missing",
                     "goldsrc_serverinfo_queue_failed: reason=payload-missing");
             }
+            const std::uint8_t* const bootstrap_bytes =
+                delta_descriptions_enabled_
+                ? slot_state.goldsrc_signon_bootstrap.data()
+                : slot_state.goldsrc_serverinfo_payload->bytes.data();
+            const std::size_t bootstrap_size =
+                delta_descriptions_enabled_
+                ? slot_state.goldsrc_signon_bootstrap_size
+                : slot_state.goldsrc_serverinfo_payload->size;
+            const hl::network::GoldSrcNetchanReliablePayloadKind
+                bootstrap_kind = delta_descriptions_enabled_
+                ? hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kSignonBootstrap
+                : hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kServerInfo;
+            if (bootstrap_size == 0u)
+            {
+                return FailTransport(
+                    "signon-bootstrap-payload-missing",
+                    "goldsrc_serverinfo_queue_failed: reason=bootstrap-payload-missing");
+            }
             const hl::network::GoldSrcNetchanQueueResult queue_result =
                 slot_state.netchan.QueueReliablePayload(
-                    slot_state.goldsrc_serverinfo_payload->bytes.data(),
-                    slot_state.goldsrc_serverinfo_payload->size,
-                    hl::network::GoldSrcNetchanReliablePayloadKind::
-                        kServerInfo);
+                    bootstrap_bytes,
+                    bootstrap_size,
+                    bootstrap_kind);
             if (queue_result != hl::network::GoldSrcNetchanQueueResult::kQueued)
             {
                 return FailTransport(
@@ -2509,15 +3092,16 @@ private:
                     "serverinfo-signon-commit-failed",
                     "goldsrc_serverinfo_queue_failed: reason=signon-commit-failed");
             }
-            *queued_kind =
-                hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo;
+            *queued_kind = bootstrap_kind;
             SyncNetchanSummary(slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
-                "goldsrc_serverinfo_queued: session_id=" + slot_state.session_id
+                (delta_descriptions_enabled_
+                        ? "goldsrc_signon_bootstrap_queued: session_id="
+                        : "goldsrc_serverinfo_queued: session_id=")
+                    + slot_state.session_id
                     + ",payload_bytes="
-                    + std::to_string(
-                        slot_state.goldsrc_serverinfo_payload->size)
+                    + std::to_string(bootstrap_size)
                     + ",signon_phase=" + summary_.signon_phase);
             return true;
         }
@@ -2684,8 +3268,12 @@ private:
         }
 
         if (serverinfo_enabled_
-            && pending_kind
-                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo
+            && (pending_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kServerInfo
+                || pending_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap)
             && decoded.packet.reliable_present)
         {
             if (summary_.serverinfo_send_count == 0)
@@ -2696,21 +3284,67 @@ private:
             summary_.serverinfo_latest_carrier_sequence =
                 decoded.packet.sequence;
             ++summary_.serverinfo_send_count;
+            if (pending_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kSignonBootstrap)
+            {
+                if (summary_.signon_bootstrap_send_count == 0)
+                {
+                    summary_.signon_bootstrap_first_carrier_sequence =
+                        decoded.packet.sequence;
+                }
+                summary_.signon_bootstrap_latest_carrier_sequence =
+                    decoded.packet.sequence;
+                ++summary_.signon_bootstrap_send_count;
+            }
             const hl::network::GoldSrcNetchanDiagnostics& diagnostics =
                 slot_state.netchan.diagnostics();
             if (diagnostics.reliable_resent > reliable_resent_before)
             {
                 ++summary_.serverinfo_resent;
+                if (pending_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap)
+                {
+                    ++summary_.signon_bootstrap_resent;
+                }
             }
-            else if (diagnostics.reliable_sent > reliable_sent_before)
+            else if (diagnostics.reliable_sent > reliable_sent_before
+                && (pending_kind
+                            == hl::network::
+                                GoldSrcNetchanReliablePayloadKind::
+                                    kSignonBootstrap
+                        ? summary_.signon_bootstrap_sent == 0
+                        : summary_.serverinfo_sent == 0))
             {
                 ++summary_.serverinfo_sent;
-                if (slot_state.goldsrc_signon.MarkServerInfoSent()
+                const hl::network::GoldSrcSignonTransitionResult
+                    sent_transition = pending_kind
+                            == hl::network::
+                                GoldSrcNetchanReliablePayloadKind::
+                                    kSignonBootstrap
+                        ? slot_state.goldsrc_signon.MarkSignonBootstrapSent()
+                        : slot_state.goldsrc_signon.MarkServerInfoSent();
+                if (pending_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap)
+                {
+                    ++summary_.signon_bootstrap_sent;
+                    const hl::network::GoldSrcFragmentSender&
+                        fragment_sender =
+                            slot_state.netchan.fragment_sender();
+                    summary_.signon_bootstrap_fragmented =
+                        fragment_sender.active();
+                    summary_.signon_bootstrap_fragment_count =
+                        static_cast<int>(
+                            fragment_sender.fragment_count());
+                }
+                if (sent_transition
                     != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
                 {
                     return FailTransport(
-                        "serverinfo-sent-transition-failed",
-                        "goldsrc_serverinfo_send_failed: reason=invalid-signon-phase");
+                        "signon-bootstrap-sent-transition-failed",
+                        "goldsrc_signon_bootstrap_send_failed: reason=invalid-signon-phase");
                 }
             }
         }
@@ -2724,6 +3358,13 @@ private:
             {
                 summary_.resource_manifest_first_carrier_sequence =
                     decoded.packet.sequence;
+                const hl::network::GoldSrcFragmentSender&
+                    fragment_sender =
+                        slot_state.netchan.fragment_sender();
+                summary_.resource_manifest_fragmented =
+                    fragment_sender.active();
+                summary_.resource_manifest_fragment_count =
+                    static_cast<int>(fragment_sender.fragment_count());
             }
             summary_.resource_manifest_latest_carrier_sequence =
                 decoded.packet.sequence;
@@ -2776,12 +3417,20 @@ private:
                                     .fragment_count)
                         : "")
                 + (serverinfo_enabled_
-                        && pending_kind
-                            == hl::network::
-                                GoldSrcNetchanReliablePayloadKind::kServerInfo
+                        && (pending_kind
+                                == hl::network::
+                                    GoldSrcNetchanReliablePayloadKind::
+                                        kServerInfo
+                            || pending_kind
+                                == hl::network::
+                                    GoldSrcNetchanReliablePayloadKind::
+                                        kSignonBootstrap)
                     ? ",signon_phase=" + summary_.signon_phase
                         + ",serverinfo_generations="
                         + std::to_string(summary_.serverinfo_generations)
+                        + ",delta_generations="
+                        + std::to_string(
+                            summary_.delta_preparation_attempts)
                     : resource_manifest_enabled_
                             && pending_kind
                                 == hl::network::
@@ -2878,6 +3527,23 @@ private:
             && summary_.unsupported_command_rejected >= 1
             && summary_.unsupported_opcode_rejected >= 1
             && summary_.endpoint_hijack_rejected >= 1;
+    }
+
+    bool DeltaDescriptionsNegativeEvidenceSatisfied() const noexcept
+    {
+        return summary_.delta_registry_built
+            && summary_.delta_preparation_attempts == 1
+            && summary_.signon_bootstrap_resent >= 1
+            && summary_.wrong_reliable_ack_rejected
+            && summary_.duplicate_client_reliable_suppressed
+            && summary_.signon_bootstrap_acked == 1
+            && summary_.delta_slot_resets == 1
+            && summary_.delta_pending_state_cleared_on_reset
+            && summary_.delta_fresh_sessions_after_reset == 1
+            && summary_.delta_slot_reused_after_reset
+            && (!summary_.signon_bootstrap_fragmented
+                || summary_.signon_bootstrap_fragment_acknowledged_count
+                    == summary_.signon_bootstrap_fragment_count);
     }
 
     bool ResourceManifestNegativeEvidenceSatisfied() const noexcept
@@ -2999,6 +3665,9 @@ private:
                         kServerInfo
                 || pending_kind_before
                     == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap
+                || pending_kind_before
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
                         kResourceManifest)
             && slot_state->netchan.diagnostics().reliable_ack_mismatch
                 > reliable_ack_mismatch_before)
@@ -3006,10 +3675,23 @@ private:
             summary_.wrong_reliable_ack_rejected = true;
         }
         if (serverinfo_enabled_
-            && process_outcome.acknowledged_reliable_kind
-                == hl::network::GoldSrcNetchanReliablePayloadKind::kServerInfo)
+            && (process_outcome.acknowledged_reliable_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kServerInfo
+                || process_outcome.acknowledged_reliable_kind
+                    == hl::network::GoldSrcNetchanReliablePayloadKind::
+                        kSignonBootstrap))
         {
-            if (slot_state->goldsrc_signon.MarkServerInfoAcknowledged()
+            const bool combined_bootstrap =
+                process_outcome.acknowledged_reliable_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kSignonBootstrap;
+            const hl::network::GoldSrcSignonTransitionResult
+                acknowledged_transition = combined_bootstrap
+                ? slot_state->goldsrc_signon
+                    .MarkSignonBootstrapAcknowledged()
+                : slot_state->goldsrc_signon.MarkServerInfoAcknowledged();
+            if (acknowledged_transition
                 != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
             {
                 return FailTransport(
@@ -3024,10 +3706,20 @@ private:
                     "resource-request-await-transition-failed",
                     "goldsrc_resource_manifest_transition_failed: reason=invalid-signon-phase");
             }
+            if (combined_bootstrap)
+            {
+                ++summary_.signon_bootstrap_acked;
+                summary_.signon_bootstrap_fragment_acknowledged_count =
+                    summary_.signon_bootstrap_fragmented
+                    ? summary_.signon_bootstrap_fragment_count
+                    : 0;
+            }
             SyncNetchanSummary(*slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
-                "goldsrc_serverinfo_acknowledged: session_id="
+                (combined_bootstrap
+                        ? "goldsrc_signon_bootstrap_acknowledged: session_id="
+                        : "goldsrc_serverinfo_acknowledged: session_id=")
                     + slot_state->session_id
                     + ",ack="
                     + std::to_string(decoded.packet.acknowledgement)
@@ -3048,6 +3740,10 @@ private:
                     "resource-manifest-ack-transition-failed",
                     "goldsrc_resource_manifest_ack_failed: reason=invalid-signon-phase");
             }
+            summary_.resource_manifest_fragment_acknowledged_count =
+                summary_.resource_manifest_fragmented
+                ? summary_.resource_manifest_fragment_count
+                : 0;
             SyncNetchanSummary(*slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
@@ -3092,7 +3788,14 @@ private:
                     + ",active=" + (summary_.active ? "1" : "0"));
             if (serverinfo_enabled_)
             {
-                if (slot_state->goldsrc_signon.EnterAwaitingNew()
+                const hl::network::GoldSrcSignonBootstrapMode bootstrap_mode =
+                    delta_descriptions_enabled_
+                    ? hl::network::GoldSrcSignonBootstrapMode::
+                        kServerInfoWithDeltaDescriptions
+                    : hl::network::GoldSrcSignonBootstrapMode::
+                        kServerInfoOnly;
+                if (slot_state->goldsrc_signon.EnterAwaitingNew(
+                        bootstrap_mode)
                         != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
                 {
                     return FailTransport(
@@ -3129,6 +3832,12 @@ private:
             {
                 return false;
             }
+            if (admitted_session_id_.empty())
+            {
+                // An exact reliable `dropclient\n` resets the authoritative
+                // slot and all session-owned transport state in the handler.
+                return true;
+            }
             if (queued_kind
                 != hl::network::GoldSrcNetchanReliablePayloadKind::kNone)
             {
@@ -3137,7 +3846,13 @@ private:
                     true,
                     queued_kind
                             == hl::network::
-                                GoldSrcNetchanReliablePayloadKind::kServerInfo
+                                GoldSrcNetchanReliablePayloadKind::
+                                    kSignonBootstrap
+                        ? "goldsrc_signon_bootstrap_sent"
+                        : queued_kind
+                                == hl::network::
+                                    GoldSrcNetchanReliablePayloadKind::
+                                        kServerInfo
                         ? "goldsrc_serverinfo_sent"
                         : "goldsrc_resource_manifest_sent");
             }
@@ -3176,11 +3891,15 @@ private:
                 == hl::network::GoldSrcSignonPhase::
                     kResourceManifestAcknowledged)
             {
-                if (!resource_manifest_negative_proof_)
+                if (!resource_manifest_negative_proof_
+                    && !delta_descriptions_negative_proof_)
                 {
                     complete_ = true;
                 }
-                else if (ResourceManifestNegativeEvidenceSatisfied())
+                else if ((!resource_manifest_negative_proof_
+                            || ResourceManifestNegativeEvidenceSatisfied())
+                    && (!delta_descriptions_negative_proof_
+                            || DeltaDescriptionsNegativeEvidenceSatisfied()))
                 {
                     summary_.server_still_responsive = true;
                     complete_ = true;
@@ -3207,14 +3926,21 @@ private:
                 return false;
             }
             if (slot_state->goldsrc_signon.phase()
-                == hl::network::GoldSrcSignonPhase::
-                    kServerInfoAcknowledged)
+                    == hl::network::GoldSrcSignonPhase::
+                        kServerInfoAcknowledged
+                || slot_state->goldsrc_signon.phase()
+                    == hl::network::GoldSrcSignonPhase::
+                        kSignonBootstrapAcknowledged)
             {
-                if (!serverinfo_negative_proof_)
+                if (!serverinfo_negative_proof_
+                    && !delta_descriptions_negative_proof_)
                 {
                     complete_ = true;
                 }
-                else if (ServerInfoNegativeEvidenceSatisfied())
+                else if ((!serverinfo_negative_proof_
+                            || ServerInfoNegativeEvidenceSatisfied())
+                    && (!delta_descriptions_negative_proof_
+                            || DeltaDescriptionsNegativeEvidenceSatisfied()))
                 {
                     summary_.server_still_responsive = true;
                     complete_ = true;
@@ -3275,12 +4001,37 @@ private:
         summary_.spawned = slot_state->spawn_count > 0 || slot_state->alive;
         summary_.active = slot_state->put_in_server && slot_state->alive;
         summary_.last_reject_reason = "<none>";
+        if (awaiting_fresh_session_after_delta_reset_)
+        {
+            if (slot_state->slot != delta_reset_slot_)
+            {
+                return FailTransport(
+                    "delta-slot-reuse-mismatch",
+                    "goldsrc_delta_session_reset_failed: reason=slot-reuse-mismatch");
+            }
+            ++summary_.delta_fresh_sessions_after_reset;
+            summary_.delta_slot_reused_after_reset = true;
+            awaiting_fresh_session_after_delta_reset_ = false;
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_delta_fresh_session: session_id="
+                    + slot_state->session_id
+                    + ",slot=" + std::to_string(slot_state->slot)
+                    + ",slot_reused=true,session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server=0,spawned=0,active=0");
+        }
+        if (delta_descriptions_enabled_)
+        {
+            ResetDeltaDescriptionSessionSummary();
+        }
         if (resource_manifest_enabled_)
         {
             ResetResourceManifestSessionSummary();
         }
         if (serverinfo_enabled_)
         {
+            ResetServerInfoSessionSummary();
             ++summary_.signon_state_resets;
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
@@ -3356,6 +4107,9 @@ private:
     bool negative_proof_ = false;
     bool serverinfo_enabled_ = false;
     bool serverinfo_negative_proof_ = false;
+    bool delta_descriptions_enabled_ = false;
+    bool delta_descriptions_negative_proof_ = false;
+    std::optional<std::filesystem::path> delta_descriptions_fixture_;
     bool resource_manifest_enabled_ = false;
     bool resource_manifest_negative_proof_ = false;
     std::optional<std::filesystem::path> resource_manifest_fixture_;
@@ -3381,4 +4135,6 @@ private:
     bool transport_failed_ = false;
     bool accepted_ = false;
     bool shutdown_ = false;
+    bool awaiting_fresh_session_after_delta_reset_ = false;
+    int delta_reset_slot_ = 0;
 };

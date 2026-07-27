@@ -51,7 +51,9 @@
 #include "track_path_resolver.h"
 #include "game_api/server_command_buffer.h"
 #include "game_api/server_command_dispatcher.h"
+#include "goldsrc_delta_runtime_registry.h"
 #include "network/goldsrc_connectionless.h"
+#include "network/goldsrc_delta_description.h"
 #include "network/goldsrc_netchan.h"
 #include "network/goldsrc_resource_manifest.h"
 #include "network/udp_socket.h"
@@ -459,6 +461,14 @@ struct DedicatedPlayerRuntimeSlot
     hl::network::GoldSrcSignonSessionState goldsrc_signon;
     std::optional<hl::network::GoldSrcServerInfoContext> goldsrc_serverinfo_context;
     std::optional<hl::network::GoldSrcServerInfoPayload> goldsrc_serverinfo_payload;
+    std::optional<hl::network::GoldSrcDeltaRegistry> goldsrc_delta_registry;
+    std::optional<hl::network::GoldSrcDeltaBundlePayload>
+        goldsrc_delta_bundle;
+    std::array<
+        std::uint8_t,
+        hl::network::kGoldSrcMaximumFragmentTransferBytes>
+        goldsrc_signon_bootstrap{};
+    std::size_t goldsrc_signon_bootstrap_size = 0;
     std::optional<hl::network::GoldSrcResourceManifest> goldsrc_resource_manifest;
     hl::network::GoldSrcResourceManifestPreparationCache
         goldsrc_resource_manifest_preparation;
@@ -92366,6 +92376,10 @@ void RecordDedicatedLifecycleTransition(
         slot_state.goldsrc_signon.Reset();
         slot_state.goldsrc_serverinfo_context.reset();
         slot_state.goldsrc_serverinfo_payload.reset();
+        slot_state.goldsrc_delta_registry.reset();
+        slot_state.goldsrc_delta_bundle.reset();
+        slot_state.goldsrc_signon_bootstrap.fill(0u);
+        slot_state.goldsrc_signon_bootstrap_size = 0u;
         slot_state.goldsrc_resource_manifest.reset();
         slot_state.goldsrc_resource_manifest_preparation.Reset();
         slot_state.goldsrc_resource_manifest_response.fill(0u);
