@@ -18,6 +18,8 @@ param(
 
     [switch]$NegativeProof,
 
+    [switch]$ObservedContinuation,
+
     [switch]$SkipServerOutput
 )
 
@@ -279,10 +281,20 @@ function Invoke-ResourceManifestExchange {
         [DateTime]$Deadline,
         [System.Net.IPEndPoint]$ServerEndpoint,
         $Handshake,
-        [object[]]$ExpectedEntries
+        [object[]]$ExpectedEntries,
+        [switch]$ObservedContinuation
     )
 
     $sendResourcesPayload = New-StringCommandPayload -Command "sendres"
+    if ($ObservedContinuation) {
+        $closeMenusPayload =
+            New-StringCommandPayload -Command "closemenus `n"
+        $sendResourcesPayload = [byte[]](
+            $sendResourcesPayload +
+            $closeMenusPayload +
+            $closeMenusPayload
+        )
+    }
     $sendResourcesPacket = New-SequencedDatagram `
         -Sequence 4 `
         -Acknowledgement 4 `
@@ -714,7 +726,8 @@ function Assert-ResourceServerInfoSummary {
         $DecodedServerInfo,
         [string]$ExpectedClientDllMd5,
         [ValidateSet("Positive", "Negative", "Oversized")]
-        [string]$Mode
+        [string]$Mode,
+        [switch]$ObservedContinuation
     )
 
     $line = Get-ExactlyOneSummaryLine -Stdout $Stdout -Prefix "goldsrc_serverinfo_summary:"
@@ -757,13 +770,19 @@ function Assert-ResourceManifestSummary {
         [ValidateSet("Positive", "Negative", "Oversized")]
         [string]$Mode,
         [int]$ExpectedEntryCount,
-        [int]$ExpectedPayloadBytes
+        [int]$ExpectedPayloadBytes,
+        [switch]$ObservedContinuation
     )
 
     $line = Get-ExactlyOneSummaryLine -Stdout $Stdout -Prefix "goldsrc_resource_manifest_summary:"
     $oversized = $Mode -eq "Oversized"
     Assert-SummaryFields -Line $line -Description "goldsrc_resource_manifest_summary" -Expected ([ordered]@{
         enabled = "1"
+        observed_continuation_received = $(if ($ObservedContinuation -and -not $oversized) { "true" } else { "false" })
+        observed_continuation_deliveries = $(if ($ObservedContinuation -and -not $oversized) { "1" } else { "0" })
+        close_menus_companions_accepted = $(if ($ObservedContinuation -and -not $oversized) { "2" } else { "0" })
+        observed_continuation_incomplete_rejected = "false"
+        observed_continuation_unsupported_rejected = "false"
         resource_manifest_preparation_attempts = "1"
         resource_manifest_context_built = $(if ($oversized) { "0" } else { "1" })
         resource_manifest_generations = $(if ($oversized) { "0" } else { "1" })
@@ -863,6 +882,7 @@ try {
         -Address $BindAddress `
         -RequestedPort $Port `
         -RunTimeoutSeconds $TimeoutSeconds `
+        -ObservedContinuation:$ObservedContinuation `
         -SuppressServerOutput:$SkipServerOutput
 
     if ($NegativeProof) {

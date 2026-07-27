@@ -541,6 +541,12 @@ std::string_view ReasonFor(GoldSrcClientSignonDecodeStatus status) noexcept
         return "unsupported_command";
     case GoldSrcClientSignonDecodeStatus::kMultipleCommands:
         return "multiple_commands";
+    case GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCommand:
+        return "unsupported_companion_command";
+    case GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCount:
+        return "unsupported_companion_count";
+    case GoldSrcClientSignonDecodeStatus::kTooManyCompanionCommands:
+        return "too_many_companion_commands";
     case GoldSrcClientSignonDecodeStatus::kUnsupportedTrailingData:
         return "unsupported_trailing_data";
     default:
@@ -642,21 +648,90 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     }
     ++cursor;
 
-    while (cursor < size && bytes[cursor] == kGoldSrcClientNopOpcode)
+    constexpr std::array<std::uint8_t, 12> kObservedCloseMenus = {
+        'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's', ' ', '\n',
+    };
+    std::size_t companion_count = 0;
+    while (cursor < size)
     {
+        if (bytes[cursor] == kGoldSrcClientNopOpcode)
+        {
+            ++cursor;
+            ++result.trailing_nop_count;
+            continue;
+        }
+        if (bytes[cursor] != kGoldSrcClientStringCommandOpcode)
+        {
+            result.status =
+                GoldSrcClientSignonDecodeStatus::kUnsupportedTrailingData;
+            return result;
+        }
+        if (command != GoldSrcClientSignonCommand::kSendResources)
+        {
+            result.status = GoldSrcClientSignonDecodeStatus::kMultipleCommands;
+            return result;
+        }
+
         ++cursor;
-        ++result.trailing_nop_count;
-    }
-    if (cursor != size)
-    {
-        result.status = bytes[cursor] == kGoldSrcClientStringCommandOpcode
-            ? GoldSrcClientSignonDecodeStatus::kMultipleCommands
-            : GoldSrcClientSignonDecodeStatus::kUnsupportedTrailingData;
-        return result;
+        const std::size_t companion_begin = cursor;
+        while (cursor < size && bytes[cursor] != 0u)
+        {
+            if (cursor - companion_begin >= kGoldSrcMaximumClientCommandBytes)
+            {
+                result.status =
+                    GoldSrcClientSignonDecodeStatus::kCommandTooLong;
+                return result;
+            }
+            const std::uint8_t byte = bytes[cursor];
+            if ((byte < 0x20u && byte != '\n') || byte == 0x7Fu)
+            {
+                result.status =
+                    GoldSrcClientSignonDecodeStatus::kInvalidControlByte;
+                return result;
+            }
+            ++cursor;
+        }
+        if (cursor == size)
+        {
+            result.status =
+                GoldSrcClientSignonDecodeStatus::kMissingStringTerminator;
+            return result;
+        }
+
+        const std::size_t companion_size = cursor - companion_begin;
+        if (companion_size == 0u
+            || companion_size != kObservedCloseMenus.size()
+            || !std::equal(
+                kObservedCloseMenus.begin(),
+                kObservedCloseMenus.end(),
+                bytes + companion_begin))
+        {
+            result.status =
+                GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCommand;
+            return result;
+        }
+        if (companion_count >= kGoldSrcMaximumCloseMenusCompanions)
+        {
+            result.status =
+                GoldSrcClientSignonDecodeStatus::kTooManyCompanionCommands;
+            return result;
+        }
+        ++companion_count;
+        ++cursor;
     }
 
+    if (companion_count == 1u)
+    {
+        result.status =
+            GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCount;
+        return result;
+    }
     result.status = GoldSrcClientSignonDecodeStatus::kOk;
     result.command = command;
+    result.companion_command = companion_count == 0u
+        ? GoldSrcClientSignonCompanionCommand::kNone
+        : GoldSrcClientSignonCompanionCommand::kCloseMenus;
+    result.companion_count = companion_count;
     return result;
 }
 

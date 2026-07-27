@@ -18,6 +18,8 @@ param(
 
     [switch]$NegativeProof,
 
+    [switch]$ObservedContinuation,
+
     [switch]$SkipServerOutput
 )
 
@@ -560,7 +562,8 @@ function Assert-ResourceServerInfoSummary {
         $DecodedServerInfo,
         [string]$ExpectedClientDllMd5,
         [ValidateSet("Positive", "Negative", "Oversized")]
-        [string]$Mode
+        [string]$Mode,
+        [switch]$ObservedContinuation
     )
 
     $line = Get-ExactlyOneSummaryLine -Stdout $Stdout -Prefix "goldsrc_serverinfo_summary:"
@@ -571,6 +574,9 @@ function Assert-ResourceServerInfoSummary {
     }
     $expectedResponsive = if ($Mode -eq "Positive") { "0" } else { "1" }
     $expectedUnsupported = if ($Mode -eq "Negative") { "1" } else { "0" }
+    $expectedMalformed = if (
+        $Mode -eq "Negative" -and $ObservedContinuation
+    ) { "1" } else { "0" }
     $expectedWrongAck = if ($Mode -eq "Negative") { "1" } else { "0" }
     Assert-SummaryFields -Line $line -Description "goldsrc_serverinfo_summary" -Expected ([ordered]@{
         enabled = "1"
@@ -578,7 +584,7 @@ function Assert-ResourceServerInfoSummary {
         client_new_received = "1"
         client_new_delivered = "1"
         duplicate_new_deliveries = "0"
-        malformed_stringcmd_rejected = "0"
+        malformed_stringcmd_rejected = $expectedMalformed
         command_injection_rejected = "0"
         unsupported_command_rejected = $expectedUnsupported
         unsupported_opcode_rejected = "0"
@@ -640,7 +646,8 @@ function Assert-ResourceManifestSummary {
         [ValidateSet("Positive", "Negative", "Oversized")]
         [string]$Mode,
         [int]$ExpectedEntryCount,
-        [int]$ExpectedPayloadBytes
+        [int]$ExpectedPayloadBytes,
+        [switch]$ObservedContinuation
     )
 
     $line = Get-ExactlyOneSummaryLine -Stdout $Stdout -Prefix "goldsrc_resource_manifest_summary:"
@@ -659,6 +666,16 @@ function Assert-ResourceManifestSummary {
     $firstCarrier = if ($Mode -eq "Oversized") { 0 } else { 5 }
     $latestCarrier = if ($Mode -eq "Negative") { 9 } elseif ($Mode -eq "Positive") { 5 } else { 0 }
     $sendCount = if ($Mode -eq "Negative") { 3 } elseif ($Mode -eq "Positive") { 1 } else { 0 }
+    $observedReceived = if ($ObservedContinuation) { "true" } else { "false" }
+    $observedDeliveries = if (
+        $ObservedContinuation -and $Mode -ne "Oversized"
+    ) { "1" } else { "0" }
+    $acceptedCompanions = if (
+        $ObservedContinuation -and $Mode -ne "Oversized"
+    ) { "2" } else { "0" }
+    $observedNegative = if (
+        $ObservedContinuation -and $Mode -eq "Negative"
+    ) { "true" } else { "false" }
     $expectedPhase = if ($Mode -eq "Oversized") {
         "awaiting_resource_request"
     } else {
@@ -671,6 +688,11 @@ function Assert-ResourceManifestSummary {
         resource_request_received = [string]$requestReceived
         resource_request_deliveries = [string]$requestDelivered
         duplicate_resource_requests_suppressed = [string]$duplicates
+        observed_continuation_received = $observedReceived
+        observed_continuation_deliveries = $observedDeliveries
+        close_menus_companions_accepted = $acceptedCompanions
+        observed_continuation_incomplete_rejected = $observedNegative
+        observed_continuation_unsupported_rejected = $observedNegative
         resource_manifest_preparation_attempts = [string]$preparationAttempts
         resource_manifest_cached_outcome_reuses = [string]$cachedOutcomeReuses
         resource_manifest_context_built = [string]$contextBuilt
@@ -841,10 +863,20 @@ function Invoke-ResourceManifestExchange {
         [DateTime]$Deadline,
         [System.Net.IPEndPoint]$ServerEndpoint,
         $Handshake,
-        [object[]]$ExpectedEntries
+        [object[]]$ExpectedEntries,
+        [switch]$ObservedContinuation
     )
 
     $sendResourcesPayload = New-StringCommandPayload -Command "sendres"
+    if ($ObservedContinuation) {
+        $closeMenusPayload =
+            New-StringCommandPayload -Command "closemenus `n"
+        $sendResourcesPayload = [byte[]](
+            $sendResourcesPayload +
+            $closeMenusPayload +
+            $closeMenusPayload
+        )
+    }
     $sendResourcesPacket = New-SequencedDatagram -Sequence 4 -Acknowledgement 4 -ReliableToggle -Payload $sendResourcesPayload
     Send-ExactUdpDatagram -Client $Client -Packet $sendResourcesPacket -Description "reliable client sendres request"
 
@@ -958,7 +990,16 @@ function Invoke-ResourceManifestExchange {
     [void](Receive-AndAssertNopAck @nopArguments)
     Wait-ForStdoutToken -Process $ServerProcess -OutputCapture $OutputCapture -StdoutPath $StdoutPath -Deadline $Deadline -Token "goldsrc_resource_request_suppressed:" -Description "duplicate sendres suppression diagnostic"
 
-    $unsupportedPayload = New-StringCommandPayload -Command "status"
+    if ($ObservedContinuation) {
+        $unsupportedCompanion =
+            New-StringCommandPayload -Command "closemenus extra"
+        $unsupportedPayload = [byte[]](
+            (New-StringCommandPayload -Command "sendres") +
+            $unsupportedCompanion
+        )
+    } else {
+        $unsupportedPayload = New-StringCommandPayload -Command "status"
+    }
     $unsupportedRequest = New-SequencedDatagram -Sequence 8 -Acknowledgement 8 -ReliableToggle -Payload $unsupportedPayload
     Send-ExactUdpDatagram -Client $Client -Packet $unsupportedRequest -Description "unsupported reliable signon request"
     $receiveArguments.Description = "resource manifest retransmission after unsupported request"
@@ -968,7 +1009,30 @@ function Invoke-ResourceManifestExchange {
     Assert-ExactBytes -Actual $secondResendPacket.Payload -Expected $manifestPacket.Payload -Description "resource manifest after unsupported request"
     $decodedSecondResend = Read-ResourceManifestPayload -Payload $secondResendPacket.Payload -ExpectedSpawnCount $Handshake.ServerInfo.SpawnCount
     Assert-ManifestMatchesFixture -Manifest $decodedSecondResend -ExpectedEntries $ExpectedEntries -Description "resource manifest after unsupported request"
-    Wait-ForStdoutToken -Process $ServerProcess -OutputCapture $OutputCapture -StdoutPath $StdoutPath -Deadline $Deadline -Token "goldsrc_client_signon_rejected: reason=unsupported_command" -Description "unsupported signon request rejection"
+    if ($ObservedContinuation) {
+        Wait-ForStdoutToken -Process $ServerProcess -OutputCapture $OutputCapture -StdoutPath $StdoutPath -Deadline $Deadline -Token "goldsrc_client_signon_rejected: reason=unsupported_companion_command" -Description "unsupported observed companion rejection"
+
+        $closeMenusPayload =
+            New-StringCommandPayload -Command "closemenus `n"
+        $truncatedCloseMenus = [byte[]]$closeMenusPayload[
+            0..($closeMenusPayload.Length - 2)
+        ]
+        $incompletePayload = [byte[]](
+            (New-StringCommandPayload -Command "sendres") +
+            $truncatedCloseMenus
+        )
+        $incompleteRequest = New-SequencedDatagram -Sequence 9 -Acknowledgement 8 -ReliableToggle -Payload $incompletePayload
+        Send-ExactUdpDatagram -Client $Client -Packet $incompleteRequest -Description "incomplete observed continuation request"
+        $nopArguments.ExpectedServerSequence = [uint32]10
+        $nopArguments.ExpectedClientSequence = [uint32]9
+        $nopArguments.ExpectedServerReliableToggle = $false
+        $nopArguments.ExpectedClientReliableToggle = $true
+        $nopArguments.Description = "ordinary response after incomplete observed continuation"
+        [void](Receive-AndAssertNopAck @nopArguments)
+        Wait-ForStdoutToken -Process $ServerProcess -OutputCapture $OutputCapture -StdoutPath $StdoutPath -Deadline $Deadline -Token "goldsrc_client_signon_rejected: reason=missing_string_terminator" -Description "incomplete observed continuation rejection"
+    } else {
+        Wait-ForStdoutToken -Process $ServerProcess -OutputCapture $OutputCapture -StdoutPath $StdoutPath -Deadline $Deadline -Token "goldsrc_client_signon_rejected: reason=unsupported_command" -Description "unsupported signon request rejection"
+    }
 
     [void](Update-ProcessOutputCapture -State $OutputCapture)
     $beforeCorrectAck = Get-SharedFileText -Path $StdoutPath
@@ -978,12 +1042,14 @@ function Invoke-ResourceManifestExchange {
         throw "resource manifest advanced before the correct reliable acknowledgement"
     }
 
-    $correctAck = New-SequencedDatagram -Sequence 9 -Acknowledgement 9 -ReliableAcknowledgementToggle -Payload $Handshake.NopPayload
+    $correctSequence = if ($ObservedContinuation) { [uint32]10 } else { [uint32]9 }
+    $coveredServerSequence = [uint32]9
+    $correctAck = New-SequencedDatagram -Sequence $correctSequence -Acknowledgement $coveredServerSequence -ReliableAcknowledgementToggle -Payload $Handshake.NopPayload
     Send-ExactUdpDatagram -Client $Client -Packet $correctAck -Description "correct resource manifest reliable acknowledgement"
-    $nopArguments.ExpectedServerSequence = [uint32]10
-    $nopArguments.ExpectedClientSequence = [uint32]9
+    $nopArguments.ExpectedServerSequence = $correctSequence + [uint32]1
+    $nopArguments.ExpectedClientSequence = $correctSequence
     $nopArguments.ExpectedServerReliableToggle = $false
-    $nopArguments.ExpectedClientReliableToggle = $false
+    $nopArguments.ExpectedClientReliableToggle = [bool]$ObservedContinuation
     $nopArguments.Description = "responsive final manifest acknowledgement response"
     [void](Receive-AndAssertNopAck @nopArguments)
 
@@ -1008,6 +1074,7 @@ function Invoke-ResourceManifestHostRun {
         [string]$Address,
         [int]$RequestedPort,
         [int]$RunTimeoutSeconds,
+        [switch]$ObservedContinuation,
         [switch]$SuppressServerOutput
     )
 
@@ -1111,7 +1178,7 @@ function Invoke-ResourceManifestHostRun {
 
         $handshake = Invoke-HandshakeThroughServerInfo -Client $probeClient -ServerProcess $serverProcess -OutputCapture $outputCapture -Deadline $deadline -ServerEndpoint $serverEndpoint -ExpectedClientDllMd5 $ExpectedClientDllMd5
         $challengeValue = $handshake.Challenge
-        $exchange = Invoke-ResourceManifestExchange -Mode $Mode -Client $probeClient -ServerProcess $serverProcess -OutputCapture $outputCapture -StdoutPath $stdoutPath -Deadline $deadline -ServerEndpoint $serverEndpoint -Handshake $handshake -ExpectedEntries $ExpectedEntries
+        $exchange = Invoke-ResourceManifestExchange -Mode $Mode -Client $probeClient -ServerProcess $serverProcess -OutputCapture $outputCapture -StdoutPath $stdoutPath -Deadline $deadline -ServerEndpoint $serverEndpoint -Handshake $handshake -ExpectedEntries $ExpectedEntries -ObservedContinuation:$ObservedContinuation
 
         Wait-ForCleanServerExit -Process $serverProcess -OutputCapture $outputCapture -Deadline $deadline
         if ($serverProcess.ExitCode -ne 0) {
@@ -1125,14 +1192,20 @@ function Invoke-ResourceManifestHostRun {
         $capturedStderr = Get-SharedFileText -Path $stderrPath
 
         Assert-SessionSummary -Stdout $capturedStdout -ExpectedEndpoint ("127.0.0.1:{0}" -f $clientPort) -ExpectedChallenge $challengeValue -ExpectedChannelIdentifier $clientPort
-        $expectedDatagrams = if ($Mode -eq "Positive") { 7 } elseif ($Mode -eq "Negative") { 11 } else { 7 }
+        $expectedDatagrams = if ($Mode -eq "Positive") {
+            7
+        } elseif ($Mode -eq "Negative") {
+            if ($ObservedContinuation) { 12 } else { 11 }
+        } else {
+            7
+        }
         Assert-UdpSummary -Stdout $capturedStdout -ExpectedDatagrams $expectedDatagrams
         Assert-ResourceNetchanSummary -Stdout $capturedStdout -Mode $Mode
-        Assert-ResourceServerInfoSummary -Stdout $capturedStdout -DecodedServerInfo $handshake.ServerInfo -ExpectedClientDllMd5 $ExpectedClientDllMd5 -Mode $Mode
+        Assert-ResourceServerInfoSummary -Stdout $capturedStdout -DecodedServerInfo $handshake.ServerInfo -ExpectedClientDllMd5 $ExpectedClientDllMd5 -Mode $Mode -ObservedContinuation:$ObservedContinuation
         if ($Mode -eq "Oversized") {
-            Assert-ResourceManifestSummary -Stdout $capturedStdout -Mode $Mode -ExpectedEntryCount 0 -ExpectedPayloadBytes 0
+            Assert-ResourceManifestSummary -Stdout $capturedStdout -Mode $Mode -ExpectedEntryCount 0 -ExpectedPayloadBytes 0 -ObservedContinuation:$ObservedContinuation
         } else {
-            Assert-ResourceManifestSummary -Stdout $capturedStdout -Mode $Mode -ExpectedEntryCount $ExpectedEntries.Count -ExpectedPayloadBytes $exchange.Manifest.PayloadBytes
+            Assert-ResourceManifestSummary -Stdout $capturedStdout -Mode $Mode -ExpectedEntryCount $ExpectedEntries.Count -ExpectedPayloadBytes $exchange.Manifest.PayloadBytes -ObservedContinuation:$ObservedContinuation
         }
     }
     catch {
@@ -1273,11 +1346,11 @@ $failure = $null
 
 try {
     if ($NegativeProof) {
-        $mainResult = Invoke-ResourceManifestHostRun -Mode "Negative" -ResolvedExecutablePath $resolvedExecutablePath -ResolvedGameDir $resolvedGameDir -FixturePath $resolvedManifestFixture -ExpectedEntries $expectedEntries -ExpectedClientDllMd5 $expectedClientDllMd5 -RepositoryRoot $repoRoot -Address $BindAddress -RequestedPort $Port -RunTimeoutSeconds $TimeoutSeconds -SuppressServerOutput:$SkipServerOutput
+        $mainResult = Invoke-ResourceManifestHostRun -Mode "Negative" -ResolvedExecutablePath $resolvedExecutablePath -ResolvedGameDir $resolvedGameDir -FixturePath $resolvedManifestFixture -ExpectedEntries $expectedEntries -ExpectedClientDllMd5 $expectedClientDllMd5 -RepositoryRoot $repoRoot -Address $BindAddress -RequestedPort $Port -RunTimeoutSeconds $TimeoutSeconds -ObservedContinuation:$ObservedContinuation -SuppressServerOutput:$SkipServerOutput
 
         $oversizedResult = Invoke-ResourceManifestHostRun -Mode "Oversized" -ResolvedExecutablePath $resolvedExecutablePath -ResolvedGameDir $resolvedGameDir -FixturePath "" -ExpectedEntries @() -ExpectedClientDllMd5 $expectedClientDllMd5 -RepositoryRoot $repoRoot -Address $BindAddress -RequestedPort 0 -RunTimeoutSeconds $TimeoutSeconds -SuppressServerOutput:$SkipServerOutput
     } else {
-        $mainResult = Invoke-ResourceManifestHostRun -Mode "Positive" -ResolvedExecutablePath $resolvedExecutablePath -ResolvedGameDir $resolvedGameDir -FixturePath $resolvedManifestFixture -ExpectedEntries $expectedEntries -ExpectedClientDllMd5 $expectedClientDllMd5 -RepositoryRoot $repoRoot -Address $BindAddress -RequestedPort $Port -RunTimeoutSeconds $TimeoutSeconds -SuppressServerOutput:$SkipServerOutput
+        $mainResult = Invoke-ResourceManifestHostRun -Mode "Positive" -ResolvedExecutablePath $resolvedExecutablePath -ResolvedGameDir $resolvedGameDir -FixturePath $resolvedManifestFixture -ExpectedEntries $expectedEntries -ExpectedClientDllMd5 $expectedClientDllMd5 -RepositoryRoot $repoRoot -Address $BindAddress -RequestedPort $Port -RunTimeoutSeconds $TimeoutSeconds -ObservedContinuation:$ObservedContinuation -SuppressServerOutput:$SkipServerOutput
     }
     Assert-NoRepositoryFileMutation -RepositoryRoot $repoRoot -Before $repositorySnapshotBefore
 }

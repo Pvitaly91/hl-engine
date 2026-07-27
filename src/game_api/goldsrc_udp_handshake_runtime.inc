@@ -532,6 +532,27 @@ public:
                     + ",duplicate_resource_requests_suppressed="
                     + std::to_string(
                         summary_.duplicate_resource_requests_suppressed)
+                    + ",observed_continuation_received="
+                    + std::string(
+                        summary_.observed_continuation_received
+                            ? "true"
+                            : "false")
+                    + ",observed_continuation_deliveries="
+                    + std::to_string(
+                        summary_.observed_continuation_deliveries)
+                    + ",close_menus_companions_accepted="
+                    + std::to_string(
+                        summary_.close_menus_companions_accepted)
+                    + ",observed_continuation_incomplete_rejected="
+                    + std::string(
+                        summary_.observed_continuation_incomplete_rejected
+                            ? "true"
+                            : "false")
+                    + ",observed_continuation_unsupported_rejected="
+                    + std::string(
+                        summary_.observed_continuation_unsupported_rejected
+                            ? "true"
+                            : "false")
                     + ",resource_manifest_preparation_attempts="
                     + std::to_string(
                         summary_.resource_manifest_preparation_attempts)
@@ -1260,6 +1281,11 @@ private:
         summary_.resource_request_received = 0;
         summary_.resource_request_deliveries = 0;
         summary_.duplicate_resource_requests_suppressed = 0;
+        summary_.observed_continuation_received = false;
+        summary_.observed_continuation_deliveries = 0;
+        summary_.close_menus_companions_accepted = 0;
+        summary_.observed_continuation_incomplete_rejected = false;
+        summary_.observed_continuation_unsupported_rejected = false;
         summary_.resource_manifest_preparation_attempts = 0;
         summary_.resource_manifest_cached_outcome_reuses = 0;
         summary_.resource_manifest_context_built = false;
@@ -2125,6 +2151,171 @@ private:
             || (starts_with_new && command_size > kNew.size());
     }
 
+    static std::string DescribeClientPayloadForDiagnostic(
+        const hl::network::GoldSrcNetchanPacket& packet)
+    {
+        constexpr std::size_t kMaximumReportedMessages = 4u;
+        constexpr std::size_t kMaximumReportedCommandNameBytes = 32u;
+        std::string description;
+        std::size_t cursor = 0u;
+        std::size_t reported_messages = 0u;
+
+        const auto append_separator = [&description]()
+        {
+            if (!description.empty())
+            {
+                description.push_back(',');
+            }
+        };
+
+        while (cursor < packet.payload_size
+            && reported_messages < kMaximumReportedMessages)
+        {
+            const std::uint8_t opcode = packet.payload[cursor++];
+            if (opcode == hl::network::kGoldSrcClientNopOpcode)
+            {
+                continue;
+            }
+
+            append_separator();
+            ++reported_messages;
+            if (opcode != hl::network::kGoldSrcClientStringCommandOpcode)
+            {
+                description += "opcode:";
+                description += std::to_string(opcode);
+                break;
+            }
+
+            description += "stringcmd:";
+            const std::size_t command_begin = cursor;
+            while (cursor < packet.payload_size
+                && packet.payload[cursor] != 0u)
+            {
+                ++cursor;
+            }
+            if (cursor == packet.payload_size)
+            {
+                description += "unterminated";
+                break;
+            }
+
+            std::size_t name_size = 0u;
+            while (name_size < cursor - command_begin
+                && name_size < kMaximumReportedCommandNameBytes)
+            {
+                const std::uint8_t byte =
+                    packet.payload[command_begin + name_size];
+                if (byte == ' ' || byte == '\t' || byte == ';'
+                    || byte < 0x20u || byte > 0x7Eu)
+                {
+                    break;
+                }
+                description.push_back(static_cast<char>(byte));
+                ++name_size;
+            }
+            if (name_size == 0u)
+            {
+                description += "<empty>";
+            }
+            else if (name_size == kMaximumReportedCommandNameBytes
+                && name_size < cursor - command_begin)
+            {
+                description += "...";
+            }
+            if (name_size < cursor - command_begin)
+            {
+                description += ":suffix=";
+                const std::uint8_t suffix =
+                    packet.payload[command_begin + name_size];
+                switch (suffix)
+                {
+                case ' ':
+                    description += "argument";
+                    break;
+                case '\t':
+                    description += "tab";
+                    break;
+                case '\n':
+                    description += "lf";
+                    break;
+                case '\r':
+                    description += "cr";
+                    break;
+                default:
+                    description += "non_printing";
+                    break;
+                }
+                if (suffix == ' ')
+                {
+                    std::size_t argument_cursor =
+                        command_begin + name_size;
+                    std::size_t space_count = 0u;
+                    while (argument_cursor < cursor
+                        && packet.payload[argument_cursor] == ' ')
+                    {
+                        ++argument_cursor;
+                        ++space_count;
+                    }
+                    description += ":spaces=";
+                    description += std::to_string(space_count);
+                    std::uint32_t decimal_value = 0u;
+                    bool decimal_seen = false;
+                    bool decimal_bounded = true;
+                    while (argument_cursor < cursor
+                        && packet.payload[argument_cursor] >= '0'
+                        && packet.payload[argument_cursor] <= '9')
+                    {
+                        decimal_seen = true;
+                        const std::uint32_t digit =
+                            packet.payload[argument_cursor] - '0';
+                        if (decimal_value > 6553u
+                            || (decimal_value == 6553u && digit > 5u))
+                        {
+                            decimal_bounded = false;
+                        }
+                        if (decimal_bounded)
+                        {
+                            decimal_value = decimal_value * 10u + digit;
+                        }
+                        ++argument_cursor;
+                    }
+                    if (decimal_seen && decimal_bounded)
+                    {
+                        description += ":u16=";
+                        description += std::to_string(decimal_value);
+                    }
+                    if (argument_cursor < cursor)
+                    {
+                        if (packet.payload[argument_cursor] == '\n')
+                        {
+                            description += ":line=lf";
+                        }
+                        else if (packet.payload[argument_cursor] == '\r')
+                        {
+                            description += ":line=cr";
+                        }
+                        else
+                        {
+                            description += ":tail=opaque";
+                        }
+                    }
+                }
+            }
+            ++cursor;
+        }
+
+        if (description.empty())
+        {
+            return "nop_only";
+        }
+        if (cursor < packet.payload_size
+            && reported_messages == kMaximumReportedMessages)
+        {
+            description += ",more";
+        }
+        return description;
+    }
+
     void RecordClientSignonRejection(
         const hl::network::GoldSrcNetchanPacket& packet,
         hl::network::GoldSrcClientSignonDecodeStatus status)
@@ -2139,9 +2330,27 @@ private:
             || status == hl::network::GoldSrcClientSignonDecodeStatus::
                      kMultipleCommands
             || status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kUnsupportedCompanionCommand
+            || status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kUnsupportedCompanionCount
+            || status == hl::network::GoldSrcClientSignonDecodeStatus::
+                     kTooManyCompanionCommands
+            || status == hl::network::GoldSrcClientSignonDecodeStatus::
                      kUnsupportedTrailingData)
         {
-            if (PayloadLooksLikeCommandInjection(packet)
+            if (status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCommand
+                || status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCount
+                || status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kTooManyCompanionCommands)
+            {
+                ++summary_.unsupported_command_rejected;
+            }
+            else if (PayloadLooksLikeCommandInjection(packet)
                 || status
                     != hl::network::GoldSrcClientSignonDecodeStatus::
                         kUnsupportedCommand)
@@ -2152,15 +2361,35 @@ private:
             {
                 ++summary_.unsupported_command_rejected;
             }
+            if (status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCommand
+                || status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCount
+                || status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kTooManyCompanionCommands)
+            {
+                summary_.observed_continuation_unsupported_rejected = true;
+            }
         }
         else
         {
             ++summary_.malformed_stringcmd_rejected;
+            if (status
+                == hl::network::GoldSrcClientSignonDecodeStatus::
+                    kMissingStringTerminator)
+            {
+                summary_.observed_continuation_incomplete_rejected = true;
+            }
         }
         hl::common::Logger::Warn(
             hl::common::LogCategory::Server,
             "goldsrc_client_signon_rejected: reason="
-                + std::string(hl::network::ReasonFor(status)));
+                + std::string(hl::network::ReasonFor(status))
+                + ",identity="
+                + DescribeClientPayloadForDiagnostic(packet));
     }
 
     bool HandleClientSignonPayload(
@@ -2202,6 +2431,15 @@ private:
                 || decoded.status
                     == hl::network::GoldSrcClientSignonDecodeStatus::
                         kMultipleCommands
+                || decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCommand
+                || decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kUnsupportedCompanionCount
+                || decoded.status
+                    == hl::network::GoldSrcClientSignonDecodeStatus::
+                        kTooManyCompanionCommands
                 || decoded.status
                     == hl::network::GoldSrcClientSignonDecodeStatus::
                         kUnsupportedTrailingData)
@@ -2292,6 +2530,17 @@ private:
             return true;
         }
 
+        const bool exact_observed_continuation =
+            decoded.companion_command
+                == hl::network::GoldSrcClientSignonCompanionCommand::
+                    kCloseMenus
+            && decoded.companion_count
+                == hl::network::kGoldSrcMaximumCloseMenusCompanions;
+        if (exact_observed_continuation)
+        {
+            summary_.observed_continuation_received = true;
+        }
+
         if (slot_state.goldsrc_signon.phase()
             != hl::network::GoldSrcSignonPhase::kAwaitingResourceRequest)
         {
@@ -2367,6 +2616,12 @@ private:
                 "resource-manifest-signon-commit-failed",
                 "goldsrc_resource_manifest_queue_failed: reason=signon-commit-failed");
         }
+        if (exact_observed_continuation)
+        {
+            ++summary_.observed_continuation_deliveries;
+            summary_.close_menus_companions_accepted =
+                static_cast<int>(decoded.companion_count);
+        }
         *queued_kind =
             hl::network::GoldSrcNetchanReliablePayloadKind::kResourceManifest;
         SyncNetchanSummary(slot_state);
@@ -2377,6 +2632,8 @@ private:
                 + ",payload_bytes="
                 + std::to_string(
                     slot_state.goldsrc_resource_manifest_response_size)
+                + ",close_menus_companions="
+                + std::to_string(decoded.companion_count)
                 + ",signon_phase=" + summary_.signon_phase);
         return true;
     }

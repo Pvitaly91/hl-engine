@@ -6774,6 +6774,11 @@ struct GoldSrcUdpHandshakeSummary
     int resource_request_received = 0;
     int resource_request_deliveries = 0;
     int duplicate_resource_requests_suppressed = 0;
+    bool observed_continuation_received = false;
+    int observed_continuation_deliveries = 0;
+    int close_menus_companions_accepted = 0;
+    bool observed_continuation_incomplete_rejected = false;
+    bool observed_continuation_unsupported_rejected = false;
     int resource_manifest_preparation_attempts = 0;
     int resource_manifest_cached_outcome_reuses = 0;
     bool resource_manifest_context_built = false;

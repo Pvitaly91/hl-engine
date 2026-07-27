@@ -18,6 +18,7 @@ inline constexpr std::uint32_t kGoldSrcServerInfoProtocolVersion = 48u;
 inline constexpr std::size_t kGoldSrcClientDllDigestBytes = 16u;
 inline constexpr std::size_t kGoldSrcMaximumSignonPayloadBytes = 1200u;
 inline constexpr std::size_t kGoldSrcMaximumClientCommandBytes = 64u;
+inline constexpr std::size_t kGoldSrcMaximumCloseMenusCompanions = 2u;
 inline constexpr std::size_t kGoldSrcMaximumGameDirectoryBytes = 63u;
 inline constexpr std::size_t kGoldSrcMaximumHostnameBytes = 255u;
 inline constexpr std::size_t kGoldSrcMaximumModelPathBytes = 63u;
@@ -38,6 +39,12 @@ enum class GoldSrcClientSignonCommand
     kSendResources,
 };
 
+enum class GoldSrcClientSignonCompanionCommand
+{
+    kNone,
+    kCloseMenus,
+};
+
 enum class GoldSrcClientSignonDecodeStatus
 {
     kOk,
@@ -52,6 +59,9 @@ enum class GoldSrcClientSignonDecodeStatus
     kInvalidControlByte,
     kUnsupportedCommand,
     kMultipleCommands,
+    kUnsupportedCompanionCommand,
+    kUnsupportedCompanionCount,
+    kTooManyCompanionCommands,
     kUnsupportedTrailingData,
 };
 
@@ -62,6 +72,9 @@ struct GoldSrcClientSignonDecodeResult final
     GoldSrcClientSignonDecodeStatus status =
         GoldSrcClientSignonDecodeStatus::kEmptyPayload;
     GoldSrcClientSignonCommand command = GoldSrcClientSignonCommand::kNone;
+    GoldSrcClientSignonCompanionCommand companion_command =
+        GoldSrcClientSignonCompanionCommand::kNone;
+    std::size_t companion_count = 0;
     std::size_t leading_nop_count = 0;
     std::size_t trailing_nop_count = 0;
 
@@ -71,9 +84,13 @@ struct GoldSrcClientSignonDecodeResult final
     }
 };
 
-// Decodes one bounded application message after the client qport has already
-// been removed by the netchan layer. Only the exact `new` and `sendres`
-// string commands are accepted, optionally surrounded by NOP messages.
+// Decodes one bounded application payload after the client qport has already
+// been removed by the netchan layer. The primary command must be exact `new`
+// or `sendres`. The observed stock-client `sendres` payload may additionally
+// contain exactly two `closemenus` companion commands with the observed
+// single-space/LF suffix. NOP messages may surround or separate accepted
+// commands. Companions are typed metadata only and are never routed for
+// generic command execution.
 GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     const std::uint8_t* bytes,
     std::size_t size) noexcept;

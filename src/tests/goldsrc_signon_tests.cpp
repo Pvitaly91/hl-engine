@@ -109,6 +109,10 @@ void TestStrictClientNewDecoder()
         DecodeGoldSrcClientSignonPayload(exact.data(), exact.size());
     assert(decoded.ok());
     assert(decoded.command == GoldSrcClientSignonCommand::kNew);
+    assert(
+        decoded.companion_command
+        == GoldSrcClientSignonCompanionCommand::kNone);
+    assert(decoded.companion_count == 0u);
     assert(decoded.leading_nop_count == 0u);
     assert(decoded.trailing_nop_count == 0u);
 
@@ -136,6 +140,10 @@ void TestStrictClientNewDecoder()
         == GoldSrcClientSignonCommand::kSendResources);
     assert(decoded_send_resources.leading_nop_count == 0u);
     assert(decoded_send_resources.trailing_nop_count == 0u);
+    assert(
+        decoded_send_resources.companion_command
+        == GoldSrcClientSignonCompanionCommand::kNone);
+    assert(decoded_send_resources.companion_count == 0u);
 
     constexpr std::array<std::uint8_t, 11> padded_send_resources = {
         0x01u,
@@ -152,6 +160,58 @@ void TestStrictClientNewDecoder()
         == GoldSrcClientSignonCommand::kSendResources);
     assert(decoded_padded_send_resources.leading_nop_count == 1u);
     assert(decoded_padded_send_resources.trailing_nop_count == 1u);
+    assert(decoded_padded_send_resources.companion_count == 0u);
+
+    constexpr std::array<std::uint8_t, 37> observed_send_resources = {
+        0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
+        0x03u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+            ' ', '\n', 0x00u,
+        0x03u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+            ' ', '\n', 0x00u,
+    };
+    const GoldSrcClientSignonDecodeResult decoded_observed =
+        DecodeGoldSrcClientSignonPayload(
+            observed_send_resources.data(),
+            observed_send_resources.size());
+    assert(decoded_observed.ok());
+    assert(
+        decoded_observed.command
+        == GoldSrcClientSignonCommand::kSendResources);
+    assert(
+        decoded_observed.companion_command
+        == GoldSrcClientSignonCompanionCommand::kCloseMenus);
+    assert(decoded_observed.companion_count == 2u);
+
+    constexpr std::array<std::uint8_t, 41> observed_with_nops = {
+        0x01u,
+        0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
+        0x01u,
+        0x03u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+            ' ', '\n', 0x00u,
+        0x01u,
+        0x03u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+            ' ', '\n', 0x00u,
+        0x01u,
+    };
+    const GoldSrcClientSignonDecodeResult decoded_observed_with_nops =
+        DecodeGoldSrcClientSignonPayload(
+            observed_with_nops.data(),
+            observed_with_nops.size());
+    assert(decoded_observed_with_nops.ok());
+    assert(decoded_observed_with_nops.leading_nop_count == 1u);
+    assert(decoded_observed_with_nops.trailing_nop_count == 3u);
+    assert(decoded_observed_with_nops.companion_count == 2u);
+
+    constexpr std::array<std::uint8_t, 23> one_observed_companion = {
+        0x03u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0x00u,
+        0x03u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+            ' ', '\n', 0x00u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            one_observed_companion.data(),
+            one_observed_companion.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCount);
 
     assert(
         DecodeGoldSrcClientSignonPayload(nullptr, 1u).status
@@ -269,6 +329,79 @@ void TestStrictClientNewDecoder()
             two_commands.data(),
             two_commands.size()).status
         == GoldSrcClientSignonDecodeStatus::kMultipleCommands);
+
+    constexpr std::array<std::uint8_t, 20>
+        send_resources_unsupported_companion = {
+            3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 0u,
+        };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_unsupported_companion.data(),
+            send_resources_unsupported_companion.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCommand);
+
+    constexpr std::array<std::uint8_t, 36>
+        send_resources_incomplete_companion = {
+            3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+                ' ', '\n', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+                ' ', '\n',
+        };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_incomplete_companion.data(),
+            send_resources_incomplete_companion.size()).status
+        == GoldSrcClientSignonDecodeStatus::kMissingStringTerminator);
+
+    constexpr std::array<std::uint8_t, 51>
+        send_resources_too_many_companions = {
+            3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+                ' ', '\n', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+                ' ', '\n', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's',
+                ' ', '\n', 0u,
+        };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            send_resources_too_many_companions.data(),
+            send_resources_too_many_companions.size()).status
+        == GoldSrcClientSignonDecodeStatus::kTooManyCompanionCommands);
+
+    constexpr std::array<std::uint8_t, 22>
+        close_menus_with_argument = {
+            3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's', ' ', 0u,
+        };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            close_menus_with_argument.data(),
+            close_menus_with_argument.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCommand);
+
+    constexpr std::array<std::uint8_t, 21> close_menus_without_suffix = {
+        3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+        3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's', 0u,
+    };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            close_menus_without_suffix.data(),
+            close_menus_without_suffix.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCompanionCommand);
+
+    constexpr std::array<std::uint8_t, 21>
+        close_menus_before_send_resources = {
+            3u, 'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's', 0u,
+            3u, 's', 'e', 'n', 'd', 'r', 'e', 's', 0u,
+        };
+    assert(
+        DecodeGoldSrcClientSignonPayload(
+            close_menus_before_send_resources.data(),
+            close_menus_before_send_resources.size()).status
+        == GoldSrcClientSignonDecodeStatus::kUnsupportedCommand);
 
     constexpr std::array<std::uint8_t, 7> trailing_data = {
         3u, 'n', 'e', 'w', 0u, 1u, 0xFFu,
