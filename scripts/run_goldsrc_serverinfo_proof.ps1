@@ -198,11 +198,23 @@ function New-ProcessOutputCapture {
 function Update-ProcessOutputCapture {
     param($State)
 
+    $maximumLinesPerStream = 32768
     $drainedLines = 0
+    $stdoutBuilder = New-Object System.Text.StringBuilder
     while (-not $State.StdoutClosed -and
         $null -ne $State.StdoutTask -and
-        $State.StdoutTask.IsCompleted -and
-        $drainedLines -lt 256) {
+        $drainedLines -lt $maximumLinesPerStream) {
+        if (-not $State.StdoutTask.IsCompleted) {
+            try {
+                [void]$State.StdoutTask.Wait(2)
+            }
+            catch {
+                # The result access below reports the underlying stream failure.
+            }
+            if (-not $State.StdoutTask.IsCompleted) {
+                break
+            }
+        }
         try {
             $line = $State.StdoutTask.Result
         }
@@ -213,21 +225,35 @@ function Update-ProcessOutputCapture {
             $State.StdoutClosed = $true
             $State.StdoutTask = $null
         } else {
-            [System.IO.File]::AppendAllText(
-                $State.StdoutPath,
-                $line + [Environment]::NewLine,
-                $State.Encoding
-            )
+            [void]$stdoutBuilder.AppendLine($line)
             $State.StdoutTask = $State.Process.StandardOutput.ReadLineAsync()
             $drainedLines++
         }
     }
+    if ($stdoutBuilder.Length -gt 0) {
+        [System.IO.File]::AppendAllText(
+            $State.StdoutPath,
+            $stdoutBuilder.ToString(),
+            $State.Encoding
+        )
+    }
 
     $stderrLines = 0
+    $stderrBuilder = New-Object System.Text.StringBuilder
     while (-not $State.StderrClosed -and
         $null -ne $State.StderrTask -and
-        $State.StderrTask.IsCompleted -and
-        $stderrLines -lt 256) {
+        $stderrLines -lt $maximumLinesPerStream) {
+        if (-not $State.StderrTask.IsCompleted) {
+            try {
+                [void]$State.StderrTask.Wait(2)
+            }
+            catch {
+                # The result access below reports the underlying stream failure.
+            }
+            if (-not $State.StderrTask.IsCompleted) {
+                break
+            }
+        }
         try {
             $line = $State.StderrTask.Result
         }
@@ -238,14 +264,17 @@ function Update-ProcessOutputCapture {
             $State.StderrClosed = $true
             $State.StderrTask = $null
         } else {
-            [System.IO.File]::AppendAllText(
-                $State.StderrPath,
-                $line + [Environment]::NewLine,
-                $State.Encoding
-            )
+            [void]$stderrBuilder.AppendLine($line)
             $State.StderrTask = $State.Process.StandardError.ReadLineAsync()
             $stderrLines++
         }
+    }
+    if ($stderrBuilder.Length -gt 0) {
+        [System.IO.File]::AppendAllText(
+            $State.StderrPath,
+            $stderrBuilder.ToString(),
+            $State.Encoding
+        )
     }
 
     return ($drainedLines + $stderrLines)
@@ -334,6 +363,13 @@ function Wait-ForStdoutToken {
             return
         }
         if ($Process.HasExited) {
+            Complete-ProcessOutputCapture -State $OutputCapture
+            $stdout = Get-SharedFileText -Path $StdoutPath
+            if ($stdout.IndexOf(
+                    $Token,
+                    [StringComparison]::Ordinal) -ge 0) {
+                return
+            }
             throw ("hlhost exited with code {0} while waiting for {1}" -f
                 $Process.ExitCode,
                 $Description)

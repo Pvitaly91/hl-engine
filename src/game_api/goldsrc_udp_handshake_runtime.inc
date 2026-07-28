@@ -35,6 +35,10 @@ public:
               options.goldsrc_resource_manifest_negative_proof),
           resource_manifest_fixture_(
               options.goldsrc_resource_manifest_fixture),
+          world_baselines_enabled_(
+              options.goldsrc_world_baselines_enabled),
+          world_baselines_negative_proof_(
+              options.goldsrc_world_baselines_negative_proof),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -55,6 +59,9 @@ public:
         summary_.resource_manifest_enabled = resource_manifest_enabled_;
         summary_.resource_manifest_negative_proof =
             resource_manifest_negative_proof_;
+        summary_.world_baselines_enabled = world_baselines_enabled_;
+        summary_.world_baselines_negative_proof =
+            world_baselines_negative_proof_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -216,6 +223,19 @@ public:
             MarkTimeout();
             return true;
         }
+        if (world_baselines_enabled_
+            && (!resource_manifest_enabled_
+                || !delta_descriptions_enabled_))
+        {
+            return FailBind(
+                "world-baselines-require-resource-and-delta-bootstrap");
+        }
+        if (world_baselines_negative_proof_
+            && !world_baselines_enabled_)
+        {
+            return FailBind(
+                "world-baselines-negative-proof-requires-world-baselines");
+        }
         if (DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
             slot_state != nullptr
@@ -343,6 +363,13 @@ public:
                 ? summary_.resource_manifest_fragment_count
                 : 1;
         }
+        if (world_baselines_enabled_)
+        {
+            expected_reliable_acknowledgements +=
+                summary_.baseline_fragmented
+                ? summary_.baseline_fragment_count
+                : 1;
+        }
         const bool netchan_succeeded = summary_.netchan_initialized
             && summary_.netchan_state == "established"
             && summary_.reliable_acked == expected_reliable_acknowledgements
@@ -420,7 +447,37 @@ public:
                     && summary_.post_resource_pre_spawn_ignored
                     && summary_.previous_unidentified_command_boundary_resolved
                     && summary_.signon_phase
-                        == "awaiting_server_baseline_or_snapshot";
+                        == (world_baselines_enabled_
+                            ? "awaiting_first_snapshot"
+                            : "awaiting_server_baseline_or_snapshot");
+                const bool world_baseline_succeeded =
+                    !world_baselines_enabled_
+                    || (summary_.baseline_contract_verified
+                        && summary_.baseline_message_order_verified
+                        && summary_.baseline_context_built
+                        && summary_.baseline_build_attempts == 1
+                        && summary_.baseline_generations == 1
+                        && summary_.baseline_entity_count
+                            >= state_.server_state.maxclients + 1
+                        && summary_.baseline_player_count
+                            == state_.server_state.maxclients
+                        && summary_.baseline_callback_calls
+                            == summary_.baseline_entity_count
+                        && summary_.baseline_instanced_callback_calls == 1
+                        && summary_.baseline_payload_bytes > 0
+                        && summary_.baseline_queued == 1
+                        && summary_.baseline_sent == 1
+                        && summary_.baseline_acked == 1
+                        && (!summary_.baseline_fragmented
+                            || (summary_.baseline_fragment_count > 1
+                                && summary_
+                                    .baseline_fragment_acknowledged_count
+                                    == summary_.baseline_fragment_count))
+                        && summary_.send_entities_delivered == 1
+                        && summary_
+                            .previous_server_baseline_boundary_resolved
+                        && summary_.next_observed_boundary
+                            == "first_snapshot_required");
                 const bool resource_manifest_phase_succeeded =
                     summary_.signon_phase
                         == "resource_manifest_acknowledged"
@@ -440,7 +497,8 @@ public:
                                 .resource_manifest_fragment_acknowledged_count
                                 == summary_
                                     .resource_manifest_fragment_count))
-                    && resource_manifest_phase_succeeded;
+                    && resource_manifest_phase_succeeded
+                    && world_baseline_succeeded;
                 if (!resource_manifest_succeeded
                     || (!resource_manifest_negative_proof_
                         && !delta_descriptions_negative_proof_))
@@ -888,6 +946,82 @@ public:
                     + std::string(summary_.server_still_responsive ? "1" : "0")
                     + ",clean_shutdown=1");
         }
+        if (world_baselines_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_world_baseline_summary: enabled=1,negative_proof="
+                    + std::string(
+                        world_baselines_negative_proof_ ? "1" : "0")
+                    + ",contract_verified="
+                    + std::string(
+                        summary_.baseline_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",message_order_verified="
+                    + std::string(
+                        summary_.baseline_message_order_verified
+                            ? "true"
+                            : "false")
+                    + ",source=runtime_map,build_attempts="
+                    + std::to_string(summary_.baseline_build_attempts)
+                    + ",generations="
+                    + std::to_string(summary_.baseline_generations)
+                    + ",cached_reuses="
+                    + std::to_string(
+                        summary_.baseline_cached_outcome_reuses)
+                    + ",callback_calls="
+                    + std::to_string(summary_.baseline_callback_calls)
+                    + ",instanced_callback_calls="
+                    + std::to_string(
+                        summary_.baseline_instanced_callback_calls)
+                    + ",entity_count="
+                    + std::to_string(summary_.baseline_entity_count)
+                    + ",player_count="
+                    + std::to_string(summary_.baseline_player_count)
+                    + ",non_player_count="
+                    + std::to_string(summary_.baseline_non_player_count)
+                    + ",instance_count="
+                    + std::to_string(summary_.baseline_instance_count)
+                    + ",payload_bytes="
+                    + std::to_string(summary_.baseline_payload_bytes)
+                    + ",queued="
+                    + std::to_string(summary_.baseline_queued)
+                    + ",sent=" + std::to_string(summary_.baseline_sent)
+                    + ",resent=" + std::to_string(summary_.baseline_resent)
+                    + ",acked=" + std::to_string(summary_.baseline_acked)
+                    + ",fragmented="
+                    + std::string(
+                        summary_.baseline_fragmented ? "true" : "false")
+                    + ",fragment_count="
+                    + std::to_string(summary_.baseline_fragment_count)
+                    + ",fragment_acknowledged_count="
+                    + std::to_string(
+                        summary_
+                            .baseline_fragment_acknowledged_count)
+                    + ",sendents_received="
+                    + std::to_string(summary_.send_entities_received)
+                    + ",sendents_delivered="
+                    + std::to_string(summary_.send_entities_delivered)
+                    + ",previous_boundary_resolved="
+                    + std::string(
+                        summary_
+                            .previous_server_baseline_boundary_resolved
+                            ? "true"
+                            : "false")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned="
+                    + std::string(summary_.spawned ? "1" : "0")
+                    + ",active="
+                    + std::string(summary_.active ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
         if (delta_descriptions_enabled_)
         {
             hl::common::Logger::Info(
@@ -1024,7 +1158,9 @@ private:
     void MarkTimeout()
     {
         summary_.timed_out = true;
-        summary_.last_reject_reason = accepted_ && resource_manifest_enabled_
+        summary_.last_reject_reason = accepted_ && world_baselines_enabled_
+            ? "world-baseline-timeout"
+            : accepted_ && resource_manifest_enabled_
             ? "resource-manifest-timeout"
             : accepted_ && delta_descriptions_enabled_
             ? "delta-descriptions-timeout"
@@ -1155,6 +1291,14 @@ private:
                 metadata.netchan.SetIncomingPayloadPolicy(
                     hl::network::GoldSrcNetchanIncomingPayloadPolicy::
                         kAcceptBoundedApplicationPayload);
+            }
+            if (world_baselines_enabled_)
+            {
+                if (!metadata.netchan
+                         .SetIncomingNormalFragmentAcceptance(true))
+                {
+                    return false;
+                }
             }
             constexpr std::array<std::uint8_t, 1> kFirstReliablePayload = {
                 hl::network::kGoldSrcServerNop,
@@ -2982,6 +3126,513 @@ private:
                 + DescribeClientPayloadForDiagnostic(packet));
     }
 
+    static const hl::network::GoldSrcDeltaTable* FindBaselineDeltaTable(
+        const hl::network::GoldSrcDeltaRegistry& registry,
+        std::string_view name) noexcept
+    {
+        const hl::network::GoldSrcDeltaTable* found = nullptr;
+        for (const hl::network::GoldSrcDeltaTable& table : registry.tables)
+        {
+            if (table.name != name)
+            {
+                continue;
+            }
+            if (found != nullptr)
+            {
+                return nullptr;
+            }
+            found = &table;
+        }
+        return found;
+    }
+
+    static bool CaptureBaselineDeltaState(
+        const entity_state_t& source,
+        const hl::network::GoldSrcDeltaTable& table,
+        hl::network::GoldSrcDecodedDeltaRecord* output,
+        std::string* failure_detail) noexcept
+    {
+        const auto fail = [failure_detail](
+                              const hl::network::GoldSrcDeltaField* field,
+                              std::string_view reason)
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "reason=" + std::string(reason);
+                if (field != nullptr)
+                {
+                    *failure_detail += ",field=" + field->name
+                        + ",offset="
+                        + std::to_string(field->field_offset)
+                        + ",type="
+                        + std::to_string(field->field_type);
+                }
+            }
+            return false;
+        };
+        if (failure_detail != nullptr)
+        {
+            failure_detail->clear();
+        }
+        if (output == nullptr || table.fields.empty()
+            || table.fields.size()
+                > hl::network::kGoldSrcMaximumDeltaFieldsPerTable)
+        {
+            return fail(nullptr, "invalid-record");
+        }
+        output->field_count = table.fields.size();
+        const auto* bytes =
+            reinterpret_cast<const std::uint8_t*>(&source);
+        for (std::size_t index = 0; index < table.fields.size(); ++index)
+        {
+            const hl::network::GoldSrcDeltaField& field =
+                table.fields[index];
+            hl::network::GoldSrcDecodedDeltaValue& value =
+                output->values[index];
+            const std::uint32_t base =
+                field.field_type
+                & ~hl::network::kGoldSrcDeltaTypeSigned;
+            const bool is_signed =
+                (field.field_type
+                    & hl::network::kGoldSrcDeltaTypeSigned)
+                != 0u;
+            if (field.field_offset >= sizeof(entity_state_t))
+            {
+                return fail(&field, "offset-out-of-range");
+            }
+            if (base == hl::network::kGoldSrcDeltaTypeByte)
+            {
+                value.kind =
+                    hl::network::GoldSrcDeltaValueKind::kUnsignedInteger;
+                value.unsigned_value = bytes[field.field_offset];
+            }
+            else if (base == hl::network::kGoldSrcDeltaTypeShort)
+            {
+                if (field.field_offset
+                    > sizeof(entity_state_t) - sizeof(std::int16_t))
+                {
+                    return fail(&field, "short-out-of-range");
+                }
+                std::int16_t scalar = 0;
+                std::memcpy(
+                    &scalar,
+                    bytes + field.field_offset,
+                    sizeof(scalar));
+                if (is_signed)
+                {
+                    value.kind =
+                        hl::network::GoldSrcDeltaValueKind::kSignedInteger;
+                    value.signed_value = scalar;
+                }
+                else
+                {
+                    value.kind =
+                        hl::network::GoldSrcDeltaValueKind::
+                            kUnsignedInteger;
+                    value.unsigned_value =
+                        static_cast<std::uint16_t>(scalar);
+                }
+            }
+            else if (base == hl::network::kGoldSrcDeltaTypeInteger)
+            {
+                if (field.field_offset
+                    > sizeof(entity_state_t) - sizeof(std::int32_t))
+                {
+                    return fail(&field, "integer-out-of-range");
+                }
+                std::int32_t scalar = 0;
+                std::memcpy(
+                    &scalar,
+                    bytes + field.field_offset,
+                    sizeof(scalar));
+                if (is_signed)
+                {
+                    value.kind =
+                        hl::network::GoldSrcDeltaValueKind::kSignedInteger;
+                    value.signed_value = scalar;
+                }
+                else
+                {
+                    value.kind =
+                        hl::network::GoldSrcDeltaValueKind::
+                            kUnsignedInteger;
+                    value.unsigned_value =
+                        static_cast<std::uint32_t>(scalar);
+                }
+            }
+            else if (base == hl::network::kGoldSrcDeltaTypeFloat
+                || base == hl::network::kGoldSrcDeltaTypeAngle
+                || base == hl::network::kGoldSrcDeltaTypeTimeWindow8
+                || base == hl::network::kGoldSrcDeltaTypeTimeWindowBig)
+            {
+                if (field.field_offset
+                    > sizeof(entity_state_t) - sizeof(float))
+                {
+                    return fail(&field, "float-out-of-range");
+                }
+                float scalar = 0.0f;
+                std::memcpy(
+                    &scalar,
+                    bytes + field.field_offset,
+                    sizeof(scalar));
+                if (!std::isfinite(scalar))
+                {
+                    return fail(&field, "non-finite-float");
+                }
+                value.kind =
+                    hl::network::GoldSrcDeltaValueKind::kFloatingPoint;
+                value.floating_value = scalar;
+            }
+            else
+            {
+                return fail(&field, "unsupported-field-type");
+            }
+        }
+        return true;
+    }
+
+    bool CallCreateBaseline(
+        int player,
+        int entity_index,
+        entity_state_t* baseline,
+        edict_t* entity,
+        int player_model_index,
+        float* player_mins,
+        float* player_maxs) noexcept
+    {
+        if (state_.dll_functions.pfnCreateBaseline == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnCreateBaseline(
+                player,
+                entity_index,
+                baseline,
+                entity,
+                player_model_index,
+                player_mins,
+                player_maxs);
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnCreateBaseline",
+            GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool CallCreateInstancedBaselines() noexcept
+    {
+        if (state_.dll_functions.pfnCreateInstancedBaselines == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnCreateInstancedBaselines();
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnCreateInstancedBaselines",
+            GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool PrepareWorldBaselineBundle(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (world_baseline_payload_.has_value()
+            && world_baseline_bundle_.has_value())
+        {
+            ++summary_.baseline_cached_outcome_reuses;
+            return true;
+        }
+        ++summary_.baseline_build_attempts;
+        if (!slot_state.goldsrc_delta_registry.has_value())
+        {
+            return FailTransport(
+                "baseline-delta-registry-missing",
+                "goldsrc_world_baseline_failed: reason=missing-delta-registry");
+        }
+        if (!state_.world_context.prepared
+            || !state_.world_context.bsp_loaded
+            || state_.world_context.world_edict_index != 0
+            || state_.world_context.world_model_index <= 0)
+        {
+            return FailTransport(
+                "baseline-world-context-invalid",
+                "goldsrc_world_baseline_failed: reason=invalid-world-context");
+        }
+        edict_t* const world = state_.edict_store.World();
+        const std::string* const world_model =
+            state_.precache_registry.ModelName(
+                state_.world_context.world_model_index);
+        if (world == nullptr || world->free != FALSE
+            || world->v.modelindex
+                != state_.world_context.world_model_index
+            || world_model == nullptr
+            || *world_model != state_.world_context.model_path)
+        {
+            return FailTransport(
+                "baseline-world-model-invalid",
+                "goldsrc_world_baseline_failed: reason=invalid-world-model");
+        }
+        const int player_model_index =
+            state_.precache_registry.ModelIndex("models/player.mdl");
+        if (player_model_index <= 0
+            || player_model_index
+                > hl::network::kGoldSrcMaximumModelIndex
+            || state_.server_state.maxclients <= 0
+            || state_.server_state.maxclients
+                > hl::network::kGoldSrcMaximumEntityIndex)
+        {
+            return FailTransport(
+                "baseline-player-model-invalid",
+                "goldsrc_world_baseline_failed: reason=invalid-player-model");
+        }
+
+        hl::network::GoldSrcBaselineBundle bundle;
+        bundle.maximum_clients = static_cast<std::uint16_t>(
+            state_.server_state.maxclients);
+        const std::array<float, 3> player_mins = {
+            -16.0f, -16.0f, -36.0f,
+        };
+        const std::array<float, 3> player_maxs = {
+            16.0f, 16.0f, 36.0f,
+        };
+        const int maximum_entities = state_.edict_store.MaxEntities();
+        for (int entity_index = 0;
+             entity_index < maximum_entities;
+             ++entity_index)
+        {
+            edict_t* const entity =
+                state_.edict_store.EntityOfIndex(entity_index);
+            const bool player =
+                entity_index >= 1
+                && entity_index <= state_.server_state.maxclients;
+            if (entity == nullptr
+                || (!player
+                    && entity_index != 0
+                    && (entity->free != FALSE
+                        || entity->v.modelindex <= 0)))
+            {
+                continue;
+            }
+
+            entity_state_t captured{};
+            captured.number = entity_index;
+            captured.entityType =
+                (entity->v.flags & FL_CUSTOMENTITY) != 0
+                ? ENTITY_BEAM
+                : ENTITY_NORMAL;
+            std::array<float, 3> mins = player_mins;
+            std::array<float, 3> maxs = player_maxs;
+            if (!CallCreateBaseline(
+                    player ? 1 : 0,
+                    entity_index,
+                    &captured,
+                    entity,
+                    player_model_index,
+                    mins.data(),
+                    maxs.data()))
+            {
+                return FailTransport(
+                    "baseline-callback-failed",
+                    "goldsrc_world_baseline_failed: reason=create-baseline-callback-failed");
+            }
+            ++summary_.baseline_callback_calls;
+            if (captured.modelindex <= 0
+                || captured.modelindex
+                    > hl::network::kGoldSrcMaximumModelIndex)
+            {
+                return FailTransport(
+                    "baseline-callback-model-invalid",
+                    "goldsrc_world_baseline_failed: reason=callback-model-out-of-range");
+            }
+
+            hl::network::GoldSrcEntityBaseline baseline;
+            baseline.entity_index =
+                static_cast<std::uint16_t>(entity_index);
+            baseline.kind = entity_index == 0
+                ? hl::network::GoldSrcBaselineKind::kWorld
+                : player
+                    ? hl::network::GoldSrcBaselineKind::kPlayer
+                    : captured.entityType == ENTITY_BEAM
+                        ? hl::network::GoldSrcBaselineKind::kCustomEntity
+                        : hl::network::GoldSrcBaselineKind::kEntity;
+            baseline.model_index =
+                static_cast<std::uint16_t>(captured.modelindex);
+            baseline.provenance =
+                hl::network::GoldSrcBaselineProvenance::kRuntimeMap;
+            const std::string_view table_name =
+                baseline.kind
+                    == hl::network::GoldSrcBaselineKind::kPlayer
+                ? "entity_state_player_t"
+                : baseline.kind
+                    == hl::network::GoldSrcBaselineKind::kCustomEntity
+                ? "custom_entity_state_t"
+                : "entity_state_t";
+            const hl::network::GoldSrcDeltaTable* const table =
+                FindBaselineDeltaTable(
+                    *slot_state.goldsrc_delta_registry,
+                    table_name);
+            std::string capture_failure;
+            if (table == nullptr
+                || !CaptureBaselineDeltaState(
+                    captured,
+                    *table,
+                    &baseline.state,
+                    &capture_failure))
+            {
+                return FailTransport(
+                    "baseline-state-capture-failed",
+                    "goldsrc_world_baseline_failed: reason=delta-state-capture-failed"
+                        ",entity=" + std::to_string(entity_index)
+                        + ",table=" + std::string(table_name)
+                        + ",source_angles="
+                        + std::to_string(entity->v.angles.x) + "/"
+                        + std::to_string(entity->v.angles.y) + "/"
+                        + std::to_string(entity->v.angles.z)
+                        + ",captured_angles="
+                        + std::to_string(captured.angles.x) + "/"
+                        + std::to_string(captured.angles.y) + "/"
+                        + std::to_string(captured.angles.z)
+                        + (capture_failure.empty()
+                            ? ",detail=missing-table"
+                            : "," + capture_failure));
+            }
+            bundle.entities.push_back(std::move(baseline));
+        }
+
+        if (!CallCreateInstancedBaselines())
+        {
+            return FailTransport(
+                "baseline-instance-callback-failed",
+                "goldsrc_world_baseline_failed: reason=create-instanced-baselines-callback-failed");
+        }
+        ++summary_.baseline_instanced_callback_calls;
+        const hl::network::GoldSrcBaselineBuildStatus validation =
+            hl::network::ValidateGoldSrcBaselineBundle(bundle);
+        if (validation != hl::network::GoldSrcBaselineBuildStatus::kOk)
+        {
+            return FailTransport(
+                "baseline-model-validation-failed",
+                "goldsrc_world_baseline_failed: reason="
+                    + std::string(hl::network::ReasonFor(validation)));
+        }
+        hl::network::GoldSrcBaselineEncodeResult encoded =
+            hl::network::EncodeGoldSrcBaselineBundle(
+                bundle,
+                *slot_state.goldsrc_delta_registry);
+        if (!encoded.ok())
+        {
+            return FailTransport(
+                "baseline-encode-failed",
+                "goldsrc_world_baseline_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(encoded.status)));
+        }
+        const hl::network::GoldSrcBaselineDecodeResult semantic =
+            hl::network::DecodeGoldSrcBaselineBundle(
+                encoded.payload.bytes.data(),
+                encoded.payload.size,
+                bundle.maximum_clients,
+                *slot_state.goldsrc_delta_registry);
+        if (!semantic.ok()
+            || semantic.bundle.entities.size()
+                != bundle.entities.size())
+        {
+            return FailTransport(
+                "baseline-semantic-validation-failed",
+                "goldsrc_world_baseline_failed: reason=semantic-round-trip-failed");
+        }
+
+        summary_.baseline_contract_verified = true;
+        summary_.baseline_message_order_verified = true;
+        summary_.baseline_context_built = true;
+        ++summary_.baseline_generations;
+        summary_.baseline_entity_count =
+            static_cast<int>(bundle.entities.size());
+        summary_.baseline_player_count =
+            state_.server_state.maxclients;
+        summary_.baseline_non_player_count =
+            summary_.baseline_entity_count
+            - summary_.baseline_player_count - 1;
+        summary_.baseline_instance_count =
+            static_cast<int>(bundle.instances.size());
+        summary_.baseline_payload_bytes =
+            static_cast<int>(encoded.payload.size);
+        world_baseline_bundle_ = std::move(bundle);
+        world_baseline_payload_ = std::move(encoded.payload);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_world_baseline_built: source=runtime_map"
+                ",entities="
+                + std::to_string(summary_.baseline_entity_count)
+                + ",players="
+                + std::to_string(summary_.baseline_player_count)
+                + ",non_players="
+                + std::to_string(summary_.baseline_non_player_count)
+                + ",instances="
+                + std::to_string(summary_.baseline_instance_count)
+                + ",payload_bytes="
+                + std::to_string(summary_.baseline_payload_bytes)
+                + ",callbacks="
+                + std::to_string(summary_.baseline_callback_calls)
+                + ",put_in_server=0,spawned=0,active=0");
+        return true;
+    }
+
+    bool QueueWorldBaselineBundle(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        hl::network::GoldSrcNetchanReliablePayloadKind* queued_kind)
+    {
+        if (!PrepareWorldBaselineBundle(slot_state)
+            || !world_baseline_payload_.has_value())
+        {
+            return false;
+        }
+        const hl::network::GoldSrcNetchanQueueResult queue =
+            slot_state.netchan.QueueReliablePayload(
+                world_baseline_payload_->bytes.data(),
+                world_baseline_payload_->size,
+                hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kBaselineBootstrap);
+        if (queue
+            != hl::network::GoldSrcNetchanQueueResult::kQueued)
+        {
+            return FailTransport(
+                "baseline-queue-failed",
+                "goldsrc_world_baseline_queue_failed: reason="
+                    + std::string(hl::network::ReasonFor(queue)));
+        }
+        if (slot_state.goldsrc_signon.MarkBaselineBootstrapQueued()
+            != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+        {
+            return FailTransport(
+                "baseline-queue-transition-failed",
+                "goldsrc_world_baseline_queue_failed: reason=invalid-signon-phase");
+        }
+        ++summary_.baseline_queued;
+        *queued_kind =
+            hl::network::GoldSrcNetchanReliablePayloadKind::
+                kBaselineBootstrap;
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_world_baseline_queued: session_id="
+                + slot_state.session_id
+                + ",payload_bytes="
+                + std::to_string(summary_.baseline_payload_bytes)
+                + ",signon_phase=" + summary_.signon_phase);
+        return true;
+    }
+
     bool HandleClientSignonPayload(
         DedicatedPlayerRuntimeSlot& slot_state,
         const hl::network::GoldSrcNetchanPacket& packet,
@@ -3161,6 +3812,28 @@ private:
                     + ",handling=decoded_pre_spawn_keepalive"
                     + ",signon_phase=" + summary_.signon_phase
                     + ",put_in_server=0,spawned=0,active=0");
+            if (world_baselines_enabled_)
+            {
+                const hl::network::GoldSrcSignonTransitionResult transition =
+                    slot_state.goldsrc_signon
+                        .EnterAwaitingBaselineBootstrap();
+                if (transition
+                        == hl::network::GoldSrcSignonTransitionResult::
+                            kAdvanced)
+                {
+                    return QueueWorldBaselineBundle(
+                        slot_state,
+                        queued_kind);
+                }
+                if (transition
+                    != hl::network::GoldSrcSignonTransitionResult::
+                        kAlreadyApplied)
+                {
+                    return FailTransport(
+                        "baseline-await-transition-failed",
+                        "goldsrc_world_baseline_failed: reason=await-transition-failed");
+                }
+            }
             return true;
         }
 
@@ -3168,7 +3841,30 @@ private:
             hl::network::DecodeGoldSrcClientSignonPayload(
                 packet.payload.data(),
                 packet.payload_size);
-        if (!decoded.ok())
+        bool send_entities_with_trailing_move = false;
+        if (!decoded.ok()
+            && world_baselines_enabled_
+            && packet.reliable_present
+            && decoded.status
+                == hl::network::GoldSrcClientSignonDecodeStatus::
+                    kUnsupportedTrailingData
+            && decoded.command
+                == hl::network::GoldSrcClientSignonCommand::kSendEntities
+            && decoded.primary_command_bytes < packet.payload_size
+            && slot_state.goldsrc_delta_registry.has_value())
+        {
+            const hl::network::GoldSrcClientApplicationDecodeResult
+                trailing_application =
+                    hl::network::DecodeGoldSrcClientApplicationPayload(
+                        packet.payload.data()
+                            + decoded.primary_command_bytes,
+                        packet.payload_size
+                            - decoded.primary_command_bytes,
+                        packet.sequence,
+                        *slot_state.goldsrc_delta_registry);
+            send_entities_with_trailing_move = trailing_application.ok();
+        }
+        if (!decoded.ok() && !send_entities_with_trailing_move)
         {
             if (decoded.status
                     == hl::network::GoldSrcClientSignonDecodeStatus::
@@ -3347,6 +4043,38 @@ private:
                     + ",payload_bytes="
                     + std::to_string(bootstrap_size)
                     + ",signon_phase=" + summary_.signon_phase);
+            return true;
+        }
+
+        if (decoded.command
+            == hl::network::GoldSrcClientSignonCommand::kSendEntities)
+        {
+            const hl::network::GoldSrcSignonCommandDisposition disposition =
+                slot_state.goldsrc_signon.HandleSendEntities();
+            ++summary_.send_entities_received;
+            if (!world_baselines_enabled_
+                || disposition
+                    != hl::network::GoldSrcSignonCommandDisposition::
+                        kDelivered)
+            {
+                return true;
+            }
+            ++summary_.send_entities_delivered;
+            summary_.previous_server_baseline_boundary_resolved = true;
+            summary_.next_observed_boundary = "first_snapshot_required";
+            summary_.server_still_responsive = true;
+            SyncNetchanSummary(slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_sendents_accepted: session_id="
+                    + slot_state.session_id
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",trailing_clc_move="
+                    + std::string(
+                        send_entities_with_trailing_move ? "validated" : "none")
+                    + ",next_boundary=first_snapshot_required"
+                    + ",put_in_server=0,spawned=0,active=0");
+            complete_ = true;
             return true;
         }
 
@@ -3631,6 +4359,40 @@ private:
                         "resource-manifest-sent-transition-failed",
                         "goldsrc_resource_manifest_send_failed: reason=invalid-signon-phase");
                 }
+            }
+        }
+        if (world_baselines_enabled_
+            && pending_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kBaselineBootstrap
+            && decoded.packet.reliable_present)
+        {
+            const hl::network::GoldSrcNetchanDiagnostics& diagnostics =
+                slot_state.netchan.diagnostics();
+            if (diagnostics.reliable_resent > reliable_resent_before)
+            {
+                ++summary_.baseline_resent;
+            }
+            else if (diagnostics.reliable_sent > reliable_sent_before
+                && summary_.baseline_sent == 0)
+            {
+                ++summary_.baseline_sent;
+                if (slot_state.goldsrc_signon
+                        .MarkBaselineBootstrapSent()
+                    != hl::network::GoldSrcSignonTransitionResult::
+                        kAdvanced)
+                {
+                    return FailTransport(
+                        "baseline-sent-transition-failed",
+                        "goldsrc_world_baseline_send_failed: reason=invalid-signon-phase");
+                }
+                const hl::network::GoldSrcFragmentSender& sender =
+                    slot_state.netchan.fragment_sender();
+                summary_.baseline_fragmented = sender.active();
+                summary_.baseline_fragment_count =
+                    summary_.baseline_fragmented
+                    ? static_cast<int>(sender.fragment_count())
+                    : 0;
             }
         }
 
@@ -4000,6 +4762,39 @@ private:
                         process_outcome.reliable_acknowledgement_generation)
                     + ",signon_phase=" + summary_.signon_phase);
         }
+        if (world_baselines_enabled_
+            && process_outcome.acknowledged_reliable_kind
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kBaselineBootstrap)
+        {
+            if (slot_state->goldsrc_signon
+                    .MarkBaselineBootstrapAcknowledged()
+                    != hl::network::GoldSrcSignonTransitionResult::
+                        kAdvanced
+                || slot_state->goldsrc_signon
+                    .EnterAwaitingFirstSnapshot()
+                    != hl::network::GoldSrcSignonTransitionResult::
+                        kAdvanced)
+            {
+                return FailTransport(
+                    "baseline-ack-transition-failed",
+                    "goldsrc_world_baseline_ack_failed: reason=invalid-signon-phase");
+            }
+            ++summary_.baseline_acked;
+            summary_.baseline_fragment_acknowledged_count =
+                summary_.baseline_fragmented
+                ? summary_.baseline_fragment_count
+                : 0;
+            SyncNetchanSummary(*slot_state);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_world_baseline_acknowledged: session_id="
+                    + slot_state->session_id
+                    + ",ack="
+                    + std::to_string(decoded.packet.acknowledgement)
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",put_in_server=0,spawned=0,active=0");
+        }
 
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
@@ -4011,6 +4806,30 @@ private:
                 + ",reliable_ack="
                 + (decoded.packet.reliable_acknowledgement ? "1" : "0")
                 + ",result=accepted");
+        if (process_outcome.incoming_fragment_consumed)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_client_fragment_consumed: session_id="
+                    + slot_state->session_id
+                    + ",sequence="
+                    + std::to_string(decoded.packet.sequence)
+                    + ",fragment_index="
+                    + std::to_string(
+                        decoded.packet.fragment_metadata.descriptors[0]
+                            .fragment_index)
+                    + ",fragment_count="
+                    + std::to_string(
+                        decoded.packet.fragment_metadata.descriptors[0]
+                            .fragment_count)
+                    + ",transfer_completed="
+                    + (process_outcome.incoming_fragment_transfer_completed
+                            ? "true"
+                            : "false")
+                    + ",reassembled_payload_bytes="
+                    + std::to_string(
+                        process_outcome.incoming_fragment_payload_size));
+        }
 
         const bool established_now =
             phase_before != hl::network::GoldSrcNetchanTransportPhase::kEstablished
@@ -4067,7 +4886,8 @@ private:
             hl::network::GoldSrcNetchanReliablePayloadKind::kNone;
         if (serverinfo_enabled_
             && slot_state->netchan.transport_phase()
-                == hl::network::GoldSrcNetchanTransportPhase::kEstablished)
+                == hl::network::GoldSrcNetchanTransportPhase::kEstablished
+            && !process_outcome.incoming_fragment_consumed)
         {
             if (!HandleClientSignonPayload(
                     *slot_state,
@@ -4093,6 +4913,11 @@ private:
                                 GoldSrcNetchanReliablePayloadKind::
                                     kSignonBootstrap
                         ? "goldsrc_signon_bootstrap_sent"
+                        : queued_kind
+                                == hl::network::
+                                    GoldSrcNetchanReliablePayloadKind::
+                                        kBaselineBootstrap
+                        ? "goldsrc_world_baseline_sent"
                         : queued_kind
                                 == hl::network::
                                     GoldSrcNetchanReliablePayloadKind::
@@ -4135,7 +4960,13 @@ private:
                 == hl::network::GoldSrcSignonPhase::
                     kResourceManifestAcknowledged)
             {
-                if (delta_descriptions_negative_proof_
+                if (world_baselines_enabled_)
+                {
+                    // The stock client may acknowledge the resource bundle
+                    // with a bounded reliable fragment before its first move.
+                    // Keep pumping until clc_move queues the baseline bundle.
+                }
+                else if (delta_descriptions_negative_proof_
                     && summary_.clc_move_rejected > 0)
                 {
                     // A post-resource negative proof intentionally remains
@@ -4376,6 +5207,12 @@ private:
     bool resource_manifest_enabled_ = false;
     bool resource_manifest_negative_proof_ = false;
     std::optional<std::filesystem::path> resource_manifest_fixture_;
+    bool world_baselines_enabled_ = false;
+    bool world_baselines_negative_proof_ = false;
+    std::optional<hl::network::GoldSrcBaselineBundle>
+        world_baseline_bundle_;
+    std::optional<hl::network::GoldSrcBaselinePayload>
+        world_baseline_payload_;
     bool dedicated_runtime_ = false;
     hl::network::UdpSocket socket_;
     std::unique_ptr<hl::network::ChallengeTable> challenges_;

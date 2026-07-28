@@ -444,11 +444,15 @@ void TestStrictClientNewDecoder()
     constexpr std::array<std::uint8_t, 7> trailing_data = {
         3u, 'n', 'e', 'w', 0u, 1u, 0xFFu,
     };
-    assert(
+    const GoldSrcClientSignonDecodeResult decoded_trailing =
         DecodeGoldSrcClientSignonPayload(
             trailing_data.data(),
-            trailing_data.size()).status
+            trailing_data.size());
+    assert(
+        decoded_trailing.status
         == GoldSrcClientSignonDecodeStatus::kUnsupportedTrailingData);
+    assert(decoded_trailing.command == GoldSrcClientSignonCommand::kNew);
+    assert(decoded_trailing.primary_command_bytes == 5u);
 
     std::vector<std::uint8_t> oversized(
         kGoldSrcMaximumSignonPayloadBytes + 1u,

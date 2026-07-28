@@ -525,7 +525,11 @@ void EdictStore::RemoveEntity(edict_t* entity)
     removed_state.private_data_bytes = 0;
 
     edict_t& edict = edicts_[slot];
-    edict = {};
+    // HLSDK Vector's default constructor intentionally leaves its components
+    // uninitialized. Engine-owned edicts, however, begin as byte-zeroed
+    // storage; value-initializing the C++ wrapper can therefore leak NaNs into
+    // authoritative network state.
+    std::memset(&edict, 0, sizeof(edict));
     edict.free = TRUE;
     edict.serialnumber = next_serial_++;
     edict.headnode = -1;
@@ -970,7 +974,9 @@ void EdictStore::ClearEdict(std::size_t index, bool free_slot)
     EntitySlotState& state = states_[index];
     state = {};
 
-    edict = {};
+    // Match GoldSrc's zeroed edict allocation contract instead of invoking
+    // HLSDK Vector's non-initializing default constructor.
+    std::memset(&edict, 0, sizeof(edict));
     edict.free = free_slot ? TRUE : FALSE;
     edict.serialnumber = next_serial_++;
     edict.headnode = -1;

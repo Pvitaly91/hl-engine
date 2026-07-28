@@ -22484,6 +22484,10 @@ bool HostApplication::RunServerEngineShim(
         options.goldsrc_resource_manifest_negative_proof;
     init_options.goldsrc_resource_manifest_fixture =
         options.goldsrc_resource_manifest_fixture;
+    init_options.goldsrc_world_baselines_enabled =
+        options.goldsrc_world_baselines_enabled;
+    init_options.goldsrc_world_baselines_negative_proof =
+        options.goldsrc_world_baselines_negative_proof;
     init_options.bind_address = options.bind_address;
     init_options.server_port = options.server_port;
     init_options.goldsrc_handshake_timeout_ms = options.goldsrc_handshake_timeout_ms;

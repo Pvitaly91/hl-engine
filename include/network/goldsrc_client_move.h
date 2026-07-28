@@ -70,7 +70,8 @@ struct GoldSrcDeltaRecordDecodeResult final
 GoldSrcDeltaRecordDecodeResult DecodeGoldSrcDeltaRecord(
     GoldSrcBitReader* reader,
     const GoldSrcDeltaTable& table,
-    const GoldSrcDecodedDeltaRecord& previous) noexcept;
+    const GoldSrcDecodedDeltaRecord& previous,
+    double time_base = 0.0) noexcept;
 
 struct GoldSrcDecodedUserCommand final
 {

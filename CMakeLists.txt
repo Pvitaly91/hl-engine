@@ -43,6 +43,7 @@ add_library(goldsrc_network STATIC
     include/network/goldsrc_netchan.h
     include/network/goldsrc_resource_manifest.h
     include/network/goldsrc_signon.h
+    include/network/goldsrc_world_baseline.h
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
     src/network/goldsrc_bitstream.cpp
@@ -53,6 +54,7 @@ add_library(goldsrc_network STATIC
     src/network/goldsrc_netchan.cpp
     src/network/goldsrc_resource_manifest.cpp
     src/network/goldsrc_signon.cpp
+    src/network/goldsrc_world_baseline.cpp
     src/network/udp_socket_win32.cpp
 )
 target_include_directories(goldsrc_network PUBLIC "${HLHOST_INCLUDE_DIR}")
@@ -321,6 +323,34 @@ add_custom_target(goldsrc_client_move_unit_tests
 )
 set_target_properties(
     goldsrc_client_move_unit_tests
+    PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_world_baseline_tests
+    src/tests/goldsrc_world_baseline_tests.cpp
+)
+target_include_directories(
+    goldsrc_world_baseline_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_world_baseline_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_world_baseline_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_world_baseline_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_world_baseline_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_world_baseline_tests
+    COMMAND goldsrc_world_baseline_tests
+)
+
+add_custom_target(goldsrc_world_baseline_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_world_baseline_tests>"
+    DEPENDS goldsrc_world_baseline_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc world/entity baseline model, codec, and bundle tests"
+)
+set_target_properties(
+    goldsrc_world_baseline_unit_tests
     PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions

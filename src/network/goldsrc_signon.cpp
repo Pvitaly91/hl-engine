@@ -655,6 +655,9 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     constexpr std::array<std::uint8_t, 7> kSendResources = {
         's', 'e', 'n', 'd', 'r', 'e', 's',
     };
+    constexpr std::array<std::uint8_t, 8> kSendEntities = {
+        's', 'e', 'n', 'd', 'e', 'n', 't', 's',
+    };
     constexpr std::array<std::uint8_t, 11> kDropClient = {
         'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't', '\n',
     };
@@ -672,6 +675,14 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     {
         command = GoldSrcClientSignonCommand::kSendResources;
     }
+    else if (command_size == kSendEntities.size()
+        && std::equal(
+            kSendEntities.begin(),
+            kSendEntities.end(),
+            bytes + command_begin))
+    {
+        command = GoldSrcClientSignonCommand::kSendEntities;
+    }
     else if (command_size == kDropClient.size()
         && std::equal(
             kDropClient.begin(),
@@ -686,6 +697,8 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
         return result;
     }
     ++cursor;
+    result.command = command;
+    result.primary_command_bytes = cursor;
 
     constexpr std::array<std::uint8_t, 12> kObservedCloseMenus = {
         'c', 'l', 'o', 's', 'e', 'm', 'e', 'n', 'u', 's', ' ', '\n',
@@ -766,7 +779,6 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
         return result;
     }
     result.status = GoldSrcClientSignonDecodeStatus::kOk;
-    result.command = command;
     result.companion_command = companion_count == 0u
         ? GoldSrcClientSignonCompanionCommand::kNone
         : GoldSrcClientSignonCompanionCommand::kCloseMenus;
@@ -804,6 +816,16 @@ std::string_view NameFor(GoldSrcSignonPhase phase) noexcept
         return "awaiting_post_resource_command";
     case GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot:
         return "awaiting_server_baseline_or_snapshot";
+    case GoldSrcSignonPhase::kAwaitingBaselineBootstrap:
+        return "awaiting_baseline_bootstrap";
+    case GoldSrcSignonPhase::kBaselineBootstrapQueued:
+        return "baseline_bootstrap_queued";
+    case GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck:
+        return "baseline_bootstrap_sent_awaiting_ack";
+    case GoldSrcSignonPhase::kBaselineBootstrapAcknowledged:
+        return "baseline_bootstrap_acknowledged";
+    case GoldSrcSignonPhase::kAwaitingFirstSnapshot:
+        return "awaiting_first_snapshot";
     case GoldSrcSignonPhase::kNone:
     default:
         return "none";
@@ -905,7 +927,13 @@ GoldSrcSignonSessionState::HandleClientCommand(
             || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
             || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
             || phase_
-                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
+                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot
+            || phase_ == GoldSrcSignonPhase::kAwaitingBaselineBootstrap
+            || phase_ == GoldSrcSignonPhase::kBaselineBootstrapQueued
+            || phase_
+                == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck
+            || phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+            || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
         {
             ++diagnostics_.duplicate_new_suppressed;
             return GoldSrcSignonCommandDisposition::kDuplicateSuppressed;
@@ -931,7 +959,13 @@ GoldSrcSignonSessionState::HandleClientCommand(
             || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
             || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
             || phase_
-                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
+                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot
+            || phase_ == GoldSrcSignonPhase::kAwaitingBaselineBootstrap
+            || phase_ == GoldSrcSignonPhase::kBaselineBootstrapQueued
+            || phase_
+                == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck
+            || phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+            || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
         {
             ++diagnostics_.duplicate_resource_request_suppressed;
             return GoldSrcSignonCommandDisposition::kDuplicateSuppressed;
@@ -1119,6 +1153,107 @@ GoldSrcSignonSessionState::HandlePostResourceMove() noexcept
         return GoldSrcSignonCommandDisposition::kDelivered;
     }
     ++diagnostics_.post_resource_command_wrong_phase;
+    return GoldSrcSignonCommandDisposition::kWrongPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::EnterAwaitingBaselineBootstrap() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
+    {
+        phase_ = GoldSrcSignonPhase::kAwaitingBaselineBootstrap;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kAwaitingBaselineBootstrap
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapQueued
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::MarkBaselineBootstrapQueued() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kAwaitingBaselineBootstrap)
+    {
+        phase_ = GoldSrcSignonPhase::kBaselineBootstrapQueued;
+        ++diagnostics_.baseline_bootstrap_queued;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapQueued
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::MarkBaselineBootstrapSent() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapQueued)
+    {
+        phase_ = GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck;
+        ++diagnostics_.baseline_bootstrap_sent;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck
+        || phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::MarkBaselineBootstrapAcknowledged() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapSentAwaitingAck)
+    {
+        phase_ = GoldSrcSignonPhase::kBaselineBootstrapAcknowledged;
+        ++diagnostics_.baseline_bootstrap_acknowledged;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::EnterAwaitingFirstSnapshot() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kBaselineBootstrapAcknowledged)
+    {
+        phase_ = GoldSrcSignonPhase::kAwaitingFirstSnapshot;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonCommandDisposition
+GoldSrcSignonSessionState::HandleSendEntities() noexcept
+{
+    ++diagnostics_.send_entities_received;
+    if (phase_ == GoldSrcSignonPhase::kAwaitingFirstSnapshot)
+    {
+        ++diagnostics_.send_entities_delivered;
+        return GoldSrcSignonCommandDisposition::kDelivered;
+    }
+    ++diagnostics_.send_entities_wrong_phase;
     return GoldSrcSignonCommandDisposition::kWrongPhase;
 }
 

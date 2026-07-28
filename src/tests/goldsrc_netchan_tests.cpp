@@ -78,6 +78,7 @@ struct StateSnapshot final
     std::uint64_t reliable_acknowledgement_generation = 0;
     GoldSrcNetchanIncomingPayloadPolicy incoming_payload_policy =
         GoldSrcNetchanIncomingPayloadPolicy::kStrictClientNopOnly;
+    bool incoming_normal_fragments_accepted = false;
     bool has_accepted_activity = false;
     GoldSrcNetchanState::TimePoint last_accepted_at{};
     GoldSrcNetchanTransportPhase transport_phase =
@@ -114,6 +115,8 @@ StateSnapshot Snapshot(const GoldSrcNetchanState& state)
     snapshot.reliable_acknowledgement_generation =
         state.reliable_acknowledgement_generation();
     snapshot.incoming_payload_policy = state.incoming_payload_policy();
+    snapshot.incoming_normal_fragments_accepted =
+        state.incoming_normal_fragments_accepted();
     snapshot.has_accepted_activity = state.has_accepted_activity();
     snapshot.last_accepted_at = state.last_accepted_at();
     snapshot.transport_phase = state.transport_phase();
@@ -166,6 +169,9 @@ void AssertMutationStateEquals(
     assert(
         actual.incoming_payload_policy()
         == expected.incoming_payload_policy);
+    assert(
+        actual.incoming_normal_fragments_accepted()
+        == expected.incoming_normal_fragments_accepted);
     assert(
         actual.has_accepted_activity()
         == expected.has_accepted_activity);
@@ -225,6 +231,7 @@ void AssertCleanState(const GoldSrcNetchanState& state)
     assert(
         state.incoming_payload_policy()
         == GoldSrcNetchanIncomingPayloadPolicy::kStrictClientNopOnly);
+    assert(!state.incoming_normal_fragments_accepted());
     for (std::size_t index = 0;
          index < kGoldSrcNetchanMaximumReliableBytes;
          ++index)
@@ -1937,6 +1944,85 @@ void TestOptInBoundedApplicationPayloadPolicy()
     AssertCleanState(state);
 }
 
+void TestOptInBoundedIncomingNormalFragments()
+{
+    using namespace std::chrono_literals;
+    const Ipv4Endpoint endpoint{{127u, 0u, 0u, 1u}, 28005u};
+    const GoldSrcNetchanState::TimePoint start{};
+    GoldSrcNetchanState state;
+    assert(state.Initialize(endpoint, std::nullopt, 0u, start));
+
+    GoldSrcNetchanPacket first =
+        Packet(1u, 0u, true, false, {0x10u, 0x20u, 0x30u});
+    first.fragment_present = true;
+    first.raw_sequence |= kGoldSrcNetchanFragmentFlag;
+    first.fragment_metadata.present_count = 1u;
+    first.fragment_metadata.present[0] = true;
+    first.fragment_metadata.descriptors[0].stream =
+        GoldSrcFragmentStream::kNormal;
+    first.fragment_metadata.descriptors[0].fragment_index = 1u;
+    first.fragment_metadata.descriptors[0].fragment_count = 2u;
+    first.fragment_metadata.descriptors[0].payload_length = 3u;
+
+    const StateSnapshot before_rejection = Snapshot(state);
+    const GoldSrcNetchanProcessOutcome rejected =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            first,
+            start + 1ms);
+    assert(
+        rejected.result
+        == GoldSrcNetchanProcessResult::kUnsupportedFragment);
+    assert(!rejected.incoming_fragment_consumed);
+    AssertMutationStateEquals(before_rejection, state);
+
+    assert(state.SetIncomingNormalFragmentAcceptance(true));
+    assert(state.incoming_normal_fragments_accepted());
+    const GoldSrcNetchanProcessOutcome accepted_first =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            first,
+            start + 2ms);
+    assert(
+        accepted_first.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(accepted_first.incoming_fragment_consumed);
+    assert(!accepted_first.incoming_fragment_transfer_completed);
+    assert(accepted_first.incoming_fragment_payload_size == 0u);
+    assert(state.incoming_sequence() == 1u);
+    assert(state.incoming_reliable_sequence());
+
+    GoldSrcNetchanPacket second =
+        Packet(2u, 0u, true, false, {0x40u, 0x50u});
+    second.fragment_present = true;
+    second.raw_sequence |= kGoldSrcNetchanFragmentFlag;
+    second.fragment_metadata.present_count = 1u;
+    second.fragment_metadata.present[0] = true;
+    second.fragment_metadata.descriptors[0].stream =
+        GoldSrcFragmentStream::kNormal;
+    second.fragment_metadata.descriptors[0].fragment_index = 2u;
+    second.fragment_metadata.descriptors[0].fragment_count = 2u;
+    second.fragment_metadata.descriptors[0].payload_length = 2u;
+    const GoldSrcNetchanProcessOutcome accepted_second =
+        state.ProcessIncomingDatagramDetailed(
+            endpoint,
+            second,
+            start + 3ms);
+    assert(
+        accepted_second.result
+        == GoldSrcNetchanProcessResult::kAccepted);
+    assert(accepted_second.incoming_fragment_consumed);
+    assert(accepted_second.incoming_fragment_transfer_completed);
+    assert(accepted_second.incoming_fragment_payload_size == 5u);
+    assert(state.incoming_sequence() == 2u);
+    assert(!state.incoming_reliable_sequence());
+
+    assert(state.SetIncomingNormalFragmentAcceptance(false));
+    assert(!state.incoming_normal_fragments_accepted());
+    state.Reset();
+    AssertCleanState(state);
+}
+
 void TestReliableCoverageWrongToggleAndReferenceResend()
 {
     using namespace std::chrono_literals;
@@ -2476,6 +2562,7 @@ int main()
     TestResourceManifestReliableKindAckRetransmitAndReset();
     TestSignonBootstrapReliableKindUnfragmentedAndFragmented();
     TestOptInBoundedApplicationPayloadPolicy();
+    TestOptInBoundedIncomingNormalFragments();
     TestReliableCoverageWrongToggleAndReferenceResend();
     TestForgedAckAndCodecRejectionsPreserveReliableState();
     TestResetAndSlotReuse();

@@ -6706,6 +6706,8 @@ struct GoldSrcUdpHandshakeSummary
     bool delta_descriptions_negative_proof = false;
     bool resource_manifest_enabled = false;
     bool resource_manifest_negative_proof = false;
+    bool world_baselines_enabled = false;
+    bool world_baselines_negative_proof = false;
     bool netchan_initialized = false;
     std::string netchan_state = "none";
     int max_datagrams_sent_per_frame = 0;
@@ -6858,6 +6860,30 @@ struct GoldSrcUdpHandshakeSummary
     bool payload_too_large = false;
     bool requires_fragmentation_reported = false;
     bool oversized_manifest_not_truncated = false;
+    bool baseline_contract_verified = false;
+    bool baseline_message_order_verified = false;
+    bool baseline_context_built = false;
+    int baseline_build_attempts = 0;
+    int baseline_callback_calls = 0;
+    int baseline_instanced_callback_calls = 0;
+    int baseline_generations = 0;
+    int baseline_cached_outcome_reuses = 0;
+    int baseline_entity_count = 0;
+    int baseline_player_count = 0;
+    int baseline_non_player_count = 0;
+    int baseline_instance_count = 0;
+    int baseline_payload_bytes = 0;
+    int baseline_queued = 0;
+    int baseline_sent = 0;
+    int baseline_resent = 0;
+    int baseline_acked = 0;
+    bool baseline_fragmented = false;
+    int baseline_fragment_count = 0;
+    int baseline_fragment_acknowledged_count = 0;
+    int send_entities_received = 0;
+    int send_entities_delivered = 0;
+    bool previous_server_baseline_boundary_resolved = false;
+    std::string next_observed_boundary = "none";
     std::string signon_phase = "none";
 };
 
@@ -22788,6 +22814,8 @@ struct HlServerModuleInitOptions
     bool goldsrc_resource_manifest_enabled = false;
     bool goldsrc_resource_manifest_negative_proof = false;
     std::optional<std::filesystem::path> goldsrc_resource_manifest_fixture;
+    bool goldsrc_world_baselines_enabled = false;
+    bool goldsrc_world_baselines_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

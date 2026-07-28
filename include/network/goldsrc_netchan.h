@@ -7,6 +7,7 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <optional>
 #include <string_view>
 
@@ -150,6 +151,7 @@ enum class GoldSrcNetchanReliablePayloadKind
     kServerInfo,
     kSignonBootstrap,
     kResourceManifest,
+    kBaselineBootstrap,
 };
 
 std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept;
@@ -197,6 +199,9 @@ struct GoldSrcNetchanProcessOutcome final
     GoldSrcNetchanReliablePayloadKind acknowledged_reliable_kind =
         GoldSrcNetchanReliablePayloadKind::kNone;
     std::uint64_t reliable_acknowledgement_generation = 0;
+    bool incoming_fragment_consumed = false;
+    bool incoming_fragment_transfer_completed = false;
+    std::size_t incoming_fragment_payload_size = 0;
 
     bool reliable_payload_was_acknowledged() const noexcept
     {
@@ -262,6 +267,7 @@ public:
     void RecordRejected(GoldSrcNetchanProcessResult result) noexcept;
     void SetIncomingPayloadPolicy(
         GoldSrcNetchanIncomingPayloadPolicy policy) noexcept;
+    bool SetIncomingNormalFragmentAcceptance(bool enabled) noexcept;
     bool ExpireFragmentTransfer(TimePoint now) noexcept;
 
     bool initialized() const noexcept;
@@ -285,6 +291,7 @@ public:
     last_acknowledged_reliable_kind() const noexcept;
     std::uint64_t reliable_acknowledgement_generation() const noexcept;
     GoldSrcNetchanIncomingPayloadPolicy incoming_payload_policy() const noexcept;
+    bool incoming_normal_fragments_accepted() const noexcept;
     bool has_accepted_activity() const noexcept;
     TimePoint last_accepted_at() const noexcept;
     GoldSrcNetchanTransportPhase transport_phase() const noexcept;
@@ -320,6 +327,10 @@ private:
     GoldSrcNetchanReliablePayloadKind fragment_reliable_kind_ =
         GoldSrcNetchanReliablePayloadKind::kNone;
     std::uint64_t fragment_transfer_generation_ = 0u;
+    std::unique_ptr<GoldSrcFragmentReassembler>
+        incoming_fragment_reassembler_;
+    std::uint64_t incoming_fragment_transfer_generation_ = 0u;
+    bool accept_incoming_normal_fragments_ = false;
     GoldSrcNetchanReliablePayloadKind last_acknowledged_reliable_kind_ =
         GoldSrcNetchanReliablePayloadKind::kNone;
     std::uint64_t reliable_acknowledgement_generation_ = 0;

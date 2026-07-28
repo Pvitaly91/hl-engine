@@ -59,6 +59,7 @@
 #include "network/goldsrc_delta_description.h"
 #include "network/goldsrc_netchan.h"
 #include "network/goldsrc_resource_manifest.h"
+#include "network/goldsrc_world_baseline.h"
 #include "network/udp_socket.h"
 #include "server_frame_loop.h"
 #include "server_bootstrap.h"
@@ -68,6 +69,7 @@
 
 #pragma warning(push, 0)
 #include "extdll.h"
+#include "entity_state.h"
 #include "shake.h"
 #pragma warning(pop)
 

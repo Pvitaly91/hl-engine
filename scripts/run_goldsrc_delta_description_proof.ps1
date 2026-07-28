@@ -26,6 +26,13 @@ param(
 
     [switch]$PostResourceNegativeProof,
 
+    [switch]$WorldBaselineProof,
+
+    [single]$ExpectedZMaximum = 4096.0,
+
+    [ValidateRange(0, 255)]
+    [int]$ExpectedCdTrack = 0,
+
     [switch]$SkipServerOutput
 )
 
@@ -37,6 +44,9 @@ if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
 if ($PostResourceNegativeProof -and
     (-not $NegativeProof -or -not $PostResourceCommandProof)) {
     throw "PostResourceNegativeProof requires NegativeProof and PostResourceCommandProof"
+}
+if ($WorldBaselineProof -and -not $PostResourceCommandProof) {
+    throw "WorldBaselineProof requires PostResourceCommandProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -678,7 +688,7 @@ function Read-BootstrapTail {
         [single]1.0,
         [single]18.0,
         [single]2000.0,
-        [single]4096.0,
+        $ExpectedZMaximum,
         [single]0.0,
         [single]0.0,
         [single]0.0,
@@ -738,8 +748,9 @@ function Read-BootstrapTail {
     }
     $cdTrack = Read-PayloadByte -Reader $reader -FieldName "CD audio track"
     $loopTrack = Read-PayloadByte -Reader $reader -FieldName "CD loop track"
-    if ($cdTrack -ne 0 -or $loopTrack -ne $cdTrack) {
-        throw ("bootstrap tail CD track mismatch: track={0},loop={1}" -f
+    if ($cdTrack -ne $ExpectedCdTrack -or $loopTrack -ne $cdTrack) {
+        throw ("bootstrap tail CD track mismatch: expected {0}/{0}, track={1},loop={2}" -f
+            $ExpectedCdTrack,
             $cdTrack,
             $loopTrack)
     }
@@ -1659,8 +1670,9 @@ function Invoke-ObservedResourceContinuation {
         $Bootstrap,
         [object[]]$ExpectedEntries,
         [string]$StdoutPath,
-        [ValidateSet("None", "Positive", "Negative")]
-        [string]$PostResourceMode = "None"
+        [ValidateSet("None", "Positive", "Negative", "World")]
+        [string]$PostResourceMode = "None",
+        [switch]$WorldBaselineNegativeProof
     )
 
     [byte[]]$sendResourcesPayload = New-StringCommandPayload -Command "sendres"
@@ -1709,7 +1721,8 @@ function Invoke-ObservedResourceContinuation {
         -not [bool]$Bootstrap.ServerReliableAcknowledgementState
     $clientSequence++
     [byte[]]$acknowledgementPayload = $Handshake.NopPayload
-    if ($PostResourceMode -eq "Positive") {
+    if ($PostResourceMode -eq "Positive" -or
+        $PostResourceMode -eq "World") {
         $acknowledgementPayload =
             New-ObservedGoldSrcMovePayload -Sequence $clientSequence
     } elseif ($PostResourceMode -eq "Negative") {
@@ -1798,9 +1811,11 @@ function Invoke-ObservedResourceContinuation {
         $final.Acknowledgement -ne $clientSequence) {
         throw "resource continuation final response changed netchan progression"
     }
-    Assert-NopPayload `
-        -Payload $final.Payload `
-        -Description "final resource acknowledgement response"
+    if ($PostResourceMode -ne "World") {
+        Assert-NopPayload `
+            -Payload $final.Payload `
+            -Description "final resource acknowledgement response"
+    }
 
     if ($PostResourceMode -eq "Negative") {
         Wait-ForStdoutToken `
@@ -1900,12 +1915,209 @@ function Invoke-ObservedResourceContinuation {
             -Description "valid post-resource move response"
         $final = $acceptedResponse
     }
+    $baselineReceived = $false
+    $baselineFragmented = $false
+    $baselineRetransmissionObserved = $false
+    $baselineRetransmittedIdentical = $false
+    $baselineWithheldMoveCount = 0
+    if ($PostResourceMode -eq "World") {
+        [byte[]]$baselinePayload = @()
+        [uint32]$latestServerSequence = [uint32]$final.Sequence
+        [bool]$baselineAckState = -not [bool]$manifestAckState
+        if ($WorldBaselineNegativeProof) {
+            $originalBaselinePacket = $final
+            $originalBaselineFragment = if ($final.FragmentPresent) {
+                Read-FragmentedSequencedDatagram `
+                    -Packet $finalDatagram.Bytes `
+                    -Description "original pending world baseline fragment"
+            } else {
+                $null
+            }
+            for ($attempt = 0;
+                $attempt -lt 3 -and -not $baselineRetransmissionObserved;
+                $attempt++) {
+                $clientSequence++
+                $baselineWithheldMoveCount++
+                Send-DeltaClientPacket `
+                    -Client $Client `
+                    -Sequence $clientSequence `
+                    -Acknowledgement $latestServerSequence `
+                    -ServerReliableAcknowledgementState $manifestAckState `
+                    -Payload (New-ObservedGoldSrcMovePayload `
+                        -Sequence $clientSequence) `
+                    -Description "duplicate move with baseline ACK withheld"
+                $candidateDatagram = Receive-ProofDatagram `
+                    -Client $Client `
+                    -ServerProcess $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -Deadline $Deadline `
+                    -ServerEndpoint $ServerEndpoint `
+                    -Description "pending world baseline retransmission candidate"
+                $candidate = Read-SequencedDatagram `
+                    -Packet $candidateDatagram.Bytes `
+                    -Description "pending world baseline retransmission candidate"
+                $latestServerSequence = [uint32]$candidate.Sequence
+                if ($originalBaselinePacket.FragmentPresent) {
+                    if (-not $candidate.FragmentPresent) {
+                        Assert-NopPayload `
+                            -Payload $candidate.Payload `
+                            -Description "ordinary response before baseline retransmission"
+                        continue
+                    }
+                    $candidateFragment = Read-FragmentedSequencedDatagram `
+                        -Packet $candidateDatagram.Bytes `
+                        -Description "retransmitted world baseline fragment"
+                    if ($candidateFragment.RawFragmentId -ne
+                            $originalBaselineFragment.RawFragmentId) {
+                        throw "world baseline retransmission changed fragment identity"
+                    }
+                    Assert-ExactBytes `
+                        -Actual $candidateFragment.FragmentBytes `
+                        -Expected $originalBaselineFragment.FragmentBytes `
+                        -Description "byte-identical world baseline fragment retransmission"
+                } else {
+                    if ($candidate.FragmentPresent) {
+                        throw "unfragmented world baseline became fragmented during retransmission"
+                    }
+                    if ($candidate.Payload.Length -gt 0 -and
+                        $candidate.Payload[0] -eq $svcNop) {
+                        Assert-NopPayload `
+                            -Payload $candidate.Payload `
+                            -Description "ordinary response before baseline retransmission"
+                        continue
+                    }
+                    Assert-ExactBytes `
+                        -Actual $candidate.Payload `
+                        -Expected $originalBaselinePacket.Payload `
+                        -Description "byte-identical world baseline retransmission"
+                }
+                $baselineRetransmissionObserved = $true
+                $baselineRetransmittedIdentical = $true
+                $finalDatagram = $candidateDatagram
+                $final = $candidate
+            }
+            if (-not $baselineRetransmissionObserved) {
+                throw "withheld baseline ACK did not produce a retransmission"
+            }
+        }
+        if ($final.FragmentPresent) {
+            $baselineFragmented = $true
+            $fragment = Read-FragmentedSequencedDatagram `
+                -Packet $finalDatagram.Bytes `
+                -Description "first world baseline fragment"
+            $slots = New-Object object[] $fragment.FragmentCount
+            while ($true) {
+                if ((Add-ProbeFragment `
+                        -Slots $slots `
+                        -Fragment $fragment `
+                        -Description "world baseline fragment") -cne
+                    "accepted") {
+                    throw "world baseline fragment was duplicated"
+                }
+                $clientSequence++
+                Send-FragmentAcknowledgement `
+                    -Client $Client `
+                    -ClientSequence $clientSequence `
+                    -ServerSequence $latestServerSequence `
+                    -ReliableAcknowledgementToggle $baselineAckState `
+                    -NopPayload $Handshake.NopPayload `
+                    -Description "world baseline fragment acknowledgement"
+                $responseDatagram = Receive-ProofDatagram `
+                    -Client $Client `
+                    -ServerProcess $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -Deadline $Deadline `
+                    -ServerEndpoint $ServerEndpoint `
+                    -Description "world baseline fragment response"
+                if ($fragment.FragmentIndex -eq $fragment.FragmentCount) {
+                    $response = Read-SequencedDatagram `
+                        -Packet $responseDatagram.Bytes `
+                        -Description "world baseline final acknowledgement"
+                    if ($response.FragmentPresent) {
+                        throw "world baseline final ACK remained fragmented"
+                    }
+                    Assert-NopPayload `
+                        -Payload $response.Payload `
+                        -Description "world baseline final acknowledgement"
+                    $latestServerSequence = [uint32]$response.Sequence
+                    break
+                }
+                $fragment = Read-FragmentedSequencedDatagram `
+                    -Packet $responseDatagram.Bytes `
+                    -Description "next world baseline fragment"
+                $latestServerSequence =
+                    [uint32]$fragment.Datagram.Sequence
+                $baselineAckState = -not $baselineAckState
+            }
+            $baselinePayload = Join-ProbeFragments -Slots $slots
+        } else {
+            $baselinePayload = [byte[]]$final.Payload
+            $clientSequence++
+            Send-DeltaClientPacket `
+                -Client $Client `
+                -Sequence $clientSequence `
+                -Acknowledgement $latestServerSequence `
+                -ServerReliableAcknowledgementState $baselineAckState `
+                -Payload $Handshake.NopPayload `
+                -Description "world baseline reliable acknowledgement"
+            $responseDatagram = Receive-ProofDatagram `
+                -Client $Client `
+                -ServerProcess $ServerProcess `
+                -OutputCapture $OutputCapture `
+                -Deadline $Deadline `
+                -ServerEndpoint $ServerEndpoint `
+                -Description "world baseline acknowledgement response"
+            $response = Read-SequencedDatagram `
+                -Packet $responseDatagram.Bytes `
+                -Description "world baseline acknowledgement response"
+            Assert-NopPayload `
+                -Payload $response.Payload `
+                -Description "world baseline acknowledgement response"
+            $latestServerSequence = [uint32]$response.Sequence
+        }
+        if ($baselinePayload.Length -lt 3 -or
+            $baselinePayload[0] -ne 22 -or
+            $baselinePayload[$baselinePayload.Length - 2] -ne 25 -or
+            $baselinePayload[$baselinePayload.Length - 1] -ne 1) {
+            throw "world baseline bundle has invalid semantic message order"
+        }
+        $baselineReceived = $true
+        $clientSequence++
+        Send-DeltaClientPacket `
+            -Client $Client `
+            -Sequence $clientSequence `
+            -Acknowledgement $latestServerSequence `
+            -ServerReliableAcknowledgementState $baselineAckState `
+            -Payload (New-StringCommandPayload -Command "sendents") `
+            -ReliablePayload `
+            -Description "typed sendents after accepted world baseline"
+        [void](Receive-ProofDatagram `
+            -Client $Client `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -Description "sendents acknowledgement response")
+        Wait-ForStdoutToken `
+            -Process $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -StdoutPath $StdoutPath `
+            -Deadline $Deadline `
+            -Token "goldsrc_sendents_accepted:" `
+            -Description "typed sendents acceptance"
+        $final = $response
+    }
     return [pscustomobject]@{
         Manifest = $manifest
         ClientSequence = [uint32]$clientSequence
         LatestServerSequence = [uint32]$final.Sequence
         ServerReliableAcknowledgementState = [bool]$manifestAckState
         PostResourceMode = $PostResourceMode
+        BaselineReceived = $baselineReceived
+        BaselineFragmented = $baselineFragmented
+        BaselineRetransmissionObserved = $baselineRetransmissionObserved
+        BaselineRetransmittedIdentical = $baselineRetransmittedIdentical
+        BaselineWithheldMoveCount = $baselineWithheldMoveCount
     }
 }
 
@@ -1920,7 +2132,9 @@ function Assert-DeltaHostSummaries {
 
     $negative = $Mode -eq "Negative"
     $postResource = $Resource.PostResourceMode -ne "None"
-    $expectedSignonPhase = if ($postResource) {
+    $expectedSignonPhase = if ($Resource.PostResourceMode -eq "World") {
+        "awaiting_first_snapshot"
+    } elseif ($postResource) {
         "awaiting_server_baseline_or_snapshot"
     } else {
         "resource_manifest_acknowledged"
@@ -1946,13 +2160,18 @@ function Assert-DeltaHostSummaries {
             bootstrap_queued = "1"
             bootstrap_sent = "1"
             bootstrap_acked = "1"
-            fragmented = $(if ($negative) { "true" } else { "false" })
-            fragment_count = $(if ($negative) {
+            fragmented = $(if ($Bootstrap.FragmentCount -gt 0) {
+                "true"
+            } else {
+                "false"
+            })
+            fragment_count = $(if ($Bootstrap.FragmentCount -gt 0) {
                 [string]$Bootstrap.FragmentCount
             } else {
                 "0"
             })
-            fragment_acknowledged_count = $(if ($negative) {
+            fragment_acknowledged_count = $(if (
+                    $Bootstrap.FragmentCount -gt 0) {
                 [string]$Bootstrap.FragmentCount
             } else {
                 "0"
@@ -2115,6 +2334,9 @@ function Assert-DeltaHostSummaries {
                 delivered = "1"
                 rejected = $(if ($Resource.PostResourceMode -eq "Negative") {
                     "5"
+                } elseif ($negative -and
+                    $Resource.PostResourceMode -eq "World") {
+                    [string]$Resource.BaselineWithheldMoveCount
                 } else {
                     "0"
                 })
@@ -2139,6 +2361,9 @@ function Assert-DeltaHostSummaries {
                 invalid_phase_rejected =
                     $(if ($Resource.PostResourceMode -eq "Negative") {
                         "1"
+                    } elseif ($negative -and
+                        $Resource.PostResourceMode -eq "World") {
+                        [string]$Resource.BaselineWithheldMoveCount
                     } else {
                         "0"
                     })
@@ -2148,7 +2373,9 @@ function Assert-DeltaHostSummaries {
                 pre_spawn_ignored = "true"
                 previous_boundary_resolved = "true"
                 pending_reliable_preserved =
-                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                    $(if ($Resource.PostResourceMode -eq "Negative" -or
+                        ($negative -and
+                            $Resource.PostResourceMode -eq "World")) {
                         "true"
                     } else {
                         "false"
@@ -2159,7 +2386,7 @@ function Assert-DeltaHostSummaries {
                 total_commands = "3"
                 new_command_msec = "32"
                 continuation = "awaiting_server_baseline_or_snapshot"
-                signon_phase = "awaiting_server_baseline_or_snapshot"
+                signon_phase = $expectedSignonPhase
                 session_count = "1"
                 put_in_server = "0"
                 spawned = "0"
@@ -2167,6 +2394,66 @@ function Assert-DeltaHostSummaries {
                 server_still_responsive = "true"
                 clean_shutdown = "1"
             })
+    }
+    if ($Resource.PostResourceMode -eq "World") {
+        if (-not $Resource.BaselineReceived) {
+            throw "world baseline proof did not receive a baseline bundle"
+        }
+        $baselineLine = Get-ExactlyOneSummaryLine `
+            -Stdout $Stdout `
+            -Prefix "goldsrc_world_baseline_summary:"
+        Assert-SummaryFields `
+            -Line $baselineLine `
+            -Description "goldsrc_world_baseline_summary" `
+            -Expected ([ordered]@{
+                enabled = "1"
+                negative_proof = $(if ($negative) { "1" } else { "0" })
+                contract_verified = "true"
+                message_order_verified = "true"
+                source = "runtime_map"
+                build_attempts = "1"
+                generations = "1"
+                cached_reuses = "0"
+                instanced_callback_calls = "1"
+                instance_count = "0"
+                queued = "1"
+                sent = "1"
+                acked = "1"
+                sendents_received = "1"
+                sendents_delivered = "1"
+                previous_boundary_resolved = "true"
+                next_boundary = "first_snapshot_required"
+                signon_phase = "awaiting_first_snapshot"
+                session_count = "1"
+                put_in_server = "0"
+                spawned = "0"
+                active = "0"
+                clean_shutdown = "1"
+            })
+        if ((Get-StableUnsignedField `
+                -Line $baselineLine `
+                -Name "entity_count") -lt 2) {
+            throw "world baseline proof omitted world or player template"
+        }
+        if ((Get-StableUnsignedField `
+                -Line $baselineLine `
+                -Name "callback_calls") -ne
+            (Get-StableUnsignedField `
+                -Line $baselineLine `
+                -Name "entity_count")) {
+            throw "world baseline callback count does not match frozen entities"
+        }
+        if ($negative) {
+            if (-not $Resource.BaselineRetransmissionObserved -or
+                -not $Resource.BaselineRetransmittedIdentical) {
+                throw "world baseline negative proof omitted byte-identical retransmission"
+            }
+            if ((Get-StableUnsignedField `
+                    -Line $baselineLine `
+                    -Name "resent") -lt 1) {
+                throw "runtime did not report a retained baseline retransmission"
+            }
+        }
     }
 
     $udpLine = Get-ExactlyOneSummaryLine `
@@ -2331,7 +2618,7 @@ function Invoke-DeltaHostRun {
         [string]$Address,
         [int]$RequestedPort,
         [int]$RunTimeoutSeconds,
-        [ValidateSet("None", "Positive", "Negative")]
+        [ValidateSet("None", "Positive", "Negative", "World")]
         [string]$PostResourceMode = "None",
         [switch]$SuppressServerOutput
     )
@@ -2364,6 +2651,12 @@ function Invoke-DeltaHostRun {
     )
     if ($Mode -eq "Negative") {
         $arguments += "--goldsrc-delta-descriptions-negative-proof"
+    }
+    if ($PostResourceMode -eq "World") {
+        $arguments += "--goldsrc-world-baselines"
+        if ($Mode -eq "Negative") {
+            $arguments += "--goldsrc-world-baselines-negative-proof"
+        }
     }
     $argumentLine = (($arguments | ForEach-Object {
         ConvertTo-WindowsCommandLineArgument -Value ([string]$_)
@@ -2566,7 +2859,10 @@ function Invoke-DeltaHostRun {
             -Bootstrap $bootstrap `
             -ExpectedEntries $ExpectedEntries `
             -StdoutPath $stdoutPath `
-            -PostResourceMode $PostResourceMode
+            -PostResourceMode $PostResourceMode `
+            -WorldBaselineNegativeProof:(
+                $Mode -eq "Negative" -and
+                $PostResourceMode -eq "World")
 
         Wait-ForCleanServerExit `
             -Process $serverProcess `
@@ -3072,7 +3368,9 @@ $mainResult = $null
 $missingUsercmdResult = $null
 $malformedResult = $null
 $failure = $null
-$postResourceMode = if (-not $PostResourceCommandProof) {
+$postResourceMode = if ($WorldBaselineProof) {
+    "World"
+} elseif (-not $PostResourceCommandProof) {
     "None"
 } elseif ($PostResourceNegativeProof) {
     "Negative"

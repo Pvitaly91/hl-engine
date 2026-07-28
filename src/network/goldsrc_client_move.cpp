@@ -135,19 +135,13 @@ void ProcessCrcByte(std::uint32_t* crc, std::uint8_t value) noexcept
     *crc = kCrc32Table[(*crc ^ value) & 0xFFu] ^ (*crc >> 8u);
 }
 
-std::int32_t SignExtend(std::uint32_t value, std::size_t bits) noexcept
+std::int32_t DecodeSignMagnitude(std::uint32_t value) noexcept
 {
-    if (bits == 32u)
-    {
-        return static_cast<std::int32_t>(value);
-    }
-    const std::uint32_t sign_bit = std::uint32_t{1} << (bits - 1u);
-    if ((value & sign_bit) == 0u)
-    {
-        return static_cast<std::int32_t>(value);
-    }
-    const std::uint32_t mask = (std::uint32_t{1} << bits) - 1u;
-    return static_cast<std::int32_t>(value | ~mask);
+    const bool negative = (value & 1u) != 0u;
+    const std::uint32_t magnitude = value >> 1u;
+    return negative
+        ? -static_cast<std::int32_t>(magnitude)
+        : static_cast<std::int32_t>(magnitude);
 }
 
 bool HasExactlyOneBaseType(std::uint32_t type) noexcept
@@ -165,7 +159,8 @@ bool HasExactlyOneBaseType(std::uint32_t type) noexcept
 GoldSrcDeltaRecordDecodeStatus DecodeFieldValue(
     GoldSrcBitReader* reader,
     const GoldSrcDeltaField& field,
-    GoldSrcDecodedDeltaValue* value) noexcept
+    GoldSrcDecodedDeltaValue* value,
+    double time_base) noexcept
 {
     if (reader == nullptr || value == nullptr
         || field.significant_bits == 0u || field.significant_bits > 32u
@@ -211,13 +206,22 @@ GoldSrcDeltaRecordDecodeStatus DecodeFieldValue(
         return GoldSrcDeltaRecordDecodeStatus::kStringTooLong;
     }
 
+    const bool is_time_window =
+        base_type == kGoldSrcDeltaTypeTimeWindow8
+        || base_type == kGoldSrcDeltaTypeTimeWindowBig;
+    const std::size_t wire_bits =
+        base_type == kGoldSrcDeltaTypeTimeWindow8
+        ? 8u
+        : field.significant_bits;
     std::uint32_t raw = 0u;
-    if (!reader->ReadBits(field.significant_bits, &raw))
+    if (!reader->ReadBits(wire_bits, &raw))
     {
         return GoldSrcDeltaRecordDecodeStatus::kTruncatedBitstream;
     }
     const std::int32_t signed_raw =
-        is_signed ? SignExtend(raw, field.significant_bits) : 0;
+        is_signed || is_time_window
+        ? DecodeSignMagnitude(raw)
+        : 0;
     if (base_type == kGoldSrcDeltaTypeAngle)
     {
         double angle =
@@ -251,7 +255,8 @@ GoldSrcDeltaRecordDecodeStatus DecodeFieldValue(
             ? 100.0
             : field.premultiply;
         value->kind = GoldSrcDeltaValueKind::kFloatingPoint;
-        value->floating_value = -static_cast<double>(signed_raw) / scale;
+        value->floating_value =
+            time_base - static_cast<double>(signed_raw) / scale;
         return GoldSrcDeltaRecordDecodeStatus::kOk;
     }
 
@@ -534,7 +539,8 @@ std::string_view ReasonFor(GoldSrcDeltaRecordDecodeStatus status) noexcept
 GoldSrcDeltaRecordDecodeResult DecodeGoldSrcDeltaRecord(
     GoldSrcBitReader* reader,
     const GoldSrcDeltaTable& table,
-    const GoldSrcDecodedDeltaRecord& previous) noexcept
+    const GoldSrcDecodedDeltaRecord& previous,
+    double time_base) noexcept
 {
     GoldSrcDeltaRecordDecodeResult result;
     if (reader == nullptr || table.fields.empty()
@@ -598,7 +604,8 @@ GoldSrcDeltaRecordDecodeResult DecodeGoldSrcDeltaRecord(
             DecodeFieldValue(
                 reader,
                 table.fields[index],
-                &result.record.values[index]);
+                &result.record.values[index],
+                time_base);
         if (field_status != GoldSrcDeltaRecordDecodeStatus::kOk)
         {
             result.status = field_status;

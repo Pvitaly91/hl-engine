@@ -46,6 +46,7 @@ enum class GoldSrcClientSignonCommand
     kNone,
     kNew,
     kSendResources,
+    kSendEntities,
     kDisconnect,
 };
 
@@ -84,6 +85,7 @@ struct GoldSrcClientSignonDecodeResult final
     GoldSrcClientSignonCommand command = GoldSrcClientSignonCommand::kNone;
     GoldSrcClientSignonCompanionCommand companion_command =
         GoldSrcClientSignonCompanionCommand::kNone;
+    std::size_t primary_command_bytes = 0;
     std::size_t companion_count = 0;
     std::size_t leading_nop_count = 0;
     std::size_t trailing_nop_count = 0;
@@ -96,8 +98,11 @@ struct GoldSrcClientSignonDecodeResult final
 
 // Decodes one bounded application payload after the client qport has already
 // been removed by the netchan layer. The primary command must be exact `new`,
-// `sendres`, or the GoldSrc disconnect string `dropclient\n`. The observed
-// stock-client `sendres` payload may additionally contain exactly two
+// `sendres`, `sendents`, or the GoldSrc disconnect string `dropclient\n`. The
+// primary command and its byte boundary remain available when a typed command
+// is followed by unsupported data, so a higher-level dispatcher can validate
+// an independently typed unreliable suffix without weakening this decoder.
+// The observed stock-client `sendres` payload may additionally contain exactly two
 // `closemenus` companion commands with the observed single-space/LF suffix.
 // NOP messages may surround or separate accepted commands. Companions are
 // typed metadata only and are never routed for generic command execution.
@@ -121,6 +126,11 @@ enum class GoldSrcSignonPhase
     kResourceManifestAcknowledged,
     kAwaitingPostResourceCommand,
     kAwaitingServerBaselineOrSnapshot,
+    kAwaitingBaselineBootstrap,
+    kBaselineBootstrapQueued,
+    kBaselineBootstrapSentAwaitingAck,
+    kBaselineBootstrapAcknowledged,
+    kAwaitingFirstSnapshot,
 };
 
 std::string_view NameFor(GoldSrcSignonPhase phase) noexcept;
@@ -176,6 +186,12 @@ struct GoldSrcSignonDiagnostics final
     std::uint64_t post_resource_command_delivered = 0;
     std::uint64_t post_resource_command_state_advances = 0;
     std::uint64_t post_resource_command_wrong_phase = 0;
+    std::uint64_t baseline_bootstrap_queued = 0;
+    std::uint64_t baseline_bootstrap_sent = 0;
+    std::uint64_t baseline_bootstrap_acknowledged = 0;
+    std::uint64_t send_entities_received = 0;
+    std::uint64_t send_entities_delivered = 0;
+    std::uint64_t send_entities_wrong_phase = 0;
 };
 
 class GoldSrcSignonSessionState final
@@ -196,6 +212,13 @@ public:
     GoldSrcSignonTransitionResult MarkResourceManifestAcknowledged() noexcept;
     GoldSrcSignonTransitionResult EnterAwaitingPostResourceCommand() noexcept;
     GoldSrcSignonCommandDisposition HandlePostResourceMove() noexcept;
+    GoldSrcSignonTransitionResult EnterAwaitingBaselineBootstrap() noexcept;
+    GoldSrcSignonTransitionResult MarkBaselineBootstrapQueued() noexcept;
+    GoldSrcSignonTransitionResult MarkBaselineBootstrapSent() noexcept;
+    GoldSrcSignonTransitionResult
+        MarkBaselineBootstrapAcknowledged() noexcept;
+    GoldSrcSignonTransitionResult EnterAwaitingFirstSnapshot() noexcept;
+    GoldSrcSignonCommandDisposition HandleSendEntities() noexcept;
 
     GoldSrcSignonPhase phase() const noexcept;
     const GoldSrcSignonDiagnostics& diagnostics() const noexcept;

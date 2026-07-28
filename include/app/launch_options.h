@@ -50,6 +50,8 @@ struct LaunchOptions
     bool goldsrc_resource_manifest_enabled = false;
     bool goldsrc_resource_manifest_negative_proof = false;
     std::optional<std::filesystem::path> goldsrc_resource_manifest_fixture;
+    bool goldsrc_world_baselines_enabled = false;
+    bool goldsrc_world_baselines_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;
