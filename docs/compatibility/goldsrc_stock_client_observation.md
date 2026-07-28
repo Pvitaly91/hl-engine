@@ -244,3 +244,48 @@ before and after the run and remained unchanged. Only the exact owned client
 and host process IDs were cleaned, the isolated temporary directory was
 removed, and no capture, raw packet dump, installed asset, credential, or
 machine-specific log was retained.
+
+## Prompt 243 first-snapshot checkpoint
+
+Prompt 243 reused the same unmodified Half-Life 1.1.2.2 client, Steam build
+`15961492`, installed read-only `valve` data, `c0a0`, and direct loopback
+launch. The final host bound only to `127.0.0.1`, used the installed runtime
+delta definitions, and retained pre-spawn lifecycle state.
+
+After the accepted baseline bundle and `sendents`, the server prepared one
+authoritative first frame and sent it through ordinary unreliable netchan
+traffic. The application bundle was:
+
+1. `svc_time`;
+2. a full zero-baseline `svc_clientdata` record with no weapon entries;
+3. a full `svc_packetentities` update relative to established entity
+   baselines.
+
+The frame contained 13 modeled non-player entities. World entity zero,
+reserved player slots, and instanced baseline definitions were excluded. The
+stock client produced no malformed-message diagnostic and returned a
+`clc_delta` reference to the exact low eight bits of server frame 35. The
+server resolved that reference against its per-client 64-frame history and
+advanced exactly once to `first_snapshot_acknowledged`.
+
+Final checkpoint:
+
+- `stock_client_received_first_snapshot=yes`;
+- `stock_client_accepted_clientdata=yes`;
+- `stock_client_accepted_packet_entities=yes`;
+- `stock_client_referenced_server_frame=yes`;
+- `first_snapshot_acked=yes`;
+- `previous_first_snapshot_boundary_resolved=yes`;
+- `stock_client_advanced_past_previous_boundary=yes`;
+- `next_observed_boundary=continuous_snapshot_cadence_required`;
+- `put_in_server=0`, `spawned=0`, and `active=0`.
+
+The first later stock command observed adjacent to the acknowledgement was a
+bounded batch of `unpause` string commands. It remained rejected by the
+strict generic signon decoder and was not required for first-frame
+acceptance. Continuous snapshot cadence is the next major server
+requirement.
+
+Acceptance of the first world snapshot does not mean that continuous delta
+snapshots, Game DLL ClientPutInServer, spawn, movement, prediction, player
+replication, or gameplay are complete.

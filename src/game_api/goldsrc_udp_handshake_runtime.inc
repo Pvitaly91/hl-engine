@@ -39,6 +39,10 @@ public:
               options.goldsrc_world_baselines_enabled),
           world_baselines_negative_proof_(
               options.goldsrc_world_baselines_negative_proof),
+          first_snapshot_enabled_(
+              options.goldsrc_first_snapshot_enabled),
+          first_snapshot_negative_proof_(
+              options.goldsrc_first_snapshot_negative_proof),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -62,6 +66,9 @@ public:
         summary_.world_baselines_enabled = world_baselines_enabled_;
         summary_.world_baselines_negative_proof =
             world_baselines_negative_proof_;
+        summary_.first_snapshot_enabled = first_snapshot_enabled_;
+        summary_.first_snapshot_negative_proof =
+            first_snapshot_negative_proof_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -235,6 +242,17 @@ public:
         {
             return FailBind(
                 "world-baselines-negative-proof-requires-world-baselines");
+        }
+        if (first_snapshot_enabled_ && !world_baselines_enabled_)
+        {
+            return FailBind(
+                "first-snapshot-requires-world-baselines");
+        }
+        if (first_snapshot_negative_proof_
+            && !first_snapshot_enabled_)
+        {
+            return FailBind(
+                "first-snapshot-negative-proof-requires-first-snapshot");
         }
         if (DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
@@ -446,10 +464,33 @@ public:
                     && summary_.post_resource_delta_schema_used
                     && summary_.post_resource_pre_spawn_ignored
                     && summary_.previous_unidentified_command_boundary_resolved
-                    && summary_.signon_phase
-                        == (world_baselines_enabled_
-                            ? "awaiting_first_snapshot"
-                            : "awaiting_server_baseline_or_snapshot");
+                    && (first_snapshot_enabled_
+                        || summary_.signon_phase
+                            == (world_baselines_enabled_
+                                ? "awaiting_first_snapshot"
+                                : "awaiting_server_baseline_or_snapshot"));
+                const bool first_snapshot_succeeded =
+                    !first_snapshot_enabled_
+                    || (summary_.snapshot_contract_verified
+                        && summary_.snapshot_message_order_verified
+                        && summary_.frame_ack_contract_verified
+                        && summary_.frame_history_implemented
+                        && summary_.frame_history_depth
+                            == static_cast<int>(
+                                hl::network::
+                                    kGoldSrcClientFrameHistoryDepth)
+                        && summary_.clientdata_implemented
+                        && !summary_.weapon_data_required
+                        && summary_.packet_entities_implemented
+                        && summary_.first_snapshot_entity_count > 0
+                        && summary_.first_snapshot_payload_bytes > 0
+                        && summary_.first_snapshot_prepared == 1
+                        && summary_.first_snapshot_sent == 1
+                        && summary_.first_snapshot_acked == 1
+                        && summary_.previous_first_snapshot_boundary_resolved
+                        && summary_.stock_advanced_past_previous_boundary
+                        && summary_.signon_phase
+                            == "first_snapshot_acknowledged");
                 const bool world_baseline_succeeded =
                     !world_baselines_enabled_
                     || (summary_.baseline_contract_verified
@@ -477,7 +518,10 @@ public:
                         && summary_
                             .previous_server_baseline_boundary_resolved
                         && summary_.next_observed_boundary
-                            == "first_snapshot_required");
+                            == (first_snapshot_enabled_
+                                ? "continuous_snapshot_cadence_required"
+                                : "first_snapshot_required")
+                        && first_snapshot_succeeded);
                 const bool resource_manifest_phase_succeeded =
                     summary_.signon_phase
                         == "resource_manifest_acknowledged"
@@ -1020,6 +1064,108 @@ public:
                     + std::string(summary_.spawned ? "1" : "0")
                     + ",active="
                     + std::string(summary_.active ? "1" : "0")
+                    + ",clean_shutdown=1");
+        }
+        if (first_snapshot_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_first_snapshot_summary: enabled=1,negative_proof="
+                    + std::string(
+                        first_snapshot_negative_proof_ ? "1" : "0")
+                    + ",contract_verified="
+                    + std::string(
+                        summary_.snapshot_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",message_order_verified="
+                    + std::string(
+                        summary_.snapshot_message_order_verified
+                            ? "true"
+                            : "false")
+                    + ",frame_ack_contract_verified="
+                    + std::string(
+                        summary_.frame_ack_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",messages=svc_time,svc_clientdata,svc_packetentities"
+                    + ",reliability=unreliable"
+                    + ",server_time="
+                    + std::to_string(summary_.first_snapshot_server_time)
+                    + ",clientdata="
+                    + std::string(
+                        summary_.clientdata_implemented
+                            ? "implemented"
+                            : "missing")
+                    + ",weapon_data="
+                    + std::string(
+                        summary_.weapon_data_required
+                            ? "required"
+                            : "not_required")
+                    + ",packet_entities="
+                    + std::string(
+                        summary_.packet_entities_implemented
+                            ? "implemented"
+                            : "missing")
+                    + ",entity_count="
+                    + std::to_string(summary_.first_snapshot_entity_count)
+                    + ",payload_bytes="
+                    + std::to_string(
+                        summary_.first_snapshot_payload_bytes)
+                    + ",frame_id="
+                    + std::to_string(summary_.first_snapshot_frame_id)
+                    + ",visibility_policy="
+                    + summary_.first_snapshot_visibility_policy
+                    + ",frame_history_implemented="
+                    + std::string(
+                        summary_.frame_history_implemented
+                            ? "true"
+                            : "false")
+                    + ",frame_history_depth="
+                    + std::to_string(summary_.frame_history_depth)
+                    + ",frame_ack_source="
+                    + summary_.frame_ack_source
+                    + ",prepared="
+                    + std::to_string(summary_.first_snapshot_prepared)
+                    + ",sent="
+                    + std::to_string(summary_.first_snapshot_sent)
+                    + ",acked="
+                    + std::to_string(summary_.first_snapshot_acked)
+                    + ",duplicate_ack="
+                    + std::to_string(
+                        summary_.duplicate_frame_acknowledgements)
+                    + ",unknown_frame="
+                    + std::to_string(summary_.unknown_frame_references)
+                    + ",future_frame="
+                    + std::to_string(summary_.future_frame_references)
+                    + ",evicted_frame="
+                    + std::to_string(summary_.evicted_frame_references)
+                    + ",stale_frame="
+                    + std::to_string(summary_.stale_frame_references)
+                    + ",previous_boundary_resolved="
+                    + std::string(
+                        summary_.previous_first_snapshot_boundary_resolved
+                            ? "true"
+                            : "false")
+                    + ",advanced_past_previous_boundary="
+                    + std::string(
+                        summary_.stock_advanced_past_previous_boundary
+                            ? "true"
+                            : "false")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned="
+                    + std::string(summary_.spawned ? "1" : "0")
+                    + ",active="
+                    + std::string(summary_.active ? "1" : "0")
+                    + ",server_still_responsive="
+                    + std::string(
+                        summary_.server_still_responsive ? "true" : "false")
                     + ",clean_shutdown=1");
         }
         if (delta_descriptions_enabled_)
@@ -1704,6 +1850,14 @@ private:
                     .duplicate_resource_request_suppressed > 0u;
             summary_.signon_phase = std::string(
                 hl::network::NameFor(slot_state.goldsrc_signon.phase()));
+            if (first_snapshot_enabled_
+                && slot_state.goldsrc_first_snapshot.phase()
+                    != hl::network::GoldSrcFirstSnapshotPhase::kNone)
+            {
+                summary_.signon_phase = std::string(
+                    hl::network::NameFor(
+                        slot_state.goldsrc_first_snapshot.phase()));
+            }
         }
     }
 
@@ -3528,7 +3682,9 @@ private:
         hl::network::GoldSrcBaselineEncodeResult encoded =
             hl::network::EncodeGoldSrcBaselineBundle(
                 bundle,
-                *slot_state.goldsrc_delta_registry);
+                *slot_state.goldsrc_delta_registry,
+                hl::network::kGoldSrcMaximumBaselineBundleBytes,
+                state_.server_state.time);
         if (!encoded.ok())
         {
             return FailTransport(
@@ -3542,7 +3698,8 @@ private:
                 encoded.payload.bytes.data(),
                 encoded.payload.size,
                 bundle.maximum_clients,
-                *slot_state.goldsrc_delta_registry);
+                *slot_state.goldsrc_delta_registry,
+                state_.server_state.time);
         if (!semantic.ok()
             || semantic.bundle.entities.size()
                 != bundle.entities.size())
@@ -3584,6 +3741,123 @@ private:
                 + std::to_string(summary_.baseline_payload_bytes)
                 + ",callbacks="
                 + std::to_string(summary_.baseline_callback_calls)
+                + ",put_in_server=0,spawned=0,active=0");
+        return true;
+    }
+
+    bool PrepareFirstSnapshot(DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (!first_snapshot_enabled_)
+        {
+            return true;
+        }
+        if (slot_state.goldsrc_first_snapshot.phase()
+            == hl::network::GoldSrcFirstSnapshotPhase::
+                kFirstSnapshotPrepared)
+        {
+            return true;
+        }
+        if (!world_baseline_bundle_.has_value()
+            || !slot_state.goldsrc_delta_registry.has_value())
+        {
+            return FailTransport(
+                "first-snapshot-context-missing",
+                "goldsrc_first_snapshot_failed: reason=missing-baseline-or-delta-context");
+        }
+        if (slot_state.put_in_server || slot_state.alive)
+        {
+            return FailTransport(
+                "first-snapshot-player-lifecycle-required",
+                "goldsrc_first_snapshot_failed: reason=unexpected-active-player");
+        }
+
+        const std::uint32_t frame_id =
+            slot_state.netchan.outgoing_sequence();
+        const float server_time =
+            static_cast<float>(state_.server_state.time);
+        hl::network::GoldSrcSnapshotBuildResult built =
+            hl::network::BuildGoldSrcFirstSnapshot(
+                frame_id,
+                server_time,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+        if (!built.ok())
+        {
+            return FailTransport(
+                "first-snapshot-build-failed",
+                "goldsrc_first_snapshot_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(built.status)));
+        }
+        const hl::network::GoldSrcSnapshotDecodeResult decoded =
+            hl::network::DecodeGoldSrcFirstSnapshot(
+                built.bundle.payload.bytes.data(),
+                built.bundle.payload.size,
+                frame_id,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+        if (!decoded.ok()
+            || decoded.frame.entities.size()
+                != built.bundle.frame.entities.size())
+        {
+            return FailTransport(
+                "first-snapshot-self-check-failed",
+                "goldsrc_first_snapshot_failed: reason=semantic-self-check");
+        }
+        if (slot_state.goldsrc_first_snapshot.Prepare(
+                std::move(built.bundle))
+            != hl::network::
+                GoldSrcFirstSnapshotTransitionResult::kAdvanced)
+        {
+            return FailTransport(
+                "first-snapshot-prepare-transition-failed",
+                "goldsrc_first_snapshot_failed: reason=invalid-prepare-phase");
+        }
+
+        const hl::network::GoldSrcFirstSnapshotBundle& prepared =
+            *slot_state.goldsrc_first_snapshot.prepared();
+        summary_.snapshot_contract_verified = true;
+        summary_.snapshot_message_order_verified = true;
+        summary_.frame_ack_contract_verified = true;
+        summary_.frame_history_implemented = true;
+        summary_.frame_history_depth = static_cast<int>(
+            slot_state.goldsrc_first_snapshot.history().capacity());
+        summary_.clientdata_implemented = true;
+        summary_.weapon_data_required = !prepared.frame.weapons.empty();
+        summary_.packet_entities_implemented = true;
+        summary_.first_snapshot_entity_count =
+            static_cast<int>(prepared.frame.entities.size());
+        summary_.first_snapshot_payload_bytes =
+            static_cast<int>(prepared.payload.size);
+        summary_.first_snapshot_frame_id = prepared.frame.frame_id;
+        summary_.first_snapshot_server_time = prepared.frame.server_time;
+        summary_.first_snapshot_visibility_policy =
+            "runtime_map_modeled_nonplayer_baselines_no_pvs";
+        summary_.frame_ack_source = "clc_delta_low8_server_frame";
+        ++summary_.first_snapshot_prepared;
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_first_snapshot_prepared: session_id="
+                + slot_state.session_id
+                + ",frame_id="
+                + std::to_string(summary_.first_snapshot_frame_id)
+                + ",server_time="
+                + std::to_string(summary_.first_snapshot_server_time)
+                + ",messages=svc_time,svc_clientdata,svc_packetentities"
+                + ",entities="
+                + std::to_string(summary_.first_snapshot_entity_count)
+                + ",weapon_data="
+                + std::string(
+                    summary_.weapon_data_required
+                        ? "required"
+                        : "not_required")
+                + ",payload_bytes="
+                + std::to_string(summary_.first_snapshot_payload_bytes)
+                + ",visibility_policy="
+                + summary_.first_snapshot_visibility_policy
+                + ",reliability=unreliable"
+                + ",signon_phase=" + summary_.signon_phase
                 + ",put_in_server=0,spawned=0,active=0");
         return true;
     }
@@ -3735,6 +4009,103 @@ private:
                 return true;
             }
 
+            if (first_snapshot_enabled_
+                && (slot_state.goldsrc_first_snapshot.phase()
+                        == hl::network::GoldSrcFirstSnapshotPhase::
+                            kFirstSnapshotSentAwaitingClientReference
+                    || slot_state.goldsrc_first_snapshot.phase()
+                        == hl::network::GoldSrcFirstSnapshotPhase::
+                            kFirstSnapshotAcknowledged))
+            {
+                if (!application.frame_reference_present)
+                {
+                    if (application.move_present)
+                    {
+                        ++summary_.clc_move_decoded;
+                        hl::common::Logger::Info(
+                            hl::common::LogCategory::Server,
+                            "goldsrc_first_snapshot_keepalive: session_id="
+                                + slot_state.session_id
+                                + ",sequence="
+                                + std::to_string(packet.sequence)
+                                + ",frame_reference=absent"
+                                + ",handling=decoded_pre_spawn_keepalive"
+                                + ",put_in_server=0,spawned=0,active=0");
+                    }
+                    return true;
+                }
+                const hl::network::GoldSrcFrameAcknowledgeResult
+                    acknowledgement =
+                        slot_state.goldsrc_first_snapshot.Acknowledge(
+                            application.frame_reference);
+                switch (acknowledgement)
+                {
+                case hl::network::GoldSrcFrameAcknowledgeResult::
+                    kAcknowledged:
+                    ++summary_.first_snapshot_acked;
+                    summary_.previous_first_snapshot_boundary_resolved = true;
+                    summary_.stock_advanced_past_previous_boundary = true;
+                    summary_.next_observed_boundary =
+                        "continuous_snapshot_cadence_required";
+                    summary_.server_still_responsive = true;
+                    if (!first_snapshot_negative_proof_)
+                    {
+                        complete_ = true;
+                    }
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kDuplicate:
+                    ++summary_.duplicate_frame_acknowledgements;
+                    if (first_snapshot_negative_proof_
+                        && summary_.first_snapshot_acked == 1
+                        && summary_.future_frame_references >= 1
+                        && summary_.evicted_frame_references >= 1)
+                    {
+                        summary_.server_still_responsive = true;
+                        complete_ = true;
+                    }
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kFuture:
+                    ++summary_.future_frame_references;
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kEvicted:
+                    ++summary_.evicted_frame_references;
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kStale:
+                    ++summary_.stale_frame_references;
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kUnknown:
+                default:
+                    ++summary_.unknown_frame_references;
+                    break;
+                }
+                SyncNetchanSummary(slot_state);
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_first_snapshot_frame_reference: session_id="
+                        + slot_state.session_id
+                        + ",sequence=" + std::to_string(packet.sequence)
+                        + ",wire_frame="
+                        + std::to_string(application.frame_reference)
+                        + ",resolved_frame="
+                        + (slot_state.goldsrc_first_snapshot.history()
+                                    .last_acknowledged_frame()
+                                    .has_value()
+                                ? std::to_string(
+                                    *slot_state.goldsrc_first_snapshot
+                                         .history()
+                                         .last_acknowledged_frame())
+                                : "none")
+                        + ",result="
+                        + std::string(
+                            hl::network::ReasonFor(acknowledgement))
+                        + ",source=clc_delta"
+                        + ",signon_phase=" + summary_.signon_phase
+                        + ",next_boundary="
+                        + summary_.next_observed_boundary
+                        + ",put_in_server=0,spawned=0,active=0");
+                return true;
+            }
+
             if (slot_state.goldsrc_signon.phase()
                 == hl::network::GoldSrcSignonPhase::
                     kResourceManifestAcknowledged)
@@ -3841,25 +4212,26 @@ private:
             hl::network::DecodeGoldSrcClientSignonPayload(
                 packet.payload.data(),
                 packet.payload_size);
+        const hl::network::GoldSrcSendEntitiesEnvelopeDecodeResult
+            send_entities_envelope =
+                hl::network::DecodeGoldSrcSendEntitiesEnvelope(
+                    packet.payload.data(),
+                    packet.payload_size);
         bool send_entities_with_trailing_move = false;
         if (!decoded.ok()
             && world_baselines_enabled_
             && packet.reliable_present
-            && decoded.status
-                == hl::network::GoldSrcClientSignonDecodeStatus::
-                    kUnsupportedTrailingData
-            && decoded.command
-                == hl::network::GoldSrcClientSignonCommand::kSendEntities
-            && decoded.primary_command_bytes < packet.payload_size
+            && send_entities_envelope.ok()
+            && send_entities_envelope.application_offset < packet.payload_size
             && slot_state.goldsrc_delta_registry.has_value())
         {
             const hl::network::GoldSrcClientApplicationDecodeResult
                 trailing_application =
                     hl::network::DecodeGoldSrcClientApplicationPayload(
                         packet.payload.data()
-                            + decoded.primary_command_bytes,
+                            + send_entities_envelope.application_offset,
                         packet.payload_size
-                            - decoded.primary_command_bytes,
+                            - send_entities_envelope.application_offset,
                         packet.sequence,
                         *slot_state.goldsrc_delta_registry);
             send_entities_with_trailing_move = trailing_application.ok();
@@ -3914,6 +4286,10 @@ private:
                 !slot_state.netchan.initialized()
                 && slot_state.goldsrc_signon.phase()
                     == hl::network::GoldSrcSignonPhase::kNone
+                && slot_state.goldsrc_first_snapshot.phase()
+                    == hl::network::GoldSrcFirstSnapshotPhase::kNone
+                && slot_state.goldsrc_first_snapshot.history().size() == 0u
+                && !slot_state.goldsrc_first_snapshot.prepared().has_value()
                 && !slot_state.goldsrc_serverinfo_context.has_value()
                 && !slot_state.goldsrc_serverinfo_payload.has_value()
                 && !slot_state.goldsrc_delta_registry.has_value()
@@ -4047,7 +4423,8 @@ private:
         }
 
         if (decoded.command
-            == hl::network::GoldSrcClientSignonCommand::kSendEntities)
+                == hl::network::GoldSrcClientSignonCommand::kSendEntities
+            || send_entities_with_trailing_move)
         {
             const hl::network::GoldSrcSignonCommandDisposition disposition =
                 slot_state.goldsrc_signon.HandleSendEntities();
@@ -4061,8 +4438,15 @@ private:
             }
             ++summary_.send_entities_delivered;
             summary_.previous_server_baseline_boundary_resolved = true;
-            summary_.next_observed_boundary = "first_snapshot_required";
+            summary_.next_observed_boundary = first_snapshot_enabled_
+                ? "first_snapshot_scheduled"
+                : "first_snapshot_required";
             summary_.server_still_responsive = true;
+            if (first_snapshot_enabled_
+                && !PrepareFirstSnapshot(slot_state))
+            {
+                return false;
+            }
             SyncNetchanSummary(slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
@@ -4072,9 +4456,18 @@ private:
                     + ",trailing_clc_move="
                     + std::string(
                         send_entities_with_trailing_move ? "validated" : "none")
-                    + ",next_boundary=first_snapshot_required"
+                    + ",vmod_enable_prefix="
+                    + std::string(
+                        send_entities_envelope.observed_vmod_enable_prefix
+                            ? "validated"
+                            : "none")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
                     + ",put_in_server=0,spawned=0,active=0");
-            complete_ = true;
+            if (!first_snapshot_enabled_)
+            {
+                complete_ = true;
+            }
             return true;
         }
 
@@ -4450,6 +4843,116 @@ private:
         return true;
     }
 
+    bool SendFirstSnapshotDatagram(DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (!first_snapshot_enabled_
+            || slot_state.goldsrc_first_snapshot.phase()
+                != hl::network::GoldSrcFirstSnapshotPhase::
+                    kFirstSnapshotPrepared
+            || !slot_state.goldsrc_first_snapshot.prepared().has_value()
+            || !world_baseline_bundle_.has_value()
+            || !slot_state.goldsrc_delta_registry.has_value())
+        {
+            return FailTransport(
+                "first-snapshot-send-invalid",
+                "goldsrc_first_snapshot_send_failed: reason=invalid-prepared-state");
+        }
+        const hl::network::GoldSrcFirstSnapshotBundle& snapshot =
+            *slot_state.goldsrc_first_snapshot.prepared();
+        if (snapshot.frame.frame_id
+            != slot_state.netchan.outgoing_sequence())
+        {
+            return FailTransport(
+                "first-snapshot-frame-id-drift",
+                "goldsrc_first_snapshot_send_failed: reason=carrier-sequence-drift");
+        }
+
+        hl::network::GoldSrcNetchanDatagram datagram;
+        if (!slot_state.netchan.BuildOutgoingUnreliableDatagram(
+                snapshot.payload.bytes.data(),
+                snapshot.payload.size,
+                &datagram))
+        {
+            return FailTransport(
+                "first-snapshot-netchan-encode-failed",
+                "goldsrc_first_snapshot_send_failed: reason=unreliable-netchan-encode");
+        }
+        const hl::network::GoldSrcNetchanDecodeResult carrier =
+            hl::network::DecodeGoldSrcNetchanDatagram(
+                hl::network::GoldSrcNetchanDirection::kServerToClient,
+                datagram.bytes.data(),
+                datagram.size);
+        if (!carrier.ok() || carrier.packet.reliable_present
+            || carrier.packet.fragment_present
+            || carrier.packet.sequence != snapshot.frame.frame_id
+            || carrier.packet.payload_size != snapshot.payload.size)
+        {
+            return FailTransport(
+                "first-snapshot-carrier-self-check-failed",
+                "goldsrc_first_snapshot_send_failed: reason=carrier-self-check");
+        }
+        const hl::network::GoldSrcSnapshotDecodeResult decoded =
+            hl::network::DecodeGoldSrcFirstSnapshot(
+                carrier.packet.payload.data(),
+                carrier.packet.payload_size,
+                carrier.packet.sequence,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+        if (!decoded.ok()
+            || decoded.frame.entities.size()
+                != snapshot.frame.entities.size())
+        {
+            return FailTransport(
+                "first-snapshot-payload-self-check-failed",
+                "goldsrc_first_snapshot_send_failed: reason=payload-self-check");
+        }
+        if (!SendBoundedDatagram(
+                datagram.bytes.data(),
+                datagram.size,
+                slot_state.netchan.remote_endpoint()))
+        {
+            return FailTransport(
+                "first-snapshot-send-failed",
+                "goldsrc_first_snapshot_send_failed: platform_error="
+                    + socket_.LastError());
+        }
+        if (slot_state.goldsrc_first_snapshot.MarkSent()
+            != hl::network::
+                GoldSrcFirstSnapshotTransitionResult::kAdvanced)
+        {
+            return FailTransport(
+                "first-snapshot-sent-transition-failed",
+                "goldsrc_first_snapshot_send_failed: reason=history-store-or-transition");
+        }
+        ++summary_.first_snapshot_sent;
+        summary_.next_observed_boundary =
+            "client_frame_reference_required";
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_first_snapshot_sent: session_id="
+                + slot_state.session_id
+                + ",frame_id="
+                + std::to_string(snapshot.frame.frame_id)
+                + ",sequence="
+                + std::to_string(carrier.packet.sequence)
+                + ",payload_bytes="
+                + std::to_string(snapshot.payload.size)
+                + ",messages=svc_time,svc_clientdata,svc_packetentities"
+                + ",entities="
+                + std::to_string(snapshot.frame.entities.size())
+                + ",reliable=0,fragment=0"
+                + ",history_depth="
+                + std::to_string(
+                    slot_state.goldsrc_first_snapshot.history().capacity())
+                + ",history_size="
+                + std::to_string(
+                    slot_state.goldsrc_first_snapshot.history().size())
+                + ",signon_phase=" + summary_.signon_phase
+                + ",put_in_server=0,spawned=0,active=0");
+        return true;
+    }
+
     bool SendInitialNetchanDatagram()
     {
         DedicatedPlayerRuntimeSlot* slot_state = FindAdmittedNetchanSlot();
@@ -4780,6 +5283,15 @@ private:
                     "baseline-ack-transition-failed",
                     "goldsrc_world_baseline_ack_failed: reason=invalid-signon-phase");
             }
+            if (first_snapshot_enabled_
+                && slot_state->goldsrc_first_snapshot.EnterAwaiting()
+                    != hl::network::
+                        GoldSrcFirstSnapshotTransitionResult::kAdvanced)
+            {
+                return FailTransport(
+                    "first-snapshot-await-transition-failed",
+                    "goldsrc_first_snapshot_failed: reason=invalid-await-phase");
+            }
             ++summary_.baseline_acked;
             summary_.baseline_fragment_acknowledged_count =
                 summary_.baseline_fragmented
@@ -4925,6 +5437,14 @@ private:
                         ? "goldsrc_serverinfo_sent"
                         : "goldsrc_resource_manifest_sent");
             }
+        }
+
+        if (first_snapshot_enabled_
+            && slot_state->goldsrc_first_snapshot.phase()
+                == hl::network::GoldSrcFirstSnapshotPhase::
+                    kFirstSnapshotPrepared)
+        {
+            return SendFirstSnapshotDatagram(*slot_state);
         }
 
         if (slot_state->netchan.fragment_sender().needs_fragment_staging())
@@ -5209,6 +5729,8 @@ private:
     std::optional<std::filesystem::path> resource_manifest_fixture_;
     bool world_baselines_enabled_ = false;
     bool world_baselines_negative_proof_ = false;
+    bool first_snapshot_enabled_ = false;
+    bool first_snapshot_negative_proof_ = false;
     std::optional<hl::network::GoldSrcBaselineBundle>
         world_baseline_bundle_;
     std::optional<hl::network::GoldSrcBaselinePayload>

@@ -786,6 +786,67 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     return result;
 }
 
+GoldSrcSendEntitiesEnvelopeDecodeResult DecodeGoldSrcSendEntitiesEnvelope(
+    const std::uint8_t* bytes,
+    std::size_t size) noexcept
+{
+    GoldSrcSendEntitiesEnvelopeDecodeResult result;
+    if (bytes == nullptr)
+    {
+        result.status = size == 0u
+            ? GoldSrcClientSignonDecodeStatus::kEmptyPayload
+            : GoldSrcClientSignonDecodeStatus::kNullInput;
+        return result;
+    }
+    if (size == 0u)
+    {
+        result.status = GoldSrcClientSignonDecodeStatus::kEmptyPayload;
+        return result;
+    }
+    if (size > kGoldSrcMaximumSignonPayloadBytes)
+    {
+        result.status = GoldSrcClientSignonDecodeStatus::kPayloadTooLarge;
+        return result;
+    }
+
+    std::size_t cursor = 0u;
+    while (cursor < size && bytes[cursor] == kGoldSrcClientNopOpcode)
+    {
+        ++cursor;
+    }
+    constexpr std::array<std::uint8_t, 14> kObservedVModEnable = {
+        kGoldSrcClientStringCommandOpcode,
+        'V', 'M', 'o', 'd', 'E', 'n', 'a', 'b', 'l', 'e', ' ', '1', 0u,
+    };
+    if (size - cursor >= kObservedVModEnable.size()
+        && std::equal(
+            kObservedVModEnable.begin(),
+            kObservedVModEnable.end(),
+            bytes + cursor))
+    {
+        cursor += kObservedVModEnable.size();
+        result.observed_vmod_enable_prefix = true;
+        while (cursor < size && bytes[cursor] == kGoldSrcClientNopOpcode)
+        {
+            ++cursor;
+        }
+    }
+
+    const GoldSrcClientSignonDecodeResult decoded =
+        DecodeGoldSrcClientSignonPayload(bytes + cursor, size - cursor);
+    if (decoded.command != GoldSrcClientSignonCommand::kSendEntities
+        || (decoded.status != GoldSrcClientSignonDecodeStatus::kOk
+            && decoded.status
+                != GoldSrcClientSignonDecodeStatus::kUnsupportedTrailingData))
+    {
+        result.status = decoded.status;
+        return result;
+    }
+    result.application_offset = cursor + decoded.primary_command_bytes;
+    result.status = GoldSrcClientSignonDecodeStatus::kOk;
+    return result;
+}
+
 std::string_view NameFor(GoldSrcSignonPhase phase) noexcept
 {
     switch (phase)

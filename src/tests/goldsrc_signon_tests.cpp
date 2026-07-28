@@ -476,6 +476,49 @@ void TestStrictClientNewDecoder()
         == GoldSrcClientSignonDecodeStatus::kCommandTooLong);
 }
 
+void TestObservedSendEntitiesEnvelope()
+{
+    constexpr std::array<std::uint8_t, 27> observed = {
+        3u, 'V', 'M', 'o', 'd', 'E', 'n', 'a', 'b', 'l', 'e', ' ', '1', 0u,
+        1u,
+        3u, 's', 'e', 'n', 'd', 'e', 'n', 't', 's', 0u,
+        2u, 0u,
+    };
+    const GoldSrcSendEntitiesEnvelopeDecodeResult decoded =
+        DecodeGoldSrcSendEntitiesEnvelope(observed.data(), observed.size());
+    assert(decoded.ok());
+    assert(decoded.observed_vmod_enable_prefix);
+    assert(decoded.application_offset == 25u);
+    assert(observed[decoded.application_offset] == 2u);
+
+    constexpr std::array<std::uint8_t, 11> ordinary = {
+        3u, 's', 'e', 'n', 'd', 'e', 'n', 't', 's', 0u, 2u,
+    };
+    const GoldSrcSendEntitiesEnvelopeDecodeResult decoded_ordinary =
+        DecodeGoldSrcSendEntitiesEnvelope(ordinary.data(), ordinary.size());
+    assert(decoded_ordinary.ok());
+    assert(!decoded_ordinary.observed_vmod_enable_prefix);
+    assert(decoded_ordinary.application_offset == 10u);
+
+    constexpr std::array<std::uint8_t, 14> vmod_only = {
+        3u, 'V', 'M', 'o', 'd', 'E', 'n', 'a', 'b', 'l', 'e', ' ', '1', 0u,
+    };
+    assert(
+        !DecodeGoldSrcSendEntitiesEnvelope(
+             vmod_only.data(),
+             vmod_only.size())
+             .ok());
+    constexpr std::array<std::uint8_t, 25> wrong_vmod_argument = {
+        3u, 'V', 'M', 'o', 'd', 'E', 'n', 'a', 'b', 'l', 'e', ' ', '0', 0u,
+        3u, 's', 'e', 'n', 'd', 'e', 'n', 't', 's', 0u,
+    };
+    assert(
+        !DecodeGoldSrcSendEntitiesEnvelope(
+             wrong_vmod_argument.data(),
+             wrong_vmod_argument.size())
+             .ok());
+}
+
 void TestSignonStateExactOnceAndReset()
 {
     GoldSrcSignonSessionState state;
@@ -1674,6 +1717,7 @@ void TestBootstrapTailReferenceOrderAndBounds()
 int main()
 {
     TestStrictClientNewDecoder();
+    TestObservedSendEntitiesEnvelope();
     TestSignonStateExactOnceAndReset();
     TestCombinedSignonBootstrapExactOnceAndReset();
     TestMunge3AndServerInfoGoldenBytes();

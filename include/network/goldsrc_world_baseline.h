@@ -124,7 +124,8 @@ GoldSrcBaselineEncodeResult EncodeGoldSrcBaselineBundle(
     const GoldSrcBaselineBundle& bundle,
     const GoldSrcDeltaRegistry& registry,
     std::size_t output_capacity =
-        kGoldSrcMaximumBaselineBundleBytes) noexcept;
+        kGoldSrcMaximumBaselineBundleBytes,
+    double time_base = 1.0) noexcept;
 
 enum class GoldSrcBaselineDecodeStatus
 {
@@ -164,5 +165,6 @@ GoldSrcBaselineDecodeResult DecodeGoldSrcBaselineBundle(
     const std::uint8_t* bytes,
     std::size_t size,
     std::uint16_t maximum_clients,
-    const GoldSrcDeltaRegistry& registry) noexcept;
+    const GoldSrcDeltaRegistry& registry,
+    double time_base = 1.0) noexcept;
 } // namespace hl::network

@@ -110,6 +110,27 @@ GoldSrcClientSignonDecodeResult DecodeGoldSrcClientSignonPayload(
     const std::uint8_t* bytes,
     std::size_t size) noexcept;
 
+struct GoldSrcSendEntitiesEnvelopeDecodeResult final
+{
+    GoldSrcClientSignonDecodeStatus status =
+        GoldSrcClientSignonDecodeStatus::kEmptyPayload;
+    std::size_t application_offset = 0u;
+    bool observed_vmod_enable_prefix = false;
+
+    bool ok() const noexcept
+    {
+        return status == GoldSrcClientSignonDecodeStatus::kOk;
+    }
+};
+
+// Locates the exact `sendents` command in either the ordinary typed envelope
+// or the stock-observed `VModEnable 1` + `sendents` reliable composition. The
+// bytes after `application_offset` remain subject to the independent client
+// application decoder; no string command is executed generically.
+GoldSrcSendEntitiesEnvelopeDecodeResult DecodeGoldSrcSendEntitiesEnvelope(
+    const std::uint8_t* bytes,
+    std::size_t size) noexcept;
+
 enum class GoldSrcSignonPhase
 {
     kNone,

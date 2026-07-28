@@ -43,6 +43,7 @@ add_library(goldsrc_network STATIC
     include/network/goldsrc_netchan.h
     include/network/goldsrc_resource_manifest.h
     include/network/goldsrc_signon.h
+    include/network/goldsrc_snapshot.h
     include/network/goldsrc_world_baseline.h
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
@@ -54,6 +55,7 @@ add_library(goldsrc_network STATIC
     src/network/goldsrc_netchan.cpp
     src/network/goldsrc_resource_manifest.cpp
     src/network/goldsrc_signon.cpp
+    src/network/goldsrc_snapshot.cpp
     src/network/goldsrc_world_baseline.cpp
     src/network/udp_socket_win32.cpp
 )
@@ -351,6 +353,34 @@ add_custom_target(goldsrc_world_baseline_unit_tests
 )
 set_target_properties(
     goldsrc_world_baseline_unit_tests
+    PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_snapshot_tests
+    src/tests/goldsrc_snapshot_tests.cpp
+)
+target_include_directories(
+    goldsrc_snapshot_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_snapshot_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_snapshot_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_snapshot_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_snapshot_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_snapshot_tests
+    COMMAND goldsrc_snapshot_tests
+)
+
+add_custom_target(goldsrc_snapshot_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_snapshot_tests>"
+    DEPENDS goldsrc_snapshot_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc first-snapshot model, codec, history, and ACK tests"
+)
+set_target_properties(
+    goldsrc_snapshot_unit_tests
     PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions

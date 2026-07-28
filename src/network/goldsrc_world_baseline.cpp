@@ -14,8 +14,6 @@ namespace
 {
 constexpr std::uint32_t kEntityNormal = 1u;
 constexpr std::uint32_t kEntityBeam = 2u;
-constexpr double kBaselineTimeBase = 1.0;
-
 std::string_view TableNameFor(GoldSrcBaselineKind kind) noexcept
 {
     switch (kind)
@@ -113,14 +111,16 @@ bool HasExactlyOneBaseType(std::uint32_t type) noexcept
 FieldEncodeResult EncodeField(
     GoldSrcBitWriter* writer,
     const GoldSrcDeltaField& field,
-    const GoldSrcDecodedDeltaValue& value) noexcept
+    const GoldSrcDecodedDeltaValue& value,
+    double time_base) noexcept
 {
     if (writer == nullptr || field.significant_bits == 0u
         || field.significant_bits > 32u
         || !HasExactlyOneBaseType(field.field_type)
         || !std::isfinite(field.premultiply)
         || !std::isfinite(field.postmultiply)
-        || field.premultiply <= 0.0 || field.postmultiply <= 0.0)
+        || field.premultiply <= 0.0 || field.postmultiply <= 0.0
+        || !std::isfinite(time_base))
     {
         return FieldEncodeResult::kUnsupported;
     }
@@ -167,7 +167,7 @@ FieldEncodeResult EncodeField(
             : field.premultiply;
         transformed =
             static_cast<double>(
-                static_cast<std::int64_t>(kBaselineTimeBase * scale)
+                static_cast<std::int64_t>(time_base * scale)
                 - static_cast<std::int64_t>(numeric * scale));
     }
     else
@@ -227,7 +227,8 @@ FieldEncodeResult EncodeField(
 GoldSrcBaselineEncodeStatus EncodeRecord(
     GoldSrcBitWriter* writer,
     const GoldSrcDeltaTable& table,
-    const GoldSrcDecodedDeltaRecord& record) noexcept
+    const GoldSrcDecodedDeltaRecord& record,
+    double time_base) noexcept
 {
     if (writer == nullptr || table.fields.empty()
         || table.fields.size() > kGoldSrcMaximumDeltaFieldsPerTable
@@ -267,7 +268,8 @@ GoldSrcBaselineEncodeStatus EncodeRecord(
         switch (EncodeField(
             writer,
             table.fields[index],
-            record.values[index]))
+            record.values[index],
+            time_base))
         {
         case FieldEncodeResult::kOk:
             break;
@@ -286,6 +288,7 @@ GoldSrcBaselineEncodeStatus EncodeRecord(
 GoldSrcBaselineDecodeStatus DecodeRecord(
     GoldSrcBitReader* reader,
     const GoldSrcDeltaTable& table,
+    double time_base,
     GoldSrcDecodedDeltaRecord* state) noexcept
 {
     GoldSrcDecodedDeltaRecord zero;
@@ -295,7 +298,7 @@ GoldSrcBaselineDecodeStatus DecodeRecord(
             reader,
             table,
             zero,
-            kBaselineTimeBase);
+            time_base);
     if (!decoded.ok())
     {
         return GoldSrcBaselineDecodeStatus::kInvalidDelta;
@@ -425,10 +428,12 @@ std::string_view ReasonFor(GoldSrcBaselineEncodeStatus status) noexcept
 GoldSrcBaselineEncodeResult EncodeGoldSrcBaselineBundle(
     const GoldSrcBaselineBundle& bundle,
     const GoldSrcDeltaRegistry& registry,
-    std::size_t output_capacity) noexcept
+    std::size_t output_capacity,
+    double time_base) noexcept
 {
     GoldSrcBaselineEncodeResult result;
-    if (ValidateGoldSrcBaselineBundle(bundle)
+    if (!std::isfinite(time_base)
+        || ValidateGoldSrcBaselineBundle(bundle)
         != GoldSrcBaselineBuildStatus::kOk)
     {
         return result;
@@ -471,7 +476,8 @@ GoldSrcBaselineEncodeResult EncodeGoldSrcBaselineBundle(
                 GoldSrcBaselineEncodeStatus::kOutputCapacityExceeded;
             return result;
         }
-        result.status = EncodeRecord(&writer, *table, baseline.state);
+        result.status =
+            EncodeRecord(&writer, *table, baseline.state, time_base);
         if (result.status != GoldSrcBaselineEncodeStatus::kOk)
         {
             return result;
@@ -499,7 +505,11 @@ GoldSrcBaselineEncodeResult EncodeGoldSrcBaselineBundle(
     for (const GoldSrcEntityBaseline& instance : bundle.instances)
     {
         result.status =
-            EncodeRecord(&writer, *instance_table, instance.state);
+            EncodeRecord(
+                &writer,
+                *instance_table,
+                instance.state,
+                time_base);
         if (result.status != GoldSrcBaselineEncodeStatus::kOk)
         {
             return result;
@@ -549,10 +559,16 @@ GoldSrcBaselineDecodeResult DecodeGoldSrcBaselineBundle(
     const std::uint8_t* bytes,
     std::size_t size,
     std::uint16_t maximum_clients,
-    const GoldSrcDeltaRegistry& registry) noexcept
+    const GoldSrcDeltaRegistry& registry,
+    double time_base) noexcept
 {
     GoldSrcBaselineDecodeResult result;
     result.bundle.maximum_clients = maximum_clients;
+    if (!std::isfinite(time_base))
+    {
+        result.status = GoldSrcBaselineDecodeStatus::kInvalidDelta;
+        return result;
+    }
     if (bytes == nullptr)
     {
         result.status = GoldSrcBaselineDecodeStatus::kNullInput;
@@ -639,7 +655,12 @@ GoldSrcBaselineDecodeResult DecodeGoldSrcBaselineBundle(
                 : GoldSrcBaselineDecodeStatus::kMissingDeltaTable;
             return result;
         }
-        result.status = DecodeRecord(&reader, *table, &baseline.state);
+        result.status =
+            DecodeRecord(
+                &reader,
+                *table,
+                time_base,
+                &baseline.state);
         if (result.status != GoldSrcBaselineDecodeStatus::kOk)
         {
             return result;
@@ -690,7 +711,11 @@ GoldSrcBaselineDecodeResult DecodeGoldSrcBaselineBundle(
         instance.kind = GoldSrcBaselineKind::kInstanced;
         instance.entity_index = static_cast<std::uint16_t>(index);
         result.status =
-            DecodeRecord(&reader, *instance_table, &instance.state);
+            DecodeRecord(
+                &reader,
+                *instance_table,
+                time_base,
+                &instance.state);
         if (result.status != GoldSrcBaselineDecodeStatus::kOk)
         {
             return result;

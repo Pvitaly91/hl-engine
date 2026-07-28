@@ -59,6 +59,7 @@
 #include "network/goldsrc_delta_description.h"
 #include "network/goldsrc_netchan.h"
 #include "network/goldsrc_resource_manifest.h"
+#include "network/goldsrc_snapshot.h"
 #include "network/goldsrc_world_baseline.h"
 #include "network/udp_socket.h"
 #include "server_frame_loop.h"
@@ -464,6 +465,7 @@ struct DedicatedPlayerRuntimeSlot
     bool steam_authentication_performed = false;
     hl::network::GoldSrcNetchanState netchan;
     hl::network::GoldSrcSignonSessionState goldsrc_signon;
+    hl::network::GoldSrcFirstSnapshotSessionState goldsrc_first_snapshot;
     std::optional<hl::network::GoldSrcServerInfoContext> goldsrc_serverinfo_context;
     std::optional<hl::network::GoldSrcServerInfoPayload> goldsrc_serverinfo_payload;
     std::optional<hl::network::GoldSrcDeltaRegistry> goldsrc_delta_registry;
@@ -92379,6 +92381,7 @@ void RecordDedicatedLifecycleTransition(
             slot_state.netchan.Reset();
         }
         slot_state.goldsrc_signon.Reset();
+        slot_state.goldsrc_first_snapshot.Reset();
         slot_state.goldsrc_serverinfo_context.reset();
         slot_state.goldsrc_serverinfo_payload.reset();
         slot_state.goldsrc_delta_registry.reset();

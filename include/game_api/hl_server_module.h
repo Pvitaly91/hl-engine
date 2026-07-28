@@ -6708,6 +6708,8 @@ struct GoldSrcUdpHandshakeSummary
     bool resource_manifest_negative_proof = false;
     bool world_baselines_enabled = false;
     bool world_baselines_negative_proof = false;
+    bool first_snapshot_enabled = false;
+    bool first_snapshot_negative_proof = false;
     bool netchan_initialized = false;
     std::string netchan_state = "none";
     int max_datagrams_sent_per_frame = 0;
@@ -6885,6 +6887,30 @@ struct GoldSrcUdpHandshakeSummary
     bool previous_server_baseline_boundary_resolved = false;
     std::string next_observed_boundary = "none";
     std::string signon_phase = "none";
+    bool snapshot_contract_verified = false;
+    bool snapshot_message_order_verified = false;
+    bool frame_ack_contract_verified = false;
+    bool frame_history_implemented = false;
+    int frame_history_depth = 0;
+    bool clientdata_implemented = false;
+    bool weapon_data_required = false;
+    bool packet_entities_implemented = false;
+    int first_snapshot_entity_count = 0;
+    int first_snapshot_payload_bytes = 0;
+    std::uint32_t first_snapshot_frame_id = 0u;
+    float first_snapshot_server_time = 0.0f;
+    std::string first_snapshot_visibility_policy = "none";
+    std::string frame_ack_source = "none";
+    int first_snapshot_prepared = 0;
+    int first_snapshot_sent = 0;
+    int first_snapshot_acked = 0;
+    int duplicate_frame_acknowledgements = 0;
+    int unknown_frame_references = 0;
+    int future_frame_references = 0;
+    int evicted_frame_references = 0;
+    int stale_frame_references = 0;
+    bool previous_first_snapshot_boundary_resolved = false;
+    bool stock_advanced_past_previous_boundary = false;
 };
 
 struct HldsGetchallengeDiagnosticSurfaceSummary
@@ -22816,6 +22842,8 @@ struct HlServerModuleInitOptions
     std::optional<std::filesystem::path> goldsrc_resource_manifest_fixture;
     bool goldsrc_world_baselines_enabled = false;
     bool goldsrc_world_baselines_negative_proof = false;
+    bool goldsrc_first_snapshot_enabled = false;
+    bool goldsrc_first_snapshot_negative_proof = false;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
     int goldsrc_handshake_timeout_ms = 10000;

@@ -984,6 +984,43 @@ bool GoldSrcNetchanState::SetIncomingNormalFragmentAcceptance(
     return true;
 }
 
+bool GoldSrcNetchanState::BuildOutgoingUnreliableDatagram(
+    const std::uint8_t* payload,
+    std::size_t payload_size,
+    GoldSrcNetchanDatagram* datagram) noexcept
+{
+    if (!initialized_ || payload == nullptr || payload_size == 0u
+        || payload_size > kGoldSrcNetchanMaximumPayloadBytes
+        || datagram == nullptr || pending_reliable_size_ != 0u
+        || fragment_sender_.active()
+        || fragment_sender_.needs_fragment_staging())
+    {
+        return false;
+    }
+
+    const std::uint32_t sequence = outgoing_sequence_;
+    if (EncodeGoldSrcNetchanDatagram(
+            GoldSrcNetchanDirection::kServerToClient,
+            sequence,
+            incoming_sequence_,
+            false,
+            incoming_reliable_sequence_,
+            payload,
+            payload_size,
+            true,
+            datagram)
+        != GoldSrcNetchanCodecStatus::kOk)
+    {
+        return false;
+    }
+
+    highest_sequence_sent_ = sequence;
+    ++sent_sequence_count_;
+    outgoing_sequence_ = NextGoldSrcNetchanSequence(outgoing_sequence_);
+    ++diagnostics_.sequenced_sent;
+    return true;
+}
+
 bool GoldSrcNetchanState::ExpireFragmentTransfer(TimePoint now) noexcept
 {
     if (!fragment_sender_.Expire(

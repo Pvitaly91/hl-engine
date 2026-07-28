@@ -256,6 +256,10 @@ public:
         std::size_t size,
         GoldSrcNetchanReliablePayloadKind kind) noexcept;
     bool BuildOutgoingDatagram(GoldSrcNetchanDatagram* datagram) noexcept;
+    bool BuildOutgoingUnreliableDatagram(
+        const std::uint8_t* payload,
+        std::size_t payload_size,
+        GoldSrcNetchanDatagram* datagram) noexcept;
     GoldSrcNetchanProcessResult ProcessIncomingDatagram(
         const Ipv4Endpoint& sender,
         const GoldSrcNetchanPacket& packet,

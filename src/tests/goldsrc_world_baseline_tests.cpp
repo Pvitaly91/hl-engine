@@ -196,6 +196,43 @@ void TestSchemaFailures()
         == GoldSrcBaselineEncodeStatus::kValueOutOfRange);
 }
 
+void TestRuntimeTimeBaseForTimeWindowFields()
+{
+    GoldSrcDeltaRegistry registry = MakeRegistry();
+    registry.tables[0].fields[1].field_type =
+        kGoldSrcDeltaTypeTimeWindow8;
+    registry.tables[0].fields[1].significant_bits = 8u;
+    registry.tables[0].fields[1].premultiply = 1.0;
+
+    GoldSrcBaselineBundle bundle = MakeBundle();
+    bundle.entities[2].state.values[1].floating_value = 12.9;
+    assert(
+        EncodeGoldSrcBaselineBundle(bundle, registry).status
+        == GoldSrcBaselineEncodeStatus::kValueOutOfRange);
+
+    const GoldSrcBaselineEncodeResult encoded =
+        EncodeGoldSrcBaselineBundle(
+            bundle,
+            registry,
+            kGoldSrcMaximumBaselineBundleBytes,
+            13.0);
+    assert(encoded.ok());
+    const GoldSrcBaselineDecodeResult decoded =
+        DecodeGoldSrcBaselineBundle(
+            encoded.payload.bytes.data(),
+            encoded.payload.size,
+            bundle.maximum_clients,
+            registry,
+            13.0);
+    assert(decoded.ok());
+    assert(
+        decoded.bundle.entities[2].state.values[1].floating_value
+        > 12.89);
+    assert(
+        decoded.bundle.entities[2].state.values[1].floating_value
+        < 12.91);
+}
+
 void TestSignonStateAndSendEntities()
 {
     GoldSrcSignonSessionState state;
@@ -260,6 +297,7 @@ int main()
     TestModelValidation();
     TestEncodeDecodeAndDeterminism();
     TestSchemaFailures();
+    TestRuntimeTimeBaseForTimeWindowFields();
     TestSignonStateAndSendEntities();
     std::cout
         << "goldsrc_world_baseline_tests: model=pass,delta=pass,"

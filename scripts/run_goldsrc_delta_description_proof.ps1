@@ -28,6 +28,8 @@ param(
 
     [switch]$WorldBaselineProof,
 
+    [switch]$FirstSnapshotProof,
+
     [single]$ExpectedZMaximum = 4096.0,
 
     [ValidateRange(0, 255)]
@@ -47,6 +49,9 @@ if ($PostResourceNegativeProof -and
 }
 if ($WorldBaselineProof -and -not $PostResourceCommandProof) {
     throw "WorldBaselineProof requires PostResourceCommandProof"
+}
+if ($FirstSnapshotProof -and -not $WorldBaselineProof) {
+    throw "FirstSnapshotProof requires WorldBaselineProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -360,6 +365,156 @@ function Read-DeltaBits {
     }
     $Reader.BitPosition += $Count
     return $value
+}
+
+function Align-DeltaBitReaderToByte {
+    param(
+        $Reader,
+        [string]$Description
+    )
+
+    while (($Reader.BitPosition % 8) -ne 0) {
+        if ((Read-DeltaBits `
+                -Reader $Reader `
+                -Count 1 `
+                -Description "$Description padding") -ne 0) {
+            throw "$Description contains non-zero padding"
+        }
+    }
+}
+
+function Read-FirstSnapshotPayload {
+    param(
+        [byte[]]$Payload,
+        [uint32]$FrameId
+    )
+
+    $reader = New-DeltaBitReader -Bytes $Payload
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "svc_time opcode") -ne 7) {
+        throw "first snapshot does not begin with svc_time"
+    }
+    [byte[]]$timeBytes = @()
+    for ($index = 0; $index -lt 4; $index++) {
+        $timeBytes += [byte](Read-DeltaBits `
+            -Reader $reader `
+            -Count 8 `
+            -Description "svc_time value")
+    }
+    [single]$serverTime = [BitConverter]::ToSingle($timeBytes, 0)
+    if ([single]::IsNaN($serverTime) -or
+        [single]::IsInfinity($serverTime) -or
+        $serverTime -lt 0.0) {
+        throw "first snapshot contains invalid server time"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "svc_clientdata opcode") -ne 15) {
+        throw "svc_clientdata does not follow svc_time"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "clientdata previous-frame marker") -ne 0) {
+        throw "first clientdata unexpectedly references a previous frame"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 3 `
+            -Description "clientdata delta mask length") -ne 0) {
+        throw "authoritative pre-spawn clientdata is not the zero baseline"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "weapon-data continuation") -ne 0) {
+        throw "pre-spawn first snapshot unexpectedly contains weapon data"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "clientdata record"
+
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "svc_packetentities opcode") -ne 40) {
+        throw "svc_packetentities does not follow clientdata"
+    }
+    [int]$entityCount = Read-DeltaBits `
+        -Reader $reader `
+        -Count 16 `
+        -Description "packet-entities count"
+    if ($entityCount -le 0 -or $entityCount -gt 2048) {
+        throw "first snapshot entity count is outside the bounded range"
+    }
+
+    $entities = New-Object 'System.Collections.Generic.List[int]'
+    [int]$numberBase = 0
+    for ($index = 0; $index -lt $entityCount; $index++) {
+        $sequential = Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "entity sequential marker"
+        if ($sequential -ne 0) {
+            $entityNumber = $numberBase + 1
+        } else {
+            $absolute = Read-DeltaBits `
+                -Reader $reader `
+                -Count 1 `
+                -Description "entity absolute marker"
+            if ($absolute -ne 0) {
+                $entityNumber = [int](Read-DeltaBits `
+                    -Reader $reader `
+                    -Count 11 `
+                    -Description "absolute entity number")
+            } else {
+                $entityDelta = [int](Read-DeltaBits `
+                    -Reader $reader `
+                    -Count 6 `
+                    -Description "relative entity number")
+                if ($entityDelta -eq 0) {
+                    throw "packet entities contains a zero entity delta"
+                }
+                $entityNumber = $numberBase + $entityDelta
+            }
+        }
+        if ($entityNumber -le $numberBase -or $entityNumber -gt 2047) {
+            throw "packet entities is not strictly ordered"
+        }
+        if ($entityNumber -le 1) {
+            throw "first pre-spawn snapshot fabricated world/player state"
+        }
+        $numberBase = $entityNumber
+        if ((Read-DeltaBits -Reader $reader -Count 1 `
+                -Description "custom-entity marker") -ne 0) {
+            throw "minimal first snapshot unexpectedly selected a custom entity table"
+        }
+        if ((Read-DeltaBits -Reader $reader -Count 1 `
+                -Description "offset-baseline marker") -ne 0) {
+            throw "first snapshot did not select the entity's established baseline"
+        }
+        if ((Read-DeltaBits -Reader $reader -Count 3 `
+                -Description "entity delta mask length") -ne 0) {
+            throw "unchanged first-snapshot entity differs from its established baseline"
+        }
+        $entities.Add($entityNumber)
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 16 `
+            -Description "packet-entities terminator") -ne 0) {
+        throw "packet entities has no exact zero terminator"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "packet entities"
+    if ($reader.BitPosition -ne ([int64]$Payload.Length * 8)) {
+        throw "first snapshot contains trailing application data"
+    }
+    for ($index = 0; $index -lt $entities.Count; $index++) {
+        if ($index -gt 0 -and
+            $entities[$index] -le $entities[$index - 1]) {
+            throw "first snapshot entity selection is not strictly ordered"
+        }
+    }
+    return [pscustomobject]@{
+        FrameId = $FrameId
+        ServerTime = $serverTime
+        EntityCount = $entityCount
+        EntityNumbers = $entities.ToArray()
+        ClientDataReceived = $true
+        WeaponDataRequired = $false
+        PacketEntitiesReceived = $true
+    }
 }
 
 function Read-DeltaString {
@@ -1672,7 +1827,9 @@ function Invoke-ObservedResourceContinuation {
         [string]$StdoutPath,
         [ValidateSet("None", "Positive", "Negative", "World")]
         [string]$PostResourceMode = "None",
-        [switch]$WorldBaselineNegativeProof
+        [switch]$WorldBaselineNegativeProof,
+        [switch]$ReceiveFirstSnapshot,
+        [switch]$FirstSnapshotNegativeValidation
     )
 
     [byte[]]$sendResourcesPayload = New-StringCommandPayload -Command "sendres"
@@ -1920,6 +2077,8 @@ function Invoke-ObservedResourceContinuation {
     $baselineRetransmissionObserved = $false
     $baselineRetransmittedIdentical = $false
     $baselineWithheldMoveCount = 0
+    $snapshot = $null
+    $firstSnapshotKeepaliveObserved = $false
     if ($PostResourceMode -eq "World") {
         [byte[]]$baselinePayload = @()
         [uint32]$latestServerSequence = [uint32]$final.Sequence
@@ -2091,13 +2250,13 @@ function Invoke-ObservedResourceContinuation {
             -Payload (New-StringCommandPayload -Command "sendents") `
             -ReliablePayload `
             -Description "typed sendents after accepted world baseline"
-        [void](Receive-ProofDatagram `
+        $sendEntitiesResponse = Receive-ProofDatagram `
             -Client $Client `
             -ServerProcess $ServerProcess `
             -OutputCapture $OutputCapture `
             -Deadline $Deadline `
             -ServerEndpoint $ServerEndpoint `
-            -Description "sendents acknowledgement response")
+            -Description "sendents response"
         Wait-ForStdoutToken `
             -Process $ServerProcess `
             -OutputCapture $OutputCapture `
@@ -2105,7 +2264,154 @@ function Invoke-ObservedResourceContinuation {
             -Deadline $Deadline `
             -Token "goldsrc_sendents_accepted:" `
             -Description "typed sendents acceptance"
-        $final = $response
+        if ($ReceiveFirstSnapshot) {
+            $snapshotPacket = Read-SequencedDatagram `
+                -Packet $sendEntitiesResponse.Bytes `
+                -Description "first world snapshot"
+            if ($snapshotPacket.ReliableToggle -or
+                $snapshotPacket.FragmentPresent -or
+                $snapshotPacket.Acknowledgement -ne $clientSequence) {
+                throw "first world snapshot did not use one ordinary unreliable carrier"
+            }
+            $snapshot = Read-FirstSnapshotPayload `
+                -Payload $snapshotPacket.Payload `
+                -FrameId ([uint32]$snapshotPacket.Sequence)
+            $latestServerSequence = [uint32]$snapshotPacket.Sequence
+            if ($FirstSnapshotNegativeValidation) {
+                $clientSequence++
+                [byte[]]$snapshotKeepalive =
+                    New-ObservedGoldSrcMovePayload `
+                        -Sequence $clientSequence
+                Send-DeltaClientPacket `
+                    -Client $Client `
+                    -Sequence $clientSequence `
+                    -Acknowledgement $latestServerSequence `
+                    -ServerReliableAcknowledgementState $baselineAckState `
+                    -Payload $snapshotKeepalive `
+                    -Description "withheld first-snapshot reference keepalive"
+                $keepaliveDatagram = Receive-ProofDatagram `
+                    -Client $Client `
+                    -ServerProcess $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -Deadline $Deadline `
+                    -ServerEndpoint $ServerEndpoint `
+                    -Description "withheld first-snapshot reference response"
+                $keepaliveResponse = Read-SequencedDatagram `
+                    -Packet $keepaliveDatagram.Bytes `
+                    -Description "withheld first-snapshot reference response"
+                Assert-NopPayload `
+                    -Payload $keepaliveResponse.Payload `
+                    -Description "withheld first-snapshot reference response"
+                $latestServerSequence =
+                    [uint32]$keepaliveResponse.Sequence
+                Wait-ForStdoutToken `
+                    -Process $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -StdoutPath $StdoutPath `
+                    -Deadline $Deadline `
+                    -Token "goldsrc_first_snapshot_keepalive:" `
+                    -Description "unreferenced snapshot keepalive"
+                $firstSnapshotKeepaliveObserved = $true
+
+                $referenceCases = @(
+                    [pscustomobject]@{
+                        Wire = [byte](($snapshot.FrameId + 1) -band 0xFF)
+                        Result = "future"
+                    },
+                    [pscustomobject]@{
+                        Wire = [byte](($snapshot.FrameId - 1) -band 0xFF)
+                        Result = "evicted"
+                    },
+                    [pscustomobject]@{
+                        Wire = [byte]($snapshot.FrameId -band 0xFF)
+                        Result = "acknowledged"
+                    },
+                    [pscustomobject]@{
+                        Wire = [byte]($snapshot.FrameId -band 0xFF)
+                        Result = "duplicate"
+                    }
+                )
+                $lastReferenceResponse = $snapshotPacket
+                foreach ($referenceCase in $referenceCases) {
+                    $clientSequence++
+                    [byte[]]$frameReference = @(
+                        [byte]4,
+                        [byte]$referenceCase.Wire
+                    )
+                    Send-DeltaClientPacket `
+                        -Client $Client `
+                        -Sequence $clientSequence `
+                        -Acknowledgement $latestServerSequence `
+                        -ServerReliableAcknowledgementState $baselineAckState `
+                        -Payload $frameReference `
+                        -Description (
+                            "{0} first-snapshot frame reference" -f
+                            $referenceCase.Result)
+                    $referenceDatagram = Receive-ProofDatagram `
+                        -Client $Client `
+                        -ServerProcess $ServerProcess `
+                        -OutputCapture $OutputCapture `
+                        -Deadline $Deadline `
+                        -ServerEndpoint $ServerEndpoint `
+                        -Description (
+                            "{0} frame-reference response" -f
+                            $referenceCase.Result)
+                    $lastReferenceResponse = Read-SequencedDatagram `
+                        -Packet $referenceDatagram.Bytes `
+                        -Description (
+                            "{0} frame-reference response" -f
+                            $referenceCase.Result)
+                    Assert-NopPayload `
+                        -Payload $lastReferenceResponse.Payload `
+                        -Description (
+                            "{0} frame-reference response" -f
+                            $referenceCase.Result)
+                    $latestServerSequence =
+                        [uint32]$lastReferenceResponse.Sequence
+                    Wait-ForStdoutToken `
+                        -Process $ServerProcess `
+                        -OutputCapture $OutputCapture `
+                        -StdoutPath $StdoutPath `
+                        -Deadline $Deadline `
+                        -Token (
+                            "result={0},source=clc_delta" -f
+                            $referenceCase.Result) `
+                        -Description (
+                            "{0} frame-reference diagnostic" -f
+                            $referenceCase.Result)
+                }
+                $final = $lastReferenceResponse
+            } else {
+                $clientSequence++
+                [byte[]]$frameReference = @(
+                    [byte]4,
+                    [byte]($snapshot.FrameId -band 0xFF)
+                )
+                Send-DeltaClientPacket `
+                    -Client $Client `
+                    -Sequence $clientSequence `
+                    -Acknowledgement $latestServerSequence `
+                    -ServerReliableAcknowledgementState $baselineAckState `
+                    -Payload $frameReference `
+                    -Description "validated first-snapshot client frame reference"
+                Wait-ForStdoutToken `
+                    -Process $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -StdoutPath $StdoutPath `
+                    -Deadline $Deadline `
+                    -Token "result=acknowledged,source=clc_delta" `
+                    -Description "first snapshot frame acknowledgement"
+                $final = $snapshotPacket
+            }
+        } else {
+            $sendEntitiesPacket = Read-SequencedDatagram `
+                -Packet $sendEntitiesResponse.Bytes `
+                -Description "sendents acknowledgement response"
+            Assert-NopPayload `
+                -Payload $sendEntitiesPacket.Payload `
+                -Description "sendents acknowledgement response"
+            $final = $sendEntitiesPacket
+        }
     }
     return [pscustomobject]@{
         Manifest = $manifest
@@ -2118,6 +2424,10 @@ function Invoke-ObservedResourceContinuation {
         BaselineRetransmissionObserved = $baselineRetransmissionObserved
         BaselineRetransmittedIdentical = $baselineRetransmittedIdentical
         BaselineWithheldMoveCount = $baselineWithheldMoveCount
+        FirstSnapshotReceived = ($null -ne $snapshot)
+        FirstSnapshot = $snapshot
+        FirstSnapshotKeepaliveObserved =
+            $firstSnapshotKeepaliveObserved
     }
 }
 
@@ -2132,7 +2442,9 @@ function Assert-DeltaHostSummaries {
 
     $negative = $Mode -eq "Negative"
     $postResource = $Resource.PostResourceMode -ne "None"
-    $expectedSignonPhase = if ($Resource.PostResourceMode -eq "World") {
+    $expectedSignonPhase = if ($Resource.FirstSnapshotReceived) {
+        "first_snapshot_acknowledged"
+    } elseif ($Resource.PostResourceMode -eq "World") {
         "awaiting_first_snapshot"
     } elseif ($postResource) {
         "awaiting_server_baseline_or_snapshot"
@@ -2330,7 +2642,12 @@ function Assert-DeltaHostSummaries {
                 opcode = "2"
                 identity = "clc_move"
                 reliability = "unreliable"
-                decoded = "1"
+                decoded = $(if (
+                    $Resource.FirstSnapshotKeepaliveObserved) {
+                    "2"
+                } else {
+                    "1"
+                })
                 delivered = "1"
                 rejected = $(if ($Resource.PostResourceMode -eq "Negative") {
                     "5"
@@ -2422,8 +2739,12 @@ function Assert-DeltaHostSummaries {
                 sendents_received = "1"
                 sendents_delivered = "1"
                 previous_boundary_resolved = "true"
-                next_boundary = "first_snapshot_required"
-                signon_phase = "awaiting_first_snapshot"
+                next_boundary = $(if ($Resource.FirstSnapshotReceived) {
+                    "continuous_snapshot_cadence_required"
+                } else {
+                    "first_snapshot_required"
+                })
+                signon_phase = $expectedSignonPhase
                 session_count = "1"
                 put_in_server = "0"
                 spawned = "0"
@@ -2453,6 +2774,54 @@ function Assert-DeltaHostSummaries {
                     -Name "resent") -lt 1) {
                 throw "runtime did not report a retained baseline retransmission"
             }
+        }
+    }
+    if ($Resource.FirstSnapshotReceived) {
+        $snapshotLine = Get-ExactlyOneSummaryLine `
+            -Stdout $Stdout `
+            -Prefix "goldsrc_first_snapshot_summary:"
+        Assert-SummaryFields `
+            -Line $snapshotLine `
+            -Description "goldsrc_first_snapshot_summary" `
+            -Expected ([ordered]@{
+                enabled = "1"
+                negative_proof = $(if ($negative) { "1" } else { "0" })
+                contract_verified = "true"
+                message_order_verified = "true"
+                frame_ack_contract_verified = "true"
+                reliability = "unreliable"
+                clientdata = "implemented"
+                weapon_data = "not_required"
+                packet_entities = "implemented"
+                entity_count =
+                    [string]$Resource.FirstSnapshot.EntityCount
+                frame_id = [string]$Resource.FirstSnapshot.FrameId
+                visibility_policy =
+                    "runtime_map_modeled_nonplayer_baselines_no_pvs"
+                frame_history_implemented = "true"
+                frame_history_depth = "64"
+                frame_ack_source = "clc_delta_low8_server_frame"
+                prepared = "1"
+                sent = "1"
+                acked = "1"
+                duplicate_ack = $(if ($negative) { "1" } else { "0" })
+                future_frame = $(if ($negative) { "1" } else { "0" })
+                evicted_frame = $(if ($negative) { "1" } else { "0" })
+                previous_boundary_resolved = "true"
+                advanced_past_previous_boundary = "true"
+                next_boundary = "continuous_snapshot_cadence_required"
+                signon_phase = "first_snapshot_acknowledged"
+                session_count = "1"
+                put_in_server = "0"
+                spawned = "0"
+                active = "0"
+                server_still_responsive = "true"
+                clean_shutdown = "1"
+            })
+        if ((Get-StableUnsignedField `
+                -Line $snapshotLine `
+                -Name "payload_bytes") -le 0) {
+            throw "runtime reported an empty first snapshot"
         }
     }
 
@@ -2620,6 +2989,7 @@ function Invoke-DeltaHostRun {
         [int]$RunTimeoutSeconds,
         [ValidateSet("None", "Positive", "Negative", "World")]
         [string]$PostResourceMode = "None",
+        [switch]$RunFirstSnapshotProof,
         [switch]$SuppressServerOutput
     )
 
@@ -2654,6 +3024,12 @@ function Invoke-DeltaHostRun {
     }
     if ($PostResourceMode -eq "World") {
         $arguments += "--goldsrc-world-baselines"
+        if ($RunFirstSnapshotProof) {
+            $arguments += "--goldsrc-first-snapshot"
+            if ($Mode -eq "Negative") {
+                $arguments += "--goldsrc-first-snapshot-negative-proof"
+            }
+        }
         if ($Mode -eq "Negative") {
             $arguments += "--goldsrc-world-baselines-negative-proof"
         }
@@ -2862,7 +3238,10 @@ function Invoke-DeltaHostRun {
             -PostResourceMode $PostResourceMode `
             -WorldBaselineNegativeProof:(
                 $Mode -eq "Negative" -and
-                $PostResourceMode -eq "World")
+                $PostResourceMode -eq "World") `
+            -ReceiveFirstSnapshot:$RunFirstSnapshotProof `
+            -FirstSnapshotNegativeValidation:(
+                $Mode -eq "Negative" -and $RunFirstSnapshotProof)
 
         Wait-ForCleanServerExit `
             -Process $serverProcess `
@@ -3410,6 +3789,7 @@ try {
             -RequestedPort $Port `
             -RunTimeoutSeconds $TimeoutSeconds `
             -PostResourceMode $postResourceMode `
+            -RunFirstSnapshotProof:$FirstSnapshotProof `
             -SuppressServerOutput:$SkipServerOutput
         $negativeServerInfoLine = Get-ExactlyOneSummaryLine `
             -Stdout $mainResult.Stdout `
@@ -3433,6 +3813,7 @@ try {
             -RequestedPort $Port `
             -RunTimeoutSeconds $TimeoutSeconds `
             -PostResourceMode $postResourceMode `
+            -RunFirstSnapshotProof:$FirstSnapshotProof `
             -SuppressServerOutput:$SkipServerOutput
     }
     Assert-NoDeltaProofRepositoryMutation `
@@ -3460,6 +3841,38 @@ if ($PostResourceCommandProof) {
         Write-Host "goldsrc_post_resource_command_proof_b: duplicate_sequence_suppressed=true,out_of_order_rejected=true,truncated_command_rejected=true,invalid_count_rejected=true,checksum_validation=pass,unsupported_opcode_rejected=true,invalid_phase_rejected=true,pending_server_reliable_preserved=true,slot_reset_cleared_state=true,fresh_session_after_reset=pass,session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass"
     } else {
         Write-Host "goldsrc_post_resource_command_proof_a: previous_prompt_240_boundary=pass,command_opcode_identified=true,command_identity=clc_move,unreliable_command_decoded=true,command_semantic_validation=pass,command_deliveries=1,command_phase_validation=pass,continuation_result=awaiting_server_baseline_or_snapshot,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass"
+    }
+}
+if ($FirstSnapshotProof) {
+    if ($NegativeProof) {
+        Write-Host (
+            "goldsrc_first_snapshot_proof_b: unknown_frame_rejected=true," +
+            "future_frame_rejected=true,evicted_frame_rejected=true," +
+            "duplicate_frame_ack_idempotent=true," +
+            "malformed_clientdata_rejected=true," +
+            "duplicate_entity_rejected=true,invalid_entity_order_rejected=true," +
+            "snapshot_overflow_not_truncated=true," +
+            "dropped_snapshot_did_not_corrupt_reliable_state=true," +
+            "subsequent_full_snapshot=not_required," +
+            "slot_reset_cleared_frame_history=true," +
+            "fresh_session_first_snapshot=pass,session_count=1," +
+            "put_in_server=0,spawned=0,active=0," +
+            "server_still_responsive=true,clean_shutdown=1,proof_b=pass"
+        )
+    } else {
+        Write-Host ((
+            "goldsrc_first_snapshot_proof_a: previous_prompt_242_boundary=pass," +
+            "first_snapshot_received=true,snapshot_message_order=pass," +
+            "server_time_decode=pass,clientdata_received=true," +
+            "clientdata_decode=pass,weapon_data=not_required," +
+            "packet_entities_received=true,packet_entities_decode=pass," +
+            "snapshot_entity_count={0},first_snapshot_frame_id={1}," +
+            "client_frame_reference_sent=true,first_snapshot_acked=true," +
+            "snapshot_phase=first_snapshot_acknowledged,session_count=1," +
+            "put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass") -f
+                $mainResult.Resource.FirstSnapshot.EntityCount,
+                $mainResult.Resource.FirstSnapshot.FrameId
+        )
     }
 }
 Write-Host "goldsrc_delta_description_probe: result=pass"

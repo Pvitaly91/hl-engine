@@ -885,6 +885,10 @@ std::string_view ReasonFor(
         return "unknown_opcode";
     case GoldSrcClientApplicationDecodeStatus::kMultipleMoveCommands:
         return "multiple_move_commands";
+    case GoldSrcClientApplicationDecodeStatus::kMultipleFrameReferences:
+        return "multiple_frame_references";
+    case GoldSrcClientApplicationDecodeStatus::kTruncatedFrameReference:
+        return "truncated_frame_reference";
     case GoldSrcClientApplicationDecodeStatus::kMalformedMoveCommand:
         return "malformed_move_command";
     case GoldSrcClientApplicationDecodeStatus::kUnsupportedTrailingData:
@@ -928,9 +932,34 @@ GoldSrcClientApplicationDecodeResult DecodeGoldSrcClientApplicationPayload(
             ++cursor;
             continue;
         }
+        if (opcode == kGoldSrcClientFrameReferenceOpcode)
+        {
+            if (cursor + 1u >= size)
+            {
+                result.status =
+                    GoldSrcClientApplicationDecodeStatus::
+                        kTruncatedFrameReference;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            if (result.frame_reference_present)
+            {
+                result.status =
+                    GoldSrcClientApplicationDecodeStatus::
+                        kMultipleFrameReferences;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            result.frame_reference_present = true;
+            result.frame_reference = bytes[cursor + 1u];
+            ++result.frame_reference_count;
+            cursor += 2u;
+            continue;
+        }
         if (opcode != kGoldSrcClientMoveOpcode)
         {
-            result.status = result.move_present
+            result.status =
+                result.move_present || result.frame_reference_present
                 ? GoldSrcClientApplicationDecodeStatus::
                     kUnsupportedTrailingData
                 : GoldSrcClientApplicationDecodeStatus::kUnknownOpcode;
@@ -964,7 +993,7 @@ GoldSrcClientApplicationDecodeResult DecodeGoldSrcClientApplicationPayload(
         cursor += decoded.command.bytes_consumed;
     }
 
-    if (!result.move_present)
+    if (!result.move_present && !result.frame_reference_present)
     {
         result.status = GoldSrcClientApplicationDecodeStatus::kUnknownOpcode;
         result.bytes_consumed = cursor;
