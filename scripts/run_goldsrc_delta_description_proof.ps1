@@ -22,6 +22,10 @@ param(
 
     [switch]$NegativeProof,
 
+    [switch]$PostResourceCommandProof,
+
+    [switch]$PostResourceNegativeProof,
+
     [switch]$SkipServerOutput
 )
 
@@ -29,6 +33,10 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
+}
+if ($PostResourceNegativeProof -and
+    (-not $NegativeProof -or -not $PostResourceCommandProof)) {
+    throw "PostResourceNegativeProof requires NegativeProof and PostResourceCommandProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -159,6 +167,153 @@ $canonicalDeltaTableOrder = @(
     "entity_state_t",
     "clientdata_t"
 )
+
+function Initialize-GoldSrcMoveProofCodec {
+    if ($null -ne ("GoldSrcMoveProofCodec" -as [type])) {
+        return
+    }
+    Add-Type -TypeDefinition @'
+using System;
+
+public static class GoldSrcMoveProofCodec
+{
+    private static readonly byte[] MungeTable = {
+        0x7A, 0x64, 0x05, 0xF1, 0x1B, 0x9B, 0xA0, 0xB5,
+        0xCA, 0xED, 0x61, 0x0D, 0x4A, 0xDF, 0x8E, 0xC7
+    };
+    private static readonly uint[] CrcTable = BuildCrcTable();
+
+    private static uint[] BuildCrcTable()
+    {
+        var table = new uint[256];
+        for (uint index = 0; index < table.Length; ++index)
+        {
+            uint value = index;
+            for (int bit = 0; bit < 8; ++bit)
+                value = (value & 1u) != 0u
+                    ? 0xEDB88320u ^ (value >> 1)
+                    : value >> 1;
+            table[index] = value;
+        }
+        return table;
+    }
+
+    private static void ProcessCrcByte(ref uint crc, byte value)
+    {
+        crc = CrcTable[(crc ^ value) & 0xFFu] ^ (crc >> 8);
+    }
+
+    private static byte CrcTableByte(int offset)
+    {
+        return (byte)((CrcTable[offset / 4] >> ((offset % 4) * 8)) & 0xFFu);
+    }
+
+    private static uint Swap(uint value)
+    {
+        return ((value & 0x000000FFu) << 24)
+            | ((value & 0x0000FF00u) << 8)
+            | ((value & 0x00FF0000u) >> 8)
+            | ((value & 0xFF000000u) >> 24);
+    }
+
+    private static uint Load(byte[] bytes, int offset)
+    {
+        return (uint)bytes[offset]
+            | ((uint)bytes[offset + 1] << 8)
+            | ((uint)bytes[offset + 2] << 16)
+            | ((uint)bytes[offset + 3] << 24);
+    }
+
+    private static void Store(byte[] bytes, int offset, uint value)
+    {
+        bytes[offset] = (byte)(value & 0xFFu);
+        bytes[offset + 1] = (byte)((value >> 8) & 0xFFu);
+        bytes[offset + 2] = (byte)((value >> 16) & 0xFFu);
+        bytes[offset + 3] = (byte)((value >> 24) & 0xFFu);
+    }
+
+    private static byte Checksum(byte[] body, uint sequence)
+    {
+        uint crc = 0xFFFFFFFFu;
+        int protectedSize = Math.Min(body.Length, 60);
+        for (int index = 0; index < protectedSize; ++index)
+            ProcessCrcByte(ref crc, body[index]);
+        int seedOffset = (int)(sequence % 0x3FCu);
+        for (int index = 0; index < 4; ++index)
+            ProcessCrcByte(ref crc, CrcTableByte(seedOffset + index));
+        return (byte)(~crc & 0xFFu);
+    }
+
+    private static byte[] Protect(byte[] body, uint sequence)
+    {
+        var result = (byte[])body.Clone();
+        for (int group = 0; group < result.Length / 4; ++group)
+        {
+            int offset = group * 4;
+            uint value = Swap(Load(result, offset) ^ sequence);
+            var transformed = new byte[] {
+                (byte)(value & 0xFFu),
+                (byte)((value >> 8) & 0xFFu),
+                (byte)((value >> 16) & 0xFFu),
+                (byte)((value >> 24) & 0xFFu)
+            };
+            for (int index = 0; index < 4; ++index)
+            {
+                byte mix = (byte)(0xA5
+                    | (index << index)
+                    | index
+                    | MungeTable[(group + index) & 0x0F]);
+                transformed[index] ^= mix;
+            }
+            value = (uint)transformed[0]
+                | ((uint)transformed[1] << 8)
+                | ((uint)transformed[2] << 16)
+                | ((uint)transformed[3] << 24);
+            Store(result, offset, value ^ ~sequence);
+        }
+        return result;
+    }
+
+    public static byte[] Build(uint sequence, byte[] body)
+    {
+        if (body == null || body.Length > 255)
+            throw new ArgumentOutOfRangeException("body");
+        byte[] protectedBody = Protect(body, sequence);
+        var payload = new byte[protectedBody.Length + 3];
+        payload[0] = 2;
+        payload[1] = (byte)body.Length;
+        payload[2] = Checksum(body, sequence);
+        Buffer.BlockCopy(protectedBody, 0, payload, 3, protectedBody.Length);
+        return payload;
+    }
+}
+'@
+}
+
+function New-ObservedGoldSrcMovePayload {
+    param([uint32]$Sequence)
+
+    # Semantic fixture: loss=0, backup=2, new=1; command deltas decode to
+    # zero, lerp=100/msec=210, and inherited lerp=100/msec=32.
+    [byte[]]$body = @(
+        0x00, 0x02, 0x01,
+        0x00,
+        0x19, 0x20, 0x23, 0x0D,
+        0x11, 0x00, 0x01
+    )
+    Initialize-GoldSrcMoveProofCodec
+    return [GoldSrcMoveProofCodec]::Build($Sequence, $body)
+}
+
+function New-GoldSrcMovePayloadFromBody {
+    param(
+        [uint32]$Sequence,
+        [byte[]]$Body
+    )
+
+    Initialize-GoldSrcMoveProofCodec
+    return [GoldSrcMoveProofCodec]::Build($Sequence, $Body)
+}
 
 function New-DeltaBitReader {
     param([byte[]]$Bytes)
@@ -1502,7 +1657,10 @@ function Invoke-ObservedResourceContinuation {
         [System.Net.IPEndPoint]$ServerEndpoint,
         $Handshake,
         $Bootstrap,
-        [object[]]$ExpectedEntries
+        [object[]]$ExpectedEntries,
+        [string]$StdoutPath,
+        [ValidateSet("None", "Positive", "Negative")]
+        [string]$PostResourceMode = "None"
     )
 
     [byte[]]$sendResourcesPayload = New-StringCommandPayload -Command "sendres"
@@ -1545,16 +1703,85 @@ function Invoke-ObservedResourceContinuation {
         -Manifest $manifest `
         -ExpectedEntries $ExpectedEntries `
         -Description "resource manifest after delta bootstrap"
+    [uint32]$latestServerSequence = [uint32]$manifestPacket.Sequence
 
     $manifestAckState =
         -not [bool]$Bootstrap.ServerReliableAcknowledgementState
     $clientSequence++
+    [byte[]]$acknowledgementPayload = $Handshake.NopPayload
+    if ($PostResourceMode -eq "Positive") {
+        $acknowledgementPayload =
+            New-ObservedGoldSrcMovePayload -Sequence $clientSequence
+    } elseif ($PostResourceMode -eq "Negative") {
+        [byte[]]$earlyMove =
+            New-ObservedGoldSrcMovePayload -Sequence $clientSequence
+        Send-DeltaClientPacket `
+            -Client $Client `
+            -Sequence $clientSequence `
+            -Acknowledgement $Bootstrap.LatestServerSequence `
+            -ServerReliableAcknowledgementState $Bootstrap.ServerReliableAcknowledgementState `
+            -Payload $earlyMove `
+            -Description "valid move rejected before resource acknowledgement"
+        Wait-ForStdoutToken `
+            -Process $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -StdoutPath $StdoutPath `
+            -Deadline $Deadline `
+            -Token "reason=invalid-signon-phase" `
+            -Description "invalid move phase rejection"
+        $retransmissionDatagram = Receive-ProofDatagram `
+            -Client $Client `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -Description "manifest retained after invalid move phase"
+        $retransmission = Read-SequencedDatagram `
+            -Packet $retransmissionDatagram.Bytes `
+            -Description "manifest retained after invalid move phase"
+        $latestServerSequence = [uint32]$retransmission.Sequence
+        if ($retransmission.ReliableToggle) {
+            Assert-ExactBytes `
+                -Actual $retransmission.Payload `
+                -Expected $manifestPacket.Payload `
+                -Description "retained manifest retransmission"
+        } else {
+            Assert-NopPayload `
+                -Payload $retransmission.Payload `
+                -Description "ordinary response while manifest remains pending"
+        }
+
+        Send-DeltaClientPacket `
+            -Client $Client `
+            -Sequence $clientSequence `
+            -Acknowledgement $Bootstrap.LatestServerSequence `
+            -ServerReliableAcknowledgementState $Bootstrap.ServerReliableAcknowledgementState `
+            -Payload $earlyMove `
+            -Description "duplicate outer move sequence"
+
+        Send-DeltaClientPacket `
+            -Client $Client `
+            -Sequence ([uint32]($clientSequence - 1)) `
+            -Acknowledgement $Bootstrap.LatestServerSequence `
+            -ServerReliableAcknowledgementState $Bootstrap.ServerReliableAcknowledgementState `
+            -Payload (New-ObservedGoldSrcMovePayload `
+                -Sequence ([uint32]($clientSequence - 1))) `
+            -Description "out-of-order outer move sequence"
+
+        $clientSequence++
+        [byte[]]$acknowledgementPayload = @(
+            [byte]2,
+            [byte]11,
+            [byte]0,
+            [byte]0
+        )
+    }
     Send-DeltaClientPacket `
         -Client $Client `
         -Sequence $clientSequence `
-        -Acknowledgement $manifestPacket.Sequence `
+        -Acknowledgement $latestServerSequence `
         -ServerReliableAcknowledgementState $manifestAckState `
-        -Payload $Handshake.NopPayload `
+        -Payload $acknowledgementPayload `
         -Description "resource manifest acknowledgement after delta bootstrap"
     $finalDatagram = Receive-ProofDatagram `
         -Client $Client `
@@ -1567,18 +1794,118 @@ function Invoke-ObservedResourceContinuation {
         -Packet $finalDatagram.Bytes `
         -Description "final resource acknowledgement response"
     if ($final.FragmentPresent -or
-        $final.Sequence -ne ([uint32]($manifestPacket.Sequence + 1)) -or
+        $final.Sequence -ne ([uint32]($latestServerSequence + 1)) -or
         $final.Acknowledgement -ne $clientSequence) {
         throw "resource continuation final response changed netchan progression"
     }
     Assert-NopPayload `
         -Payload $final.Payload `
         -Description "final resource acknowledgement response"
+
+    if ($PostResourceMode -eq "Negative") {
+        Wait-ForStdoutToken `
+            -Process $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -StdoutPath $StdoutPath `
+            -Deadline $Deadline `
+            -Token "move_reason=truncated_envelope" `
+            -Description "truncated move rejection"
+        $latestServerSequence = [uint32]$final.Sequence
+        [object[]]$negativeCases = @(
+            [pscustomobject]@{
+                Name = "invalid count"
+                PayloadFactory = {
+                    param([uint32]$Sequence)
+                    New-GoldSrcMovePayloadFromBody `
+                        -Sequence $Sequence `
+                        -Body ([byte[]]@(0, 62, 1))
+                }
+                Token = "move_reason=command_count_exceeded"
+            },
+            [pscustomobject]@{
+                Name = "invalid checksum"
+                PayloadFactory = {
+                    param([uint32]$Sequence)
+                    [byte[]]$payload =
+                        New-ObservedGoldSrcMovePayload -Sequence $Sequence
+                    $payload[2] = [byte]($payload[2] -bxor 1)
+                    return $payload
+                }
+                Token = "move_reason=invalid_checksum"
+            },
+            [pscustomobject]@{
+                Name = "unsupported opcode"
+                PayloadFactory = {
+                    param([uint32]$Sequence)
+                    return [byte[]]@(9)
+                }
+                Token = "reason=unknown_opcode"
+            }
+        )
+        foreach ($negativeCase in $negativeCases) {
+            $clientSequence++
+            [byte[]]$negativePayload =
+                & $negativeCase.PayloadFactory $clientSequence
+            Send-DeltaClientPacket `
+                -Client $Client `
+                -Sequence $clientSequence `
+                -Acknowledgement $latestServerSequence `
+                -ServerReliableAcknowledgementState $manifestAckState `
+                -Payload $negativePayload `
+                -Description $negativeCase.Name
+            Wait-ForStdoutToken `
+                -Process $ServerProcess `
+                -OutputCapture $OutputCapture `
+                -StdoutPath $StdoutPath `
+                -Deadline $Deadline `
+                -Token $negativeCase.Token `
+                -Description ($negativeCase.Name + " rejection")
+            $caseResponseDatagram = Receive-ProofDatagram `
+                -Client $Client `
+                -ServerProcess $ServerProcess `
+                -OutputCapture $OutputCapture `
+                -Deadline $Deadline `
+                -ServerEndpoint $ServerEndpoint `
+                -Description ($negativeCase.Name + " response")
+            $caseResponse = Read-SequencedDatagram `
+                -Packet $caseResponseDatagram.Bytes `
+                -Description ($negativeCase.Name + " response")
+            Assert-NopPayload `
+                -Payload $caseResponse.Payload `
+                -Description ($negativeCase.Name + " response")
+            $latestServerSequence = [uint32]$caseResponse.Sequence
+        }
+
+        $clientSequence++
+        Send-DeltaClientPacket `
+            -Client $Client `
+            -Sequence $clientSequence `
+            -Acknowledgement $latestServerSequence `
+            -ServerReliableAcknowledgementState $manifestAckState `
+            -Payload (New-ObservedGoldSrcMovePayload `
+                -Sequence $clientSequence) `
+            -Description "valid post-resource move after negative cases"
+        $acceptedResponseDatagram = Receive-ProofDatagram `
+            -Client $Client `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -Description "valid post-resource move response"
+        $acceptedResponse = Read-SequencedDatagram `
+            -Packet $acceptedResponseDatagram.Bytes `
+            -Description "valid post-resource move response"
+        Assert-NopPayload `
+            -Payload $acceptedResponse.Payload `
+            -Description "valid post-resource move response"
+        $final = $acceptedResponse
+    }
     return [pscustomobject]@{
         Manifest = $manifest
         ClientSequence = [uint32]$clientSequence
         LatestServerSequence = [uint32]$final.Sequence
         ServerReliableAcknowledgementState = [bool]$manifestAckState
+        PostResourceMode = $PostResourceMode
     }
 }
 
@@ -1592,6 +1919,12 @@ function Assert-DeltaHostSummaries {
     )
 
     $negative = $Mode -eq "Negative"
+    $postResource = $Resource.PostResourceMode -ne "None"
+    $expectedSignonPhase = if ($postResource) {
+        "awaiting_server_baseline_or_snapshot"
+    } else {
+        "resource_manifest_acknowledged"
+    }
     $deltaLine = Get-ExactlyOneSummaryLine `
         -Stdout $Stdout `
         -Prefix "goldsrc_delta_description_summary:"
@@ -1631,7 +1964,7 @@ function Assert-DeltaHostSummaries {
                 $(if ($negative) { "1" } else { "0" })
             slot_reused_after_reset =
                 $(if ($negative) { "true" } else { "false" })
-            signon_phase = "resource_manifest_acknowledged"
+            signon_phase = $expectedSignonPhase
             session_count = "1"
             put_in_server = "0"
             spawned = "0"
@@ -1688,7 +2021,7 @@ function Assert-DeltaHostSummaries {
             serverinfo_generations = "1"
             serverinfo_queued = "1"
             serverinfo_acked = "1"
-            signon_phase = "resource_manifest_acknowledged"
+            signon_phase = $expectedSignonPhase
             session_count = "1"
             put_in_server = "0"
             spawned = "0"
@@ -1728,7 +2061,7 @@ function Assert-DeltaHostSummaries {
             resource_manifest_acked = "1"
             resource_manifest_entry_count = [string]$Resource.Manifest.ResourceCount
             resource_manifest_payload_bytes = [string]$Resource.Manifest.PayloadBytes
-            signon_phase = "resource_manifest_acknowledged"
+            signon_phase = $expectedSignonPhase
             session_count = "1"
             put_in_server = "0"
             spawned = "0"
@@ -1754,6 +2087,87 @@ function Assert-DeltaHostSummaries {
             active = "0"
             clean_shutdown = "1"
         })
+    if ($Resource.PostResourceMode -eq "Negative") {
+        if ((Get-StableUnsignedField `
+                -Line $netchanLine `
+                -Name "duplicate_rejected") -lt 1) {
+            throw "post-resource proof recorded no duplicate outer rejection"
+        }
+        if ((Get-StableUnsignedField `
+                -Line $netchanLine `
+                -Name "out_of_order_rejected") -lt 1) {
+            throw "post-resource proof recorded no out-of-order rejection"
+        }
+    }
+
+    if ($postResource) {
+        $postResourceLine = Get-ExactlyOneSummaryLine `
+            -Stdout $Stdout `
+            -Prefix "goldsrc_post_resource_command_summary:"
+        Assert-SummaryFields `
+            -Line $postResourceLine `
+            -Description "goldsrc_post_resource_command_summary" `
+            -Expected ([ordered]@{
+                opcode = "2"
+                identity = "clc_move"
+                reliability = "unreliable"
+                decoded = "1"
+                delivered = "1"
+                rejected = $(if ($Resource.PostResourceMode -eq "Negative") {
+                    "5"
+                } else {
+                    "0"
+                })
+                checksum_rejected =
+                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                        "1"
+                    } else {
+                        "0"
+                    })
+                count_rejected =
+                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                        "1"
+                    } else {
+                        "0"
+                    })
+                truncated_rejected =
+                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                        "1"
+                    } else {
+                        "0"
+                    })
+                invalid_phase_rejected =
+                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                        "1"
+                    } else {
+                        "0"
+                    })
+                state_advances = "1"
+                checksum_validated = "true"
+                delta_schema_used = "true"
+                pre_spawn_ignored = "true"
+                previous_boundary_resolved = "true"
+                pending_reliable_preserved =
+                    $(if ($Resource.PostResourceMode -eq "Negative") {
+                        "true"
+                    } else {
+                        "false"
+                    })
+                packet_loss = "0"
+                backup_commands = "2"
+                new_commands = "1"
+                total_commands = "3"
+                new_command_msec = "32"
+                continuation = "awaiting_server_baseline_or_snapshot"
+                signon_phase = "awaiting_server_baseline_or_snapshot"
+                session_count = "1"
+                put_in_server = "0"
+                spawned = "0"
+                active = "0"
+                server_still_responsive = "true"
+                clean_shutdown = "1"
+            })
+    }
 
     $udpLine = Get-ExactlyOneSummaryLine `
         -Stdout $Stdout `
@@ -1917,6 +2331,8 @@ function Invoke-DeltaHostRun {
         [string]$Address,
         [int]$RequestedPort,
         [int]$RunTimeoutSeconds,
+        [ValidateSet("None", "Positive", "Negative")]
+        [string]$PostResourceMode = "None",
         [switch]$SuppressServerOutput
     )
 
@@ -2148,7 +2564,9 @@ function Invoke-DeltaHostRun {
             -ServerEndpoint $serverEndpoint `
             -Handshake $handshake `
             -Bootstrap $bootstrap `
-            -ExpectedEntries $ExpectedEntries
+            -ExpectedEntries $ExpectedEntries `
+            -StdoutPath $stdoutPath `
+            -PostResourceMode $PostResourceMode
 
         Wait-ForCleanServerExit `
             -Process $serverProcess `
@@ -2654,6 +3072,13 @@ $mainResult = $null
 $missingUsercmdResult = $null
 $malformedResult = $null
 $failure = $null
+$postResourceMode = if (-not $PostResourceCommandProof) {
+    "None"
+} elseif ($PostResourceNegativeProof) {
+    "Negative"
+} else {
+    "Positive"
+}
 try {
     $missingUsercmdResult = Invoke-RejectedDeltaFixtureHostRun `
         -Mode "MissingUsercmd" `
@@ -2686,6 +3111,7 @@ try {
             -Address $BindAddress `
             -RequestedPort $Port `
             -RunTimeoutSeconds $TimeoutSeconds `
+            -PostResourceMode $postResourceMode `
             -SuppressServerOutput:$SkipServerOutput
         $negativeServerInfoLine = Get-ExactlyOneSummaryLine `
             -Stdout $mainResult.Stdout `
@@ -2708,6 +3134,7 @@ try {
             -Address $BindAddress `
             -RequestedPort $Port `
             -RunTimeoutSeconds $TimeoutSeconds `
+            -PostResourceMode $postResourceMode `
             -SuppressServerOutput:$SkipServerOutput
     }
     Assert-NoDeltaProofRepositoryMutation `
@@ -2729,5 +3156,12 @@ if ($NegativeProof) {
     Write-Host "goldsrc_delta_description_proof_b: ack_withheld_kept_bundle_pending=true,retransmission_observed=true,retransmitted_bundle_identical=true,duplicate_trigger_suppressed=true,missing_usercmd_table_rejected=true,malformed_definition_rejected=true,fragmented_delta_bundle=pass,wrong_ack_rejected=true,valid_ack_accepted=true,slot_reset_cleared_state=true,fresh_session_after_reset=pass,session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass"
 } else {
     Write-Host "goldsrc_delta_description_proof_a: previous_boundary_reproduced=true,delta_bootstrap_received=true,usercmd_table_present=true,usercmd_table_decode=pass,required_delta_tables_present=true,delta_table_order=pass,delta_descriptions_acknowledged=true,signon_advanced_once=true,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass"
+}
+if ($PostResourceCommandProof) {
+    if ($PostResourceNegativeProof) {
+        Write-Host "goldsrc_post_resource_command_proof_b: duplicate_sequence_suppressed=true,out_of_order_rejected=true,truncated_command_rejected=true,invalid_count_rejected=true,checksum_validation=pass,unsupported_opcode_rejected=true,invalid_phase_rejected=true,pending_server_reliable_preserved=true,slot_reset_cleared_state=true,fresh_session_after_reset=pass,session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass"
+    } else {
+        Write-Host "goldsrc_post_resource_command_proof_a: previous_prompt_240_boundary=pass,command_opcode_identified=true,command_identity=clc_move,unreliable_command_decoded=true,command_semantic_validation=pass,command_deliveries=1,command_phase_validation=pass,continuation_result=awaiting_server_baseline_or_snapshot,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass"
+    }
 }
 Write-Host "goldsrc_delta_description_probe: result=pass"

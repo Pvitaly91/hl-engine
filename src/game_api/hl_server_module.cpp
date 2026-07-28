@@ -52,6 +52,9 @@
 #include "game_api/server_command_buffer.h"
 #include "game_api/server_command_dispatcher.h"
 #include "goldsrc_delta_runtime_registry.h"
+// The runtime include dispatches typed pre-spawn move envelopes through this
+// bounded network codec; it never forwards them to gameplay callbacks.
+#include "network/goldsrc_client_move.h"
 #include "network/goldsrc_connectionless.h"
 #include "network/goldsrc_delta_description.h"
 #include "network/goldsrc_netchan.h"

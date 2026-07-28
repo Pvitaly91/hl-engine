@@ -412,6 +412,19 @@ public:
                         && summary_.signon_phase
                             == "awaiting_resource_request";
                 }
+                const bool post_resource_command_succeeded =
+                    summary_.clc_move_delivered == 1
+                    && summary_.post_resource_state_advances == 1
+                    && summary_.post_resource_checksum_validated
+                    && summary_.post_resource_delta_schema_used
+                    && summary_.post_resource_pre_spawn_ignored
+                    && summary_.previous_unidentified_command_boundary_resolved
+                    && summary_.signon_phase
+                        == "awaiting_server_baseline_or_snapshot";
+                const bool resource_manifest_phase_succeeded =
+                    summary_.signon_phase
+                        == "resource_manifest_acknowledged"
+                    || post_resource_command_succeeded;
                 const bool resource_manifest_succeeded =
                     summary_.resource_request_deliveries == 1
                     && summary_.resource_manifest_preparation_attempts == 1
@@ -427,8 +440,7 @@ public:
                                 .resource_manifest_fragment_acknowledged_count
                                 == summary_
                                     .resource_manifest_fragment_count))
-                    && summary_.signon_phase
-                        == "resource_manifest_acknowledged";
+                    && resource_manifest_phase_succeeded;
                 if (!resource_manifest_succeeded
                     || (!resource_manifest_negative_proof_
                         && !delta_descriptions_negative_proof_))
@@ -707,6 +719,77 @@ public:
                     + ",netchan_state=" + summary_.netchan_state
                     + ",reliable_pending_bytes="
                     + std::to_string(summary_.reliable_pending_bytes)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
+                    + ",active=" + std::string(summary_.active ? "1" : "0")
+                    + ",server_still_responsive="
+                    + std::string(
+                        summary_.server_still_responsive ? "true" : "false")
+                    + ",clean_shutdown=1");
+        }
+        if (summary_.clc_move_decoded > 0 || summary_.clc_move_rejected > 0)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_post_resource_command_summary: opcode=2,identity="
+                    + summary_.post_resource_command_identity
+                    + ",reliability=unreliable,decoded="
+                    + std::to_string(summary_.clc_move_decoded)
+                    + ",delivered="
+                    + std::to_string(summary_.clc_move_delivered)
+                    + ",rejected="
+                    + std::to_string(summary_.clc_move_rejected)
+                    + ",checksum_rejected="
+                    + std::to_string(summary_.clc_move_checksum_rejected)
+                    + ",count_rejected="
+                    + std::to_string(summary_.clc_move_count_rejected)
+                    + ",truncated_rejected="
+                    + std::to_string(summary_.clc_move_truncated_rejected)
+                    + ",invalid_phase_rejected="
+                    + std::to_string(
+                        summary_.clc_move_invalid_phase_rejected)
+                    + ",state_advances="
+                    + std::to_string(summary_.post_resource_state_advances)
+                    + ",checksum_validated="
+                    + std::string(
+                        summary_.post_resource_checksum_validated
+                            ? "true"
+                            : "false")
+                    + ",delta_schema_used="
+                    + std::string(
+                        summary_.post_resource_delta_schema_used
+                            ? "true"
+                            : "false")
+                    + ",pre_spawn_ignored="
+                    + std::string(
+                        summary_.post_resource_pre_spawn_ignored
+                            ? "true"
+                            : "false")
+                    + ",previous_boundary_resolved="
+                    + std::string(
+                        summary_.previous_unidentified_command_boundary_resolved
+                            ? "true"
+                            : "false")
+                    + ",pending_reliable_preserved="
+                    + std::string(
+                        summary_.post_resource_pending_reliable_preserved
+                            ? "true"
+                            : "false")
+                    + ",packet_loss="
+                    + std::to_string(summary_.last_move_packet_loss)
+                    + ",backup_commands="
+                    + std::to_string(summary_.last_move_backup_commands)
+                    + ",new_commands="
+                    + std::to_string(summary_.last_move_new_commands)
+                    + ",total_commands="
+                    + std::to_string(summary_.last_move_total_commands)
+                    + ",new_command_msec="
+                    + std::to_string(summary_.last_move_new_command_msec)
+                    + ",continuation="
+                    + summary_.post_resource_continuation
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",session_count=" + std::to_string(summary_.session_count)
                     + ",put_in_server="
                     + std::string(summary_.put_in_server ? "1" : "0")
                     + ",spawned=" + std::string(summary_.spawned ? "1" : "0")
@@ -1466,6 +1549,12 @@ private:
                 signon_diagnostics.resource_manifest_queued);
             summary_.resource_manifest_acked = static_cast<int>(
                 signon_diagnostics.resource_manifest_acknowledged);
+            summary_.clc_move_delivered = static_cast<int>(
+                signon_diagnostics.post_resource_command_delivered);
+            summary_.post_resource_state_advances = static_cast<int>(
+                signon_diagnostics.post_resource_command_state_advances);
+            summary_.clc_move_invalid_phase_rejected = static_cast<int>(
+                signon_diagnostics.post_resource_command_wrong_phase);
             summary_.duplicate_resource_request_suppressed =
                 signon_diagnostics
                     .duplicate_resource_request_suppressed > 0u;
@@ -2913,10 +3002,165 @@ private:
         }
         if (!packet.reliable_present)
         {
-            ++summary_.unsupported_command_rejected;
-            hl::common::Logger::Warn(
+            const bool reliable_pending_before =
+                slot_state.netchan.reliable_pending();
+            if (!slot_state.goldsrc_delta_registry.has_value())
+            {
+                ++summary_.clc_move_rejected;
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_post_resource_command_rejected: session_id="
+                        + slot_state.session_id
+                        + ",sequence=" + std::to_string(packet.sequence)
+                        + ",reason=missing-usercmd-registry,signon_phase="
+                        + std::string(hl::network::NameFor(
+                            slot_state.goldsrc_signon.phase()))
+                        + ",reliable_pending_bytes="
+                        + std::to_string(
+                            slot_state.netchan.reliable_pending_bytes()));
+                return true;
+            }
+            const hl::network::GoldSrcClientApplicationDecodeResult
+                application =
+                    hl::network::DecodeGoldSrcClientApplicationPayload(
+                        packet.payload.data(),
+                        packet.payload_size,
+                        packet.sequence,
+                        *slot_state.goldsrc_delta_registry);
+            if (!application.ok())
+            {
+                ++summary_.clc_move_rejected;
+                if (application.status
+                    == hl::network::GoldSrcClientApplicationDecodeStatus::
+                        kUnknownOpcode)
+                {
+                    ++summary_.unsupported_opcode_rejected;
+                }
+                if (application.move_status
+                    == hl::network::GoldSrcClientMoveDecodeStatus::
+                        kInvalidChecksum)
+                {
+                    ++summary_.clc_move_checksum_rejected;
+                }
+                if (application.move_status
+                    == hl::network::GoldSrcClientMoveDecodeStatus::
+                        kCommandCountExceeded
+                    || application.move_status
+                        == hl::network::GoldSrcClientMoveDecodeStatus::
+                            kPacketLossOutOfRange)
+                {
+                    ++summary_.clc_move_count_rejected;
+                }
+                if (application.move_status
+                        == hl::network::GoldSrcClientMoveDecodeStatus::
+                            kTruncatedEnvelope
+                    || application.move_status
+                        == hl::network::GoldSrcClientMoveDecodeStatus::
+                            kTruncatedBitstream)
+                {
+                    ++summary_.clc_move_truncated_rejected;
+                }
+                summary_.post_resource_pending_reliable_preserved =
+                    summary_.post_resource_pending_reliable_preserved
+                    || (reliable_pending_before
+                        && slot_state.netchan.reliable_pending());
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_post_resource_command_rejected: session_id="
+                        + slot_state.session_id
+                        + ",sequence=" + std::to_string(packet.sequence)
+                        + ",reason="
+                        + std::string(hl::network::ReasonFor(
+                            application.status))
+                        + ",move_reason="
+                        + std::string(hl::network::ReasonFor(
+                            application.move_status))
+                        + ",signon_phase="
+                        + std::string(hl::network::NameFor(
+                            slot_state.goldsrc_signon.phase()))
+                        + ",reliable_pending_bytes="
+                        + std::to_string(
+                            slot_state.netchan.reliable_pending_bytes()));
+                return true;
+            }
+
+            if (slot_state.goldsrc_signon.phase()
+                == hl::network::GoldSrcSignonPhase::
+                    kResourceManifestAcknowledged)
+            {
+                if (slot_state.goldsrc_signon
+                        .EnterAwaitingPostResourceCommand()
+                    != hl::network::GoldSrcSignonTransitionResult::kAdvanced)
+                {
+                    return FailTransport(
+                        "post-resource-transition-failed",
+                        "goldsrc_post_resource_transition_failed: reason=awaiting-command");
+                }
+            }
+            const hl::network::GoldSrcSignonCommandDisposition disposition =
+                slot_state.goldsrc_signon.HandlePostResourceMove();
+            if (disposition
+                != hl::network::GoldSrcSignonCommandDisposition::kDelivered)
+            {
+                ++summary_.clc_move_rejected;
+                summary_.post_resource_pending_reliable_preserved =
+                    summary_.post_resource_pending_reliable_preserved
+                    || (reliable_pending_before
+                        && slot_state.netchan.reliable_pending());
+                SyncNetchanSummary(slot_state);
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_post_resource_command_rejected: session_id="
+                        + slot_state.session_id
+                        + ",sequence=" + std::to_string(packet.sequence)
+                        + ",reason=invalid-signon-phase,signon_phase="
+                        + summary_.signon_phase
+                        + ",reliable_pending_bytes="
+                        + std::to_string(
+                            slot_state.netchan.reliable_pending_bytes()));
+                return true;
+            }
+
+            ++summary_.clc_move_decoded;
+            summary_.post_resource_checksum_validated = true;
+            summary_.post_resource_delta_schema_used = true;
+            summary_.post_resource_pre_spawn_ignored = true;
+            summary_.previous_unidentified_command_boundary_resolved = true;
+            summary_.last_move_packet_loss =
+                application.move.packet_loss;
+            summary_.last_move_backup_commands =
+                application.move.backup_command_count;
+            summary_.last_move_new_commands =
+                application.move.new_command_count;
+            summary_.last_move_total_commands =
+                static_cast<int>(application.move.command_count);
+            summary_.last_move_new_command_msec =
+                static_cast<int>(application.move.new_command_time_msec);
+            summary_.post_resource_command_identity = "clc_move";
+            summary_.post_resource_continuation =
+                "awaiting_server_baseline_or_snapshot";
+            SyncNetchanSummary(slot_state);
+            hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
-                "goldsrc_client_signon_rejected: reason=unreliable-command");
+                "goldsrc_post_resource_clc_move_accepted: session_id="
+                    + slot_state.session_id
+                    + ",sequence=" + std::to_string(packet.sequence)
+                    + ",packet_loss="
+                    + std::to_string(application.move.packet_loss)
+                    + ",backup_commands="
+                    + std::to_string(
+                        application.move.backup_command_count)
+                    + ",new_commands="
+                    + std::to_string(application.move.new_command_count)
+                    + ",total_commands="
+                    + std::to_string(application.move.command_count)
+                    + ",new_command_msec="
+                    + std::to_string(
+                        application.move.new_command_time_msec)
+                    + ",checksum=valid,delta_schema=usercmd_t"
+                    + ",handling=decoded_pre_spawn_keepalive"
+                    + ",signon_phase=" + summary_.signon_phase
+                    + ",put_in_server=0,spawned=0,active=0");
             return true;
         }
 
@@ -3891,7 +4135,14 @@ private:
                 == hl::network::GoldSrcSignonPhase::
                     kResourceManifestAcknowledged)
             {
-                if (!resource_manifest_negative_proof_
+                if (delta_descriptions_negative_proof_
+                    && summary_.clc_move_rejected > 0)
+                {
+                    // A post-resource negative proof intentionally remains
+                    // at this phase until one fully valid move envelope
+                    // establishes the next bounded checkpoint.
+                }
+                else if (!resource_manifest_negative_proof_
                     && !delta_descriptions_negative_proof_)
                 {
                     complete_ = true;
@@ -3900,6 +4151,18 @@ private:
                             || ResourceManifestNegativeEvidenceSatisfied())
                     && (!delta_descriptions_negative_proof_
                             || DeltaDescriptionsNegativeEvidenceSatisfied()))
+                {
+                    summary_.server_still_responsive = true;
+                    complete_ = true;
+                }
+            }
+            else if (slot_state->goldsrc_signon.phase()
+                    == hl::network::GoldSrcSignonPhase::
+                        kAwaitingServerBaselineOrSnapshot
+                && summary_.clc_move_delivered >= 1)
+            {
+                if (!delta_descriptions_negative_proof_
+                    || DeltaDescriptionsNegativeEvidenceSatisfied())
                 {
                     summary_.server_still_responsive = true;
                     complete_ = true;

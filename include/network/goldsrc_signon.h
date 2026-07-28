@@ -119,6 +119,8 @@ enum class GoldSrcSignonPhase
     kResourceManifestQueued,
     kResourceManifestSentAwaitingAck,
     kResourceManifestAcknowledged,
+    kAwaitingPostResourceCommand,
+    kAwaitingServerBaselineOrSnapshot,
 };
 
 std::string_view NameFor(GoldSrcSignonPhase phase) noexcept;
@@ -170,6 +172,10 @@ struct GoldSrcSignonDiagnostics final
     std::uint64_t resource_manifest_queued = 0;
     std::uint64_t resource_manifest_sent = 0;
     std::uint64_t resource_manifest_acknowledged = 0;
+    std::uint64_t post_resource_command_received = 0;
+    std::uint64_t post_resource_command_delivered = 0;
+    std::uint64_t post_resource_command_state_advances = 0;
+    std::uint64_t post_resource_command_wrong_phase = 0;
 };
 
 class GoldSrcSignonSessionState final
@@ -188,6 +194,8 @@ public:
     GoldSrcSignonTransitionResult EnterAwaitingResourceRequest() noexcept;
     GoldSrcSignonTransitionResult MarkResourceManifestSent() noexcept;
     GoldSrcSignonTransitionResult MarkResourceManifestAcknowledged() noexcept;
+    GoldSrcSignonTransitionResult EnterAwaitingPostResourceCommand() noexcept;
+    GoldSrcSignonCommandDisposition HandlePostResourceMove() noexcept;
 
     GoldSrcSignonPhase phase() const noexcept;
     const GoldSrcSignonDiagnostics& diagnostics() const noexcept;

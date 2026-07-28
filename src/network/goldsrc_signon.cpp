@@ -800,6 +800,10 @@ std::string_view NameFor(GoldSrcSignonPhase phase) noexcept
         return "resource_manifest_sent_awaiting_ack";
     case GoldSrcSignonPhase::kResourceManifestAcknowledged:
         return "resource_manifest_acknowledged";
+    case GoldSrcSignonPhase::kAwaitingPostResourceCommand:
+        return "awaiting_post_resource_command";
+    case GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot:
+        return "awaiting_server_baseline_or_snapshot";
     case GoldSrcSignonPhase::kNone:
     default:
         return "none";
@@ -898,7 +902,10 @@ GoldSrcSignonSessionState::HandleClientCommand(
             || phase_ == GoldSrcSignonPhase::kResourceManifestQueued
             || phase_
                 == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck
-            || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+            || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
+            || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
+            || phase_
+                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
         {
             ++diagnostics_.duplicate_new_suppressed;
             return GoldSrcSignonCommandDisposition::kDuplicateSuppressed;
@@ -921,7 +928,10 @@ GoldSrcSignonSessionState::HandleClientCommand(
         if (phase_ == GoldSrcSignonPhase::kResourceManifestQueued
             || phase_
                 == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck
-            || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+            || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
+            || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
+            || phase_
+                == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
         {
             ++diagnostics_.duplicate_resource_request_suppressed;
             return GoldSrcSignonCommandDisposition::kDuplicateSuppressed;
@@ -1049,7 +1059,9 @@ GoldSrcSignonSessionState::MarkResourceManifestSent() noexcept
         return GoldSrcSignonTransitionResult::kAdvanced;
     }
     if (phase_ == GoldSrcSignonPhase::kResourceManifestSentAwaitingAck
-        || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+        || phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
+        || phase_ == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
     {
         return GoldSrcSignonTransitionResult::kAlreadyApplied;
     }
@@ -1065,11 +1077,49 @@ GoldSrcSignonSessionState::MarkResourceManifestAcknowledged() noexcept
         ++diagnostics_.resource_manifest_acknowledged;
         return GoldSrcSignonTransitionResult::kAdvanced;
     }
-    if (phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+    if (phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged
+        || phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
+        || phase_ == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
     {
         return GoldSrcSignonTransitionResult::kAlreadyApplied;
     }
     return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonTransitionResult
+GoldSrcSignonSessionState::EnterAwaitingPostResourceCommand() noexcept
+{
+    if (phase_ == GoldSrcSignonPhase::kResourceManifestAcknowledged)
+    {
+        phase_ = GoldSrcSignonPhase::kAwaitingPostResourceCommand;
+        return GoldSrcSignonTransitionResult::kAdvanced;
+    }
+    if (phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand
+        || phase_ == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
+    {
+        return GoldSrcSignonTransitionResult::kAlreadyApplied;
+    }
+    return GoldSrcSignonTransitionResult::kInvalidPhase;
+}
+
+GoldSrcSignonCommandDisposition
+GoldSrcSignonSessionState::HandlePostResourceMove() noexcept
+{
+    ++diagnostics_.post_resource_command_received;
+    if (phase_ == GoldSrcSignonPhase::kAwaitingPostResourceCommand)
+    {
+        phase_ = GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot;
+        ++diagnostics_.post_resource_command_delivered;
+        ++diagnostics_.post_resource_command_state_advances;
+        return GoldSrcSignonCommandDisposition::kDelivered;
+    }
+    if (phase_ == GoldSrcSignonPhase::kAwaitingServerBaselineOrSnapshot)
+    {
+        ++diagnostics_.post_resource_command_delivered;
+        return GoldSrcSignonCommandDisposition::kDelivered;
+    }
+    ++diagnostics_.post_resource_command_wrong_phase;
+    return GoldSrcSignonCommandDisposition::kWrongPhase;
 }
 
 GoldSrcSignonPhase GoldSrcSignonSessionState::phase() const noexcept

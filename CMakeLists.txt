@@ -36,6 +36,7 @@ set_target_properties(filesystem PROPERTIES FOLDER "host")
 add_library(goldsrc_network STATIC
     include/network/ipv4_endpoint.h
     include/network/goldsrc_bitstream.h
+    include/network/goldsrc_client_move.h
     include/network/goldsrc_connectionless.h
     include/network/goldsrc_delta_description.h
     include/network/goldsrc_fragmentation.h
@@ -45,6 +46,7 @@ add_library(goldsrc_network STATIC
     include/network/udp_socket.h
     src/network/ipv4_endpoint.cpp
     src/network/goldsrc_bitstream.cpp
+    src/network/goldsrc_client_move.cpp
     src/network/goldsrc_connectionless.cpp
     src/network/goldsrc_delta_description.cpp
     src/network/goldsrc_fragmentation.cpp
@@ -296,6 +298,29 @@ add_custom_target(goldsrc_delta_description_unit_tests
 )
 set_target_properties(
     goldsrc_delta_description_unit_tests
+    PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_client_move_tests
+    src/tests/goldsrc_client_move_tests.cpp
+)
+target_include_directories(goldsrc_client_move_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(goldsrc_client_move_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_client_move_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_client_move_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_client_move_tests PROPERTIES FOLDER "host/tests")
+add_test(NAME goldsrc_client_move_tests COMMAND goldsrc_client_move_tests)
+
+add_custom_target(goldsrc_client_move_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_client_move_tests>"
+    DEPENDS goldsrc_client_move_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc post-resource clc_move codec and signon tests"
+)
+set_target_properties(
+    goldsrc_client_move_unit_tests
     PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions

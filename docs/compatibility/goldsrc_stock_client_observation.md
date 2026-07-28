@@ -191,3 +191,56 @@ Final checkpoint:
 This timeout is evidence for the next task, not a reason to widen the current
 slice. No fragment behavior, spawn path, or gameplay behavior was changed in
 Prompt 238.
+
+## Prompt 241 post-resource command checkpoint
+
+Prompt 241 reused the same unmodified Half-Life 1.1.2.2 client, Steam build
+`15961492`, installed read-only `valve` data, `c0a0`, and direct loopback
+launch. The host loaded the installed runtime `delta.lst`; no repository
+fixture replaced the production schema. The client and host used an isolated
+temporary working directory, and all traffic remained on `127.0.0.1`.
+
+Before implementation, the first application payload after the Prompt 240
+resource boundary was observed as an unreliable opcode `2` command. It was
+not batched with another application command and repeated in fresh outer
+sequences while the client waited for server continuation. An independent
+bounded decode, correlated with pinned public ReHLDS and Xash3D behavior,
+identified the command as `clc_move`: zero-percent packet loss, two backup
+commands, one new command, and three runtime-schema `usercmd_t` deltas. The
+message includes the sequence-derived checksum used by GoldSrc move
+containers.
+
+The final stock run completed:
+
+1. challenge and connect;
+2. established protocol-48 netchan;
+3. the seven-table runtime delta-description bootstrap;
+4. seven of seven bootstrap fragment acknowledgements;
+5. the batched resource request;
+6. eight of eight resource-manifest fragment acknowledgements;
+7. final resource acknowledgement;
+8. one typed, checksum-valid `clc_move` delivery.
+
+The host treated the decoded move as pre-spawn keepalive input and advanced
+exactly once to `awaiting_server_baseline_or_snapshot`. It did not execute
+movement, copy decoded input into gameplay state, or invoke the Game DLL
+player lifecycle. The final authoritative state remained:
+
+- `session_count=1`;
+- `put_in_server=0`;
+- `spawned=0`;
+- `active=0`;
+- `server_still_responsive=true`;
+- clean host shutdown.
+
+The old `unreliable_post_resource_client_command` boundary is therefore
+resolved. The next observed boundary is
+`server_baseline_or_snapshot_required`: after validated pre-spawn move input,
+the stock client is waiting for the server-side baseline or snapshot
+continuation that this slice intentionally does not fabricate.
+
+The installed client executable and runtime delta definition were hashed
+before and after the run and remained unchanged. Only the exact owned client
+and host process IDs were cleaned, the isolated temporary directory was
+removed, and no capture, raw packet dump, installed asset, credential, or
+machine-specific log was retained.
