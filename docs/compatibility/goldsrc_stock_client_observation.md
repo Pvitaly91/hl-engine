@@ -375,3 +375,50 @@ Final checkpoint:
 Creating the Game DLL player entity and establishing the stock-client view
 does not mean that clc_move execution, PM_Move, prediction, weapons,
 damage, death, respawn, or complete multiplayer gameplay are implemented.
+
+## Prompt 246 authoritative PM_Move checkpoint
+
+Prompt 246 reused the unmodified Half-Life 1.1.2.2 client, Steam build
+`15961492`, the installed read-only Game DLL and `valve` data, `c0a0`, and
+direct `127.0.0.1` connections.  The client, Game DLL, map, client DLL, and
+delta-description hashes were identical before and after every run.
+
+Five independent bounded observations held stock client input for more than
+30 server seconds after player materialization: forward, backward, strafe
+left, jump, and duck.  In every run the host decoded real stock `clc_move`
+batches, executed accepted commands through the installed Game DLL's
+`PM_Move(server=true)`, committed validated output to player edict 1, and
+replicated the committed state through continuous clientdata and player
+snapshots.
+
+The corresponding input bit or movement axis appeared in the decoded stock
+`usercmd_t` stream for every observation.  Each run recorded authoritative
+state change, grounding, static-world collision support, stable snapshot
+reconciliation, a live client at the end of the observation, and clean
+shutdown.  Jump included airborne movement followed by grounding; duck
+selected the duck hull.  The movement-only input mask continued to prevent
+weapon and gameplay activation.
+
+Final checkpoint:
+
+- `stock_client_tested=yes`;
+- `stock_player_spawned=yes`;
+- `stock_authoritative_movement=yes`;
+- `stock_forward_movement=yes`;
+- `stock_backward_movement=yes`;
+- `stock_strafe_movement=yes`;
+- `stock_jump=yes`;
+- `stock_duck=yes`;
+- `stock_world_collision=yes`;
+- `stock_grounding=yes`;
+- `stock_client_remained_connected=yes`;
+- `stock_prediction_stable=yes`;
+- `previous_movement_boundary_resolved=yes`;
+- `stock_client_advanced_past_previous_boundary=yes`;
+- `next_observed_boundary=two_client_player_replication_required`;
+- `gameplay_active=no`.
+
+Authoritative PM_Move-based player movement does not mean that weapon
+processing, item interaction, moving platforms, ladders, water movement,
+player-to-player collision, damage, death, respawn, or complete multiplayer
+gameplay are implemented.

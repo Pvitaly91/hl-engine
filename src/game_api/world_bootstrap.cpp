@@ -1,6 +1,7 @@
 #include "world_bootstrap.h"
 
 #include <array>
+#include <cmath>
 #include <cstring>
 
 #include "common/logger.h"
@@ -31,8 +32,46 @@ struct BspModelEntry
     std::int32_t numfaces = 0;
 };
 
+struct BspPlaneEntry
+{
+    std::array<float, 3> normal{};
+    float distance = 0.0f;
+    std::int32_t type = 0;
+};
+
+struct BspClipnodeEntry
+{
+    std::int32_t plane_index = 0;
+    std::array<std::int16_t, 2> children{};
+};
+
+struct BspNodeEntry
+{
+    std::int32_t plane_index = 0;
+    std::array<std::int16_t, 2> children{};
+    std::array<std::int16_t, 3> mins{};
+    std::array<std::int16_t, 3> maxs{};
+    std::uint16_t first_face = 0;
+    std::uint16_t face_count = 0;
+};
+
+struct BspLeafEntry
+{
+    std::int32_t contents = 0;
+    std::int32_t visibility_offset = 0;
+    std::array<std::int16_t, 3> mins{};
+    std::array<std::int16_t, 3> maxs{};
+    std::uint16_t first_mark_surface = 0;
+    std::uint16_t mark_surface_count = 0;
+    std::array<std::uint8_t, 4> ambient_levels{};
+};
+
 static_assert(sizeof(BspHeader) == 124, "GoldSrc BSP header layout mismatch.");
 static_assert(sizeof(BspModelEntry) == 64, "GoldSrc BSP model entry layout mismatch.");
+static_assert(sizeof(BspPlaneEntry) == 20, "GoldSrc BSP plane layout mismatch.");
+static_assert(sizeof(BspClipnodeEntry) == 8, "GoldSrc BSP clipnode layout mismatch.");
+static_assert(sizeof(BspNodeEntry) == 24, "GoldSrc BSP node layout mismatch.");
+static_assert(sizeof(BspLeafEntry) == 28, "GoldSrc BSP leaf layout mismatch.");
 
 constexpr std::array<const char*, hl::game_api::detail::kBspHeaderLumpCount> kBspLumpNames = {{
     "entities",
@@ -187,11 +226,208 @@ bool LoadWorldModelContext(
             bounds.mins = model.mins;
             bounds.maxs = model.maxs;
             bounds.origin = model.origin;
+            bounds.headnodes = model.headnodes;
             bounds.valid = true;
             world_context.inline_models[index] = bounds;
         }
     }
 
+    const BspLumpMetadata& planes_lump = world_context.lumps[1];
+    const BspLumpMetadata& nodes_lump = world_context.lumps[5];
+    const BspLumpMetadata& clipnodes_lump = world_context.lumps[9];
+    const BspLumpMetadata& leafs_lump = world_context.lumps[10];
+    if (planes_lump.file_length <= 0
+        || nodes_lump.file_length <= 0
+        || clipnodes_lump.file_length <= 0
+        || leafs_lump.file_length <= 0
+        || planes_lump.file_length % sizeof(BspPlaneEntry) != 0
+        || nodes_lump.file_length % sizeof(BspNodeEntry) != 0
+        || clipnodes_lump.file_length % sizeof(BspClipnodeEntry) != 0
+        || leafs_lump.file_length % sizeof(BspLeafEntry) != 0)
+    {
+        world_context.failure_reason =
+            "BSP collision lumps are missing or structurally invalid.";
+        common::Logger::Error(world_context.failure_reason);
+        return false;
+    }
+
+    const std::size_t plane_count =
+        static_cast<std::size_t>(planes_lump.file_length)
+        / sizeof(BspPlaneEntry);
+    world_context.collision_planes.resize(plane_count);
+    for (std::size_t index = 0; index < plane_count; ++index)
+    {
+        BspPlaneEntry plane{};
+        std::memcpy(
+            &plane,
+            bytes->data() + planes_lump.file_offset
+                + index * sizeof(BspPlaneEntry),
+            sizeof(plane));
+        BspCollisionPlane output;
+        output.normal =
+            Vector(plane.normal[0], plane.normal[1], plane.normal[2]);
+        output.distance = plane.distance;
+        output.type = plane.type;
+        if (!std::isfinite(output.normal.x)
+            || !std::isfinite(output.normal.y)
+            || !std::isfinite(output.normal.z)
+            || !std::isfinite(output.distance)
+            || output.type < 0 || output.type > 5)
+        {
+            world_context.failure_reason =
+                "BSP collision plane is invalid.";
+            common::Logger::Error(world_context.failure_reason);
+            return false;
+        }
+        world_context.collision_planes[index] = output;
+    }
+
+    const std::size_t clipnode_count =
+        static_cast<std::size_t>(clipnodes_lump.file_length)
+        / sizeof(BspClipnodeEntry);
+    world_context.collision_clipnodes.resize(clipnode_count);
+    for (std::size_t index = 0; index < clipnode_count; ++index)
+    {
+        BspClipnodeEntry clipnode{};
+        std::memcpy(
+            &clipnode,
+            bytes->data() + clipnodes_lump.file_offset
+                + index * sizeof(BspClipnodeEntry),
+            sizeof(clipnode));
+        if (clipnode.plane_index < 0
+            || static_cast<std::size_t>(clipnode.plane_index) >= plane_count)
+        {
+            world_context.failure_reason =
+                "BSP collision clipnode references an invalid plane.";
+            common::Logger::Error(world_context.failure_reason);
+            return false;
+        }
+        BspCollisionClipnode output;
+        output.plane_index = clipnode.plane_index;
+        output.children = {
+            static_cast<std::int32_t>(clipnode.children[0]),
+            static_cast<std::int32_t>(clipnode.children[1]),
+        };
+        for (const std::int32_t child : output.children)
+        {
+            if (child >= 0
+                && static_cast<std::size_t>(child) >= clipnode_count)
+            {
+                world_context.failure_reason =
+                    "BSP collision clipnode child is out of bounds.";
+                common::Logger::Error(world_context.failure_reason);
+                return false;
+            }
+        }
+        world_context.collision_clipnodes[index] = output;
+    }
+
+    const std::size_t leaf_count =
+        static_cast<std::size_t>(leafs_lump.file_length)
+        / sizeof(BspLeafEntry);
+    std::vector<std::int32_t> leaf_contents(leaf_count);
+    for (std::size_t index = 0; index < leaf_count; ++index)
+    {
+        BspLeafEntry leaf{};
+        std::memcpy(
+            &leaf,
+            bytes->data() + leafs_lump.file_offset
+                + index * sizeof(BspLeafEntry),
+            sizeof(leaf));
+        if (leaf.contents >= 0)
+        {
+            world_context.failure_reason =
+                "BSP collision leaf has invalid contents.";
+            common::Logger::Error(world_context.failure_reason);
+            return false;
+        }
+        leaf_contents[index] = leaf.contents;
+    }
+
+    const std::size_t node_count =
+        static_cast<std::size_t>(nodes_lump.file_length)
+        / sizeof(BspNodeEntry);
+    world_context.point_hull_nodes.resize(node_count);
+    for (std::size_t index = 0; index < node_count; ++index)
+    {
+        BspNodeEntry node{};
+        std::memcpy(
+            &node,
+            bytes->data() + nodes_lump.file_offset
+                + index * sizeof(BspNodeEntry),
+            sizeof(node));
+        if (node.plane_index < 0
+            || static_cast<std::size_t>(node.plane_index) >= plane_count)
+        {
+            world_context.failure_reason =
+                "BSP point-hull node references an invalid plane.";
+            common::Logger::Error(world_context.failure_reason);
+            return false;
+        }
+        BspCollisionClipnode output;
+        output.plane_index = node.plane_index;
+        for (std::size_t side = 0; side < 2; ++side)
+        {
+            const std::int32_t child = node.children[side];
+            if (child >= 0)
+            {
+                if (static_cast<std::size_t>(child) >= node_count)
+                {
+                    world_context.failure_reason =
+                        "BSP point-hull node child is out of bounds.";
+                    common::Logger::Error(world_context.failure_reason);
+                    return false;
+                }
+                output.children[side] = child;
+            }
+            else
+            {
+                const std::size_t leaf_index =
+                    static_cast<std::size_t>(-child - 1);
+                if (leaf_index >= leaf_contents.size())
+                {
+                    world_context.failure_reason =
+                        "BSP point-hull leaf reference is out of bounds.";
+                    common::Logger::Error(world_context.failure_reason);
+                    return false;
+                }
+                output.children[side] = leaf_contents[leaf_index];
+            }
+        }
+        world_context.point_hull_nodes[index] = output;
+    }
+
+    if (world_context.inline_models.empty())
+    {
+        world_context.failure_reason =
+            "BSP collision world model is missing.";
+        common::Logger::Error(world_context.failure_reason);
+        return false;
+    }
+    const BspInlineModelBounds& world_model =
+        world_context.inline_models.front();
+    if (world_model.headnodes[0] < 0
+        || static_cast<std::size_t>(world_model.headnodes[0])
+            >= world_context.point_hull_nodes.size())
+    {
+        world_context.failure_reason =
+            "BSP point-hull headnode is invalid.";
+        common::Logger::Error(world_context.failure_reason);
+        return false;
+    }
+    for (std::size_t hull = 1; hull < world_model.headnodes.size(); ++hull)
+    {
+        if (world_model.headnodes[hull] < 0
+            || static_cast<std::size_t>(world_model.headnodes[hull])
+                >= world_context.collision_clipnodes.size())
+        {
+            world_context.failure_reason =
+                "BSP player-hull headnode is invalid.";
+            common::Logger::Error(world_context.failure_reason);
+            return false;
+        }
+    }
+    world_context.collision_loaded = true;
     world_context.bsp_loaded = true;
 
     common::Logger::Info("World bootstrap BSP summary:");

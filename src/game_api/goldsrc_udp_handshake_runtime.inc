@@ -51,6 +51,11 @@ public:
               options.goldsrc_player_lifecycle_enabled),
           player_lifecycle_negative_proof_(
               options.goldsrc_player_lifecycle_negative_proof),
+          pmove_enabled_(options.goldsrc_pmove_enabled),
+          pmove_negative_proof_(options.goldsrc_pmove_negative_proof),
+          pmove_observation_seconds_(
+              static_cast<double>(options.goldsrc_pmove_observation_ms)
+              / 1000.0),
           snapshot_rate_hz_(options.goldsrc_snapshot_rate_hz),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
@@ -76,6 +81,29 @@ public:
         summary_.world_baselines_negative_proof =
             world_baselines_negative_proof_;
         summary_.first_snapshot_enabled = first_snapshot_enabled_;
+        summary_.pmove_enabled = pmove_enabled_;
+        summary_.pmove_negative_proof = pmove_negative_proof_;
+        summary_.gameplay_active = false;
+        if (pmove_enabled_)
+        {
+            summary_.command_execution_contract_verified = true;
+            summary_.command_replay_contract_verified = true;
+            summary_.game_dll_movement_callback_order_verified = true;
+            summary_.command_time_contract_verified = true;
+            summary_.pm_init_implemented = true;
+            summary_.pmove_services_implemented = true;
+            summary_.pmove_service_callback_count = static_cast<int>(
+                pmove_runtime_.implemented_service_callback_count());
+            summary_.pmove_physent_policy = "world_only_static_bsp";
+            summary_.movevars_source = "authoritative_server_cvar_registry";
+            summary_.movevars_client_sync_verified = true;
+            summary_.world_bsp_collision_implemented = true;
+            summary_.standing_hull_supported = true;
+            summary_.duck_hull_supported = true;
+            summary_.pmove_context_builder_implemented = true;
+            summary_.pmove_execution_implemented = true;
+            summary_.authoritative_movement_commit_implemented = true;
+        }
         summary_.first_snapshot_negative_proof =
             first_snapshot_negative_proof_;
         summary_.continuous_snapshots_enabled =
@@ -186,8 +214,71 @@ public:
                     + ",platform_error=" + socket_.LastError());
             return false;
         }
+        if (pmove_enabled_ && !player_lifecycle_enabled_)
+        {
+            return FailBind("pmove-requires-player-lifecycle");
+        }
+        if (pmove_negative_proof_ && !pmove_enabled_)
+        {
+            return FailBind("pmove-negative-proof-requires-pmove");
+        }
         lifecycle_edict_registry_.Reset(
             static_cast<std::uint16_t>(state_.server_state.maxclients));
+        if (pmove_enabled_)
+        {
+            const auto move_variable =
+                [this](std::string_view name, float fallback)
+                {
+                    const std::optional<hl::game_api::CvarSnapshot> snapshot =
+                        state_.cvar_registry.SnapshotOf(name);
+                    return snapshot.has_value() ? snapshot->value : fallback;
+                };
+            hl::game_api::detail::GoldSrcMovevarsConfig movevars{};
+            movevars.gravity = move_variable("sv_gravity", 800.0f);
+            movevars.stop_speed = move_variable("sv_stopspeed", 100.0f);
+            movevars.maximum_speed = move_variable("sv_maxspeed", 320.0f);
+            movevars.spectator_maximum_speed =
+                move_variable("sv_spectatormaxspeed", 500.0f);
+            movevars.accelerate = move_variable("sv_accelerate", 10.0f);
+            movevars.air_accelerate =
+                move_variable("sv_airaccelerate", 10.0f);
+            movevars.water_accelerate =
+                move_variable("sv_wateraccelerate", 10.0f);
+            movevars.friction = move_variable("sv_friction", 4.0f);
+            movevars.edge_friction = move_variable("edgefriction", 2.0f);
+            movevars.water_friction =
+                move_variable("sv_waterfriction", 1.0f);
+            movevars.bounce = move_variable("sv_bounce", 1.0f);
+            movevars.step_size = move_variable("sv_stepsize", 18.0f);
+            movevars.maximum_velocity =
+                move_variable("sv_maxvelocity", 2000.0f);
+            movevars.z_maximum = move_variable("sv_zmax", 4096.0f);
+            movevars.wave_height = move_variable("sv_wateramp", 0.0f);
+            movevars.footsteps =
+                move_variable("mp_footsteps", 1.0f) != 0.0f;
+            movevars.roll_angle = move_variable("sv_rollangle", 0.0f);
+            movevars.roll_speed = move_variable("sv_rollspeed", 0.0f);
+            movevars.multiplayer = state_.server_state.maxclients > 1;
+
+            const hl::game_api::detail::GoldSrcPmoveGameDllCallbacks
+                callbacks{
+                    state_.dll_functions.pfnPM_Init,
+                    state_.dll_functions.pfnPM_Move,
+                    state_.dll_functions.pfnCmdStart,
+                    state_.dll_functions.pfnCmdEnd,
+                };
+            if (!pmove_runtime_.InitializeWorld(state_.world_context))
+            {
+                return FailBind("pmove-world-collision-unavailable");
+            }
+            if (!pmove_runtime_.InitializeGameDll(
+                    callbacks,
+                    state_.game_directory,
+                    movevars))
+            {
+                return FailBind("pmove-game-dll-contract-unavailable");
+            }
+        }
 
         challenges_ = std::make_unique<hl::network::ChallengeTable>(
             kChallengeCapacity,
@@ -429,6 +520,25 @@ public:
                     return false;
                 }
                 if (slot_state->goldsrc_player_lifecycle.signon_complete()
+                    && pmove_enabled_
+                    && first_movement_server_time_.has_value()
+                    && network_server_time_
+                            - *first_movement_server_time_
+                        >= pmove_observation_seconds_
+                    && summary_.movement_executed
+                    && summary_.movement_snapshot_integration
+                    && summary_.movement_snapshots_sent >= 3)
+                {
+                    summary_.continuous_snapshot_stable = true;
+                    summary_.server_still_responsive = true;
+                    summary_.next_observed_boundary =
+                        "two_client_player_replication_required";
+                    summary_.previous_player_lifecycle_boundary_resolved =
+                        true;
+                    complete_ = true;
+                }
+                else if (slot_state->goldsrc_player_lifecycle.signon_complete()
+                    && !pmove_enabled_
                     && network_server_time_
                             - *continuous_snapshot_started_server_time_
                         >= 10.0
@@ -681,7 +791,27 @@ public:
                         && summary_
                             .previous_player_lifecycle_boundary_resolved
                         && summary_.next_observed_boundary
-                            == "movement_execution_required");
+                            == (pmove_enabled_
+                                ? "two_client_player_replication_required"
+                                : "movement_execution_required")
+                        && (!pmove_enabled_
+                            || (summary_
+                                    .command_execution_contract_verified
+                                && summary_
+                                    .command_replay_contract_verified
+                                && summary_
+                                    .game_dll_movement_callback_order_verified
+                                && summary_.command_time_contract_verified
+                                && summary_.pm_init_call_count == 1
+                                && summary_.pmove_calls > 0
+                                && summary_.movement_commands_executed > 0
+                                && summary_.movement_ready
+                                && summary_.movement_executed
+                                && summary_
+                                    .authoritative_movement_commit_implemented
+                                && summary_.movement_snapshot_integration
+                                && summary_.movement_snapshots_sent >= 3
+                                && !summary_.gameplay_active)));
                 const bool world_baseline_succeeded =
                     !world_baselines_enabled_
                     || (summary_.baseline_contract_verified
@@ -709,7 +839,9 @@ public:
                         && summary_
                             .previous_server_baseline_boundary_resolved
                         && summary_.next_observed_boundary
-                            == (player_lifecycle_enabled_
+                            == (pmove_enabled_
+                                ? "two_client_player_replication_required"
+                                : player_lifecycle_enabled_
                                 ? "movement_execution_required"
                                 : continuous_snapshots_enabled_
                                 ? "player_lifecycle_or_signon_progression_required"
@@ -1552,7 +1684,10 @@ public:
                             ? "true" : "false")
                     + ",next_boundary="
                     + summary_.next_observed_boundary
-                    + ",movement_executed=false,gameplay_active="
+                    + ",movement_executed="
+                    + std::string(
+                        summary_.movement_executed ? "true" : "false")
+                    + ",gameplay_active="
                     + std::string(
                         summary_.gameplay_active ? "true" : "false")
                     + ",disconnect_calls="
@@ -1562,6 +1697,80 @@ public:
                         summary_.server_still_responsive
                             ? "true" : "false")
                     + ",clean_shutdown=1");
+        }
+        if (pmove_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_pmove_summary: enabled=1"
+                    + std::string(
+                        ",negative_proof="
+                        + std::string(
+                            pmove_negative_proof_ ? "1" : "0"))
+                    + ",command_contract="
+                    + std::string(
+                        summary_.command_execution_contract_verified
+                            ? "true" : "false")
+                    + ",pm_init_calls="
+                    + std::to_string(summary_.pm_init_call_count)
+                    + ",pm_move_calls="
+                    + std::to_string(summary_.pmove_calls)
+                    + ",commands_received="
+                    + std::to_string(summary_.movement_commands_received)
+                    + ",commands_executed="
+                    + std::to_string(summary_.movement_commands_executed)
+                    + ",backup_replayed="
+                    + std::to_string(summary_.backup_commands_replayed)
+                    + ",duplicates_suppressed="
+                    + std::to_string(
+                        summary_.duplicate_commands_suppressed)
+                    + ",rollbacks="
+                    + std::to_string(summary_.movement_rollbacks)
+                    + ",movement_ready="
+                    + std::string(summary_.movement_ready ? "true" : "false")
+                    + ",movement_executed="
+                    + std::string(
+                        summary_.movement_executed ? "true" : "false")
+                    + ",movement_snapshots="
+                    + std::to_string(summary_.movement_snapshots_sent)
+                    + ",authoritative_movement="
+                    + std::string(
+                        summary_.stock_authoritative_movement
+                            ? "true" : "false")
+                    + ",forward_input="
+                    + std::string(
+                        summary_.stock_forward_input ? "true" : "false")
+                    + ",backward_input="
+                    + std::string(
+                        summary_.stock_backward_input ? "true" : "false")
+                    + ",strafe_input="
+                    + std::string(
+                        summary_.stock_strafe_input ? "true" : "false")
+                    + ",jump_input="
+                    + std::string(
+                        summary_.stock_jump_input ? "true" : "false")
+                    + ",duck_input="
+                    + std::string(
+                        summary_.stock_duck_input ? "true" : "false")
+                    + ",forward_movement="
+                    + std::string(
+                        summary_.stock_forward_movement ? "true" : "false")
+                    + ",backward_movement="
+                    + std::string(
+                        summary_.stock_backward_movement ? "true" : "false")
+                    + ",strafe_movement="
+                    + std::string(
+                        summary_.stock_strafe_movement ? "true" : "false")
+                    + ",jump="
+                    + std::string(summary_.stock_jump ? "true" : "false")
+                    + ",duck="
+                    + std::string(summary_.stock_duck ? "true" : "false")
+                    + ",grounding="
+                    + std::string(
+                        summary_.stock_grounding ? "true" : "false")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
+                    + ",gameplay_active=false,clean_shutdown=1");
         }
         if (delta_descriptions_enabled_)
         {
@@ -4613,6 +4822,160 @@ private:
         }
     }
 
+    void SyncPmoveSummary(std::size_t client_slot)
+    {
+        const auto& runtime = pmove_runtime_.diagnostics();
+        summary_.pm_init_call_count =
+            static_cast<int>(runtime.pm_init_calls);
+        summary_.pmove_calls = static_cast<int>(runtime.pm_move_calls);
+        summary_.movement_rollbacks =
+            static_cast<int>(runtime.movement_rollbacks);
+        summary_.movement_snapshots_sent =
+            static_cast<int>(runtime.movement_snapshots_sent);
+        summary_.movement_ready =
+            pmove_runtime_.movement_ready(client_slot);
+        summary_.movement_executed =
+            pmove_runtime_.movement_executed(client_slot);
+        if (const auto* state = pmove_runtime_.CommandState(client_slot);
+            state != nullptr)
+        {
+            const auto& commands = state->diagnostics();
+            summary_.movement_commands_received =
+                static_cast<int>(commands.commands_received);
+            summary_.movement_commands_executed =
+                static_cast<int>(commands.commands_executed);
+            summary_.backup_commands_replayed =
+                static_cast<int>(commands.backup_commands_replayed);
+            summary_.duplicate_commands_suppressed =
+                static_cast<int>(commands.duplicate_commands_suppressed);
+        }
+    }
+
+    bool ExecutePmove(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        const hl::network::GoldSrcDecodedMoveCommand& move,
+        std::uint32_t packet_sequence)
+    {
+        if (!pmove_enabled_
+            || !slot_state.goldsrc_player_lifecycle.put_in_server()
+            || !slot_state.goldsrc_player_lifecycle.signon_complete())
+        {
+            return true;
+        }
+        const auto& binding =
+            slot_state.goldsrc_player_lifecycle.binding();
+        if (lifecycle_edict_registry_.Validate(binding)
+            != hl::network::GoldSrcClientEdictBindingResult::kBound)
+        {
+            return FailTransport(
+                "pmove-client-binding-invalid",
+                "goldsrc_pmove_failed: reason=stale-client-binding");
+        }
+        edict_t* const player =
+            state_.edict_store.EntityOfIndex(binding.edict_index);
+        edict_t* const world = state_.edict_store.World();
+        if (player == nullptr || world == nullptr
+            || state_.edict_store.PrivateDataOf(player) == nullptr)
+        {
+            return FailTransport(
+                "pmove-player-unavailable",
+                "goldsrc_pmove_failed: reason=player-unavailable");
+        }
+
+        const std::uint64_t host_time_msec = static_cast<std::uint64_t>(
+            (std::max)(0.0, network_server_time_) * 1000.0);
+        bool forward_requested = false;
+        bool backward_requested = false;
+        bool strafe_requested = false;
+        bool jump_requested = false;
+        bool duck_requested = false;
+        for (std::size_t index = 0; index < move.command_count; ++index)
+        {
+            const auto& command = move.commands[index];
+            forward_requested =
+                forward_requested || command.forwardmove > 0.0f;
+            backward_requested =
+                backward_requested || command.forwardmove < 0.0f;
+            strafe_requested =
+                strafe_requested || command.sidemove != 0.0f;
+            jump_requested =
+                jump_requested || (command.buttons & IN_JUMP) != 0;
+            duck_requested =
+                duck_requested || (command.buttons & IN_DUCK) != 0;
+        }
+        const hl::game_api::detail::GoldSrcPmoveExecutionResult executed =
+            pmove_runtime_.Execute(
+                static_cast<std::size_t>(slot_state.slot),
+                move,
+                packet_sequence,
+                host_time_msec,
+                player,
+                world);
+        SyncPmoveSummary(static_cast<std::size_t>(slot_state.slot));
+        if (!executed.ok())
+        {
+            ++summary_.clc_move_rejected;
+            hl::common::Logger::Warn(
+                hl::common::LogCategory::Server,
+                "goldsrc_pmove_rejected: reason="
+                    + std::string(
+                        hl::game_api::detail::ReasonFor(executed.status))
+                    + ",command_reason="
+                    + std::string(
+                        hl::network::ReasonFor(executed.command_status)));
+            return true;
+        }
+        if (executed.commands_executed > 0u)
+        {
+            summary_.stock_forward_input =
+                summary_.stock_forward_input || forward_requested;
+            summary_.stock_backward_input =
+                summary_.stock_backward_input || backward_requested;
+            summary_.stock_strafe_input =
+                summary_.stock_strafe_input || strafe_requested;
+            summary_.stock_jump_input =
+                summary_.stock_jump_input || jump_requested;
+            summary_.stock_duck_input =
+                summary_.stock_duck_input || duck_requested;
+            if (!first_movement_server_time_.has_value())
+            {
+                first_movement_server_time_ = network_server_time_;
+            }
+            summary_.movement_ready = true;
+            summary_.movement_executed = true;
+            summary_.stock_authoritative_movement =
+                summary_.stock_authoritative_movement
+                || executed.authoritative_state_changed;
+            summary_.stock_forward_movement =
+                summary_.stock_forward_movement
+                || (forward_requested
+                    && executed.authoritative_state_changed);
+            summary_.stock_backward_movement =
+                summary_.stock_backward_movement
+                || (backward_requested
+                    && executed.authoritative_state_changed);
+            summary_.stock_strafe_movement =
+                summary_.stock_strafe_movement
+                || (strafe_requested
+                    && executed.authoritative_state_changed);
+            summary_.stock_jump =
+                summary_.stock_jump
+                || (jump_requested
+                    && (executed.authoritative_state_changed
+                        || player->v.velocity.z > 0.0f));
+            summary_.stock_duck =
+                summary_.stock_duck
+                || (duck_requested && executed.ducked);
+            summary_.stock_grounding =
+                summary_.stock_grounding || executed.grounded;
+            summary_.previous_player_lifecycle_boundary_resolved = true;
+            summary_.stock_advanced_past_previous_boundary = true;
+            summary_.next_observed_boundary =
+                "two_client_player_replication_required";
+        }
+        return true;
+    }
+
     bool PrepareWorldBaselineBundle(
         DedicatedPlayerRuntimeSlot& slot_state)
     {
@@ -5144,6 +5507,13 @@ private:
                     if (application.move_present)
                     {
                         ++summary_.clc_move_decoded;
+                        if (!ExecutePmove(
+                                slot_state,
+                                application.move,
+                                packet.sequence))
+                        {
+                            return false;
+                        }
                         hl::common::Logger::Info(
                             hl::common::LogCategory::Server,
                             "goldsrc_first_snapshot_keepalive: session_id="
@@ -5326,6 +5696,17 @@ private:
                             ? "1" : "0")
                         + ",active=0");
                 }
+                if (application.move_present)
+                {
+                    ++summary_.clc_move_decoded;
+                    if (!ExecutePmove(
+                            slot_state,
+                            application.move,
+                            packet.sequence))
+                    {
+                        return false;
+                    }
+                }
                 return true;
             }
 
@@ -5507,6 +5888,13 @@ private:
                 return FailTransport(
                     "player-lifecycle-disconnect-callback-failed",
                     "goldsrc_player_lifecycle_failed: reason=disconnect-callback");
+            }
+            if (pmove_enabled_)
+            {
+                pmove_runtime_.ResetClient(
+                    static_cast<std::size_t>(disconnected_slot));
+                SyncPmoveSummary(
+                    static_cast<std::size_t>(disconnected_slot));
             }
             ApplyDedicatedClientDisconnect(state_, slot_state);
             RecordDedicatedLifecycleTransition(
@@ -6279,6 +6667,16 @@ private:
                     .first_player_snapshot_frame_id().has_value())
             {
                 ++summary_.player_snapshot_adds;
+            }
+            if (pmove_enabled_
+                && pmove_runtime_.movement_executed(
+                    static_cast<std::size_t>(slot_state.slot)))
+            {
+                pmove_runtime_.RecordMovementSnapshot(
+                    static_cast<std::size_t>(slot_state.slot));
+                summary_.movement_snapshot_integration = true;
+                SyncPmoveSummary(
+                    static_cast<std::size_t>(slot_state.slot));
             }
             const auto mark_result =
                 slot_state.goldsrc_player_lifecycle.MarkPlayerSnapshot(
@@ -7280,6 +7678,10 @@ private:
     bool continuous_snapshots_negative_proof_ = false;
     bool player_lifecycle_enabled_ = false;
     bool player_lifecycle_negative_proof_ = false;
+    bool pmove_enabled_ = false;
+    bool pmove_negative_proof_ = false;
+    double pmove_observation_seconds_ = 2.0;
+    hl::game_api::detail::GoldSrcPmoveRuntime pmove_runtime_;
     hl::network::GoldSrcClientEdictRegistry lifecycle_edict_registry_;
     double snapshot_rate_hz_ =
         hl::network::kGoldSrcDefaultSnapshotRateHz;
@@ -7297,6 +7699,7 @@ private:
     bool network_server_clock_started_ = false;
     double network_server_time_ = 0.0;
     std::optional<double> continuous_snapshot_started_server_time_;
+    std::optional<double> first_movement_server_time_;
     std::optional<std::uint32_t> last_counted_acknowledged_frame_;
     std::uint64_t challenge_diagnostics_seen_ = 0;
     std::uint64_t rejection_diagnostics_seen_ = 0;

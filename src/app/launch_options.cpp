@@ -1545,6 +1545,43 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-pmove"
+            || argument == L"--goldsrc-pmove-negative-proof")
+        {
+            result.options.goldsrc_udp_handshake_enabled = true;
+            result.options.goldsrc_netchan_enabled = true;
+            result.options.goldsrc_serverinfo_enabled = true;
+            result.options.goldsrc_delta_descriptions_enabled = true;
+            result.options.goldsrc_resource_manifest_enabled = true;
+            result.options.goldsrc_world_baselines_enabled = true;
+            result.options.goldsrc_first_snapshot_enabled = true;
+            result.options.goldsrc_continuous_snapshots_enabled = true;
+            result.options.goldsrc_player_lifecycle_enabled = true;
+            result.options.goldsrc_pmove_enabled = true;
+            result.options.goldsrc_pmove_negative_proof =
+                argument == L"--goldsrc-pmove-negative-proof";
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_pmove_observation_prefix =
+            L"--goldsrc-pmove-observation-ms=";
+        if (StartsWith(argument, goldsrc_pmove_observation_prefix))
+        {
+            int duration = 0;
+            if (!TryParseInteger(
+                    argument.substr(
+                        goldsrc_pmove_observation_prefix.size()),
+                    &duration)
+                || duration < 2000 || duration > 60000)
+            {
+                result.error_message =
+                    L"--goldsrc-pmove-observation-ms must be within 2000..60000.";
+                return result;
+            }
+            result.options.goldsrc_pmove_observation_ms = duration;
+            continue;
+        }
+
         constexpr std::wstring_view goldsrc_snapshot_rate_prefix =
             L"--goldsrc-snapshot-rate-hz=";
         if (StartsWith(argument, goldsrc_snapshot_rate_prefix))
@@ -20174,6 +20211,14 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options.goldsrc_continuous_snapshots_enabled = true;
     }
+    if (result.options.goldsrc_pmove_negative_proof)
+    {
+        result.options.goldsrc_pmove_enabled = true;
+    }
+    if (result.options.goldsrc_pmove_enabled)
+    {
+        result.options.goldsrc_player_lifecycle_enabled = true;
+    }
     if (result.options.goldsrc_first_snapshot_enabled)
     {
         result.options.goldsrc_world_baselines_enabled = true;
@@ -20288,7 +20333,10 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --goldsrc-continuous-snapshots Stream bounded stock-compatible full and delta snapshots\n"
              L"  --goldsrc-continuous-snapshots-negative-proof Keep streaming for loss, wrap, and reset validation\n"
              L"  --goldsrc-player-lifecycle Bind a deterministic client edict and call the real Game DLL player lifecycle\n"
-             L"  --goldsrc-player-lifecycle-negative-proof Exercise bounded callback rejection and stale-session gates\n"
+              L"  --goldsrc-player-lifecycle-negative-proof Exercise bounded callback rejection and stale-session gates\n"
+              L"  --goldsrc-pmove                 Execute validated movement through the loaded Game DLL PM_Move callback\n"
+              L"  --goldsrc-pmove-negative-proof  Exercise bounded movement replay, validation, and rollback gates\n"
+              L"  --goldsrc-pmove-observation-ms=<2000..60000> Set the bounded movement observation duration\n"
              L"  --goldsrc-snapshot-rate-hz=<10..30> Set the bounded continuous snapshot rate (default 20)\n"
              L"  --ip, -ip <IPv4>              Exact dedicated UDP bind address (default: 0.0.0.0)\n"
              L"  --port, -port <1..65535>      Exact dedicated UDP bind port (default: 27015)\n"

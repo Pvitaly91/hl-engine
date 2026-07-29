@@ -5,6 +5,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <string>
+#include <vector>
 
 #include "entity_text_block.h"
 #include "filesystem/file_system.h"
@@ -30,7 +31,21 @@ struct BspInlineModelBounds
     Vector mins = Vector(0.0f, 0.0f, 0.0f);
     Vector maxs = Vector(0.0f, 0.0f, 0.0f);
     Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    std::array<std::int32_t, 4> headnodes{};
     bool valid = false;
+};
+
+struct BspCollisionPlane
+{
+    Vector normal = Vector(0.0f, 0.0f, 0.0f);
+    float distance = 0.0f;
+    std::int32_t type = 0;
+};
+
+struct BspCollisionClipnode
+{
+    std::int32_t plane_index = 0;
+    std::array<std::int32_t, 2> children{};
 };
 
 struct WorldModelContext
@@ -44,6 +59,10 @@ struct WorldModelContext
     std::uintmax_t bsp_file_size = 0;
     std::array<BspLumpMetadata, kBspHeaderLumpCount> lumps{};
     std::vector<BspInlineModelBounds> inline_models;
+    std::vector<BspCollisionPlane> collision_planes;
+    std::vector<BspCollisionClipnode> collision_clipnodes;
+    std::vector<BspCollisionClipnode> point_hull_nodes;
+    bool collision_loaded = false;
     EntityTextBlockPreview entities;
     int world_model_index = 0;
     int world_edict_index = -1;

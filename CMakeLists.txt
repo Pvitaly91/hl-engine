@@ -42,6 +42,7 @@ add_library(goldsrc_network STATIC
     include/network/goldsrc_fragmentation.h
     include/network/goldsrc_netchan.h
     include/network/goldsrc_player_lifecycle.h
+    include/network/goldsrc_pmove.h
     include/network/goldsrc_resource_manifest.h
     include/network/goldsrc_signon.h
     include/network/goldsrc_snapshot.h
@@ -55,6 +56,7 @@ add_library(goldsrc_network STATIC
     src/network/goldsrc_fragmentation.cpp
     src/network/goldsrc_netchan.cpp
     src/network/goldsrc_player_lifecycle.cpp
+    src/network/goldsrc_pmove.cpp
     src/network/goldsrc_resource_manifest.cpp
     src/network/goldsrc_signon.cpp
     src/network/goldsrc_snapshot.cpp
@@ -73,6 +75,7 @@ add_library(game_api STATIC
     include/game_api/dll_module.h
     include/game_api/dll_search_directories.h
     include/game_api/game_module_loader.h
+    include/game_api/goldsrc_pmove_runtime.h
     include/game_api/hl_server_module.h
     include/game_api/server_command_buffer.h
     include/game_api/server_command_dispatcher.h
@@ -112,6 +115,7 @@ add_library(game_api STATIC
     src/game_api/game_module_loader.cpp
     src/game_api/goldsrc_delta_runtime_registry.cpp
     src/game_api/goldsrc_delta_runtime_registry.h
+    src/game_api/goldsrc_pmove_runtime.cpp
     src/game_api/goldsrc_udp_handshake_runtime.inc
     src/game_api/hl_server_module.cpp
     src/game_api/scripted_logic_tracker.cpp
@@ -446,6 +450,38 @@ add_custom_target(goldsrc_player_lifecycle_unit_tests
 set_target_properties(
     goldsrc_player_lifecycle_unit_tests
     PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_pmove_tests
+    src/tests/goldsrc_pmove_tests.cpp
+)
+target_include_directories(goldsrc_pmove_tests
+    PRIVATE
+        "${HLHOST_INCLUDE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/game_api"
+        "${HLSDK_ROOT_DIR}/common"
+        "${HLSDK_ROOT_DIR}/dlls"
+        "${HLSDK_ROOT_DIR}/engine"
+        "${HLSDK_ROOT_DIR}/pm_shared"
+        "${HLSDK_ROOT_DIR}/public"
+)
+target_link_libraries(goldsrc_pmove_tests
+    PRIVATE game_api goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_pmove_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_pmove_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(goldsrc_pmove_tests PROPERTIES FOLDER "host/tests")
+add_test(NAME goldsrc_pmove_tests COMMAND goldsrc_pmove_tests)
+
+add_custom_target(goldsrc_pmove_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_pmove_tests>"
+    DEPENDS goldsrc_pmove_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc PM_Move command, replay, collision, and rollback tests"
+)
+set_target_properties(
+    goldsrc_pmove_unit_tests PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

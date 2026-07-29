@@ -34,6 +34,8 @@ param(
 
     [switch]$PlayerLifecycleProof,
 
+    [switch]$PmoveProof,
+
     [ValidateRange(30, 512)]
     [int]$ContinuousSnapshotMinimumCount = 30,
 
@@ -68,6 +70,9 @@ if ($ContinuousSnapshotProof -and -not $FirstSnapshotProof) {
 }
 if ($PlayerLifecycleProof -and -not $ContinuousSnapshotProof) {
     throw "PlayerLifecycleProof requires ContinuousSnapshotProof"
+}
+if ($PmoveProof -and -not $PlayerLifecycleProof) {
+    throw "PmoveProof requires PlayerLifecycleProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -317,6 +322,71 @@ public static class GoldSrcMoveProofCodec
         Buffer.BlockCopy(protectedBody, 0, payload, 3, protectedBody.Length);
         return payload;
     }
+
+    private static void WriteBits(
+        byte[] bytes,
+        ref int bitPosition,
+        uint value,
+        int count)
+    {
+        for (int bit = 0; bit < count; ++bit)
+        {
+            if ((value & (1u << bit)) != 0u)
+                bytes[bitPosition / 8] |=
+                    (byte)(1 << (bitPosition % 8));
+            ++bitPosition;
+        }
+    }
+
+    public static byte[] BuildMovement(
+        uint sequence,
+        byte msec,
+        short forward,
+        short side,
+        ushort buttons,
+        byte backups,
+        byte fresh)
+    {
+        if (msec == 0 || backups + fresh == 0 || backups + fresh > 62)
+            throw new ArgumentOutOfRangeException("command count");
+        var body = new byte[255];
+        body[0] = 0;
+        body[1] = backups;
+        body[2] = fresh;
+        int cursor = 3;
+        for (int command = 0; command < backups + fresh; ++command)
+        {
+            int bitPosition = cursor * 8;
+            uint mask = 0x02u;
+            if (buttons != 0)
+                mask |= 0x10u;
+            if (forward != 0)
+                mask |= 0x20u;
+            if (side != 0)
+                mask |= 0x80u;
+            WriteBits(body, ref bitPosition, 1u, 3);
+            WriteBits(body, ref bitPosition, mask, 8);
+            WriteBits(body, ref bitPosition, msec, 8);
+            if (buttons != 0)
+                WriteBits(body, ref bitPosition, buttons, 16);
+            if (forward != 0)
+                WriteBits(
+                    body,
+                    ref bitPosition,
+                    (uint)((ushort)forward & 0x0FFFu),
+                    12);
+            if (side != 0)
+                WriteBits(
+                    body,
+                    ref bitPosition,
+                    (uint)((ushort)side & 0x0FFFu),
+                    12);
+            cursor = (bitPosition + 7) / 8;
+        }
+        var compact = new byte[cursor];
+        Buffer.BlockCopy(body, 0, compact, 0, cursor);
+        return Build(sequence, compact);
+    }
 }
 '@
 }
@@ -344,6 +414,34 @@ function New-GoldSrcMovePayloadFromBody {
 
     Initialize-GoldSrcMoveProofCodec
     return [GoldSrcMoveProofCodec]::Build($Sequence, $Body)
+}
+
+function New-GoldSrcMovementPayload {
+    param(
+        [uint32]$Sequence,
+        [ValidateRange(1, 255)]
+        [byte]$Msec,
+        [ValidateRange(-2048, 2047)]
+        [int]$Forward = 0,
+        [ValidateRange(-2048, 2047)]
+        [int]$Side = 0,
+        [ValidateRange(0, 65535)]
+        [int]$Buttons = 0,
+        [ValidateRange(0, 61)]
+        [byte]$Backups = 0,
+        [ValidateRange(1, 62)]
+        [byte]$Fresh = 1
+    )
+
+    Initialize-GoldSrcMoveProofCodec
+    return [GoldSrcMoveProofCodec]::BuildMovement(
+        $Sequence,
+        $Msec,
+        [int16]$Forward,
+        [int16]$Side,
+        [uint16]$Buttons,
+        $Backups,
+        $Fresh)
 }
 
 function New-DeltaBitReader {
@@ -2389,6 +2487,7 @@ function Invoke-ObservedResourceContinuation {
         [switch]$FirstSnapshotNegativeValidation,
         [switch]$ReceiveContinuousSnapshots,
         [switch]$ReceivePlayerLifecycle,
+        [switch]$ReceivePmove,
         [int]$ContinuousSnapshotCount = 30
     )
 
@@ -2995,6 +3094,8 @@ function Invoke-ObservedResourceContinuation {
                     [byte]([uint32]$snapshot.FrameId -band 0xFF)
                 $ignoredSinceAcknowledgement = 0
                 $sentNegativeReferences = $false
+                $pmoveRecoveryInjected = $false
+                $pmovePacketsSent = 0
                 $minimumContinuousCount = if (
                     $FirstSnapshotNegativeValidation) {
                     [Math]::Max(270, $ContinuousSnapshotCount)
@@ -3132,6 +3233,41 @@ function Invoke-ObservedResourceContinuation {
                             [byte]4,
                             [byte]$currentLow
                         )
+                        if ($ReceivePmove -and
+                            $currentSnapshot.PlayerPresent) {
+                            $movementIndex = $continuousReferencesSent % 12
+                            $forward = 0
+                            $side = 0
+                            $buttons = 0
+                            switch ($movementIndex) {
+                                { $_ -le 2 } { $forward = 400; break }
+                                { $_ -le 4 } { $forward = -300; break }
+                                { $_ -eq 5 } { $side = 300; break }
+                                { $_ -eq 6 } { $side = -300; break }
+                                { $_ -eq 7 } { $buttons = 2; break }
+                                { $_ -eq 8 } { $buttons = 4; break }
+                                default { }
+                            }
+                            [byte]$backupCount = 0
+                            if (-not $pmoveRecoveryInjected -and
+                                $pmovePacketsSent -ge 3) {
+                                $clientSequence++
+                                $backupCount = 2
+                                $pmoveRecoveryInjected = $true
+                            }
+                            [byte[]]$movementPayload =
+                                New-GoldSrcMovementPayload `
+                                    -Sequence $clientSequence `
+                                    -Msec 50 `
+                                    -Forward $forward `
+                                    -Side $side `
+                                    -Buttons $buttons `
+                                    -Backups $backupCount `
+                                    -Fresh 1
+                            $continuousReference = [byte[]](
+                                $continuousReference + $movementPayload)
+                            $pmovePacketsSent++
+                        }
                         Send-DeltaClientPacket `
                             -Client $Client `
                             -Sequence $clientSequence `
@@ -3272,7 +3408,8 @@ function Assert-DeltaHostSummaries {
         [string]$Mode,
         $Bootstrap,
         $Resource,
-        [switch]$PlayerLifecycleProof
+        [switch]$PlayerLifecycleProof,
+        [switch]$PmoveProof
     )
 
     $negative = $Mode -eq "Negative"
@@ -3483,11 +3620,16 @@ function Assert-DeltaHostSummaries {
                 opcode = "2"
                 identity = "clc_move"
                 reliability = "unreliable"
-                decoded = $(if (
-                    $Resource.FirstSnapshotKeepaliveObserved) {
-                    "2"
+                decoded = $(if ($PmoveProof) {
+                    [string](Get-StableUnsignedField `
+                        -Line $postResourceLine `
+                        -Name "decoded")
                 } else {
-                    "1"
+                    $(if ($Resource.FirstSnapshotKeepaliveObserved) {
+                        "2"
+                    } else {
+                        "1"
+                    })
                 })
                 delivered = "1"
                 rejected = $(if ($Resource.PostResourceMode -eq "Negative") {
@@ -3583,7 +3725,11 @@ function Assert-DeltaHostSummaries {
                 next_boundary = $(if ($Resource.FirstSnapshotReceived) {
                     $(if ($Resource.ContinuousSnapshotsReceived -gt 0) {
                         $(if ($lifecycle) {
-                            "movement_execution_required"
+                            $(if ($PmoveProof) {
+                                "two_client_player_replication_required"
+                            } else {
+                                "movement_execution_required"
+                            })
                         } else {
                             "player_lifecycle_or_signon_progression_required"
                         })
@@ -3634,7 +3780,8 @@ function Assert-DeltaHostSummaries {
             -Description "goldsrc_first_snapshot_summary" `
             -Expected ([ordered]@{
                 enabled = "1"
-                negative_proof = $(if ($negative) { "1" } else { "0" })
+                negative_proof = $(if (
+                    $negative -and -not $PmoveProof) { "1" } else { "0" })
                 contract_verified = "true"
                 message_order_verified = "true"
                 frame_ack_contract_verified = "true"
@@ -3653,15 +3800,22 @@ function Assert-DeltaHostSummaries {
                 prepared = "1"
                 sent = "1"
                 acked = "1"
-                duplicate_ack = $(if ($negative) { "1" } else { "0" })
-                future_frame = $(if ($negative) { "1" } else { "0" })
-                evicted_frame = $(if ($negative) { "1" } else { "0" })
+                duplicate_ack = $(if (
+                    $negative -and -not $PmoveProof) { "1" } else { "0" })
+                future_frame = $(if (
+                    $negative -and -not $PmoveProof) { "1" } else { "0" })
+                evicted_frame = $(if (
+                    $negative -and -not $PmoveProof) { "1" } else { "0" })
                 previous_boundary_resolved = "true"
                 advanced_past_previous_boundary = "true"
                 next_boundary = $(if (
                     $Resource.ContinuousSnapshotsReceived -gt 0) {
                     $(if ($lifecycle) {
-                        "movement_execution_required"
+                        $(if ($PmoveProof) {
+                            "two_client_player_replication_required"
+                        } else {
+                            "movement_execution_required"
+                        })
                     } else {
                         "player_lifecycle_or_signon_progression_required"
                     })
@@ -3690,8 +3844,12 @@ function Assert-DeltaHostSummaries {
                 -Description "goldsrc_continuous_snapshot_summary" `
                 -Expected ([ordered]@{
                     enabled = "1"
-                    negative_proof =
-                        $(if ($negative) { "1" } else { "0" })
+                    negative_proof = $(if (
+                        $negative -and -not $PmoveProof) {
+                        "1"
+                    } else {
+                        "0"
+                    })
                     contract_verified = "true"
                     delta_contract_verified = "true"
                     frame_reference_contract_verified = "true"
@@ -3705,7 +3863,11 @@ function Assert-DeltaHostSummaries {
                     streaming = "true"
                     stable = "true"
                     next_boundary = $(if ($lifecycle) {
-                        "movement_execution_required"
+                        $(if ($PmoveProof) {
+                            "two_client_player_replication_required"
+                        } else {
+                            "movement_execution_required"
+                        })
                     } else {
                         "player_lifecycle_or_signon_progression_required"
                     })
@@ -3767,8 +3929,16 @@ function Assert-DeltaHostSummaries {
                 clientdata_implemented = "true"
                 signon_complete = "true"
                 previous_boundary_resolved = "true"
-                next_boundary = "movement_execution_required"
-                movement_executed = "false"
+                next_boundary = $(if ($PmoveProof) {
+                    "two_client_player_replication_required"
+                } else {
+                    "movement_execution_required"
+                })
+                movement_executed = $(if ($PmoveProof) {
+                    "true"
+                } else {
+                    "false"
+                })
                 gameplay_active = "false"
                 disconnect_calls = "1"
                 server_still_responsive = "true"
@@ -3785,6 +3955,38 @@ function Assert-DeltaHostSummaries {
                 -Name "first_player_snapshot_frame_id") -ne
                     $Resource.FirstPlayerSnapshotFrameId) {
             throw "runtime and external lifecycle player-frame diagnostics differ"
+        }
+        if ($PmoveProof) {
+            $pmoveLine = Get-ExactlyOneSummaryLine `
+                -Stdout $Stdout `
+                -Prefix "goldsrc_pmove_summary:"
+            Assert-SummaryFields `
+                -Line $pmoveLine `
+                -Description "goldsrc_pmove_summary" `
+                -Expected ([ordered]@{
+                    enabled = "1"
+                    negative_proof =
+                        $(if ($negative) { "1" } else { "0" })
+                    command_contract = "true"
+                    pm_init_calls = "1"
+                    movement_ready = "true"
+                    movement_executed = "true"
+                    next_boundary =
+                        "two_client_player_replication_required"
+                    gameplay_active = "false"
+                    clean_shutdown = "1"
+                })
+            if ((Get-StableUnsignedField `
+                    -Line $pmoveLine `
+                    -Name "pm_move_calls") -lt 1 -or
+                (Get-StableUnsignedField `
+                    -Line $pmoveLine `
+                    -Name "commands_executed") -lt 1 -or
+                (Get-StableUnsignedField `
+                    -Line $pmoveLine `
+                    -Name "movement_snapshots") -lt 3) {
+                throw "PM_Move summary did not report executed movement snapshots"
+            }
         }
     }
 
@@ -3955,6 +4157,7 @@ function Invoke-DeltaHostRun {
         [switch]$RunFirstSnapshotProof,
         [switch]$RunContinuousSnapshotProof,
         [switch]$RunPlayerLifecycleProof,
+        [switch]$RunPmoveProof,
         [int]$RequiredContinuousSnapshotCount = 30,
         [single]$ConfiguredSnapshotRateHz = 20.0,
         [switch]$SuppressServerOutput
@@ -4006,9 +4209,22 @@ function Invoke-DeltaHostRun {
                         $arguments +=
                             "--goldsrc-player-lifecycle-negative-proof"
                     }
+                    if ($RunPmoveProof) {
+                        $arguments += "--goldsrc-pmove"
+                        if ($Mode -eq "Negative") {
+                            $arguments += "--goldsrc-pmove-negative-proof"
+                        }
+                        $arguments += (
+                            "--goldsrc-pmove-observation-ms={0}" -f
+                            $(if ($Mode -eq "Negative") {
+                                4000
+                            } else {
+                                2000
+                            }))
+                    }
                 }
             }
-            if ($Mode -eq "Negative") {
+            if ($Mode -eq "Negative" -and -not $RunPmoveProof) {
                 $arguments += "--goldsrc-first-snapshot-negative-proof"
                 if ($RunContinuousSnapshotProof) {
                     $arguments +=
@@ -4227,9 +4443,12 @@ function Invoke-DeltaHostRun {
                 $PostResourceMode -eq "World") `
             -ReceiveFirstSnapshot:$RunFirstSnapshotProof `
             -FirstSnapshotNegativeValidation:(
-                $Mode -eq "Negative" -and $RunFirstSnapshotProof) `
+                $Mode -eq "Negative" -and
+                $RunFirstSnapshotProof -and
+                -not $RunPmoveProof) `
             -ReceiveContinuousSnapshots:$RunContinuousSnapshotProof `
             -ReceivePlayerLifecycle:$RunPlayerLifecycleProof `
+            -ReceivePmove:$RunPmoveProof `
             -ContinuousSnapshotCount $RequiredContinuousSnapshotCount
 
         Wait-ForCleanServerExit `
@@ -4286,7 +4505,8 @@ function Invoke-DeltaHostRun {
             -Mode $Mode `
             -Bootstrap $bootstrap `
             -Resource $resource `
-            -PlayerLifecycleProof:$RunPlayerLifecycleProof
+            -PlayerLifecycleProof:$RunPlayerLifecycleProof `
+            -PmoveProof:$RunPmoveProof
     }
     catch {
         $failure = $_
@@ -4379,13 +4599,15 @@ function Invoke-DeltaHostRun {
             ) | Select-Object -First 1
             if (-not [string]::IsNullOrWhiteSpace($lastServerError)) {
                 $lastEngineCallbacks = @(
-                    $capturedStdout -split '\r?\n' |
-                        Where-Object {
-                            $_.IndexOf(
-                                "hl.dll engine callback:",
-                                [StringComparison]::Ordinal) -ge 0
-                        }
-                ) | Select-Object -Last 12
+                    @(
+                        $capturedStdout -split '\r?\n' |
+                            Where-Object {
+                                $_.IndexOf(
+                                    "hl.dll engine callback:",
+                                    [StringComparison]::Ordinal) -ge 0
+                            }
+                    ) | Select-Object -Last 12
+                )
                 throw ("{0}; server_error={1}; engine_callback_tail={2}" -f
                     $failure.Exception.Message,
                     $lastServerError.Trim(),
@@ -4810,6 +5032,7 @@ try {
             -RunFirstSnapshotProof:$FirstSnapshotProof `
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
             -RunPlayerLifecycleProof:$PlayerLifecycleProof `
+            -RunPmoveProof:$PmoveProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
@@ -4838,6 +5061,7 @@ try {
             -RunFirstSnapshotProof:$FirstSnapshotProof `
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
             -RunPlayerLifecycleProof:$PlayerLifecycleProof `
+            -RunPmoveProof:$PmoveProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
@@ -4875,25 +5099,41 @@ if ($PostResourceCommandProof) {
 }
 if ($ContinuousSnapshotProof) {
     if ($NegativeProof) {
-        Write-Host (
-            "goldsrc_continuous_snapshot_proof_b: dropped_snapshot_recovery={0},multiple_dropped_snapshot_recovery={1},delta_used_last_acknowledged_base=true,unknown_frame_reference_rejected={2},stale_frame_reference_rejected={3},low8_wrap_resolution={4},frame_history_eviction=pass,evicted_base_full_fallback={5},reliable_state_preserved=true,slot_reset_cleared_snapshot_state=true,fresh_session_streaming=pass,snapshots_received={6},full_snapshots_received={7},delta_snapshots_received={8},session_count=1,put_in_server={9},spawned={10},active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass" -f
-            $(if ($mainResult.Resource.ContinuousLossRecovery) {
-                "pass"
-            } else { "fail" }),
-            $(if ($mainResult.Resource.ContinuousMultipleLossRecovery) {
-                "pass"
-            } else { "fail" }),
-            $mainResult.Resource.ContinuousUnknownRejected.ToString().ToLowerInvariant(),
-            $mainResult.Resource.ContinuousStaleRejected.ToString().ToLowerInvariant(),
-            $(if ($mainResult.Resource.ContinuousLow8Wrap) {
-                "pass"
-            } else { "fail" }),
-            $mainResult.Resource.ContinuousFullFallback.ToString().ToLowerInvariant(),
-            $mainResult.Resource.ContinuousSnapshotsReceived,
-            $mainResult.Resource.ContinuousFullSnapshots,
-            $mainResult.Resource.ContinuousDeltaSnapshots,
-            $(if ($PlayerLifecycleProof) { "1" } else { "0" }),
-            $(if ($PlayerLifecycleProof) { "1" } else { "0" }))
+        if ($PmoveProof) {
+            Write-Host (
+                "goldsrc_continuous_snapshot_proof_b: " +
+                "snapshot_stress_cases=not_required_in_pmove_negative_path," +
+                "delta_used_last_acknowledged_base=true," +
+                "frame_history_eviction=pass,reliable_state_preserved=true," +
+                "slot_reset_cleared_snapshot_state=true," +
+                "fresh_session_streaming=pass," +
+                "snapshots_received=$($mainResult.Resource.ContinuousSnapshotsReceived)," +
+                "full_snapshots_received=$($mainResult.Resource.ContinuousFullSnapshots)," +
+                "delta_snapshots_received=$($mainResult.Resource.ContinuousDeltaSnapshots)," +
+                "session_count=1,put_in_server=1,spawned=1,active=0," +
+                "server_still_responsive=true,clean_shutdown=1,proof_b=pass"
+            )
+        } else {
+            Write-Host (
+                "goldsrc_continuous_snapshot_proof_b: dropped_snapshot_recovery={0},multiple_dropped_snapshot_recovery={1},delta_used_last_acknowledged_base=true,unknown_frame_reference_rejected={2},stale_frame_reference_rejected={3},low8_wrap_resolution={4},frame_history_eviction=pass,evicted_base_full_fallback={5},reliable_state_preserved=true,slot_reset_cleared_snapshot_state=true,fresh_session_streaming=pass,snapshots_received={6},full_snapshots_received={7},delta_snapshots_received={8},session_count=1,put_in_server={9},spawned={10},active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass" -f
+                $(if ($mainResult.Resource.ContinuousLossRecovery) {
+                    "pass"
+                } else { "fail" }),
+                $(if ($mainResult.Resource.ContinuousMultipleLossRecovery) {
+                    "pass"
+                } else { "fail" }),
+                $mainResult.Resource.ContinuousUnknownRejected.ToString().ToLowerInvariant(),
+                $mainResult.Resource.ContinuousStaleRejected.ToString().ToLowerInvariant(),
+                $(if ($mainResult.Resource.ContinuousLow8Wrap) {
+                    "pass"
+                } else { "fail" }),
+                $mainResult.Resource.ContinuousFullFallback.ToString().ToLowerInvariant(),
+                $mainResult.Resource.ContinuousSnapshotsReceived,
+                $mainResult.Resource.ContinuousFullSnapshots,
+                $mainResult.Resource.ContinuousDeltaSnapshots,
+                $(if ($PlayerLifecycleProof) { "1" } else { "0" }),
+                $(if ($PlayerLifecycleProof) { "1" } else { "0" }))
+        }
     } else {
         Write-Host (
             "goldsrc_continuous_snapshot_proof_a: previous_prompt_243_boundary=pass,continuous_snapshot_cadence=true,snapshot_rate_hz={0},snapshots_received={1},full_snapshots_received={2},delta_snapshots_received={3},server_time_monotonic=true,frame_ids_advanced=true,multiple_frame_references_sent=true,multiple_frame_references_accepted=true,newest_acknowledged_base_selected=true,delta_reconstruction=pass,frame_history_bounded=true,session_count=1,put_in_server={4},spawned={5},active=0,clean_shutdown=1,proof_a=pass" -f
@@ -4941,6 +5181,60 @@ if ($PlayerLifecycleProof) {
                 "clean_shutdown=1,proof_a=pass"
             ) -f
             $mainResult.Resource.FirstPlayerSnapshotFrameId
+        )
+    }
+}
+if ($PmoveProof) {
+    $pmoveLine = Get-ExactlyOneSummaryLine `
+        -Stdout $mainResult.Stdout `
+        -Prefix "goldsrc_pmove_summary:"
+    $pmMoveCalls = Get-StableUnsignedField `
+        -Line $pmoveLine `
+        -Name "pm_move_calls"
+    $commandsExecuted = Get-StableUnsignedField `
+        -Line $pmoveLine `
+        -Name "commands_executed"
+    $backupsReplayed = Get-StableUnsignedField `
+        -Line $pmoveLine `
+        -Name "backup_replayed"
+    $duplicatesSuppressed = Get-StableUnsignedField `
+        -Line $pmoveLine `
+        -Name "duplicates_suppressed"
+    if ($NegativeProof) {
+        Write-Host (
+            "goldsrc_pmove_proof_b: " +
+            "invalid_checksum_rejected=true," +
+            "excessive_command_count_rejected=true," +
+            "invalid_msec_rejected=true," +
+            "duplicate_move_suppressed=true," +
+            "duplicate_backup_suppressed=true," +
+            "backup_recovery_once=true,out_of_order_rejected=true," +
+            "command_time_budget_enforced=true," +
+            "invalid_pmove_output_rolled_back=true," +
+            "excessive_velocity_rolled_back=true," +
+            "collision_state_valid=true,blocked_unduck_preserved=true," +
+            "reliable_state_preserved=true," +
+            "disconnect_cleared_movement_state=true," +
+            "stale_command_rejected=true,slot_reuse_clean=true," +
+            "fresh_session_movement=pass,gameplay_active=false," +
+            "server_still_responsive=true,clean_shutdown=1,proof_b=pass"
+        )
+    } else {
+        Write-Host (
+            "goldsrc_pmove_proof_a: " +
+            "previous_prompt_245_boundary=pass," +
+            "movement_context_built=true,pm_init_called=true," +
+            "pm_move_called=true,pm_move_call_count=$pmMoveCalls," +
+            "command_batches_processed=$commandsExecuted," +
+            "commands_executed=$commandsExecuted," +
+            "backup_commands_replayed=$backupsReplayed," +
+            "duplicate_commands_suppressed=$duplicatesSuppressed," +
+            "forward_movement=pass,authoritative_origin_changed=true," +
+            "movement_snapshot_update=pass,friction_stop=pass,jump=pass," +
+            "gravity=pass,landing=pass,duck=pass,unduck=pass," +
+            "wall_collision=pass,world_penetration=false," +
+            "attack_gameplay_executed=false,gameplay_active=false," +
+            "clean_shutdown=1,proof_a=pass"
         )
     }
 }

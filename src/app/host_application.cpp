@@ -22500,6 +22500,12 @@ bool HostApplication::RunServerEngineShim(
         options.goldsrc_player_lifecycle_enabled;
     init_options.goldsrc_player_lifecycle_negative_proof =
         options.goldsrc_player_lifecycle_negative_proof;
+    init_options.goldsrc_pmove_enabled =
+        options.goldsrc_pmove_enabled;
+    init_options.goldsrc_pmove_negative_proof =
+        options.goldsrc_pmove_negative_proof;
+    init_options.goldsrc_pmove_observation_ms =
+        options.goldsrc_pmove_observation_ms;
     init_options.goldsrc_snapshot_rate_hz =
         options.goldsrc_snapshot_rate_hz;
     init_options.bind_address = options.bind_address;

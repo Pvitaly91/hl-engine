@@ -51,6 +51,7 @@
 #include "track_path_resolver.h"
 #include "game_api/server_command_buffer.h"
 #include "game_api/server_command_dispatcher.h"
+#include "game_api/goldsrc_pmove_runtime.h"
 #include "goldsrc_delta_runtime_registry.h"
 // The runtime include dispatches typed pre-spawn move envelopes through this
 // bounded network codec; it never forwards them to gameplay callbacks.

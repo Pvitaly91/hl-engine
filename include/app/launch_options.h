@@ -58,6 +58,9 @@ struct LaunchOptions
     bool goldsrc_continuous_snapshots_negative_proof = false;
     bool goldsrc_player_lifecycle_enabled = false;
     bool goldsrc_player_lifecycle_negative_proof = false;
+    bool goldsrc_pmove_enabled = false;
+    bool goldsrc_pmove_negative_proof = false;
+    int goldsrc_pmove_observation_ms = 2000;
     float goldsrc_snapshot_rate_hz = 20.0f;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;

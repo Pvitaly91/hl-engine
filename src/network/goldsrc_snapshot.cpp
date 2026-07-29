@@ -482,6 +482,43 @@ bool FramesEqual(
     }
     return true;
 }
+
+bool FrameTopologyEqual(
+    const GoldSrcServerFrame& left,
+    const GoldSrcServerFrame& right) noexcept
+{
+    if (left.frame_id != right.frame_id
+        || left.server_time != right.server_time
+        || left.weapons.size() != right.weapons.size()
+        || left.entities.size() != right.entities.size()
+        || left.clientdata.state.field_count
+            != right.clientdata.state.field_count)
+    {
+        return false;
+    }
+    for (std::size_t index = 0; index < left.weapons.size(); ++index)
+    {
+        if (left.weapons[index].weapon_index
+                != right.weapons[index].weapon_index
+            || left.weapons[index].state.field_count
+                != right.weapons[index].state.field_count)
+        {
+            return false;
+        }
+    }
+    for (std::size_t index = 0; index < left.entities.size(); ++index)
+    {
+        if (left.entities[index].entity_index
+                != right.entities[index].entity_index
+            || left.entities[index].kind != right.entities[index].kind
+            || left.entities[index].state.field_count
+                != right.entities[index].state.field_count)
+        {
+            return false;
+        }
+    }
+    return true;
+}
 } // namespace
 
 std::string_view ReasonFor(GoldSrcPlayerSnapshotApplyStatus status) noexcept
@@ -1224,13 +1261,19 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
             frame_id,
             baselines,
             registry);
-    if (!decoded.ok() || !FramesEqual(result.bundle.frame, decoded.frame))
+    if (!decoded.ok()
+        || !FrameTopologyEqual(result.bundle.frame, decoded.frame))
     {
-        result.status = decoded.ok()
-            ? GoldSrcSnapshotCodecStatus::kInvalidFrame
-            : decoded.status;
+        result.status =
+            decoded.ok()
+                ? GoldSrcSnapshotCodecStatus::kInvalidFrame
+                : decoded.status;
         return result;
     }
+    // Store the exact wire representation. Movement-derived floating-point
+    // values are intentionally quantized by GoldSrc delta fields; using the
+    // decoded canonical frame keeps future acknowledged delta bases exact.
+    result.bundle.frame = decoded.frame;
     result.bundle.payload = encoded.payload;
     result.status = GoldSrcSnapshotCodecStatus::kOk;
     return result;
