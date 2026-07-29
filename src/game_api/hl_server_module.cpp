@@ -58,6 +58,7 @@
 #include "network/goldsrc_connectionless.h"
 #include "network/goldsrc_delta_description.h"
 #include "network/goldsrc_netchan.h"
+#include "network/goldsrc_player_lifecycle.h"
 #include "network/goldsrc_resource_manifest.h"
 #include "network/goldsrc_snapshot.h"
 #include "network/goldsrc_world_baseline.h"
@@ -466,6 +467,7 @@ struct DedicatedPlayerRuntimeSlot
     hl::network::GoldSrcNetchanState netchan;
     hl::network::GoldSrcSignonSessionState goldsrc_signon;
     hl::network::GoldSrcFirstSnapshotSessionState goldsrc_first_snapshot;
+    hl::network::GoldSrcPlayerLifecycleSession goldsrc_player_lifecycle;
     std::optional<hl::network::GoldSrcServerInfoContext> goldsrc_serverinfo_context;
     std::optional<hl::network::GoldSrcServerInfoPayload> goldsrc_serverinfo_payload;
     std::optional<hl::network::GoldSrcDeltaRegistry> goldsrc_delta_registry;
@@ -23217,16 +23219,34 @@ std::array<unsigned char, 1>& EmptyVisibilitySet()
     return visibility;
 }
 
-int HandleSehException(const char* scope, unsigned int code)
+int HandleSehException(
+    const char* scope,
+    unsigned int code,
+    EXCEPTION_POINTERS* exception_pointers = nullptr)
 {
-    hl::common::Logger::Error(
-        std::string("hl.dll ") + scope + " raised SEH exception 0x"
-        + [&]()
+    std::ostringstream detail;
+    detail << "hl.dll " << scope << " raised SEH exception 0x"
+           << std::hex << std::uppercase << code;
+    if (exception_pointers != nullptr
+        && exception_pointers->ExceptionRecord != nullptr)
+    {
+        const EXCEPTION_RECORD& record = *exception_pointers->ExceptionRecord;
+        detail << " at " << record.ExceptionAddress;
+        if (code == EXCEPTION_ACCESS_VIOLATION
+            && record.NumberParameters >= 2)
         {
-            std::ostringstream stream;
-            stream << std::hex << std::uppercase << code;
-            return stream.str();
-        }());
+            const ULONG_PTR operation = record.ExceptionInformation[0];
+            detail << " while "
+                   << (operation == 0 ? "reading"
+                       : operation == 1 ? "writing"
+                       : operation == 8 ? "executing"
+                                        : "accessing")
+                   << " " << reinterpret_cast<const void*>(
+                          record.ExceptionInformation[1]);
+        }
+    }
+    hl::common::Logger::Error(
+        detail.str());
     return EXCEPTION_EXECUTE_HANDLER;
 }
 
@@ -256682,6 +256702,16 @@ int StubModelFrames(int model_index)
     return model_index == 0 ? 0 : 1;
 }
 
+void* StubGetModelPtr(edict_t* entity)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnGetModelPtr",
+        DescribeEdict(state, entity) + ", result=<unavailable>",
+        entity);
+    return nullptr;
+}
+
 void StubLightStyle(int style, char* value)
 {
     EngineShimState& state = CurrentShimState();
@@ -257838,6 +257868,44 @@ void StubSetClientKeyValue(int client_index, char* /*info_buffer*/, char* key, c
     RecordCallback("pfnSetClientKeyValue", detail);
 }
 
+const char* StubGetPhysicsKeyValue(
+    const edict_t* client,
+    const char* key)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnGetPhysicsKeyValue",
+        DescribeEdict(state, client) + ", key="
+            + (key != nullptr ? std::string(key) : std::string("<null>")),
+        client);
+    return "";
+}
+
+void StubSetPhysicsKeyValue(
+    const edict_t* client,
+    const char* key,
+    const char* value)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnSetPhysicsKeyValue",
+        DescribeEdict(state, client) + ", key="
+            + (key != nullptr ? std::string(key) : std::string("<null>"))
+            + ", value="
+            + (value != nullptr ? std::string(value) : std::string("<null>")),
+        client);
+}
+
+const char* StubGetPhysicsInfoString(const edict_t* client)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnGetPhysicsInfoString",
+        DescribeEdict(state, client),
+        client);
+    return "";
+}
+
 int StubNumberOfEntities()
 {
     const int count = CurrentShimState().edict_store.NumberOfEntities();
@@ -257849,6 +257917,26 @@ const char* StubGetPlayerAuthId(edict_t* /*entity*/)
 {
     RecordCallback("pfnGetPlayerAuthId");
     return "BOT";
+}
+
+int StubGetPlayerUserId(edict_t* player)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnGetPlayerUserId",
+        DescribeEdict(state, player) + ", result=1",
+        player);
+    return 1;
+}
+
+int StubCanSkipPlayer(const edict_t* player)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnCanSkipPlayer",
+        DescribeEdict(state, player) + ", result=false",
+        player);
+    return FALSE;
 }
 
 unsigned char* StubSetFatPVS(float* /*origin*/)
@@ -257871,6 +257959,7 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnSetModel = &StubSetModel;
     engine_functions.pfnModelIndex = &StubModelIndex;
     engine_functions.pfnModelFrames = &StubModelFrames;
+    engine_functions.pfnGetModelPtr = &StubGetModelPtr;
     engine_functions.pfnSetSize = &StubSetSize;
     engine_functions.pfnSetOrigin = &StubSetOrigin;
     engine_functions.pfnFindEntityByString = &StubFindEntityByString;
@@ -257946,8 +258035,13 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnInfoKeyValue = &StubInfoKeyValue;
     engine_functions.pfnSetKeyValue = &StubSetKeyValue;
     engine_functions.pfnSetClientKeyValue = &StubSetClientKeyValue;
+    engine_functions.pfnGetPhysicsKeyValue = &StubGetPhysicsKeyValue;
+    engine_functions.pfnSetPhysicsKeyValue = &StubSetPhysicsKeyValue;
+    engine_functions.pfnGetPhysicsInfoString = &StubGetPhysicsInfoString;
     engine_functions.pfnNumberOfEntities = &StubNumberOfEntities;
+    engine_functions.pfnGetPlayerUserId = &StubGetPlayerUserId;
     engine_functions.pfnGetPlayerAuthId = &StubGetPlayerAuthId;
+    engine_functions.pfnCanSkipPlayer = &StubCanSkipPlayer;
     engine_functions.pfnSetFatPVS = &StubSetFatPVS;
     engine_functions.pfnSetFatPAS = &StubSetFatPAS;
 }

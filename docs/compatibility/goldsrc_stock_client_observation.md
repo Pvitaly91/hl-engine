@@ -331,3 +331,47 @@ disambiguate it.
 Stable continuous full and delta snapshots do not mean that Game DLL
 ClientPutInServer, player spawn, PM_Move, prediction, player replication,
 weapons, damage, or gameplay are complete.
+
+## Prompt 245 player-lifecycle checkpoint
+
+Prompt 245 reused the exact unmodified Half-Life 1.1.2.2 client, Steam build
+`15961492`, installed read-only `valve` data, `c0a0`, production delta
+descriptions and resource manifest, and a direct `127.0.0.1` connection.
+
+The Prompt 244 stream had already delivered `svc_setview 1` and
+`svc_signonnum 1`. The client sent `sendents`, continuous `clc_move`
+keepalives, and `clc_delta` frame references, but no later `spawn`, `begin`,
+or `prespawn` command. The host therefore reconciled the skipped authoritative
+player lifecycle once at the stable acknowledged-snapshot boundary instead of
+replaying an already acknowledged signon stage.
+
+The final stock run called `ClientUserInfoChanged`, `ClientConnect`, and
+`ClientPutInServer` exactly once in the verified order. The installed Game DLL
+created private player data and a spawned player on reserved edict 1. The
+existing 20 Hz stream then added that player through
+`entity_state_player_t`, built player-derived `clientdata_t` through
+`pfnUpdateClientData`, and kept view entity 1.
+
+The host marked the bounded signon transition complete only after a later
+client `clc_delta` reference covered the first player snapshot. No duplicate
+`svc_setview`, `svc_setangle`, or `svc_signonnum` was needed. The client
+accepted 157 player snapshots during the final bounded run; the host recorded
+160 continuous sends, 114 acknowledgements, and 115 distinct frame
+references before clean shutdown.
+
+Final checkpoint:
+
+- `stock_client_game_dll_lifecycle_completed=yes`;
+- `stock_client_received_player_entity=yes`;
+- `stock_client_received_player_clientdata=yes`;
+- `stock_client_view_entity_established=yes`;
+- `stock_client_signon_progressed=yes`;
+- `previous_player_lifecycle_boundary_resolved=yes`;
+- `stock_client_advanced_past_previous_boundary=yes`;
+- `next_observed_boundary=movement_execution_required`;
+- `movement_executed=no`;
+- `gameplay_active=no`.
+
+Creating the Game DLL player entity and establishing the stock-client view
+does not mean that clc_move execution, PM_Move, prediction, weapons,
+damage, death, respawn, or complete multiplayer gameplay are implemented.

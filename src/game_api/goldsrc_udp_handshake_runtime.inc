@@ -47,6 +47,10 @@ public:
               options.goldsrc_continuous_snapshots_enabled),
           continuous_snapshots_negative_proof_(
               options.goldsrc_continuous_snapshots_negative_proof),
+          player_lifecycle_enabled_(
+              options.goldsrc_player_lifecycle_enabled),
+          player_lifecycle_negative_proof_(
+              options.goldsrc_player_lifecycle_negative_proof),
           snapshot_rate_hz_(options.goldsrc_snapshot_rate_hz),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
@@ -78,6 +82,11 @@ public:
             continuous_snapshots_enabled_;
         summary_.continuous_snapshots_negative_proof =
             continuous_snapshots_negative_proof_;
+        summary_.player_lifecycle_enabled = player_lifecycle_enabled_;
+        summary_.player_lifecycle_negative_proof =
+            player_lifecycle_negative_proof_;
+        summary_.player_lifecycle_phase =
+            player_lifecycle_enabled_ ? "no_client_edict" : "disabled";
         summary_.snapshot_rate_hz = snapshot_rate_hz_;
         summary_.snapshot_interval_ms =
             1000.0 / snapshot_rate_hz_;
@@ -177,6 +186,8 @@ public:
                     + ",platform_error=" + socket_.LastError());
             return false;
         }
+        lifecycle_edict_registry_.Reset(
+            static_cast<std::uint16_t>(state_.server_state.maxclients));
 
         challenges_ = std::make_unique<hl::network::ChallengeTable>(
             kChallengeCapacity,
@@ -293,6 +304,21 @@ public:
             return FailBind(
                 "continuous-snapshot-negative-proof-requires-streaming");
         }
+        if (player_lifecycle_enabled_ && !continuous_snapshots_enabled_)
+        {
+            return FailBind(
+                "player-lifecycle-requires-continuous-snapshots");
+        }
+        if (player_lifecycle_negative_proof_
+            && !player_lifecycle_enabled_)
+        {
+            return FailBind(
+                "player-lifecycle-negative-proof-requires-lifecycle");
+        }
+        if (player_lifecycle_enabled_ && bind_address_ != "127.0.0.1")
+        {
+            return FailBind("player-lifecycle-loopback-required");
+        }
         if (!std::isfinite(snapshot_rate_hz_)
             || snapshot_rate_hz_
                 < hl::network::kGoldSrcMinimumSnapshotRateHz
@@ -390,7 +416,35 @@ public:
         {
             DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
-            if (slot_state != nullptr
+            if (player_lifecycle_enabled_
+                && slot_state != nullptr
+                && continuous_snapshot_started_server_time_.has_value()
+                && summary_.continuous_snapshots_sent >= 3
+                && summary_.continuous_delta_snapshots >= 1
+                && summary_.distinct_frame_references >= 2)
+            {
+                if (!slot_state->goldsrc_player_lifecycle.put_in_server()
+                    && !ReconcilePlayerLifecycle(*slot_state))
+                {
+                    return false;
+                }
+                if (slot_state->goldsrc_player_lifecycle.signon_complete()
+                    && network_server_time_
+                            - *continuous_snapshot_started_server_time_
+                        >= 10.0
+                    && summary_.player_snapshot_frames
+                        >= (player_lifecycle_negative_proof_ ? 360 : 30))
+                {
+                    summary_.continuous_snapshot_stable = true;
+                    summary_.server_still_responsive = true;
+                    summary_.next_observed_boundary =
+                        "movement_execution_required";
+                    summary_.previous_player_lifecycle_boundary_resolved =
+                        true;
+                    complete_ = true;
+                }
+            }
+            else if (slot_state != nullptr
                 && continuous_snapshot_started_server_time_.has_value()
                 && network_server_time_
                         - *continuous_snapshot_started_server_time_
@@ -433,8 +487,8 @@ public:
             && !summary_.session_id.empty()
             && summary_.final_state == "connected"
             && summary_.connected
-            && !summary_.put_in_server
-            && !summary_.spawned
+            && summary_.put_in_server == player_lifecycle_enabled_
+            && summary_.spawned == player_lifecycle_enabled_
             && !summary_.active;
         if (!handshake_succeeded || !netchan_enabled_)
         {
@@ -591,8 +645,43 @@ public:
                                 && summary_.continuous_server_time_monotonic
                                 && summary_.continuous_frame_ids_advanced
                                 && summary_.newest_acknowledged_base_selected
-                                && summary_.continuous_frame_history_bounded
-                                && summary_.continuous_snapshot_stable)));
+                                 && summary_.continuous_frame_history_bounded
+                                 && summary_.continuous_snapshot_stable)));
+                const bool player_lifecycle_succeeded =
+                    !player_lifecycle_enabled_
+                    || (summary_.player_lifecycle_contract_verified
+                        && summary_
+                            .deterministic_client_edict_contract_verified
+                        && summary_.game_dll_player_callbacks_verified
+                        && summary_.game_dll_callback_order_verified
+                        && summary_.view_entity_contract_verified
+                        && summary_.player_snapshot_contract_verified
+                        && summary_.player_signon_progression_verified
+                        && summary_.client_edict_index
+                            == summary_.allocated_slot
+                        && summary_.client_userinfo_changed_calls == 1
+                        && summary_.client_connect_calls == 1
+                        && summary_.client_connect_accepts == 1
+                        && summary_.client_connect_rejections == 0
+                        && summary_.client_put_in_server_calls == 1
+                        && summary_.client_put_in_server_successes == 1
+                        && summary_.game_dll_client_connected
+                        && summary_.player_private_data_ready
+                        && summary_.player_entity_ready
+                        && summary_.player_spawned
+                        && summary_.player_view_established
+                        && summary_.player_view_entity
+                            == summary_.client_edict_index
+                        && summary_.player_snapshot_frames >= 3
+                        && summary_.first_player_snapshot_frame_id != 0u
+                        && summary_.player_snapshot_adds >= 1
+                        && summary_.player_clientdata_implemented
+                        && summary_.player_signon_complete
+                        && !summary_.gameplay_active
+                        && summary_
+                            .previous_player_lifecycle_boundary_resolved
+                        && summary_.next_observed_boundary
+                            == "movement_execution_required");
                 const bool world_baseline_succeeded =
                     !world_baselines_enabled_
                     || (summary_.baseline_contract_verified
@@ -620,12 +709,15 @@ public:
                         && summary_
                             .previous_server_baseline_boundary_resolved
                         && summary_.next_observed_boundary
-                            == (continuous_snapshots_enabled_
+                            == (player_lifecycle_enabled_
+                                ? "movement_execution_required"
+                                : continuous_snapshots_enabled_
                                 ? "player_lifecycle_or_signon_progression_required"
                                 : first_snapshot_enabled_
                                 ? "continuous_snapshot_cadence_required"
                                 : "first_snapshot_required")
-                        && first_snapshot_succeeded);
+                        && first_snapshot_succeeded
+                        && player_lifecycle_succeeded);
                 const bool resource_manifest_phase_succeeded =
                     summary_.signon_phase
                         == "resource_manifest_acknowledged"
@@ -699,6 +791,25 @@ public:
         }
         shutdown_ = true;
 
+        if (player_lifecycle_enabled_)
+        {
+            if (DedicatedPlayerRuntimeSlot* slot_state =
+                    FindAdmittedNetchanSlot();
+                slot_state != nullptr
+                && slot_state->goldsrc_player_lifecycle
+                    .game_dll_connected())
+            {
+                if (!DisconnectPlayerLifecycle(
+                        *slot_state,
+                        "host-shutdown"))
+                {
+                    transport_failed_ = true;
+                    summary_.last_reject_reason =
+                        "player-lifecycle-shutdown-disconnect-failed";
+                }
+                ApplyDedicatedClientDisconnect(state_, *slot_state);
+            }
+        }
         const bool was_open = socket_.IsOpen();
         socket_.Close();
         if (!started_ && !was_open)
@@ -1365,6 +1476,93 @@ public:
                     + std::string(summary_.active ? "1" : "0")
                     + ",clean_shutdown=1");
         }
+        if (player_lifecycle_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_player_lifecycle_summary: enabled=1,negative_proof="
+                    + std::string(
+                        player_lifecycle_negative_proof_ ? "1" : "0")
+                    + ",contract_verified="
+                    + std::string(
+                        summary_.player_lifecycle_contract_verified
+                            ? "true" : "false")
+                    + ",callback_order_verified="
+                    + std::string(
+                        summary_.game_dll_callback_order_verified
+                            ? "true" : "false")
+                    + ",view_contract_verified="
+                    + std::string(
+                        summary_.view_entity_contract_verified
+                            ? "true" : "false")
+                    + ",trigger=" + summary_.player_lifecycle_trigger
+                    + ",phase=" + summary_.player_lifecycle_phase
+                    + ",client_edict_index="
+                    + std::to_string(summary_.client_edict_index)
+                    + ",userinfo_changed_calls="
+                    + std::to_string(
+                        summary_.client_userinfo_changed_calls)
+                    + ",client_connect_calls="
+                    + std::to_string(summary_.client_connect_calls)
+                    + ",client_connect_accepts="
+                    + std::to_string(summary_.client_connect_accepts)
+                    + ",client_connect_rejections="
+                    + std::to_string(summary_.client_connect_rejections)
+                    + ",client_put_in_server_calls="
+                    + std::to_string(
+                        summary_.client_put_in_server_calls)
+                    + ",client_put_in_server_successes="
+                    + std::to_string(
+                        summary_.client_put_in_server_successes)
+                    + ",private_data_ready="
+                    + std::string(
+                        summary_.player_private_data_ready
+                            ? "true" : "false")
+                    + ",player_entity_ready="
+                    + std::string(
+                        summary_.player_entity_ready ? "true" : "false")
+                    + ",player_spawned="
+                    + std::string(
+                        summary_.player_spawned ? "true" : "false")
+                    + ",view_entity="
+                    + std::to_string(summary_.player_view_entity)
+                    + ",player_snapshot_frames="
+                    + std::to_string(summary_.player_snapshot_frames)
+                    + ",first_player_snapshot_frame_id="
+                    + std::to_string(
+                        summary_.first_player_snapshot_frame_id)
+                    + ",player_adds="
+                    + std::to_string(summary_.player_snapshot_adds)
+                    + ",player_updates="
+                    + std::to_string(summary_.player_snapshot_updates)
+                    + ",player_removes="
+                    + std::to_string(summary_.player_snapshot_removes)
+                    + ",clientdata_implemented="
+                    + std::string(
+                        summary_.player_clientdata_implemented
+                            ? "true" : "false")
+                    + ",signon_complete="
+                    + std::string(
+                        summary_.player_signon_complete
+                            ? "true" : "false")
+                    + ",previous_boundary_resolved="
+                    + std::string(
+                        summary_
+                                .previous_player_lifecycle_boundary_resolved
+                            ? "true" : "false")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
+                    + ",movement_executed=false,gameplay_active="
+                    + std::string(
+                        summary_.gameplay_active ? "true" : "false")
+                    + ",disconnect_calls="
+                    + std::to_string(summary_.client_disconnect_calls)
+                    + ",server_still_responsive="
+                    + std::string(
+                        summary_.server_still_responsive
+                            ? "true" : "false")
+                    + ",clean_shutdown=1");
+        }
         if (delta_descriptions_enabled_)
         {
             hl::common::Logger::Info(
@@ -1496,6 +1694,529 @@ private:
             hl::common::LogCategory::Server,
             std::move(message));
         return false;
+    }
+
+    bool CallClientUserInfoChanged(
+        edict_t* client,
+        std::string& user_info) noexcept
+    {
+        if (client == nullptr
+            || state_.dll_functions.pfnClientUserInfoChanged == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnClientUserInfoChanged(
+                client,
+                user_info.data());
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnClientUserInfoChanged",
+            GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool CallClientConnect(
+        edict_t* client,
+        const char* player_name,
+        const char* address,
+        std::array<
+            char,
+            hl::network::kGoldSrcClientRejectReasonBytes>& reject_reason,
+        bool* accepted) noexcept
+    {
+        if (client == nullptr || player_name == nullptr || address == nullptr
+            || accepted == nullptr
+            || state_.dll_functions.pfnClientConnect == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            *accepted = state_.dll_functions.pfnClientConnect(
+                client,
+                player_name,
+                address,
+                reject_reason.data()) != FALSE;
+            return true;
+        }
+        __except (HandleSehException("pfnClientConnect", GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool CallClientPutInServer(edict_t* client) noexcept
+    {
+        if (client == nullptr
+            || state_.dll_functions.pfnClientPutInServer == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnClientPutInServer(client);
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnClientPutInServer",
+            GetExceptionCode(),
+            GetExceptionInformation()))
+        {
+            return false;
+        }
+    }
+
+    bool CallClientDisconnect(edict_t* client) noexcept
+    {
+        if (client == nullptr
+            || state_.dll_functions.pfnClientDisconnect == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnClientDisconnect(client);
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnClientDisconnect",
+            GetExceptionCode(),
+            GetExceptionInformation()))
+        {
+            return false;
+        }
+    }
+
+    bool CallAddToFullPack(
+        entity_state_t* output,
+        int entity_index,
+        edict_t* entity,
+        edict_t* host) noexcept
+    {
+        if (output == nullptr || entity == nullptr || host == nullptr
+            || state_.dll_functions.pfnAddToFullPack == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            return state_.dll_functions.pfnAddToFullPack(
+                output,
+                entity_index,
+                entity,
+                host,
+                0,
+                1,
+                nullptr) != 0;
+        }
+        __except (HandleSehException("pfnAddToFullPack", GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool CallUpdateClientData(
+        const edict_t* client,
+        clientdata_t* output) noexcept
+    {
+        if (client == nullptr || output == nullptr
+            || state_.dll_functions.pfnUpdateClientData == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            state_.dll_functions.pfnUpdateClientData(client, 0, output);
+            return true;
+        }
+        __except (HandleSehException(
+            "pfnUpdateClientData",
+            GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    void SyncPlayerLifecycleSummary(
+        const DedicatedPlayerRuntimeSlot& slot_state) noexcept
+    {
+        const auto& lifecycle = slot_state.goldsrc_player_lifecycle;
+        const auto& diagnostics = lifecycle.diagnostics();
+        const auto& player = lifecycle.player();
+        summary_.player_lifecycle_phase =
+            std::string(hl::network::NameFor(lifecycle.phase()));
+        summary_.client_edict_index =
+            static_cast<int>(lifecycle.binding().edict_index);
+        summary_.client_userinfo_changed_calls =
+            static_cast<int>(diagnostics.userinfo_notifications);
+        summary_.client_connect_calls =
+            static_cast<int>(diagnostics.client_connect_calls);
+        summary_.client_connect_accepts =
+            static_cast<int>(diagnostics.client_connect_accepts);
+        summary_.client_connect_rejections =
+            static_cast<int>(diagnostics.client_connect_rejections);
+        summary_.duplicate_client_connect_suppressed =
+            static_cast<int>(diagnostics.duplicate_connect_suppressed);
+        summary_.client_put_in_server_calls =
+            static_cast<int>(diagnostics.client_put_in_server_calls);
+        summary_.client_put_in_server_successes =
+            static_cast<int>(diagnostics.client_put_in_server_successes);
+        summary_.duplicate_client_put_in_server_suppressed =
+            static_cast<int>(diagnostics.duplicate_put_in_server_suppressed);
+        summary_.client_disconnect_calls =
+            static_cast<int>(diagnostics.disconnect_calls);
+        summary_.game_dll_client_connected =
+            lifecycle.game_dll_connected();
+        summary_.player_private_data_ready = player.private_data_ready;
+        summary_.player_entity_ready = player.player_entity_ready;
+        summary_.player_spawned = player.player_spawned;
+        summary_.player_view_established =
+            lifecycle.view_entity_index() != 0u;
+        summary_.player_view_entity =
+            static_cast<int>(lifecycle.view_entity_index());
+        summary_.player_snapshot_frames =
+            static_cast<int>(diagnostics.player_snapshot_frames);
+        summary_.first_player_snapshot_frame_id =
+            lifecycle.first_player_snapshot_frame_id().value_or(0u);
+        summary_.player_signon_complete = lifecycle.signon_complete();
+        summary_.gameplay_active = lifecycle.gameplay_active();
+    }
+
+    bool BindPlayerLifecycleAtAdmission(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        std::uint64_t network_session_generation)
+    {
+        hl::network::GoldSrcClientEdictBinding binding;
+        const auto binding_result = lifecycle_edict_registry_.Bind(
+            static_cast<std::uint16_t>(slot_state.slot),
+            network_session_generation,
+            &binding);
+        if (binding_result
+                != hl::network::GoldSrcClientEdictBindingResult::kBound
+            || slot_state.goldsrc_player_lifecycle.BindClientEdict(binding)
+                != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+            || slot_state.goldsrc_player_lifecycle.RecordInitialUserInfo(
+                slot_state.player_name)
+                != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced)
+        {
+            return FailTransport(
+                "player-lifecycle-edict-bind-failed",
+                "goldsrc_player_lifecycle_failed: reason=edict-bind");
+        }
+        edict_t* const client =
+            state_.edict_store.EntityOfIndex(binding.edict_index);
+        if (client == nullptr
+            || state_.edict_store.IndexOf(client) != binding.edict_index
+            || !CallClientUserInfoChanged(client, slot_state.user_info))
+        {
+            return FailTransport(
+                "player-lifecycle-userinfo-callback-failed",
+                "goldsrc_player_lifecycle_failed: reason=userinfo-callback");
+        }
+        summary_.deterministic_client_edict_contract_verified = true;
+        summary_.game_dll_player_callbacks_verified =
+            state_.dll_functions.pfnClientConnect != nullptr
+            && state_.dll_functions.pfnClientUserInfoChanged != nullptr
+            && state_.dll_functions.pfnClientPutInServer != nullptr
+            && state_.dll_functions.pfnClientDisconnect != nullptr
+            && state_.dll_functions.pfnAddToFullPack != nullptr
+            && state_.dll_functions.pfnUpdateClientData != nullptr;
+        SyncPlayerLifecycleSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_player_edict_bound: session_id="
+                + slot_state.session_id
+                + ",slot=" + std::to_string(slot_state.slot)
+                + ",edict=" + std::to_string(binding.edict_index)
+                + ",generation="
+                + std::to_string(binding.edict_generation)
+                + ",userinfo_callback=1");
+        return true;
+    }
+
+    bool ConnectPlayerToGameDll(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        bool callback_safe = true;
+        const hl::network::GoldSrcPlayerLifecycleResult result =
+            slot_state.goldsrc_player_lifecycle.ConnectGameDll(
+                slot_state.player_name,
+                slot_state.remote_endpoint,
+                [this, &callback_safe](
+                    const hl::network::GoldSrcClientEdictBinding& binding,
+                    std::string_view player_name,
+                    std::string_view network_address,
+                    std::array<
+                        char,
+                        hl::network::kGoldSrcClientRejectReasonBytes>&
+                        reject_reason)
+                {
+                    edict_t* const client =
+                        state_.edict_store.EntityOfIndex(
+                            binding.edict_index);
+                    const std::string name(player_name);
+                    const std::string address(network_address);
+                    bool accepted = false;
+                    callback_safe = CallClientConnect(
+                        client,
+                        name.c_str(),
+                        address.c_str(),
+                        reject_reason,
+                        &accepted);
+                    return callback_safe && accepted;
+                });
+        SyncPlayerLifecycleSummary(slot_state);
+        if (!callback_safe)
+        {
+            return FailTransport(
+                "player-lifecycle-client-connect-callback-failed",
+                "goldsrc_player_lifecycle_failed: reason=client-connect-callback");
+        }
+        if (result
+            == hl::network::GoldSrcPlayerLifecycleResult::kGameDllRejected)
+        {
+            summary_.last_reject_reason =
+                std::string(
+                    slot_state.goldsrc_player_lifecycle.reject_reason());
+            return FailTransport(
+                "player-lifecycle-client-connect-rejected",
+                "goldsrc_player_lifecycle_rejected: reason=game-dll");
+        }
+        if (result
+                != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+            && result
+                != hl::network::GoldSrcPlayerLifecycleResult::kAlreadyApplied)
+        {
+            return FailTransport(
+                "player-lifecycle-client-connect-transition-failed",
+                "goldsrc_player_lifecycle_failed: reason=client-connect-transition");
+        }
+        if (slot_state.goldsrc_player_lifecycle.EnterAwaitingPutInServer()
+                != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+            && slot_state.goldsrc_player_lifecycle.phase()
+                != hl::network::GoldSrcPlayerLifecyclePhase::
+                    kAwaitingPutInServer)
+        {
+            return FailTransport(
+                "player-lifecycle-await-put-transition-failed",
+                "goldsrc_player_lifecycle_failed: reason=await-put-transition");
+        }
+        SyncPlayerLifecycleSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_game_dll_client_connected: session_id="
+                + slot_state.session_id
+                + ",edict="
+                + std::to_string(
+                    slot_state.goldsrc_player_lifecycle.binding()
+                        .edict_index)
+                + ",client_connect_calls="
+                + std::to_string(summary_.client_connect_calls)
+                + ",next=awaiting_put_in_server");
+        return true;
+    }
+
+    static bool PlayerNetworkStateFinite(const entvars_t& vars) noexcept
+    {
+        const auto vector_finite = [](const Vector& value)
+        {
+            return std::isfinite(value.x)
+                && std::isfinite(value.y)
+                && std::isfinite(value.z);
+        };
+        return vector_finite(vars.origin)
+            && vector_finite(vars.angles)
+            && vector_finite(vars.velocity)
+            && vector_finite(vars.view_ofs)
+            && vector_finite(vars.mins)
+            && vector_finite(vars.maxs)
+            && std::isfinite(vars.health)
+            && std::isfinite(vars.armorvalue)
+            && std::isfinite(vars.fov)
+            && std::isfinite(vars.animtime)
+            && std::isfinite(vars.framerate);
+    }
+
+    bool ReconcilePlayerLifecycle(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (slot_state.goldsrc_player_lifecycle.put_in_server())
+        {
+            return true;
+        }
+        bool callback_safe = true;
+        const hl::network::GoldSrcPlayerLifecycleResult result =
+            slot_state.goldsrc_player_lifecycle
+                .PutInServerFromReconciliation(
+                    [this, &slot_state, &callback_safe](
+                        const hl::network::GoldSrcClientEdictBinding&
+                            binding)
+                    {
+                        hl::network::GoldSrcPlayerMaterialization player;
+                        if (lifecycle_edict_registry_.Validate(binding)
+                            != hl::network::
+                                GoldSrcClientEdictBindingResult::kBound)
+                        {
+                            return player;
+                        }
+                        PrimeDedicatedClientEdict(state_, slot_state);
+                        edict_t* const client =
+                            state_.edict_store.EntityOfIndex(
+                                binding.edict_index);
+                        if (client == nullptr)
+                        {
+                            return player;
+                        }
+                        client->v.colormap = binding.edict_index;
+                        client->v.netname =
+                            state_.string_pool.Alloc(slot_state.player_name);
+                        state_.globalvars.time =
+                            static_cast<float>(network_server_time_);
+                        callback_safe = CallClientPutInServer(client);
+                        player.private_data_ready =
+                            callback_safe
+                            && state_.edict_store.PrivateDataOf(client)
+                                != nullptr;
+                        player.player_entity_ready =
+                            callback_safe && client->free == FALSE
+                            && state_.edict_store.IndexOf(client)
+                                == binding.edict_index;
+                        player.player_spawned =
+                            player.player_entity_ready
+                            && client->v.modelindex > 0
+                            && client->v.model != 0
+                            && client->v.solid != SOLID_NOT;
+                        player.finite_network_state =
+                            player.player_entity_ready
+                            && PlayerNetworkStateFinite(client->v);
+                        if (client->v.modelindex > 0
+                            && client->v.modelindex
+                                <= hl::network::
+                                    kGoldSrcMaximumModelIndex)
+                        {
+                            player.model_index =
+                                static_cast<std::uint16_t>(
+                                    client->v.modelindex);
+                        }
+                        if (player.private_data_ready
+                            && player.player_entity_ready
+                            && player.player_spawned
+                            && player.finite_network_state
+                            && player.model_index != 0u)
+                        {
+                            state_.edict_store.SetSpawned(client, true);
+                        }
+                        return player;
+                    });
+        SyncPlayerLifecycleSummary(slot_state);
+        if (!callback_safe)
+        {
+            return FailTransport(
+                "player-lifecycle-put-in-server-callback-failed",
+                "goldsrc_player_lifecycle_failed: reason=put-in-server-callback");
+        }
+        if (result
+            != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced)
+        {
+            return FailTransport(
+                "player-lifecycle-materialization-failed",
+                "goldsrc_player_lifecycle_failed: reason="
+                    + std::string(hl::network::ReasonFor(result)));
+        }
+        const std::uint16_t view_entity =
+            slot_state.goldsrc_player_lifecycle.binding().edict_index;
+        if (slot_state.goldsrc_player_lifecycle.EstablishView(view_entity)
+            != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced)
+        {
+            return FailTransport(
+                "player-lifecycle-view-establishment-failed",
+                "goldsrc_player_lifecycle_failed: reason=view-establishment");
+        }
+        slot_state.put_in_server = true;
+        slot_state.spawn_count = std::max(1, slot_state.spawn_count);
+        slot_state.alive = false;
+        summary_.player_lifecycle_trigger =
+            "stable_snapshot_ack_reconciliation_after_premature_signonnum_1";
+        summary_.player_lifecycle_contract_verified = true;
+        summary_.game_dll_callback_order_verified =
+            summary_.client_userinfo_changed_calls == 1
+            && summary_.client_connect_calls == 1
+            && summary_.client_put_in_server_calls == 1;
+        summary_.view_entity_contract_verified = true;
+        SyncPlayerLifecycleSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_player_materialized: session_id="
+                + slot_state.session_id
+                + ",edict=" + std::to_string(view_entity)
+                + ",private_data=1,player_entity=1,spawned=1"
+                  ",view_established=1,gameplay_active=0");
+        return true;
+    }
+
+    bool DisconnectPlayerLifecycle(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        std::string_view reason)
+    {
+        const hl::network::GoldSrcClientEdictBinding binding =
+            slot_state.goldsrc_player_lifecycle.binding();
+        bool callback_safe = true;
+        const auto result =
+            slot_state.goldsrc_player_lifecycle.Disconnect(
+                [this, &callback_safe](
+                    const hl::network::GoldSrcClientEdictBinding&
+                        disconnected)
+                {
+                    callback_safe = CallClientDisconnect(
+                        state_.edict_store.EntityOfIndex(
+                            disconnected.edict_index));
+                });
+        if (!callback_safe
+            || (result
+                    != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+                && result
+                    != hl::network::
+                        GoldSrcPlayerLifecycleResult::kAlreadyApplied))
+        {
+            return false;
+        }
+        if (result
+                == hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+            && binding.valid)
+        {
+            state_.edict_store.RemoveEntity(
+                state_.edict_store.EntityOfIndex(binding.edict_index));
+        }
+        if (binding.valid)
+        {
+            const auto invalidated =
+                lifecycle_edict_registry_.Disconnect(binding);
+            if (invalidated
+                    != hl::network::
+                        GoldSrcClientEdictBindingResult::kBound
+                && invalidated
+                    != hl::network::
+                        GoldSrcClientEdictBindingResult::kNotBound)
+            {
+                return false;
+            }
+        }
+        summary_.client_disconnect_calls = static_cast<int>(
+            slot_state.goldsrc_player_lifecycle.diagnostics()
+                .disconnect_calls);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_game_dll_client_disconnected: session_id="
+                + slot_state.session_id
+                + ",reason=" + SanitizeLogField(std::string(reason))
+                + ",callback_count="
+                + std::to_string(summary_.client_disconnect_calls));
+        return true;
     }
 
     void MarkTimeout()
@@ -1701,6 +2422,13 @@ private:
         if (metadata.netchan_prepared)
         {
             slot_state.netchan = std::move(metadata.netchan);
+        }
+        if (player_lifecycle_enabled_
+            && !BindPlayerLifecycleAtAdmission(
+                slot_state,
+                next_network_session_))
+        {
+            return false;
         }
         ++next_network_session_;
         return true;
@@ -2055,6 +2783,10 @@ private:
                     hl::network::NameFor(
                         slot_state.goldsrc_first_snapshot.phase()));
             }
+        }
+        if (player_lifecycle_enabled_)
+        {
+            SyncPlayerLifecycleSummary(slot_state);
         }
     }
 
@@ -3497,11 +4229,13 @@ private:
         return found;
     }
 
-    static bool CaptureBaselineDeltaState(
-        const entity_state_t& source,
+    static bool CaptureDeltaState(
+        const void* source,
+        std::size_t source_size,
         const hl::network::GoldSrcDeltaTable& table,
         hl::network::GoldSrcDecodedDeltaRecord* output,
-        std::string* failure_detail) noexcept
+        std::string* failure_detail,
+        bool normalize_nonfinite = false) noexcept
     {
         const auto fail = [failure_detail](
                               const hl::network::GoldSrcDeltaField* field,
@@ -3525,7 +4259,8 @@ private:
         {
             failure_detail->clear();
         }
-        if (output == nullptr || table.fields.empty()
+        if (source == nullptr || source_size == 0u || output == nullptr
+            || table.fields.empty()
             || table.fields.size()
                 > hl::network::kGoldSrcMaximumDeltaFieldsPerTable)
         {
@@ -3533,7 +4268,7 @@ private:
         }
         output->field_count = table.fields.size();
         const auto* bytes =
-            reinterpret_cast<const std::uint8_t*>(&source);
+            reinterpret_cast<const std::uint8_t*>(source);
         for (std::size_t index = 0; index < table.fields.size(); ++index)
         {
             const hl::network::GoldSrcDeltaField& field =
@@ -3547,7 +4282,7 @@ private:
                 (field.field_type
                     & hl::network::kGoldSrcDeltaTypeSigned)
                 != 0u;
-            if (field.field_offset >= sizeof(entity_state_t))
+            if (field.field_offset >= source_size)
             {
                 return fail(&field, "offset-out-of-range");
             }
@@ -3559,8 +4294,9 @@ private:
             }
             else if (base == hl::network::kGoldSrcDeltaTypeShort)
             {
-                if (field.field_offset
-                    > sizeof(entity_state_t) - sizeof(std::int16_t))
+                if (source_size < sizeof(std::int16_t)
+                    || field.field_offset
+                        > source_size - sizeof(std::int16_t))
                 {
                     return fail(&field, "short-out-of-range");
                 }
@@ -3586,8 +4322,9 @@ private:
             }
             else if (base == hl::network::kGoldSrcDeltaTypeInteger)
             {
-                if (field.field_offset
-                    > sizeof(entity_state_t) - sizeof(std::int32_t))
+                if (source_size < sizeof(std::int32_t)
+                    || field.field_offset
+                        > source_size - sizeof(std::int32_t))
                 {
                     return fail(&field, "integer-out-of-range");
                 }
@@ -3616,8 +4353,9 @@ private:
                 || base == hl::network::kGoldSrcDeltaTypeTimeWindow8
                 || base == hl::network::kGoldSrcDeltaTypeTimeWindowBig)
             {
-                if (field.field_offset
-                    > sizeof(entity_state_t) - sizeof(float))
+                if (source_size < sizeof(float)
+                    || field.field_offset
+                        > source_size - sizeof(float))
                 {
                     return fail(&field, "float-out-of-range");
                 }
@@ -3628,17 +4366,198 @@ private:
                     sizeof(scalar));
                 if (!std::isfinite(scalar))
                 {
-                    return fail(&field, "non-finite-float");
+                    if (!normalize_nonfinite)
+                    {
+                        return fail(&field, "non-finite-float");
+                    }
+                    // Prediction/weapon extension fields can remain
+                    // uninitialized until movement begins. This slice does
+                    // not execute movement, so serialize their neutral stock
+                    // value instead of putting a non-finite scalar on wire.
+                    scalar = 0.0f;
                 }
                 value.kind =
                     hl::network::GoldSrcDeltaValueKind::kFloatingPoint;
                 value.floating_value = scalar;
+            }
+            else if (base == hl::network::kGoldSrcDeltaTypeString)
+            {
+                if (is_signed)
+                {
+                    return fail(&field, "signed-string");
+                }
+                std::size_t field_extent =
+                    source_size - field.field_offset;
+                for (const hl::network::GoldSrcDeltaField& candidate :
+                     table.fields)
+                {
+                    if (candidate.field_offset > field.field_offset)
+                    {
+                        field_extent = std::min(
+                            field_extent,
+                            static_cast<std::size_t>(
+                                candidate.field_offset
+                                - field.field_offset));
+                    }
+                }
+                const std::size_t scan_size = std::min(
+                    field_extent,
+                    value.string_value.size());
+                const void* const terminator = std::memchr(
+                    bytes + field.field_offset,
+                    '\0',
+                    scan_size);
+                if (terminator == nullptr)
+                {
+                    return fail(&field, "unterminated-string");
+                }
+                value.kind =
+                    hl::network::GoldSrcDeltaValueKind::kString;
+                value.string_size =
+                    static_cast<const std::uint8_t*>(terminator)
+                    - (bytes + field.field_offset);
+                std::memcpy(
+                    value.string_value.data(),
+                    bytes + field.field_offset,
+                    value.string_size);
+                value.string_value[value.string_size] = '\0';
             }
             else
             {
                 return fail(&field, "unsupported-field-type");
             }
         }
+        return true;
+    }
+
+    static bool CaptureBaselineDeltaState(
+        const entity_state_t& source,
+        const hl::network::GoldSrcDeltaTable& table,
+        hl::network::GoldSrcDecodedDeltaRecord* output,
+        std::string* failure_detail) noexcept
+    {
+        return CaptureDeltaState(
+            &source,
+            sizeof(source),
+            table,
+            output,
+            failure_detail);
+    }
+
+    bool BuildPlayerSnapshotInput(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        hl::network::GoldSrcPlayerSnapshotInput* output,
+        std::string* failure_detail)
+    {
+        if (output == nullptr
+            || !slot_state.goldsrc_player_lifecycle.put_in_server()
+            || !slot_state.goldsrc_delta_registry.has_value())
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "missing-player-context";
+            }
+            return false;
+        }
+        const auto& binding =
+            slot_state.goldsrc_player_lifecycle.binding();
+        if (lifecycle_edict_registry_.Validate(binding)
+            != hl::network::GoldSrcClientEdictBindingResult::kBound)
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "stale-player-edict-binding";
+            }
+            return false;
+        }
+        edict_t* const client =
+            state_.edict_store.EntityOfIndex(binding.edict_index);
+        if (client == nullptr
+            || state_.edict_store.PrivateDataOf(client) == nullptr)
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "missing-player-private-data";
+            }
+            return false;
+        }
+        const hl::network::GoldSrcDeltaTable* const player_table =
+            FindBaselineDeltaTable(
+                *slot_state.goldsrc_delta_registry,
+                "entity_state_player_t");
+        const hl::network::GoldSrcDeltaTable* const clientdata_table =
+            FindBaselineDeltaTable(
+                *slot_state.goldsrc_delta_registry,
+                "clientdata_t");
+        if (player_table == nullptr || clientdata_table == nullptr)
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "missing-player-delta-table";
+            }
+            return false;
+        }
+        entity_state_t entity_state{};
+        if (!CallAddToFullPack(
+                &entity_state,
+                binding.edict_index,
+                client,
+                client))
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "add-to-full-pack-rejected";
+            }
+            return false;
+        }
+        clientdata_t clientdata{};
+        if (!CallUpdateClientData(client, &clientdata))
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "update-client-data-failed";
+            }
+            return false;
+        }
+        // The lifecycle slice requests clientdata with sendweapons=0 and does
+        // not run PlayerPreThink/PM_Move. Keep the corresponding prediction
+        // and ammo extension channels at their neutral stock values instead
+        // of exposing Game DLL storage that is initialized only by gameplay.
+        clientdata.m_flNextAttack = 0.0f;
+        clientdata.ammo_nails = 0;
+        clientdata.ammo_shells = 0;
+        clientdata.ammo_cells = 0;
+        clientdata.ammo_rockets = 0;
+        clientdata.m_iId = 0;
+        clientdata.fuser1 = 0.0f;
+        clientdata.fuser2 = 0.0f;
+        clientdata.fuser3 = 0.0f;
+        clientdata.fuser4 = 0.0f;
+        clientdata.vuser1 = Vector(0.0f, 0.0f, 0.0f);
+        clientdata.vuser2 = Vector(0.0f, 0.0f, 0.0f);
+        clientdata.vuser3 = Vector(0.0f, 0.0f, 0.0f);
+        clientdata.vuser4 = Vector(0.0f, 0.0f, 0.0f);
+        hl::network::GoldSrcPlayerSnapshotInput captured;
+        captured.entity.entity_index = binding.edict_index;
+        captured.entity.kind =
+            hl::network::GoldSrcBaselineKind::kPlayer;
+        if (!CaptureDeltaState(
+                &entity_state,
+                sizeof(entity_state),
+                *player_table,
+                &captured.entity.state,
+                failure_detail)
+            || !CaptureDeltaState(
+                &clientdata,
+                sizeof(clientdata),
+                *clientdata_table,
+                &captured.clientdata.state,
+                failure_detail,
+                true))
+        {
+            return false;
+        }
+        *output = std::move(captured);
         return true;
     }
 
@@ -4296,6 +5215,36 @@ private:
                                 acknowledged_frame;
                             ++summary_.distinct_frame_references;
                         }
+                        const auto first_player_frame =
+                            slot_state.goldsrc_player_lifecycle
+                                .first_player_snapshot_frame_id();
+                        if (player_lifecycle_enabled_
+                            && first_player_frame.has_value()
+                            && (acknowledged_frame == *first_player_frame
+                                || hl::network::IsGoldSrcServerFrameNewer(
+                                    acknowledged_frame,
+                                    *first_player_frame))
+                            && !slot_state.goldsrc_player_lifecycle
+                                .signon_complete())
+                        {
+                            if (slot_state.goldsrc_player_lifecycle
+                                    .MarkSignonComplete()
+                                != hl::network::
+                                    GoldSrcPlayerLifecycleResult::kAdvanced)
+                            {
+                                return FailTransport(
+                                    "player-signon-transition-failed",
+                                    "goldsrc_player_lifecycle_failed: reason=signon-transition");
+                            }
+                            summary_.player_signon_progression_verified =
+                                true;
+                            summary_
+                                .previous_player_lifecycle_boundary_resolved =
+                                true;
+                            summary_.next_observed_boundary =
+                                "movement_execution_required";
+                            SyncPlayerLifecycleSummary(slot_state);
+                        }
                     }
                     summary_.server_still_responsive = true;
                     if (!first_snapshot_negative_proof_
@@ -4366,7 +5315,16 @@ private:
                         + ",signon_phase=" + summary_.signon_phase
                         + ",next_boundary="
                         + summary_.next_observed_boundary
-                        + ",put_in_server=0,spawned=0,active=0");
+                        + ",put_in_server="
+                        + (slot_state.goldsrc_player_lifecycle
+                                .put_in_server()
+                            ? "1" : "0")
+                        + ",spawned="
+                        + (slot_state.goldsrc_player_lifecycle
+                                .player()
+                                .player_spawned
+                            ? "1" : "0")
+                        + ",active=0");
                 }
                 return true;
             }
@@ -4541,6 +5499,15 @@ private:
                         kSignonBootstrap
                 && (slot_state.netchan.reliable_pending()
                     || slot_state.netchan.fragment_sender().active());
+            if (player_lifecycle_enabled_
+                && !DisconnectPlayerLifecycle(
+                    slot_state,
+                    "client-command"))
+            {
+                return FailTransport(
+                    "player-lifecycle-disconnect-callback-failed",
+                    "goldsrc_player_lifecycle_failed: reason=disconnect-callback");
+            }
             ApplyDedicatedClientDisconnect(state_, slot_state);
             RecordDedicatedLifecycleTransition(
                 state_.dedicated_multiplayer_foundation,
@@ -4623,6 +5590,11 @@ private:
             }
             if (delta_descriptions_enabled_
                 && !PrepareDeltaDescriptions(slot_state))
+            {
+                return false;
+            }
+            if (player_lifecycle_enabled_
+                && !ConnectPlayerToGameDll(slot_state))
             {
                 return false;
             }
@@ -4857,6 +5829,16 @@ private:
         bool expect_reliable,
         std::string_view event_name)
     {
+        if (!expect_reliable
+            && datagrams_sent_this_frame_
+                >= kMaximumDatagramsSentPerHostFrame)
+        {
+            // Stock clients can burst several keepalives in the same host
+            // frame. An ordinary empty ACK is expendable; preserving the
+            // bounded send budget and the already-prioritized snapshot is
+            // preferable to treating that burst as a socket failure.
+            return true;
+        }
         const hl::network::GoldSrcNetchanReliablePayloadKind pending_kind =
             slot_state.netchan.pending_reliable_kind();
         const std::uint64_t reliable_sent_before =
@@ -5125,20 +6107,55 @@ private:
         const hl::network::GoldSrcServerFrame* acknowledged_base =
             slot_state.goldsrc_first_snapshot.history()
                 .last_acknowledged();
+        std::optional<hl::network::GoldSrcPlayerSnapshotInput>
+            player_snapshot;
+        if (player_lifecycle_enabled_
+            && slot_state.goldsrc_player_lifecycle.put_in_server())
+        {
+            std::string player_snapshot_failure;
+            player_snapshot.emplace();
+            if (!BuildPlayerSnapshotInput(
+                    slot_state,
+                    &*player_snapshot,
+                    &player_snapshot_failure))
+            {
+                return FailTransport(
+                    "player-snapshot-build-failed",
+                    "goldsrc_player_snapshot_failed: reason="
+                        + SanitizeLogField(player_snapshot_failure));
+            }
+        }
         const hl::network::GoldSrcContinuousSnapshotBuildResult built =
             hl::network::BuildGoldSrcContinuousSnapshot(
                 frame_id,
                 static_cast<float>(network_server_time_),
                 acknowledged_base,
                 *world_baseline_bundle_,
-                *slot_state.goldsrc_delta_registry);
+                *slot_state.goldsrc_delta_registry,
+                hl::network::kGoldSrcMaximumSnapshotBytes,
+                player_snapshot.has_value()
+                    ? &*player_snapshot
+                    : nullptr);
         if (!built.ok())
         {
+            std::string failure =
+                "goldsrc_continuous_snapshot_failed: reason="
+                + std::string(hl::network::ReasonFor(built.status));
+            if (!built.failure_table.empty())
+            {
+                failure += ",table="
+                    + SanitizeLogField(
+                        std::string(built.failure_table));
+            }
+            if (!built.failure_field.empty())
+            {
+                failure += ",field="
+                    + SanitizeLogField(
+                        std::string(built.failure_field));
+            }
             return FailTransport(
                 "continuous-snapshot-build-failed",
-                "goldsrc_continuous_snapshot_failed: reason="
-                    + std::string(
-                        hl::network::ReasonFor(built.status)));
+                std::move(failure));
         }
         ++summary_.continuous_snapshots_generated;
 
@@ -5226,6 +6243,60 @@ private:
         }
 
         ++summary_.continuous_snapshots_sent;
+        if (player_snapshot.has_value())
+        {
+            const std::uint16_t player_index =
+                player_snapshot->entity.entity_index;
+            bool player_operation_counted = false;
+            for (const auto& operation : built.bundle.entity_diff.operations)
+            {
+                if (operation.entity_index != player_index)
+                {
+                    continue;
+                }
+                player_operation_counted = true;
+                if (operation.kind
+                    == hl::network::
+                        GoldSrcEntityDeltaOperationKind::kAdd)
+                {
+                    ++summary_.player_snapshot_adds;
+                }
+                else if (operation.kind
+                    == hl::network::
+                        GoldSrcEntityDeltaOperationKind::kUpdate)
+                {
+                    ++summary_.player_snapshot_updates;
+                }
+                else if (operation.kind
+                    == hl::network::
+                        GoldSrcEntityDeltaOperationKind::kRemove)
+                {
+                    ++summary_.player_snapshot_removes;
+                }
+            }
+            if (!player_operation_counted
+                && !slot_state.goldsrc_player_lifecycle
+                    .first_player_snapshot_frame_id().has_value())
+            {
+                ++summary_.player_snapshot_adds;
+            }
+            const auto mark_result =
+                slot_state.goldsrc_player_lifecycle.MarkPlayerSnapshot(
+                    built.bundle.frame.frame_id);
+            if (mark_result
+                    != hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
+                && mark_result
+                    != hl::network::
+                        GoldSrcPlayerLifecycleResult::kAlreadyApplied)
+            {
+                return FailTransport(
+                    "player-snapshot-lifecycle-transition-failed",
+                    "goldsrc_player_snapshot_failed: reason=lifecycle-transition");
+            }
+            summary_.player_snapshot_contract_verified = true;
+            summary_.player_clientdata_implemented = true;
+            SyncPlayerLifecycleSummary(slot_state);
+        }
         if (built.bundle.kind
             == hl::network::GoldSrcSnapshotKind::kDelta)
         {
@@ -5307,7 +6378,13 @@ private:
                 + ",history_size="
                 + std::to_string(
                     slot_state.goldsrc_first_snapshot.history().size())
-                + ",put_in_server=0,spawned=0,active=0");
+                + ",put_in_server="
+                + (slot_state.goldsrc_player_lifecycle.put_in_server()
+                    ? "1" : "0")
+                + ",spawned="
+                + (slot_state.goldsrc_player_lifecycle.player().player_spawned
+                    ? "1" : "0")
+                + ",active=0");
         return true;
     }
 
@@ -6201,6 +7278,9 @@ private:
     bool first_snapshot_negative_proof_ = false;
     bool continuous_snapshots_enabled_ = false;
     bool continuous_snapshots_negative_proof_ = false;
+    bool player_lifecycle_enabled_ = false;
+    bool player_lifecycle_negative_proof_ = false;
+    hl::network::GoldSrcClientEdictRegistry lifecycle_edict_registry_;
     double snapshot_rate_hz_ =
         hl::network::kGoldSrcDefaultSnapshotRateHz;
     std::optional<hl::network::GoldSrcBaselineBundle>

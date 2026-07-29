@@ -1096,6 +1096,7 @@ function Invoke-ResourceManifestHostRun {
         "--frames", "1",
         "--log-to-file", "0",
         "--log-summary-file", "0",
+        "--log-disable-categories=general",
         "--ip", $Address,
         "--port", ([string]$selectedPort),
         "--goldsrc-resource-manifest",

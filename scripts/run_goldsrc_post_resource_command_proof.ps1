@@ -20,6 +20,11 @@ param(
     [ValidateRange(1, 300)]
     [int]$TimeoutSeconds = 60,
 
+    [single]$ExpectedZMaximum = 4096.0,
+
+    [ValidateRange(0, 255)]
+    [int]$ExpectedCdTrack = 0,
+
     [switch]$NegativeProof,
 
     [switch]$SkipServerOutput
@@ -36,6 +41,8 @@ $arguments = @{
     Port = $Port
     TimeoutSeconds = $TimeoutSeconds
     PostResourceCommandProof = $true
+    ExpectedZMaximum = $ExpectedZMaximum
+    ExpectedCdTrack = $ExpectedCdTrack
     SkipServerOutput = $SkipServerOutput
 }
 if (-not [string]::IsNullOrWhiteSpace($DeltaFixture)) {

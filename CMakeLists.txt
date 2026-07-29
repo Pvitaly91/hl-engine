@@ -41,6 +41,7 @@ add_library(goldsrc_network STATIC
     include/network/goldsrc_delta_description.h
     include/network/goldsrc_fragmentation.h
     include/network/goldsrc_netchan.h
+    include/network/goldsrc_player_lifecycle.h
     include/network/goldsrc_resource_manifest.h
     include/network/goldsrc_signon.h
     include/network/goldsrc_snapshot.h
@@ -53,6 +54,7 @@ add_library(goldsrc_network STATIC
     src/network/goldsrc_delta_description.cpp
     src/network/goldsrc_fragmentation.cpp
     src/network/goldsrc_netchan.cpp
+    src/network/goldsrc_player_lifecycle.cpp
     src/network/goldsrc_resource_manifest.cpp
     src/network/goldsrc_signon.cpp
     src/network/goldsrc_snapshot.cpp
@@ -412,6 +414,37 @@ add_custom_target(goldsrc_continuous_snapshot_unit_tests
 )
 set_target_properties(
     goldsrc_continuous_snapshot_unit_tests
+    PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_player_lifecycle_tests
+    src/tests/goldsrc_player_lifecycle_tests.cpp
+)
+target_include_directories(
+    goldsrc_player_lifecycle_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(
+    goldsrc_player_lifecycle_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(
+        goldsrc_player_lifecycle_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(
+        goldsrc_player_lifecycle_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_player_lifecycle_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_player_lifecycle_tests
+    COMMAND goldsrc_player_lifecycle_tests
+)
+
+add_custom_target(goldsrc_player_lifecycle_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_player_lifecycle_tests>"
+    DEPENDS goldsrc_player_lifecycle_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc player lifecycle, edict, callback, signon, view, and reset tests"
+)
+set_target_properties(
+    goldsrc_player_lifecycle_unit_tests
     PROPERTIES FOLDER "host/tests")
 
 add_custom_target(changelevel_policy_regressions

@@ -52,6 +52,32 @@ struct GoldSrcServerFrame final
     std::vector<GoldSrcSnapshotEntityState> entities;
 };
 
+struct GoldSrcPlayerSnapshotInput final
+{
+    GoldSrcSnapshotEntityState entity;
+    GoldSrcClientDataState clientdata;
+};
+
+enum class GoldSrcPlayerSnapshotApplyStatus
+{
+    kApplied,
+    kNullFrame,
+    kInvalidMaximumClients,
+    kInvalidEntityIndex,
+    kWrongEntityKind,
+    kInvalidPlayerState,
+    kInvalidClientData,
+    kDuplicateEntity,
+    kEntityCountExceeded,
+};
+
+std::string_view ReasonFor(GoldSrcPlayerSnapshotApplyStatus status) noexcept;
+
+GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
+    GoldSrcServerFrame* frame,
+    const GoldSrcPlayerSnapshotInput& player,
+    std::uint16_t maximum_clients) noexcept;
+
 struct GoldSrcFirstSnapshotPayload final
 {
     std::array<std::uint8_t, kGoldSrcMaximumSnapshotBytes> bytes{};
@@ -105,6 +131,8 @@ struct GoldSrcSnapshotEncodeResult final
     GoldSrcSnapshotCodecStatus status =
         GoldSrcSnapshotCodecStatus::kInvalidFrame;
     GoldSrcFirstSnapshotPayload payload;
+    std::string_view failure_table;
+    std::string_view failure_field;
 
     bool ok() const noexcept
     {
@@ -130,6 +158,8 @@ struct GoldSrcSnapshotBuildResult final
     GoldSrcSnapshotCodecStatus status =
         GoldSrcSnapshotCodecStatus::kInvalidFrame;
     GoldSrcFirstSnapshotBundle bundle;
+    std::string_view failure_table;
+    std::string_view failure_field;
 
     bool ok() const noexcept
     {
@@ -155,7 +185,8 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
     float server_time,
     const GoldSrcBaselineBundle& baselines,
     const GoldSrcDeltaRegistry& registry,
-    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes) noexcept;
+    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes,
+    const GoldSrcPlayerSnapshotInput* player = nullptr) noexcept;
 
 enum class GoldSrcSnapshotKind
 {
@@ -242,6 +273,8 @@ struct GoldSrcContinuousSnapshotBuildResult final
     GoldSrcSnapshotCodecStatus status =
         GoldSrcSnapshotCodecStatus::kInvalidFrame;
     GoldSrcContinuousSnapshotBundle bundle;
+    std::string_view failure_table;
+    std::string_view failure_field;
 
     bool ok() const noexcept
     {
@@ -255,7 +288,8 @@ GoldSrcContinuousSnapshotBuildResult BuildGoldSrcContinuousSnapshot(
     const GoldSrcServerFrame* acknowledged_base,
     const GoldSrcBaselineBundle& baselines,
     const GoldSrcDeltaRegistry& registry,
-    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes) noexcept;
+    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes,
+    const GoldSrcPlayerSnapshotInput* player = nullptr) noexcept;
 
 bool IsGoldSrcServerFrameNewer(
     std::uint32_t candidate,

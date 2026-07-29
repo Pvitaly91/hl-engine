@@ -1526,6 +1526,25 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-player-lifecycle"
+            || argument
+                == L"--goldsrc-player-lifecycle-negative-proof")
+        {
+            result.options.goldsrc_udp_handshake_enabled = true;
+            result.options.goldsrc_netchan_enabled = true;
+            result.options.goldsrc_serverinfo_enabled = true;
+            result.options.goldsrc_delta_descriptions_enabled = true;
+            result.options.goldsrc_resource_manifest_enabled = true;
+            result.options.goldsrc_world_baselines_enabled = true;
+            result.options.goldsrc_first_snapshot_enabled = true;
+            result.options.goldsrc_continuous_snapshots_enabled = true;
+            result.options.goldsrc_player_lifecycle_enabled = true;
+            result.options.goldsrc_player_lifecycle_negative_proof =
+                argument
+                == L"--goldsrc-player-lifecycle-negative-proof";
+            continue;
+        }
+
         constexpr std::wstring_view goldsrc_snapshot_rate_prefix =
             L"--goldsrc-snapshot-rate-hz=";
         if (StartsWith(argument, goldsrc_snapshot_rate_prefix))
@@ -20147,6 +20166,14 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options.goldsrc_first_snapshot_enabled = true;
     }
+    if (result.options.goldsrc_player_lifecycle_negative_proof)
+    {
+        result.options.goldsrc_player_lifecycle_enabled = true;
+    }
+    if (result.options.goldsrc_player_lifecycle_enabled)
+    {
+        result.options.goldsrc_continuous_snapshots_enabled = true;
+    }
     if (result.options.goldsrc_first_snapshot_enabled)
     {
         result.options.goldsrc_world_baselines_enabled = true;
@@ -20260,6 +20287,8 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --goldsrc-first-snapshot-negative-proof Run bounded invalid frame-reference snapshot validation\n"
              L"  --goldsrc-continuous-snapshots Stream bounded stock-compatible full and delta snapshots\n"
              L"  --goldsrc-continuous-snapshots-negative-proof Keep streaming for loss, wrap, and reset validation\n"
+             L"  --goldsrc-player-lifecycle Bind a deterministic client edict and call the real Game DLL player lifecycle\n"
+             L"  --goldsrc-player-lifecycle-negative-proof Exercise bounded callback rejection and stale-session gates\n"
              L"  --goldsrc-snapshot-rate-hz=<10..30> Set the bounded continuous snapshot rate (default 20)\n"
              L"  --ip, -ip <IPv4>              Exact dedicated UDP bind address (default: 0.0.0.0)\n"
              L"  --port, -port <1..65535>      Exact dedicated UDP bind port (default: 27015)\n"

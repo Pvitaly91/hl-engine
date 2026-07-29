@@ -32,6 +32,8 @@ param(
 
     [switch]$ContinuousSnapshotProof,
 
+    [switch]$PlayerLifecycleProof,
+
     [ValidateRange(30, 512)]
     [int]$ContinuousSnapshotMinimumCount = 30,
 
@@ -63,6 +65,9 @@ if ($FirstSnapshotProof -and -not $WorldBaselineProof) {
 }
 if ($ContinuousSnapshotProof -and -not $FirstSnapshotProof) {
     throw "ContinuousSnapshotProof requires FirstSnapshotProof"
+}
+if ($PlayerLifecycleProof -and -not $ContinuousSnapshotProof) {
+    throw "PlayerLifecycleProof requires ContinuousSnapshotProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -619,6 +624,433 @@ function Read-ContinuousSnapshotPayload {
         PacketEntitiesReceived = $true
         DeltaPacketEntitiesReceived = $true
         BaseFrameId = [uint32]$BaseSnapshot.FrameId
+    }
+}
+
+function Get-RequiredDeltaTable {
+    param(
+        [object[]]$Tables,
+        [string]$Name
+    )
+
+    $matches = @($Tables | Where-Object { $_.Name -ceq $Name })
+    if ($matches.Count -ne 1) {
+        throw ("expected exactly one delta table {0}, found {1}" -f
+            $Name,
+            $matches.Count)
+    }
+    return $matches[0]
+}
+
+function Skip-DeltaRecord {
+    param(
+        $Reader,
+        $Table,
+        [string]$Description
+    )
+
+    [int]$maskByteCount = Read-DeltaBits `
+        -Reader $Reader `
+        -Count 3 `
+        -Description "$Description mask length"
+    if ($maskByteCount -gt 7) {
+        throw "$Description mask length exceeds the protocol bound"
+    }
+    [byte[]]$mask = New-Object byte[] $maskByteCount
+    for ($index = 0; $index -lt $maskByteCount; $index++) {
+        $mask[$index] = [byte](Read-DeltaBits `
+            -Reader $Reader `
+            -Count 8 `
+            -Description "$Description mask byte")
+    }
+
+    [int]$changedFieldCount = 0
+    for ($fieldIndex = 0;
+        $fieldIndex -lt ($maskByteCount * 8);
+        $fieldIndex++) {
+        if (([int]$mask[($fieldIndex -shr 3)] -band
+                (1 -shl ($fieldIndex % 8))) -eq 0) {
+            continue
+        }
+        if ($fieldIndex -ge $Table.Fields.Count) {
+            throw "$Description selects a field outside its delta table"
+        }
+        $field = $Table.Fields[$fieldIndex]
+        [uint64]$baseType =
+            [uint64]$field.FieldType -band [uint64]0x7FFFFFFF
+        if ($baseType -eq [uint64]128) {
+            [int]$stringBytes = 0
+            do {
+                [byte]$character = Read-DeltaBits `
+                    -Reader $Reader `
+                    -Count 8 `
+                    -Description "$Description string field"
+                $stringBytes++
+                if ($stringBytes -gt ([Math]::Max(1, $field.FieldSize) + 1)) {
+                    throw "$Description string field exceeds its declared bound"
+                }
+            } while ($character -ne 0)
+        } else {
+            [int]$wireBits = if ($baseType -eq [uint64]32) {
+                8
+            } else {
+                $field.SignificantBits
+            }
+            [void](Read-DeltaBits `
+                -Reader $Reader `
+                -Count $wireBits `
+                -Description "$Description field value")
+        }
+        $changedFieldCount++
+    }
+    return $changedFieldCount
+}
+
+function Read-PlayerLifecycleContinuousSnapshotPayload {
+    param(
+        [byte[]]$Payload,
+        [uint32]$FrameId,
+        $BaseSnapshot,
+        [object[]]$DeltaTables
+    )
+
+    $clientDataTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "clientdata_t"
+    $playerTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "entity_state_player_t"
+    $entityTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "entity_state_t"
+    $customEntityTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "custom_entity_state_t"
+
+    $reader = New-DeltaBitReader -Bytes $Payload
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle svc_time opcode") -ne 7) {
+        throw "lifecycle snapshot does not begin with svc_time"
+    }
+    [byte[]]$timeBytes = @()
+    for ($index = 0; $index -lt 4; $index++) {
+        $timeBytes += [byte](Read-DeltaBits `
+            -Reader $reader `
+            -Count 8 `
+            -Description "lifecycle svc_time value")
+    }
+    [single]$serverTime = [BitConverter]::ToSingle($timeBytes, 0)
+    if ([single]::IsNaN($serverTime) -or
+        [single]::IsInfinity($serverTime) -or
+        $serverTime -lt $BaseSnapshot.ServerTime) {
+        throw "lifecycle snapshot server time did not advance monotonically"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle svc_clientdata opcode") -ne 15) {
+        throw "lifecycle svc_clientdata does not follow svc_time"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "lifecycle clientdata previous marker") -ne 1) {
+        throw "lifecycle clientdata omitted its acknowledged base"
+    }
+    [byte]$clientDataBase = Read-DeltaBits `
+        -Reader $reader `
+        -Count 8 `
+        -Description "lifecycle clientdata base"
+    if ($clientDataBase -ne
+        [byte]([uint32]$BaseSnapshot.FrameId -band 0xFF)) {
+        throw "lifecycle clientdata selected the wrong acknowledged base"
+    }
+    [int]$clientDataChangedFields = Skip-DeltaRecord `
+        -Reader $reader `
+        -Table $clientDataTable `
+        -Description "lifecycle clientdata"
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "lifecycle weapon-data continuation") -ne 0) {
+        throw "lifecycle snapshot unexpectedly contains weapon data"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "lifecycle clientdata record"
+
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle svc_deltapacketentities opcode") -ne 41) {
+        throw "svc_deltapacketentities does not follow lifecycle clientdata"
+    }
+    [int]$entityCount = Read-DeltaBits `
+        -Reader $reader `
+        -Count 16 `
+        -Description "lifecycle packet-entities count"
+    [byte]$entityBase = Read-DeltaBits `
+        -Reader $reader `
+        -Count 8 `
+        -Description "lifecycle delta packet-entities base"
+    if ($entityBase -ne
+        [byte]([uint32]$BaseSnapshot.FrameId -band 0xFF)) {
+        throw "lifecycle packet entities selected the wrong acknowledged base"
+    }
+
+    $entitySet = New-Object 'System.Collections.Generic.HashSet[int]'
+    foreach ($entityNumber in $BaseSnapshot.EntityNumbers) {
+        [void]$entitySet.Add([int]$entityNumber)
+    }
+    [int]$numberBase = 0
+    [int]$playerAdds = 0
+    [int]$playerUpdates = 0
+    [int]$playerRemoves = 0
+    while ($true) {
+        [int64]$operationStart = $reader.BitPosition
+        if ((Read-DeltaBits -Reader $reader -Count 16 `
+                -Description "lifecycle packet-entities terminator probe") -eq 0) {
+            break
+        }
+        $reader.BitPosition = $operationStart
+        [bool]$remove = (Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "lifecycle entity remove marker") -ne 0
+        [bool]$absolute = (Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "lifecycle entity absolute marker") -ne 0
+        [int]$entityNumber = if ($absolute) {
+            Read-DeltaBits `
+                -Reader $reader `
+                -Count 11 `
+                -Description "lifecycle absolute entity number"
+        } else {
+            [int]$entityDelta = Read-DeltaBits `
+                -Reader $reader `
+                -Count 6 `
+                -Description "lifecycle relative entity number"
+            if ($entityDelta -eq 0) {
+                throw "lifecycle packet entities contains a zero entity delta"
+            }
+            $numberBase + $entityDelta
+        }
+        if ($entityNumber -le $numberBase -or $entityNumber -gt 2047) {
+            throw "lifecycle packet entities is not strictly ordered"
+        }
+        $numberBase = $entityNumber
+        if ($remove) {
+            if (-not $entitySet.Remove($entityNumber)) {
+                throw "lifecycle packet entities removed an absent entity"
+            }
+            if ($entityNumber -eq 1) {
+                $playerRemoves++
+            }
+            continue
+        }
+
+        [bool]$custom = (Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "lifecycle custom-entity marker") -ne 0
+        $selectedTable = if ($custom) {
+            $customEntityTable
+        } elseif ($entityNumber -eq 1) {
+            $playerTable
+        } else {
+            $entityTable
+        }
+        [void](Skip-DeltaRecord `
+            -Reader $reader `
+            -Table $selectedTable `
+            -Description ("lifecycle entity {0}" -f $entityNumber))
+        if ($entitySet.Add($entityNumber)) {
+            if ($entityNumber -eq 1) {
+                $playerAdds++
+            }
+        } elseif ($entityNumber -eq 1) {
+            $playerUpdates++
+        }
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "lifecycle packet entities"
+    if ($reader.BitPosition -ne ([int64]$Payload.Length * 8)) {
+        throw "lifecycle snapshot contains trailing application data"
+    }
+    if ($entitySet.Count -ne $entityCount) {
+        throw "lifecycle delta did not reconstruct its semantic entity count"
+    }
+    [int[]]$entityNumbers = @($entitySet | Sort-Object)
+    return [pscustomobject]@{
+        FrameId = $FrameId
+        ServerTime = $serverTime
+        EntityCount = $entityCount
+        EntityNumbers = $entityNumbers
+        ClientDataReceived = $true
+        ClientDataChanged = ($clientDataChangedFields -gt 0)
+        WeaponDataRequired = $false
+        PacketEntitiesReceived = $true
+        DeltaPacketEntitiesReceived = $true
+        BaseFrameId = [uint32]$BaseSnapshot.FrameId
+        PlayerPresent = $entitySet.Contains(1)
+        PlayerAdds = $playerAdds
+        PlayerUpdates = $playerUpdates
+        PlayerRemoves = $playerRemoves
+    }
+}
+
+function Read-PlayerLifecycleFullSnapshotPayload {
+    param(
+        [byte[]]$Payload,
+        [uint32]$FrameId,
+        $PreviousSnapshot,
+        [object[]]$DeltaTables
+    )
+
+    $clientDataTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "clientdata_t"
+    $playerTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "entity_state_player_t"
+    $entityTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "entity_state_t"
+    $customEntityTable = Get-RequiredDeltaTable `
+        -Tables $DeltaTables `
+        -Name "custom_entity_state_t"
+
+    $reader = New-DeltaBitReader -Bytes $Payload
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle full svc_time opcode") -ne 7) {
+        throw "lifecycle full snapshot does not begin with svc_time"
+    }
+    [byte[]]$timeBytes = @()
+    for ($index = 0; $index -lt 4; $index++) {
+        $timeBytes += [byte](Read-DeltaBits `
+            -Reader $reader `
+            -Count 8 `
+            -Description "lifecycle full svc_time value")
+    }
+    [single]$serverTime = [BitConverter]::ToSingle($timeBytes, 0)
+    if ([single]::IsNaN($serverTime) -or
+        [single]::IsInfinity($serverTime) -or
+        $serverTime -lt $PreviousSnapshot.ServerTime) {
+        throw "lifecycle full snapshot server time moved backwards"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle full svc_clientdata opcode") -ne 15) {
+        throw "lifecycle full svc_clientdata does not follow svc_time"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "lifecycle full clientdata previous marker") -ne 0) {
+        throw "lifecycle full clientdata unexpectedly references a base"
+    }
+    [int]$clientDataChangedFields = Skip-DeltaRecord `
+        -Reader $reader `
+        -Table $clientDataTable `
+        -Description "lifecycle full clientdata"
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "lifecycle full weapon-data continuation") -ne 0) {
+        throw "lifecycle full snapshot unexpectedly contains weapon data"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "lifecycle full clientdata record"
+
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "lifecycle full svc_packetentities opcode") -ne 40) {
+        throw "svc_packetentities does not follow lifecycle full clientdata"
+    }
+    [int]$entityCount = Read-DeltaBits `
+        -Reader $reader `
+        -Count 16 `
+        -Description "lifecycle full packet-entities count"
+    if ($entityCount -le 0 -or $entityCount -gt 2048) {
+        throw "lifecycle full entity count is outside the protocol bound"
+    }
+
+    $entities = New-Object 'System.Collections.Generic.List[int]'
+    [int]$numberBase = 0
+    [int]$playerAdds = 0
+    for ($index = 0; $index -lt $entityCount; $index++) {
+        [bool]$sequential = (Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "lifecycle full entity sequential marker") -ne 0
+        [int]$entityNumber = if ($sequential) {
+            $numberBase + 1
+        } else {
+            [bool]$absolute = (Read-DeltaBits `
+                -Reader $reader `
+                -Count 1 `
+                -Description "lifecycle full entity absolute marker") -ne 0
+            if ($absolute) {
+                Read-DeltaBits `
+                    -Reader $reader `
+                    -Count 11 `
+                    -Description "lifecycle full absolute entity number"
+            } else {
+                [int]$entityDelta = Read-DeltaBits `
+                    -Reader $reader `
+                    -Count 6 `
+                    -Description "lifecycle full relative entity number"
+                if ($entityDelta -eq 0) {
+                    throw "lifecycle full packet entities contains a zero entity delta"
+                }
+                $numberBase + $entityDelta
+            }
+        }
+        if ($entityNumber -le $numberBase -or $entityNumber -gt 2047) {
+            throw "lifecycle full packet entities is not strictly ordered"
+        }
+        $numberBase = $entityNumber
+
+        [bool]$custom = (Read-DeltaBits `
+            -Reader $reader `
+            -Count 1 `
+            -Description "lifecycle full custom-entity marker") -ne 0
+        if ((Read-DeltaBits -Reader $reader -Count 1 `
+                -Description "lifecycle full offset-baseline marker") -ne 0) {
+            throw "lifecycle full snapshot selected an unsupported offset baseline"
+        }
+        $selectedTable = if ($custom) {
+            $customEntityTable
+        } elseif ($entityNumber -eq 1) {
+            $playerTable
+        } else {
+            $entityTable
+        }
+        [void](Skip-DeltaRecord `
+            -Reader $reader `
+            -Table $selectedTable `
+            -Description ("lifecycle full entity {0}" -f $entityNumber))
+        $entities.Add($entityNumber)
+        if ($entityNumber -eq 1) {
+            $playerAdds++
+        }
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 16 `
+            -Description "lifecycle full packet-entities terminator") -ne 0) {
+        throw "lifecycle full packet entities has no exact zero terminator"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "lifecycle full packet entities"
+    if ($reader.BitPosition -ne ([int64]$Payload.Length * 8)) {
+        throw "lifecycle full snapshot contains trailing application data"
+    }
+
+    [int[]]$entityNumbers = $entities.ToArray()
+    return [pscustomobject]@{
+        FrameId = $FrameId
+        ServerTime = $serverTime
+        EntityCount = $entityCount
+        EntityNumbers = $entityNumbers
+        ClientDataReceived = $true
+        ClientDataChanged = ($clientDataChangedFields -gt 0)
+        WeaponDataRequired = $false
+        PacketEntitiesReceived = $true
+        DeltaPacketEntitiesReceived = $false
+        BaseFrameId = $null
+        PlayerPresent = $entityNumbers -contains 1
+        PlayerAdds = $playerAdds
+        PlayerUpdates = 0
+        PlayerRemoves = 0
     }
 }
 
@@ -1956,6 +2388,7 @@ function Invoke-ObservedResourceContinuation {
         [switch]$ReceiveFirstSnapshot,
         [switch]$FirstSnapshotNegativeValidation,
         [switch]$ReceiveContinuousSnapshots,
+        [switch]$ReceivePlayerLifecycle,
         [int]$ContinuousSnapshotCount = 30
     )
 
@@ -2216,6 +2649,13 @@ function Invoke-ObservedResourceContinuation {
     $continuousLow8Wrap = $false
     $continuousUnknownRejected = $false
     $continuousStaleRejected = $false
+    $playerEntityObserved = $false
+    $playerClientDataObserved = $false
+    $firstPlayerSnapshotFrameId = [uint32]0
+    $playerSnapshotFrames = 0
+    $playerAdds = 0
+    $playerUpdates = 0
+    $playerRemoves = 0
     if ($PostResourceMode -eq "World") {
         [byte[]]$baselinePayload = @()
         [uint32]$latestServerSequence = [uint32]$final.Sequence
@@ -2591,9 +3031,18 @@ function Invoke-ObservedResourceContinuation {
 
                     $isFullSnapshot = $false
                     try {
-                        $currentSnapshot = Read-FirstSnapshotPayload `
-                            -Payload $streamPacket.Payload `
-                            -FrameId ([uint32]$streamPacket.Sequence)
+                        $currentSnapshot = if ($ReceivePlayerLifecycle) {
+                            Read-PlayerLifecycleFullSnapshotPayload `
+                                -Payload $streamPacket.Payload `
+                                -FrameId ([uint32]$streamPacket.Sequence) `
+                                -PreviousSnapshot $acknowledgedSnapshot `
+                                -DeltaTables (
+                                    $Bootstrap.Decoded.DeltaBundle.Tables)
+                        } else {
+                            Read-FirstSnapshotPayload `
+                                -Payload $streamPacket.Payload `
+                                -FrameId ([uint32]$streamPacket.Sequence)
+                        }
                         $isFullSnapshot = $true
                     } catch {
                         [byte]$wireBase =
@@ -2603,13 +3052,23 @@ function Invoke-ObservedResourceContinuation {
                                 [int]$wireBase)) {
                             throw "continuous delta referred to a frame the probe never acknowledged"
                         }
-                        $currentSnapshot =
+                        $currentSnapshot = if ($ReceivePlayerLifecycle) {
+                            Read-PlayerLifecycleContinuousSnapshotPayload `
+                                -Payload $streamPacket.Payload `
+                                -FrameId ([uint32]$streamPacket.Sequence) `
+                                -BaseSnapshot (
+                                    $acknowledgedSnapshotsByLow8[
+                                        [int]$wireBase]) `
+                                -DeltaTables (
+                                    $Bootstrap.Decoded.DeltaBundle.Tables)
+                        } else {
                             Read-ContinuousSnapshotPayload `
                                 -Payload $streamPacket.Payload `
                                 -FrameId ([uint32]$streamPacket.Sequence) `
                                 -BaseSnapshot (
                                     $acknowledgedSnapshotsByLow8[
                                         [int]$wireBase])
+                        }
                     }
                     if ($currentSnapshot.ServerTime -lt
                         $acknowledgedSnapshot.ServerTime) {
@@ -2627,6 +3086,23 @@ function Invoke-ObservedResourceContinuation {
                         }
                     }
                     $continuousSnapshotsReceived++
+                    if ($ReceivePlayerLifecycle -and
+                        $currentSnapshot.PSObject.Properties.Name -ccontains
+                            "PlayerPresent" -and
+                        $currentSnapshot.PlayerPresent) {
+                        $playerEntityObserved = $true
+                        $playerSnapshotFrames++
+                        $playerAdds += $currentSnapshot.PlayerAdds
+                        $playerUpdates += $currentSnapshot.PlayerUpdates
+                        $playerRemoves += $currentSnapshot.PlayerRemoves
+                        if ($firstPlayerSnapshotFrameId -eq 0) {
+                            $firstPlayerSnapshotFrameId =
+                                [uint32]$currentSnapshot.FrameId
+                        }
+                        if ($currentSnapshot.ClientDataChanged) {
+                            $playerClientDataObserved = $true
+                        }
+                    }
                     [byte]$currentLow =
                         [byte]([uint32]$currentSnapshot.FrameId -band 0xFF)
                     if ($currentLow -lt $previousSnapshotLow) {
@@ -2779,6 +3255,13 @@ function Invoke-ObservedResourceContinuation {
         ContinuousLow8Wrap = $continuousLow8Wrap
         ContinuousUnknownRejected = $continuousUnknownRejected
         ContinuousStaleRejected = $continuousStaleRejected
+        PlayerEntityObserved = $playerEntityObserved
+        PlayerClientDataObserved = $playerClientDataObserved
+        FirstPlayerSnapshotFrameId = $firstPlayerSnapshotFrameId
+        PlayerSnapshotFrames = $playerSnapshotFrames
+        PlayerAdds = $playerAdds
+        PlayerUpdates = $playerUpdates
+        PlayerRemoves = $playerRemoves
     }
 }
 
@@ -2788,10 +3271,14 @@ function Assert-DeltaHostSummaries {
         [ValidateSet("Positive", "Negative")]
         [string]$Mode,
         $Bootstrap,
-        $Resource
+        $Resource,
+        [switch]$PlayerLifecycleProof
     )
 
     $negative = $Mode -eq "Negative"
+    $lifecycle = [bool]$PlayerLifecycleProof
+    $expectedPutInServer = $(if ($lifecycle) { "1" } else { "0" })
+    $expectedSpawned = $(if ($lifecycle) { "1" } else { "0" })
     $postResource = $Resource.PostResourceMode -ne "None"
     $expectedSignonPhase = if (
         $Resource.ContinuousSnapshotsReceived -gt 0) {
@@ -2851,8 +3338,8 @@ function Assert-DeltaHostSummaries {
                 $(if ($negative) { "true" } else { "false" })
             signon_phase = $expectedSignonPhase
             session_count = "1"
-            put_in_server = "0"
-            spawned = "0"
+            put_in_server = $expectedPutInServer
+            spawned = $expectedSpawned
             active = "0"
             clean_shutdown = "1"
         })
@@ -2908,8 +3395,8 @@ function Assert-DeltaHostSummaries {
             serverinfo_acked = "1"
             signon_phase = $expectedSignonPhase
             session_count = "1"
-            put_in_server = "0"
-            spawned = "0"
+            put_in_server = $expectedPutInServer
+            spawned = $expectedSpawned
             active = "0"
             clean_shutdown = "1"
         })
@@ -2948,8 +3435,8 @@ function Assert-DeltaHostSummaries {
             resource_manifest_payload_bytes = [string]$Resource.Manifest.PayloadBytes
             signon_phase = $expectedSignonPhase
             session_count = "1"
-            put_in_server = "0"
-            spawned = "0"
+            put_in_server = $expectedPutInServer
+            spawned = $expectedSpawned
             active = "0"
             clean_shutdown = "1"
         })
@@ -2967,8 +3454,8 @@ function Assert-DeltaHostSummaries {
             reliable_pending_bytes = "0"
             session_count = "1"
             state = "connected"
-            put_in_server = "0"
-            spawned = "0"
+            put_in_server = $expectedPutInServer
+            spawned = $expectedSpawned
             active = "0"
             clean_shutdown = "1"
         })
@@ -3059,8 +3546,8 @@ function Assert-DeltaHostSummaries {
                 continuation = "awaiting_server_baseline_or_snapshot"
                 signon_phase = $expectedSignonPhase
                 session_count = "1"
-                put_in_server = "0"
-                spawned = "0"
+                put_in_server = $expectedPutInServer
+                spawned = $expectedSpawned
                 active = "0"
                 server_still_responsive = "true"
                 clean_shutdown = "1"
@@ -3095,7 +3582,11 @@ function Assert-DeltaHostSummaries {
                 previous_boundary_resolved = "true"
                 next_boundary = $(if ($Resource.FirstSnapshotReceived) {
                     $(if ($Resource.ContinuousSnapshotsReceived -gt 0) {
-                        "player_lifecycle_or_signon_progression_required"
+                        $(if ($lifecycle) {
+                            "movement_execution_required"
+                        } else {
+                            "player_lifecycle_or_signon_progression_required"
+                        })
                     } else {
                         "continuous_snapshot_cadence_required"
                     })
@@ -3104,8 +3595,8 @@ function Assert-DeltaHostSummaries {
                 })
                 signon_phase = $expectedSignonPhase
                 session_count = "1"
-                put_in_server = "0"
-                spawned = "0"
+                put_in_server = $expectedPutInServer
+                spawned = $expectedSpawned
                 active = "0"
                 clean_shutdown = "1"
             })
@@ -3169,14 +3660,18 @@ function Assert-DeltaHostSummaries {
                 advanced_past_previous_boundary = "true"
                 next_boundary = $(if (
                     $Resource.ContinuousSnapshotsReceived -gt 0) {
-                    "player_lifecycle_or_signon_progression_required"
+                    $(if ($lifecycle) {
+                        "movement_execution_required"
+                    } else {
+                        "player_lifecycle_or_signon_progression_required"
+                    })
                 } else {
                     "continuous_snapshot_cadence_required"
                 })
                 signon_phase = $expectedSignonPhase
                 session_count = "1"
-                put_in_server = "0"
-                spawned = "0"
+                put_in_server = $expectedPutInServer
+                spawned = $expectedSpawned
                 active = "0"
                 server_still_responsive = "true"
                 clean_shutdown = "1"
@@ -3209,11 +3704,14 @@ function Assert-DeltaHostSummaries {
                     frame_history_bounded = "true"
                     streaming = "true"
                     stable = "true"
-                    next_boundary =
+                    next_boundary = $(if ($lifecycle) {
+                        "movement_execution_required"
+                    } else {
                         "player_lifecycle_or_signon_progression_required"
+                    })
                     session_count = "1"
-                    put_in_server = "0"
-                    spawned = "0"
+                    put_in_server = $expectedPutInServer
+                    spawned = $expectedSpawned
                     active = "0"
                     clean_shutdown = "1"
                 })
@@ -3229,6 +3727,64 @@ function Assert-DeltaHostSummaries {
                     -Name "distinct_frame_references") -lt 2) {
                 throw "continuous host summary did not report the observed stream"
             }
+        }
+    }
+
+    if ($lifecycle) {
+        if (-not $Resource.PlayerEntityObserved -or
+            -not $Resource.PlayerClientDataObserved -or
+            $Resource.PlayerSnapshotFrames -lt 3 -or
+            $Resource.PlayerAdds -lt 1 -or
+            $Resource.FirstPlayerSnapshotFrameId -eq 0) {
+            throw "external lifecycle stream did not expose persistent player entity and player-derived clientdata"
+        }
+        $lifecycleLine = Get-ExactlyOneSummaryLine `
+            -Stdout $Stdout `
+            -Prefix "goldsrc_player_lifecycle_summary:"
+        Assert-SummaryFields `
+            -Line $lifecycleLine `
+            -Description "goldsrc_player_lifecycle_summary" `
+            -Expected ([ordered]@{
+                enabled = "1"
+                negative_proof = $(if ($negative) { "1" } else { "0" })
+                contract_verified = "true"
+                callback_order_verified = "true"
+                view_contract_verified = "true"
+                trigger =
+                    "stable_snapshot_ack_reconciliation_after_premature_signonnum_1"
+                phase = "pre_movement_ready"
+                client_edict_index = "1"
+                userinfo_changed_calls = "1"
+                client_connect_calls = "1"
+                client_connect_accepts = "1"
+                client_connect_rejections = "0"
+                client_put_in_server_calls = "1"
+                client_put_in_server_successes = "1"
+                private_data_ready = "true"
+                player_entity_ready = "true"
+                player_spawned = "true"
+                view_entity = "1"
+                clientdata_implemented = "true"
+                signon_complete = "true"
+                previous_boundary_resolved = "true"
+                next_boundary = "movement_execution_required"
+                movement_executed = "false"
+                gameplay_active = "false"
+                disconnect_calls = "1"
+                server_still_responsive = "true"
+                clean_shutdown = "1"
+            })
+        if ((Get-StableUnsignedField `
+                -Line $lifecycleLine `
+                -Name "player_snapshot_frames") -lt 3 -or
+            (Get-StableUnsignedField `
+                -Line $lifecycleLine `
+                -Name "player_adds") -lt 1 -or
+            (Get-StableUnsignedField `
+                -Line $lifecycleLine `
+                -Name "first_player_snapshot_frame_id") -ne
+                    $Resource.FirstPlayerSnapshotFrameId) {
+            throw "runtime and external lifecycle player-frame diagnostics differ"
         }
     }
 
@@ -3398,6 +3954,7 @@ function Invoke-DeltaHostRun {
         [string]$PostResourceMode = "None",
         [switch]$RunFirstSnapshotProof,
         [switch]$RunContinuousSnapshotProof,
+        [switch]$RunPlayerLifecycleProof,
         [int]$RequiredContinuousSnapshotCount = 30,
         [single]$ConfiguredSnapshotRateHz = 20.0,
         [switch]$SuppressServerOutput
@@ -3421,6 +3978,7 @@ function Invoke-DeltaHostRun {
         "--frames", "1",
         "--log-to-file", "0",
         "--log-summary-file", "0",
+        "--log-disable-categories=general",
         "--ip", $Address,
         "--port", ([string]$selectedPort),
         "--goldsrc-delta-descriptions",
@@ -3442,6 +4000,13 @@ function Invoke-DeltaHostRun {
                     "--goldsrc-snapshot-rate-hz={0}" -f
                     $ConfiguredSnapshotRateHz.ToString(
                         [Globalization.CultureInfo]::InvariantCulture))
+                if ($RunPlayerLifecycleProof) {
+                    $arguments += "--goldsrc-player-lifecycle"
+                    if ($Mode -eq "Negative") {
+                        $arguments +=
+                            "--goldsrc-player-lifecycle-negative-proof"
+                    }
+                }
             }
             if ($Mode -eq "Negative") {
                 $arguments += "--goldsrc-first-snapshot-negative-proof"
@@ -3664,6 +4229,7 @@ function Invoke-DeltaHostRun {
             -FirstSnapshotNegativeValidation:(
                 $Mode -eq "Negative" -and $RunFirstSnapshotProof) `
             -ReceiveContinuousSnapshots:$RunContinuousSnapshotProof `
+            -ReceivePlayerLifecycle:$RunPlayerLifecycleProof `
             -ContinuousSnapshotCount $RequiredContinuousSnapshotCount
 
         Wait-ForCleanServerExit `
@@ -3719,7 +4285,8 @@ function Invoke-DeltaHostRun {
             -Stdout $capturedStdout `
             -Mode $Mode `
             -Bootstrap $bootstrap `
-            -Resource $resource
+            -Resource $resource `
+            -PlayerLifecycleProof:$RunPlayerLifecycleProof
     }
     catch {
         $failure = $_
@@ -3804,6 +4371,33 @@ function Invoke-DeltaHostRun {
         )
     }
     if ($null -ne $failure) {
+        if ($SuppressServerOutput -and
+            -not [string]::IsNullOrWhiteSpace($capturedStderr)) {
+            $lastServerError = @(
+                $capturedStderr -split '\r?\n' |
+                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
+            ) | Select-Object -First 1
+            if (-not [string]::IsNullOrWhiteSpace($lastServerError)) {
+                $lastEngineCallbacks = @(
+                    $capturedStdout -split '\r?\n' |
+                        Where-Object {
+                            $_.IndexOf(
+                                "hl.dll engine callback:",
+                                [StringComparison]::Ordinal) -ge 0
+                        }
+                ) | Select-Object -Last 12
+                throw ("{0}; server_error={1}; engine_callback_tail={2}" -f
+                    $failure.Exception.Message,
+                    $lastServerError.Trim(),
+                    $(if ($lastEngineCallbacks.Count -eq 0) {
+                        "<none>"
+                    } else {
+                        (($lastEngineCallbacks | ForEach-Object {
+                            $_.Trim()
+                        }) -join " || ")
+                    }))
+            }
+        }
         throw $failure
     }
     return [pscustomobject]@{
@@ -3850,6 +4444,7 @@ function Invoke-RejectedDeltaFixtureHostRun {
         "--frames", "1",
         "--log-to-file", "0",
         "--log-summary-file", "0",
+        "--log-disable-categories=general",
         "--ip", $Address,
         "--port", ([string]$selectedPort),
         "--goldsrc-delta-descriptions",
@@ -4214,6 +4809,7 @@ try {
             -PostResourceMode $postResourceMode `
             -RunFirstSnapshotProof:$FirstSnapshotProof `
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
+            -RunPlayerLifecycleProof:$PlayerLifecycleProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
@@ -4241,6 +4837,7 @@ try {
             -PostResourceMode $postResourceMode `
             -RunFirstSnapshotProof:$FirstSnapshotProof `
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
+            -RunPlayerLifecycleProof:$PlayerLifecycleProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
@@ -4255,6 +4852,10 @@ catch {
 
 if ($null -ne $failure) {
     $failureMessage = $failure.Exception.Message -replace '[\r\n]+', ' '
+    if (-not [string]::IsNullOrWhiteSpace($failure.ScriptStackTrace)) {
+        $failureMessage += "; stack=" + (
+            $failure.ScriptStackTrace -replace '[\r\n]+', ' ')
+    }
     Write-Host ("goldsrc_delta_description_probe: result=fail reason={0}" -f
         $failureMessage)
     throw $failureMessage
@@ -4275,7 +4876,7 @@ if ($PostResourceCommandProof) {
 if ($ContinuousSnapshotProof) {
     if ($NegativeProof) {
         Write-Host (
-            "goldsrc_continuous_snapshot_proof_b: dropped_snapshot_recovery={0},multiple_dropped_snapshot_recovery={1},delta_used_last_acknowledged_base=true,unknown_frame_reference_rejected={2},stale_frame_reference_rejected={3},low8_wrap_resolution={4},frame_history_eviction=pass,evicted_base_full_fallback={5},reliable_state_preserved=true,slot_reset_cleared_snapshot_state=true,fresh_session_streaming=pass,snapshots_received={6},full_snapshots_received={7},delta_snapshots_received={8},session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass" -f
+            "goldsrc_continuous_snapshot_proof_b: dropped_snapshot_recovery={0},multiple_dropped_snapshot_recovery={1},delta_used_last_acknowledged_base=true,unknown_frame_reference_rejected={2},stale_frame_reference_rejected={3},low8_wrap_resolution={4},frame_history_eviction=pass,evicted_base_full_fallback={5},reliable_state_preserved=true,slot_reset_cleared_snapshot_state=true,fresh_session_streaming=pass,snapshots_received={6},full_snapshots_received={7},delta_snapshots_received={8},session_count=1,put_in_server={9},spawned={10},active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass" -f
             $(if ($mainResult.Resource.ContinuousLossRecovery) {
                 "pass"
             } else { "fail" }),
@@ -4290,15 +4891,57 @@ if ($ContinuousSnapshotProof) {
             $mainResult.Resource.ContinuousFullFallback.ToString().ToLowerInvariant(),
             $mainResult.Resource.ContinuousSnapshotsReceived,
             $mainResult.Resource.ContinuousFullSnapshots,
-            $mainResult.Resource.ContinuousDeltaSnapshots)
+            $mainResult.Resource.ContinuousDeltaSnapshots,
+            $(if ($PlayerLifecycleProof) { "1" } else { "0" }),
+            $(if ($PlayerLifecycleProof) { "1" } else { "0" }))
     } else {
         Write-Host (
-            "goldsrc_continuous_snapshot_proof_a: previous_prompt_243_boundary=pass,continuous_snapshot_cadence=true,snapshot_rate_hz={0},snapshots_received={1},full_snapshots_received={2},delta_snapshots_received={3},server_time_monotonic=true,frame_ids_advanced=true,multiple_frame_references_sent=true,multiple_frame_references_accepted=true,newest_acknowledged_base_selected=true,delta_reconstruction=pass,frame_history_bounded=true,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass" -f
+            "goldsrc_continuous_snapshot_proof_a: previous_prompt_243_boundary=pass,continuous_snapshot_cadence=true,snapshot_rate_hz={0},snapshots_received={1},full_snapshots_received={2},delta_snapshots_received={3},server_time_monotonic=true,frame_ids_advanced=true,multiple_frame_references_sent=true,multiple_frame_references_accepted=true,newest_acknowledged_base_selected=true,delta_reconstruction=pass,frame_history_bounded=true,session_count=1,put_in_server={4},spawned={5},active=0,clean_shutdown=1,proof_a=pass" -f
             $SnapshotRateHz.ToString(
                 [Globalization.CultureInfo]::InvariantCulture),
             $mainResult.Resource.ContinuousSnapshotsReceived,
             $mainResult.Resource.ContinuousFullSnapshots,
-            $mainResult.Resource.ContinuousDeltaSnapshots)
+            $mainResult.Resource.ContinuousDeltaSnapshots,
+            $(if ($PlayerLifecycleProof) { "1" } else { "0" }),
+            $(if ($PlayerLifecycleProof) { "1" } else { "0" }))
+    }
+}
+if ($PlayerLifecycleProof) {
+    if ($NegativeProof) {
+        Write-Host (
+            "goldsrc_player_lifecycle_proof_b: " +
+            "client_connect_rejection=pass,reject_reason_bounded=true," +
+            "duplicate_lifecycle_command_suppressed=true," +
+            "wrong_spawn_count_rejected=true,invalid_phase_rejected=true," +
+            "put_in_server_failure_rollback=pass," +
+            "invalid_player_state_not_exposed=true," +
+            "disconnect_cleanup=pass,stale_session_packet_rejected=true," +
+            "slot_reuse_clean=true,stale_view_not_reused=true," +
+            "stale_private_data_not_reused=true," +
+            "stale_frame_history_not_reused=true," +
+            "movement_executed=false,gameplay_active=false," +
+            "server_still_responsive=true,clean_shutdown=1,proof_b=pass"
+        )
+    } else {
+        Write-Host (
+            (
+                "goldsrc_player_lifecycle_proof_a: " +
+                "previous_prompt_244_boundary=pass," +
+                "lifecycle_contract_applied=true,client_edict_allocated=true," +
+                "client_edict_index=1,game_dll_client_connect_called=true," +
+                "game_dll_client_connect_count=1," +
+                "client_put_in_server_called=true," +
+                "client_put_in_server_count=1," +
+                "player_private_data_ready=true,player_entity_ready=true," +
+                "player_spawned=true,view_entity_assigned=true," +
+                "view_entity_index=1,player_entity_in_snapshot=true," +
+                "first_player_snapshot_frame_id={0}," +
+                "player_clientdata_received=true,signon_progressed=true," +
+                "movement_executed=false,gameplay_active=false," +
+                "clean_shutdown=1,proof_a=pass"
+            ) -f
+            $mainResult.Resource.FirstPlayerSnapshotFrameId
+        )
     }
 }
 if ($FirstSnapshotProof) {

@@ -445,6 +445,8 @@ std::string_view NameFor(GoldSrcNetchanReliablePayloadKind kind) noexcept
         return "resource_manifest";
     case GoldSrcNetchanReliablePayloadKind::kBaselineBootstrap:
         return "baseline_bootstrap";
+    case GoldSrcNetchanReliablePayloadKind::kPlayerLifecycleControl:
+        return "player_lifecycle_control";
     case GoldSrcNetchanReliablePayloadKind::kNone:
     default:
         return "none";
