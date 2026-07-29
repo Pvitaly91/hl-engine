@@ -35,6 +35,7 @@ public:
     GoldSrcBitReader(const std::uint8_t* bytes, std::size_t size) noexcept;
 
     bool ReadBits(std::size_t count, std::uint32_t* value) noexcept;
+    bool PeekBits(std::size_t count, std::uint32_t* value) const noexcept;
     bool ReadBytes(std::uint8_t* bytes, std::size_t size) noexcept;
     bool ReadString(std::size_t maximum_bytes, std::string* value);
     bool AlignToByte(bool require_zero_padding) noexcept;

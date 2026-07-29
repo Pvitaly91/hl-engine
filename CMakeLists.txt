@@ -383,6 +383,37 @@ set_target_properties(
     goldsrc_snapshot_unit_tests
     PROPERTIES FOLDER "host/tests")
 
+add_executable(goldsrc_continuous_snapshot_tests
+    src/tests/goldsrc_continuous_snapshot_tests.cpp
+)
+target_include_directories(
+    goldsrc_continuous_snapshot_tests PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(
+    goldsrc_continuous_snapshot_tests PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(
+        goldsrc_continuous_snapshot_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(
+        goldsrc_continuous_snapshot_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_continuous_snapshot_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_continuous_snapshot_tests
+    COMMAND goldsrc_continuous_snapshot_tests
+)
+
+add_custom_target(goldsrc_continuous_snapshot_unit_tests
+    COMMAND "$<TARGET_FILE:goldsrc_continuous_snapshot_tests>"
+    DEPENDS goldsrc_continuous_snapshot_tests
+    USES_TERMINAL
+    COMMENT "Running GoldSrc continuous snapshot scheduler, delta, loss, and wrap tests"
+)
+set_target_properties(
+    goldsrc_continuous_snapshot_unit_tests
+    PROPERTIES FOLDER "host/tests")
+
 add_custom_target(changelevel_policy_regressions
     COMMAND
         "${HLHOST_POWERSHELL_EXECUTABLE}"

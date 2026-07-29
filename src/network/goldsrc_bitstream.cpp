@@ -144,6 +144,18 @@ bool GoldSrcBitReader::ReadBits(
     return true;
 }
 
+bool GoldSrcBitReader::PeekBits(
+    std::size_t count,
+    std::uint32_t* value) const noexcept
+{
+    if (value == nullptr)
+    {
+        return false;
+    }
+    GoldSrcBitReader copy = *this;
+    return copy.ReadBits(count, value);
+}
+
 bool GoldSrcBitReader::ReadBytes(
     std::uint8_t* bytes,
     std::size_t size) noexcept

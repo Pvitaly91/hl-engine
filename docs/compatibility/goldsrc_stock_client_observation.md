@@ -289,3 +289,45 @@ requirement.
 Acceptance of the first world snapshot does not mean that continuous delta
 snapshots, Game DLL ClientPutInServer, spawn, movement, prediction, player
 replication, or gameplay are complete.
+
+## Prompt 244 continuous-snapshot checkpoint
+
+Prompt 244 reused the exact unmodified Half-Life 1.1.2.2 client, Steam build
+`15961492`, installed read-only `valve` data, `c0a0`, and a direct
+`127.0.0.1` connection.  The host used a bounded 20 Hz (50 ms) snapshot
+schedule and remained in the pre-spawn lifecycle.
+
+After acknowledging the first full frame, the client accepted later
+`svc_time`, delta-relative `svc_clientdata`, and
+`svc_deltapacketentities` bundles.  The final bounded run completed with host
+exit code zero after more than ten seconds of streaming.  It sent the first
+full frame and 105 later delta frames; the client referenced 39 distinct full
+server-frame identifiers.  The client process remained alive through the
+observation, and the host recorded no `svc_bad`, illegible-server-message, or
+server-message-overflow marker.
+
+The server selected the newest acknowledged semantic frame that was available
+when each outgoing snapshot was built.  Carrier sequence gaps caused by normal
+NOP responses did not affect the frame resolver.  The client executable and
+installed `delta.lst` hashes were identical before and after the run.
+
+Final checkpoint:
+
+- `stock_client_received_continuous_snapshots=yes`;
+- `stock_client_snapshot_count=106`;
+- `stock_client_referenced_multiple_frames=yes`;
+- `stock_client_accepted_delta_snapshot=yes`;
+- `stock_client_remained_connected=yes`;
+- `previous_continuous_snapshot_boundary_resolved=yes`;
+- `stock_client_advanced_past_previous_boundary=yes`;
+- `next_observed_boundary=player_lifecycle_or_signon_progression_required`;
+- `put_in_server=0`, `spawned=0`, and `active=0`.
+
+The next boundary is deliberately stated as a choice between real player
+lifecycle and further signon progression: neither was needed to maintain
+stable continuous snapshots, and Prompt 244 did not fabricate a player to
+disambiguate it.
+
+Stable continuous full and delta snapshots do not mean that Game DLL
+ClientPutInServer, player spawn, PM_Move, prediction, player replication,
+weapons, damage, or gameplay are complete.

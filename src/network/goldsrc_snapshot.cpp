@@ -1093,6 +1093,753 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
     return result;
 }
 
+std::string_view NameFor(GoldSrcSnapshotKind kind) noexcept
+{
+    return kind == GoldSrcSnapshotKind::kDelta ? "delta" : "full";
+}
+
+std::string_view ReasonFor(GoldSrcEntityDiffStatus status) noexcept
+{
+    switch (status)
+    {
+    case GoldSrcEntityDiffStatus::kOk: return "ok";
+    case GoldSrcEntityDiffStatus::kInvalidBaseFrame:
+        return "invalid_base_frame";
+    case GoldSrcEntityDiffStatus::kInvalidCurrentFrame:
+        return "invalid_current_frame";
+    case GoldSrcEntityDiffStatus::kIncompatibleEntityKind:
+        return "incompatible_entity_kind";
+    case GoldSrcEntityDiffStatus::kOperationCountExceeded:
+    default:
+        return "operation_count_exceeded";
+    }
+}
+
+GoldSrcEntityDiffResult CompareGoldSrcSnapshotEntities(
+    const GoldSrcServerFrame& base,
+    const GoldSrcServerFrame& current) noexcept
+{
+    GoldSrcEntityDiffResult result;
+    if (!FrameStructureValid(base))
+    {
+        result.status = GoldSrcEntityDiffStatus::kInvalidBaseFrame;
+        return result;
+    }
+    if (!FrameStructureValid(current))
+    {
+        result.status = GoldSrcEntityDiffStatus::kInvalidCurrentFrame;
+        return result;
+    }
+
+    result.operations.reserve(
+        std::min(
+            kGoldSrcMaximumSnapshotEntities,
+            base.entities.size() + current.entities.size()));
+    std::size_t base_index = 0u;
+    std::size_t current_index = 0u;
+    while (base_index < base.entities.size()
+        || current_index < current.entities.size())
+    {
+        if (result.operations.size()
+            >= kGoldSrcMaximumSnapshotEntities)
+        {
+            result.status =
+                GoldSrcEntityDiffStatus::kOperationCountExceeded;
+            return result;
+        }
+
+        const GoldSrcSnapshotEntityState* previous =
+            base_index < base.entities.size()
+            ? &base.entities[base_index]
+            : nullptr;
+        const GoldSrcSnapshotEntityState* next =
+            current_index < current.entities.size()
+            ? &current.entities[current_index]
+            : nullptr;
+        GoldSrcEntityDeltaOperation operation;
+        if (previous == nullptr
+            || (next != nullptr
+                && next->entity_index < previous->entity_index))
+        {
+            operation.kind = GoldSrcEntityDeltaOperationKind::kAdd;
+            operation.entity_index = next->entity_index;
+            operation.current = next;
+            ++current_index;
+            ++result.adds;
+        }
+        else if (next == nullptr
+            || previous->entity_index < next->entity_index)
+        {
+            operation.kind = GoldSrcEntityDeltaOperationKind::kRemove;
+            operation.entity_index = previous->entity_index;
+            operation.previous = previous;
+            ++base_index;
+            ++result.removes;
+        }
+        else
+        {
+            if (previous->kind != next->kind)
+            {
+                result.status =
+                    GoldSrcEntityDiffStatus::kIncompatibleEntityKind;
+                return result;
+            }
+            operation.entity_index = next->entity_index;
+            operation.previous = previous;
+            operation.current = next;
+            if (RecordsEqual(previous->state, next->state))
+            {
+                operation.kind =
+                    GoldSrcEntityDeltaOperationKind::kUnchanged;
+                ++result.unchanged;
+            }
+            else
+            {
+                operation.kind =
+                    GoldSrcEntityDeltaOperationKind::kUpdate;
+                ++result.updates;
+            }
+            ++base_index;
+            ++current_index;
+        }
+        result.operations.push_back(operation);
+    }
+    result.status = GoldSrcEntityDiffStatus::kOk;
+    return result;
+}
+
+GoldSrcSnapshotEncodeResult EncodeGoldSrcDeltaSnapshot(
+    const GoldSrcServerFrame& frame,
+    const GoldSrcServerFrame& base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry,
+    std::size_t output_capacity) noexcept
+{
+    GoldSrcSnapshotEncodeResult result;
+    if (!FrameStructureValid(frame) || !FrameStructureValid(base)
+        || !IsGoldSrcServerFrameNewer(frame.frame_id, base.frame_id)
+        || frame.server_time < base.server_time)
+    {
+        return result;
+    }
+    if (output_capacity == 0u
+        || output_capacity > result.payload.bytes.size())
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+        return result;
+    }
+    if (!frame.weapons.empty() || !base.weapons.empty())
+    {
+        result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+        return result;
+    }
+
+    bool duplicate = false;
+    const GoldSrcDeltaTable* clientdata =
+        FindTable(registry, "clientdata_t", &duplicate);
+    if (duplicate || clientdata == nullptr)
+    {
+        result.status = duplicate
+            ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+            : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+        return result;
+    }
+
+    const GoldSrcEntityDiffResult diff =
+        CompareGoldSrcSnapshotEntities(base, frame);
+    if (!diff.ok())
+    {
+        result.status =
+            diff.status == GoldSrcEntityDiffStatus::kIncompatibleEntityKind
+            ? GoldSrcSnapshotCodecStatus::kEntityKindMismatch
+            : GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+        return result;
+    }
+
+    GoldSrcBitWriter writer(result.payload.bytes.data(), output_capacity);
+    if (!writer.WriteBits(kGoldSrcServerTimeOpcode, 8u)
+        || !WriteFloat(&writer, frame.server_time)
+        || !writer.WriteBits(kGoldSrcClientDataOpcode, 8u)
+        || !writer.WriteBits(1u, 1u)
+        || !writer.WriteBits(base.frame_id & 0xFFu, 8u))
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+        return result;
+    }
+    result.status = EncodeDeltaRecord(
+        &writer,
+        *clientdata,
+        base.clientdata.state,
+        frame.clientdata.state,
+        frame.server_time);
+    if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+    {
+        return result;
+    }
+    if (!writer.WriteBits(0u, 1u)
+        || !writer.PadToByte()
+        || !writer.WriteBits(kGoldSrcDeltaPacketEntitiesOpcode, 8u)
+        || !writer.WriteBits(
+            static_cast<std::uint32_t>(frame.entities.size()),
+            16u)
+        || !writer.WriteBits(base.frame_id & 0xFFu, 8u))
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+        return result;
+    }
+
+    std::uint16_t number_base = 0u;
+    for (const GoldSrcEntityDeltaOperation& operation : diff.operations)
+    {
+        if (operation.kind
+            == GoldSrcEntityDeltaOperationKind::kUnchanged)
+        {
+            continue;
+        }
+        if (!writer.WriteBits(
+                operation.kind
+                        == GoldSrcEntityDeltaOperationKind::kRemove
+                    ? 1u
+                    : 0u,
+                1u))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+            return result;
+        }
+        const std::uint16_t entity_delta =
+            static_cast<std::uint16_t>(
+                operation.entity_index - number_base);
+        if (entity_delta >= 1u && entity_delta <= 63u)
+        {
+            if (!writer.WriteBits(0u, 1u)
+                || !writer.WriteBits(entity_delta, 6u))
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+                return result;
+            }
+        }
+        else if (!writer.WriteBits(1u, 1u)
+            || !writer.WriteBits(operation.entity_index, 11u))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+            return result;
+        }
+        number_base = operation.entity_index;
+
+        if (operation.kind
+            == GoldSrcEntityDeltaOperationKind::kRemove)
+        {
+            continue;
+        }
+        const GoldSrcSnapshotEntityState& current = *operation.current;
+        const bool custom =
+            current.kind == GoldSrcBaselineKind::kCustomEntity;
+        if (!writer.WriteBits(custom ? 1u : 0u, 1u)
+            || (!baselines.instances.empty()
+                && !writer.WriteBits(0u, 1u)))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+            return result;
+        }
+        const GoldSrcDeltaTable* entity_table =
+            FindTable(registry, TableNameFor(current.kind), &duplicate);
+        if (duplicate || entity_table == nullptr)
+        {
+            result.status = duplicate
+                ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+                : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+            return result;
+        }
+
+        const GoldSrcDecodedDeltaRecord* previous = nullptr;
+        if (operation.kind
+            == GoldSrcEntityDeltaOperationKind::kUpdate)
+        {
+            previous = &operation.previous->state;
+        }
+        else
+        {
+            const GoldSrcEntityBaseline* baseline =
+                FindEntityBaseline(
+                    baselines,
+                    operation.entity_index);
+            if (baseline == nullptr)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kMissingEntityBaseline;
+                return result;
+            }
+            if (baseline->kind != current.kind)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kEntityKindMismatch;
+                return result;
+            }
+            previous = &baseline->state;
+        }
+        result.status = EncodeDeltaRecord(
+            &writer,
+            *entity_table,
+            *previous,
+            current.state,
+            frame.server_time);
+        if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+        {
+            return result;
+        }
+    }
+
+    if (!writer.WriteBits(0u, 16u) || !writer.PadToByte())
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+        return result;
+    }
+    result.payload.size = writer.bytes_written();
+    result.status = GoldSrcSnapshotCodecStatus::kOk;
+    return result;
+}
+
+GoldSrcSnapshotDecodeResult DecodeGoldSrcDeltaSnapshot(
+    const std::uint8_t* bytes,
+    std::size_t size,
+    std::uint32_t frame_id,
+    const GoldSrcServerFrame& base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry) noexcept
+{
+    GoldSrcSnapshotDecodeResult result;
+    result.frame.frame_id = frame_id;
+    if (bytes == nullptr)
+    {
+        result.status = size == 0u
+            ? GoldSrcSnapshotCodecStatus::kEmptyPayload
+            : GoldSrcSnapshotCodecStatus::kNullInput;
+        return result;
+    }
+    if (size == 0u)
+    {
+        return result;
+    }
+    if (size > kGoldSrcMaximumSnapshotBytes
+        || !FrameStructureValid(base)
+        || !IsGoldSrcServerFrameNewer(frame_id, base.frame_id))
+    {
+        result.status = size > kGoldSrcMaximumSnapshotBytes
+            ? GoldSrcSnapshotCodecStatus::kPayloadTooLarge
+            : GoldSrcSnapshotCodecStatus::kInvalidFrame;
+        return result;
+    }
+
+    bool duplicate = false;
+    const GoldSrcDeltaTable* clientdata =
+        FindTable(registry, "clientdata_t", &duplicate);
+    if (duplicate || clientdata == nullptr)
+    {
+        result.status = duplicate
+            ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+            : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+        return result;
+    }
+
+    GoldSrcBitReader reader(bytes, size);
+    std::uint32_t value = 0u;
+    if (!reader.ReadBits(8u, &value)
+        || value != kGoldSrcServerTimeOpcode
+        || !ReadFloat(&reader, &result.frame.server_time)
+        || !std::isfinite(result.frame.server_time)
+        || result.frame.server_time < base.server_time)
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kNonMonotonicServerTime;
+        return result;
+    }
+    if (!reader.ReadBits(8u, &value)
+        || value != kGoldSrcClientDataOpcode
+        || !reader.ReadBits(1u, &value)
+        || value != 1u
+        || !reader.ReadBits(8u, &value)
+        || value != (base.frame_id & 0xFFu))
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kUnexpectedPreviousFrame;
+        return result;
+    }
+    result.status = DecodeDeltaRecord(
+        &reader,
+        *clientdata,
+        base.clientdata.state,
+        result.frame.server_time,
+        &result.frame.clientdata.state);
+    if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+    {
+        result.status = GoldSrcSnapshotCodecStatus::kInvalidClientData;
+        return result;
+    }
+    if (!reader.ReadBits(1u, &value) || value != 0u
+        || !reader.AlignToByte(true)
+        || !reader.ReadBits(8u, &value)
+        || value != kGoldSrcDeltaPacketEntitiesOpcode)
+    {
+        result.status = GoldSrcSnapshotCodecStatus::kWrongMessageOrder;
+        return result;
+    }
+    if (!reader.ReadBits(16u, &value)
+        || value > kGoldSrcMaximumSnapshotEntities)
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kEntityCountExceeded;
+        return result;
+    }
+    const std::size_t expected_entity_count = value;
+    if (!reader.ReadBits(8u, &value)
+        || value != (base.frame_id & 0xFFu))
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kUnexpectedPreviousFrame;
+        return result;
+    }
+
+    struct DecodedOperation final
+    {
+        bool remove = false;
+        GoldSrcSnapshotEntityState entity;
+    };
+    std::vector<DecodedOperation> operations;
+    std::uint16_t number_base = 0u;
+    while (true)
+    {
+        if (!reader.PeekBits(16u, &value))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kMissingEntityTerminator;
+            return result;
+        }
+        if (value == 0u)
+        {
+            if (!reader.ReadBits(16u, &value))
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kMissingEntityTerminator;
+                return result;
+            }
+            break;
+        }
+        if (operations.size() >= kGoldSrcMaximumSnapshotEntities)
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kEntityCountExceeded;
+            return result;
+        }
+        std::uint32_t remove = 0u;
+        std::uint32_t absolute = 0u;
+        std::uint32_t entity_number = 0u;
+        if (!reader.ReadBits(1u, &remove)
+            || !reader.ReadBits(1u, &absolute))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+            return result;
+        }
+        if (absolute != 0u)
+        {
+            if (!reader.ReadBits(11u, &entity_number))
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+                return result;
+            }
+        }
+        else
+        {
+            std::uint32_t entity_delta = 0u;
+            if (!reader.ReadBits(6u, &entity_delta)
+                || entity_delta == 0u)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+                return result;
+            }
+            entity_number =
+                static_cast<std::uint32_t>(number_base) + entity_delta;
+        }
+        if (entity_number == 0u
+            || entity_number > kGoldSrcMaximumEntityIndex
+            || entity_number <= number_base)
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kEntityOrderInvalid;
+            return result;
+        }
+        number_base = static_cast<std::uint16_t>(entity_number);
+
+        DecodedOperation operation;
+        operation.remove = remove != 0u;
+        operation.entity.entity_index = number_base;
+        const auto base_iterator = std::lower_bound(
+            base.entities.begin(),
+            base.entities.end(),
+            number_base,
+            [](const GoldSrcSnapshotEntityState& entity, std::uint16_t number)
+            {
+                return entity.entity_index < number;
+            });
+        const bool present_in_base =
+            base_iterator != base.entities.end()
+            && base_iterator->entity_index == number_base;
+        if (operation.remove)
+        {
+            if (!present_in_base)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+                return result;
+            }
+            operations.push_back(std::move(operation));
+            continue;
+        }
+
+        std::uint32_t custom = 0u;
+        if (!reader.ReadBits(1u, &custom))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+            return result;
+        }
+        if (!baselines.instances.empty())
+        {
+            std::uint32_t instance = 0u;
+            if (!reader.ReadBits(1u, &instance) || instance != 0u)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+                return result;
+            }
+        }
+        operation.entity.kind =
+            custom != 0u
+            ? GoldSrcBaselineKind::kCustomEntity
+            : number_base <= baselines.maximum_clients
+                ? GoldSrcBaselineKind::kPlayer
+                : GoldSrcBaselineKind::kEntity;
+
+        const GoldSrcDecodedDeltaRecord* previous = nullptr;
+        if (present_in_base)
+        {
+            if (base_iterator->kind != operation.entity.kind)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kEntityKindMismatch;
+                return result;
+            }
+            previous = &base_iterator->state;
+        }
+        else
+        {
+            const GoldSrcEntityBaseline* baseline =
+                FindEntityBaseline(baselines, number_base);
+            if (baseline == nullptr)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kMissingEntityBaseline;
+                return result;
+            }
+            if (baseline->kind != operation.entity.kind)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kEntityKindMismatch;
+                return result;
+            }
+            previous = &baseline->state;
+        }
+        const GoldSrcDeltaTable* entity_table =
+            FindTable(
+                registry,
+                TableNameFor(operation.entity.kind),
+                &duplicate);
+        if (duplicate || entity_table == nullptr)
+        {
+            result.status = duplicate
+                ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+                : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+            return result;
+        }
+        result.status = DecodeDeltaRecord(
+            &reader,
+            *entity_table,
+            *previous,
+            result.frame.server_time,
+            &operation.entity.state);
+        if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+            return result;
+        }
+        operations.push_back(std::move(operation));
+    }
+
+    result.frame.entities.reserve(expected_entity_count);
+    std::size_t base_index = 0u;
+    std::size_t operation_index = 0u;
+    while (base_index < base.entities.size()
+        || operation_index < operations.size())
+    {
+        const GoldSrcSnapshotEntityState* previous =
+            base_index < base.entities.size()
+            ? &base.entities[base_index]
+            : nullptr;
+        const DecodedOperation* operation =
+            operation_index < operations.size()
+            ? &operations[operation_index]
+            : nullptr;
+        if (operation == nullptr
+            || (previous != nullptr
+                && previous->entity_index
+                    < operation->entity.entity_index))
+        {
+            result.frame.entities.push_back(*previous);
+            ++base_index;
+        }
+        else if (previous == nullptr
+            || operation->entity.entity_index
+                < previous->entity_index)
+        {
+            if (operation->remove)
+            {
+                result.status =
+                    GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+                return result;
+            }
+            result.frame.entities.push_back(operation->entity);
+            ++operation_index;
+        }
+        else
+        {
+            if (!operation->remove)
+            {
+                result.frame.entities.push_back(operation->entity);
+            }
+            ++base_index;
+            ++operation_index;
+        }
+    }
+    if (result.frame.entities.size() != expected_entity_count)
+    {
+        result.status =
+            GoldSrcSnapshotCodecStatus::kInvalidPacketEntities;
+        return result;
+    }
+    if (!reader.AlignToByte(true))
+    {
+        result.status = GoldSrcSnapshotCodecStatus::kNonZeroPadding;
+        return result;
+    }
+    if (reader.bits_remaining() != 0u)
+    {
+        result.status = GoldSrcSnapshotCodecStatus::kTrailingData;
+        return result;
+    }
+    result.bytes_consumed = reader.bytes_read();
+    result.status = GoldSrcSnapshotCodecStatus::kOk;
+    return result;
+}
+
+GoldSrcContinuousSnapshotBuildResult BuildGoldSrcContinuousSnapshot(
+    std::uint32_t frame_id,
+    float server_time,
+    const GoldSrcServerFrame* acknowledged_base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry,
+    std::size_t output_capacity) noexcept
+{
+    GoldSrcContinuousSnapshotBuildResult result;
+    const GoldSrcSnapshotBuildResult semantic =
+        BuildGoldSrcFirstSnapshot(
+            frame_id,
+            server_time,
+            baselines,
+            registry,
+            output_capacity);
+    if (!semantic.ok())
+    {
+        result.status = semantic.status;
+        return result;
+    }
+    result.bundle.frame = semantic.bundle.frame;
+
+    if (acknowledged_base != nullptr
+        && FrameStructureValid(*acknowledged_base)
+        && IsGoldSrcServerFrameNewer(
+            frame_id,
+            acknowledged_base->frame_id))
+    {
+        const GoldSrcSnapshotEncodeResult encoded =
+            EncodeGoldSrcDeltaSnapshot(
+                result.bundle.frame,
+                *acknowledged_base,
+                baselines,
+                registry,
+                output_capacity);
+        if (encoded.ok())
+        {
+            const GoldSrcSnapshotDecodeResult decoded =
+                DecodeGoldSrcDeltaSnapshot(
+                    encoded.payload.bytes.data(),
+                    encoded.payload.size,
+                    frame_id,
+                    *acknowledged_base,
+                    baselines,
+                    registry);
+            if (decoded.ok()
+                && FramesEqual(result.bundle.frame, decoded.frame))
+            {
+                result.bundle.payload = encoded.payload;
+                result.bundle.kind = GoldSrcSnapshotKind::kDelta;
+                result.bundle.base_frame_id =
+                    acknowledged_base->frame_id;
+                result.bundle.entity_diff =
+                    CompareGoldSrcSnapshotEntities(
+                        *acknowledged_base,
+                        result.bundle.frame);
+                result.status = GoldSrcSnapshotCodecStatus::kOk;
+                return result;
+            }
+        }
+    }
+
+    result.bundle.payload = semantic.bundle.payload;
+    result.bundle.kind = GoldSrcSnapshotKind::kFull;
+    result.bundle.base_frame_id.reset();
+    result.bundle.entity_diff.status = GoldSrcEntityDiffStatus::kOk;
+    result.status = GoldSrcSnapshotCodecStatus::kOk;
+    return result;
+}
+
+bool IsGoldSrcServerFrameNewer(
+    std::uint32_t candidate,
+    std::uint32_t baseline) noexcept
+{
+    const std::uint32_t distance =
+        GoldSrcServerFrameDistance(candidate, baseline);
+    return distance != 0u
+        && distance < (kGoldSrcServerFrameMask + 1u) / 2u;
+}
+
+std::uint32_t GoldSrcServerFrameDistance(
+    std::uint32_t newer,
+    std::uint32_t older) noexcept
+{
+    return (newer - older) & kGoldSrcServerFrameMask;
+}
+
 std::string_view ReasonFor(GoldSrcFrameStoreResult result) noexcept
 {
     switch (result)
@@ -1114,8 +1861,10 @@ std::string_view ReasonFor(GoldSrcFrameAcknowledgeResult result) noexcept
     case GoldSrcFrameAcknowledgeResult::kUnknown: return "unknown";
     case GoldSrcFrameAcknowledgeResult::kFuture: return "future";
     case GoldSrcFrameAcknowledgeResult::kEvicted: return "evicted";
-    case GoldSrcFrameAcknowledgeResult::kStale:
-    default: return "stale";
+    case GoldSrcFrameAcknowledgeResult::kStale: return "stale";
+    case GoldSrcFrameAcknowledgeResult::kAmbiguous: return "ambiguous";
+    case GoldSrcFrameAcknowledgeResult::kInvalidPhase:
+    default: return "invalid_phase";
     }
 }
 
@@ -1132,7 +1881,9 @@ void GoldSrcClientFrameHistory::Reset() noexcept
 }
 
 GoldSrcFrameStoreResult GoldSrcClientFrameHistory::Store(
-    const GoldSrcServerFrame& frame)
+    const GoldSrcServerFrame& frame,
+    GoldSrcSnapshotKind kind,
+    std::optional<std::uint32_t> base_frame_id)
 {
     if (!valid())
     {
@@ -1144,86 +1895,44 @@ GoldSrcFrameStoreResult GoldSrcClientFrameHistory::Store(
     }
     if (!frames_.empty())
     {
-        const GoldSrcServerFrame& newest = frames_.back();
-        if (frame.frame_id <= newest.frame_id
+        const GoldSrcServerFrame& newest = frames_.back().frame;
+        if (!IsGoldSrcServerFrameNewer(
+                frame.frame_id,
+                newest.frame_id)
             || frame.server_time < newest.server_time)
         {
             return GoldSrcFrameStoreResult::kNonMonotonicFrame;
         }
+    }
+    if ((kind == GoldSrcSnapshotKind::kDelta)
+            != base_frame_id.has_value()
+        || (base_frame_id.has_value()
+            && Find(*base_frame_id) == nullptr))
+    {
+        return GoldSrcFrameStoreResult::kInvalidFrame;
     }
 
     if (frames_.size() == capacity_)
     {
         frames_.erase(frames_.begin());
     }
-    frames_.push_back(frame);
+    frames_.push_back({frame, kind, base_frame_id});
     return GoldSrcFrameStoreResult::kStored;
 }
 
 GoldSrcFrameAcknowledgeResult GoldSrcClientFrameHistory::Acknowledge(
     std::uint8_t wire_frame_reference) noexcept
 {
-    if (frames_.empty())
+    const GoldSrcFrameReferenceResolution resolution =
+        GoldSrcFrameReferenceResolver::Resolve(
+            *this,
+            wire_frame_reference);
+    if (resolution.result
+        == GoldSrcFrameAcknowledgeResult::kAcknowledged)
     {
-        return GoldSrcFrameAcknowledgeResult::kUnknown;
+        last_acknowledged_frame_ = resolution.frame_id;
     }
-    if (last_acknowledged_frame_.has_value()
-        && static_cast<std::uint8_t>(
-            *last_acknowledged_frame_ & 0xFFu)
-            == wire_frame_reference)
-    {
-        return GoldSrcFrameAcknowledgeResult::kDuplicate;
-    }
-
-    const GoldSrcServerFrame* matched = nullptr;
-    for (const GoldSrcServerFrame& frame : frames_)
-    {
-        if (static_cast<std::uint8_t>(frame.frame_id & 0xFFu)
-            != wire_frame_reference)
-        {
-            continue;
-        }
-        if (matched != nullptr)
-        {
-            return GoldSrcFrameAcknowledgeResult::kUnknown;
-        }
-        matched = &frame;
-    }
-    if (matched != nullptr)
-    {
-        if (last_acknowledged_frame_.has_value()
-            && matched->frame_id < *last_acknowledged_frame_)
-        {
-            return GoldSrcFrameAcknowledgeResult::kStale;
-        }
-        last_acknowledged_frame_ = matched->frame_id;
-        return GoldSrcFrameAcknowledgeResult::kAcknowledged;
-    }
-
-    const GoldSrcServerFrame& oldest = frames_.front();
-    const GoldSrcServerFrame& newest = frames_.back();
-    std::int64_t candidate =
-        static_cast<std::int64_t>(newest.frame_id & ~0xFFu)
-        + wire_frame_reference;
-    const std::int64_t latest =
-        static_cast<std::int64_t>(newest.frame_id);
-    if (candidate > latest + 127)
-    {
-        candidate -= 256;
-    }
-    else if (candidate + 128 < latest)
-    {
-        candidate += 256;
-    }
-    if (candidate > latest)
-    {
-        return GoldSrcFrameAcknowledgeResult::kFuture;
-    }
-    if (candidate < static_cast<std::int64_t>(oldest.frame_id))
-    {
-        return GoldSrcFrameAcknowledgeResult::kEvicted;
-    }
-    return GoldSrcFrameAcknowledgeResult::kUnknown;
+    return resolution.result;
 }
 
 bool GoldSrcClientFrameHistory::valid() const noexcept
@@ -1245,20 +1954,253 @@ std::size_t GoldSrcClientFrameHistory::size() const noexcept
 const GoldSrcServerFrame* GoldSrcClientFrameHistory::Find(
     std::uint32_t frame_id) const noexcept
 {
-    for (const GoldSrcServerFrame& frame : frames_)
+    for (const Entry& entry : frames_)
     {
-        if (frame.frame_id == frame_id)
+        if (entry.frame.frame_id == frame_id)
         {
-            return &frame;
+            return &entry.frame;
         }
     }
     return nullptr;
+}
+
+const GoldSrcServerFrame*
+GoldSrcClientFrameHistory::oldest() const noexcept
+{
+    return frames_.empty() ? nullptr : &frames_.front().frame;
+}
+
+const GoldSrcServerFrame*
+GoldSrcClientFrameHistory::newest() const noexcept
+{
+    return frames_.empty() ? nullptr : &frames_.back().frame;
+}
+
+const GoldSrcServerFrame*
+GoldSrcClientFrameHistory::last_acknowledged() const noexcept
+{
+    return last_acknowledged_frame_.has_value()
+        ? Find(*last_acknowledged_frame_)
+        : nullptr;
 }
 
 const std::optional<std::uint32_t>&
 GoldSrcClientFrameHistory::last_acknowledged_frame() const noexcept
 {
     return last_acknowledged_frame_;
+}
+
+GoldSrcFrameReferenceResolution
+GoldSrcFrameReferenceResolver::Resolve(
+    const GoldSrcClientFrameHistory& history,
+    std::uint8_t wire_frame_reference) noexcept
+{
+    GoldSrcFrameReferenceResolution resolution;
+    if (history.frames_.empty())
+    {
+        return resolution;
+    }
+
+    const GoldSrcClientFrameHistory::Entry* matched = nullptr;
+    for (auto iterator = history.frames_.rbegin();
+         iterator != history.frames_.rend();
+         ++iterator)
+    {
+        if (static_cast<std::uint8_t>(
+                iterator->frame.frame_id & 0xFFu)
+            != wire_frame_reference)
+        {
+            continue;
+        }
+        if (matched != nullptr)
+        {
+            resolution.result =
+                GoldSrcFrameAcknowledgeResult::kAmbiguous;
+            return resolution;
+        }
+        matched = &*iterator;
+    }
+    if (matched != nullptr)
+    {
+        resolution.frame_id = matched->frame.frame_id;
+        if (history.last_acknowledged_frame_.has_value())
+        {
+            if (matched->frame.frame_id
+                == *history.last_acknowledged_frame_)
+            {
+                resolution.result =
+                    GoldSrcFrameAcknowledgeResult::kDuplicate;
+                return resolution;
+            }
+            if (!IsGoldSrcServerFrameNewer(
+                    matched->frame.frame_id,
+                    *history.last_acknowledged_frame_))
+            {
+                resolution.result =
+                    GoldSrcFrameAcknowledgeResult::kStale;
+                return resolution;
+            }
+        }
+        resolution.result =
+            GoldSrcFrameAcknowledgeResult::kAcknowledged;
+        return resolution;
+    }
+
+    const std::uint32_t newest_id =
+        history.frames_.back().frame.frame_id;
+    const std::uint8_t newest_low =
+        static_cast<std::uint8_t>(newest_id & 0xFFu);
+    const std::uint8_t forward =
+        static_cast<std::uint8_t>(
+            wire_frame_reference - newest_low);
+    if (forward != 0u && forward < 128u)
+    {
+        resolution.result = GoldSrcFrameAcknowledgeResult::kFuture;
+        return resolution;
+    }
+    const std::uint8_t backward =
+        static_cast<std::uint8_t>(
+            newest_low - wire_frame_reference);
+    if (backward != 0u && backward < 128u)
+    {
+        const std::uint32_t inferred =
+            (newest_id - backward) & kGoldSrcServerFrameMask;
+        const std::uint32_t oldest_id =
+            history.frames_.front().frame.frame_id;
+        if (IsGoldSrcServerFrameNewer(oldest_id, inferred))
+        {
+            resolution.result =
+                GoldSrcFrameAcknowledgeResult::kEvicted;
+        }
+    }
+    return resolution;
+}
+
+std::string_view ReasonFor(GoldSrcSnapshotDueResult result) noexcept
+{
+    switch (result)
+    {
+    case GoldSrcSnapshotDueResult::kDue: return "due";
+    case GoldSrcSnapshotDueResult::kDisabled: return "disabled";
+    case GoldSrcSnapshotDueResult::kNotDue: return "not_due";
+    case GoldSrcSnapshotDueResult::kInvalidServerTime:
+        return "invalid_server_time";
+    case GoldSrcSnapshotDueResult::kNonMonotonicServerTime:
+    default:
+        return "non_monotonic_server_time";
+    }
+}
+
+bool GoldSrcSnapshotScheduler::Start(
+    double server_time,
+    double snapshot_rate_hz) noexcept
+{
+    if (!std::isfinite(server_time) || server_time < 0.0
+        || !std::isfinite(snapshot_rate_hz)
+        || snapshot_rate_hz < kGoldSrcMinimumSnapshotRateHz
+        || snapshot_rate_hz > kGoldSrcMaximumSnapshotRateHz)
+    {
+        return false;
+    }
+    Reset();
+    state_.enabled = true;
+    state_.snapshot_rate_hz = snapshot_rate_hz;
+    state_.snapshot_interval_seconds = 1.0 / snapshot_rate_hz;
+    state_.last_observed_server_time = server_time;
+    state_.next_due_server_time =
+        server_time + state_.snapshot_interval_seconds;
+    return true;
+}
+
+void GoldSrcSnapshotScheduler::Stop() noexcept
+{
+    state_.enabled = false;
+}
+
+void GoldSrcSnapshotScheduler::Reset() noexcept
+{
+    state_ = {};
+}
+
+GoldSrcSnapshotDueResult GoldSrcSnapshotScheduler::CheckDue(
+    double server_time) noexcept
+{
+    ++state_.due_checks;
+    if (!state_.enabled)
+    {
+        return GoldSrcSnapshotDueResult::kDisabled;
+    }
+    if (!std::isfinite(server_time) || server_time < 0.0)
+    {
+        return GoldSrcSnapshotDueResult::kInvalidServerTime;
+    }
+    if (server_time < state_.last_observed_server_time)
+    {
+        return GoldSrcSnapshotDueResult::kNonMonotonicServerTime;
+    }
+    state_.last_observed_server_time = server_time;
+    if (server_time < state_.next_due_server_time)
+    {
+        return GoldSrcSnapshotDueResult::kNotDue;
+    }
+
+    const double lateness =
+        server_time - state_.next_due_server_time;
+    if (lateness >= state_.snapshot_interval_seconds)
+    {
+        state_.skipped_snapshots += static_cast<std::uint64_t>(
+            lateness / state_.snapshot_interval_seconds);
+    }
+    state_.next_due_server_time =
+        server_time + state_.snapshot_interval_seconds;
+    ++state_.due_snapshots;
+    return GoldSrcSnapshotDueResult::kDue;
+}
+
+void GoldSrcSnapshotScheduler::RecordGenerated(
+    std::uint32_t frame_id) noexcept
+{
+    state_.last_generated_frame = frame_id & kGoldSrcServerFrameMask;
+}
+
+void GoldSrcSnapshotScheduler::RecordSent(
+    std::uint32_t frame_id,
+    GoldSrcSnapshotKind kind) noexcept
+{
+    state_.last_sent_frame = frame_id & kGoldSrcServerFrameMask;
+    if (kind == GoldSrcSnapshotKind::kDelta)
+    {
+        ++state_.consecutive_delta_snapshots;
+        state_.consecutive_full_snapshots = 0u;
+    }
+    else
+    {
+        ++state_.consecutive_full_snapshots;
+        state_.consecutive_delta_snapshots = 0u;
+    }
+}
+
+void GoldSrcSnapshotScheduler::RecordAcknowledged(
+    std::uint32_t frame_id) noexcept
+{
+    state_.last_acknowledged_frame =
+        frame_id & kGoldSrcServerFrameMask;
+}
+
+void GoldSrcSnapshotScheduler::RecordBuildFailure() noexcept
+{
+    ++state_.failed_builds;
+}
+
+void GoldSrcSnapshotScheduler::RecordSendFailure() noexcept
+{
+    ++state_.failed_sends;
+}
+
+const GoldSrcSnapshotScheduleState&
+GoldSrcSnapshotScheduler::state() const noexcept
+{
+    return state_;
 }
 
 std::string_view NameFor(GoldSrcFirstSnapshotPhase phase) noexcept
@@ -1273,6 +2215,10 @@ std::string_view NameFor(GoldSrcFirstSnapshotPhase phase) noexcept
         return "first_snapshot_sent_awaiting_client_reference";
     case GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged:
         return "first_snapshot_acknowledged";
+    case GoldSrcFirstSnapshotPhase::kContinuousSnapshotStreaming:
+        return "continuous_snapshot_streaming";
+    case GoldSrcFirstSnapshotPhase::kContinuousSnapshotStable:
+        return "continuous_snapshot_stable";
     case GoldSrcFirstSnapshotPhase::kNone:
     default:
         return "none";
@@ -1301,6 +2247,8 @@ void GoldSrcFirstSnapshotSessionState::Reset() noexcept
     phase_ = GoldSrcFirstSnapshotPhase::kNone;
     prepared_.reset();
     history_.Reset();
+    scheduler_.Reset();
+    continuous_acknowledgements_ = 0u;
 }
 
 GoldSrcFirstSnapshotTransitionResult
@@ -1381,18 +2329,104 @@ GoldSrcFirstSnapshotSessionState::Acknowledge(
             != GoldSrcFirstSnapshotPhase::
                 kFirstSnapshotSentAwaitingClientReference
         && phase_
-            != GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged)
+            != GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged
+        && phase_
+            != GoldSrcFirstSnapshotPhase::kContinuousSnapshotStreaming
+        && phase_
+            != GoldSrcFirstSnapshotPhase::kContinuousSnapshotStable)
     {
-        return GoldSrcFrameAcknowledgeResult::kUnknown;
+        return GoldSrcFrameAcknowledgeResult::kInvalidPhase;
     }
     const GoldSrcFrameAcknowledgeResult result =
         history_.Acknowledge(wire_frame_reference);
     if (result == GoldSrcFrameAcknowledgeResult::kAcknowledged)
     {
-        phase_ =
-            GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged;
+        const std::optional<std::uint32_t>& acknowledged =
+            history_.last_acknowledged_frame();
+        if (acknowledged.has_value())
+        {
+            scheduler_.RecordAcknowledged(*acknowledged);
+        }
+        if (phase_
+            == GoldSrcFirstSnapshotPhase::
+                kFirstSnapshotSentAwaitingClientReference)
+        {
+            phase_ =
+                GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged;
+        }
+        else
+        {
+            ++continuous_acknowledgements_;
+            if (continuous_acknowledgements_ >= 2u)
+            {
+                phase_ =
+                    GoldSrcFirstSnapshotPhase::
+                        kContinuousSnapshotStable;
+            }
+        }
     }
     return result;
+}
+
+bool GoldSrcFirstSnapshotSessionState::StartContinuous(
+    double server_time,
+    double snapshot_rate_hz) noexcept
+{
+    if (phase_
+        != GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged)
+    {
+        return false;
+    }
+    if (!scheduler_.Start(server_time, snapshot_rate_hz))
+    {
+        return false;
+    }
+    if (history_.last_acknowledged_frame().has_value())
+    {
+        scheduler_.RecordAcknowledged(
+            *history_.last_acknowledged_frame());
+    }
+    return true;
+}
+
+GoldSrcSnapshotDueResult
+GoldSrcFirstSnapshotSessionState::CheckContinuousDue(
+    double server_time) noexcept
+{
+    return scheduler_.CheckDue(server_time);
+}
+
+GoldSrcFrameStoreResult
+GoldSrcFirstSnapshotSessionState::MarkContinuousSent(
+    const GoldSrcContinuousSnapshotBundle& bundle)
+{
+    if ((phase_
+            != GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged
+        && phase_
+            != GoldSrcFirstSnapshotPhase::kContinuousSnapshotStreaming
+        && phase_
+            != GoldSrcFirstSnapshotPhase::kContinuousSnapshotStable)
+        || !scheduler_.state().enabled)
+    {
+        return GoldSrcFrameStoreResult::kInvalidHistory;
+    }
+    const GoldSrcFrameStoreResult stored = history_.Store(
+        bundle.frame,
+        bundle.kind,
+        bundle.base_frame_id);
+    if (stored != GoldSrcFrameStoreResult::kStored)
+    {
+        return stored;
+    }
+    scheduler_.RecordGenerated(bundle.frame.frame_id);
+    scheduler_.RecordSent(bundle.frame.frame_id, bundle.kind);
+    if (phase_
+        == GoldSrcFirstSnapshotPhase::kFirstSnapshotAcknowledged)
+    {
+        phase_ =
+            GoldSrcFirstSnapshotPhase::kContinuousSnapshotStreaming;
+    }
+    return GoldSrcFrameStoreResult::kStored;
 }
 
 GoldSrcFirstSnapshotPhase
@@ -1411,5 +2445,11 @@ const GoldSrcClientFrameHistory&
 GoldSrcFirstSnapshotSessionState::history() const noexcept
 {
     return history_;
+}
+
+const GoldSrcSnapshotScheduler&
+GoldSrcFirstSnapshotSessionState::scheduler() const noexcept
+{
+    return scheduler_;
 }
 } // namespace hl::network

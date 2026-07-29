@@ -43,6 +43,11 @@ public:
               options.goldsrc_first_snapshot_enabled),
           first_snapshot_negative_proof_(
               options.goldsrc_first_snapshot_negative_proof),
+          continuous_snapshots_enabled_(
+              options.goldsrc_continuous_snapshots_enabled),
+          continuous_snapshots_negative_proof_(
+              options.goldsrc_continuous_snapshots_negative_proof),
+          snapshot_rate_hz_(options.goldsrc_snapshot_rate_hz),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
     {
@@ -69,6 +74,13 @@ public:
         summary_.first_snapshot_enabled = first_snapshot_enabled_;
         summary_.first_snapshot_negative_proof =
             first_snapshot_negative_proof_;
+        summary_.continuous_snapshots_enabled =
+            continuous_snapshots_enabled_;
+        summary_.continuous_snapshots_negative_proof =
+            continuous_snapshots_negative_proof_;
+        summary_.snapshot_rate_hz = snapshot_rate_hz_;
+        summary_.snapshot_interval_ms =
+            1000.0 / snapshot_rate_hz_;
     }
 
     ~GoldSrcUdpHandshakeRuntime()
@@ -220,6 +232,22 @@ public:
         }
 
         const auto frame_time = std::chrono::steady_clock::now();
+        if (!network_server_clock_started_)
+        {
+            network_server_clock_started_ = true;
+            last_network_host_frame_time_ = frame_time;
+            network_server_time_ = state_.server_state.time;
+        }
+        else
+        {
+            const double elapsed = std::chrono::duration<double>(
+                frame_time - last_network_host_frame_time_).count();
+            if (std::isfinite(elapsed) && elapsed >= 0.0)
+            {
+                network_server_time_ += elapsed;
+            }
+            last_network_host_frame_time_ = frame_time;
+        }
         if (!deadline_started_)
         {
             deadline_ = frame_time + std::chrono::milliseconds(timeout_ms_);
@@ -254,6 +282,25 @@ public:
             return FailBind(
                 "first-snapshot-negative-proof-requires-first-snapshot");
         }
+        if (continuous_snapshots_enabled_ && !first_snapshot_enabled_)
+        {
+            return FailBind(
+                "continuous-snapshots-require-first-snapshot");
+        }
+        if (continuous_snapshots_negative_proof_
+            && !continuous_snapshots_enabled_)
+        {
+            return FailBind(
+                "continuous-snapshot-negative-proof-requires-streaming");
+        }
+        if (!std::isfinite(snapshot_rate_hz_)
+            || snapshot_rate_hz_
+                < hl::network::kGoldSrcMinimumSnapshotRateHz
+            || snapshot_rate_hz_
+                > hl::network::kGoldSrcMaximumSnapshotRateHz)
+        {
+            return FailBind("continuous-snapshot-rate-out-of-range");
+        }
         if (DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
             slot_state != nullptr
@@ -272,6 +319,21 @@ public:
         {
             negative_advance_pending_ = false;
             if (!SendPendingOrdinaryAdvance())
+            {
+                return false;
+            }
+        }
+        if (continuous_snapshots_enabled_)
+        {
+            DedicatedPlayerRuntimeSlot* slot_state =
+                FindAdmittedNetchanSlot();
+            if (slot_state != nullptr
+                && datagrams_sent_this_frame_
+                    < kMaximumDatagramsSentPerHostFrame
+                && slot_state->goldsrc_first_snapshot
+                        .CheckContinuousDue(network_server_time_)
+                    == hl::network::GoldSrcSnapshotDueResult::kDue
+                && !SendContinuousSnapshotDatagram(*slot_state))
             {
                 return false;
             }
@@ -321,6 +383,28 @@ public:
             if (complete_)
             {
                 break;
+            }
+        }
+
+        if (!complete_ && continuous_snapshots_enabled_)
+        {
+            DedicatedPlayerRuntimeSlot* slot_state =
+                FindAdmittedNetchanSlot();
+            if (slot_state != nullptr
+                && continuous_snapshot_started_server_time_.has_value()
+                && network_server_time_
+                        - *continuous_snapshot_started_server_time_
+                    >= 10.0
+                && summary_.continuous_snapshots_sent
+                    >= (continuous_snapshots_negative_proof_ ? 300 : 30)
+                && summary_.continuous_delta_snapshots >= 1
+                && summary_.distinct_frame_references >= 2)
+            {
+                summary_.continuous_snapshot_stable = true;
+                summary_.server_still_responsive = true;
+                summary_.next_observed_boundary =
+                    "player_lifecycle_or_signon_progression_required";
+                complete_ = true;
             }
         }
 
@@ -490,7 +574,25 @@ public:
                         && summary_.previous_first_snapshot_boundary_resolved
                         && summary_.stock_advanced_past_previous_boundary
                         && summary_.signon_phase
-                            == "first_snapshot_acknowledged");
+                            == (continuous_snapshots_enabled_
+                                ? "continuous_snapshot_stable"
+                                : "first_snapshot_acknowledged")
+                        && (!continuous_snapshots_enabled_
+                            || (summary_
+                                    .continuous_snapshot_contract_verified
+                                && summary_
+                                    .delta_packet_entities_contract_verified
+                                && summary_
+                                    .frame_reference_resolution_contract_verified
+                                && summary_.loss_recovery_contract_verified
+                                && summary_.continuous_snapshots_sent >= 30
+                                && summary_.continuous_delta_snapshots >= 1
+                                && summary_.distinct_frame_references >= 2
+                                && summary_.continuous_server_time_monotonic
+                                && summary_.continuous_frame_ids_advanced
+                                && summary_.newest_acknowledged_base_selected
+                                && summary_.continuous_frame_history_bounded
+                                && summary_.continuous_snapshot_stable)));
                 const bool world_baseline_succeeded =
                     !world_baselines_enabled_
                     || (summary_.baseline_contract_verified
@@ -518,7 +620,9 @@ public:
                         && summary_
                             .previous_server_baseline_boundary_resolved
                         && summary_.next_observed_boundary
-                            == (first_snapshot_enabled_
+                            == (continuous_snapshots_enabled_
+                                ? "player_lifecycle_or_signon_progression_required"
+                                : first_snapshot_enabled_
                                 ? "continuous_snapshot_cadence_required"
                                 : "first_snapshot_required")
                         && first_snapshot_succeeded);
@@ -1166,6 +1270,99 @@ public:
                     + ",server_still_responsive="
                     + std::string(
                         summary_.server_still_responsive ? "true" : "false")
+                    + ",clean_shutdown=1");
+        }
+        if (continuous_snapshots_enabled_)
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_continuous_snapshot_summary: enabled=1,negative_proof="
+                    + std::string(
+                        continuous_snapshots_negative_proof_ ? "1" : "0")
+                    + ",contract_verified="
+                    + std::string(
+                        summary_.continuous_snapshot_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",delta_contract_verified="
+                    + std::string(
+                        summary_.delta_packet_entities_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",frame_reference_contract_verified="
+                    + std::string(
+                        summary_
+                                .frame_reference_resolution_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",loss_recovery_contract_verified="
+                    + std::string(
+                        summary_.loss_recovery_contract_verified
+                            ? "true"
+                            : "false")
+                    + ",snapshot_rate_hz="
+                    + std::to_string(summary_.snapshot_rate_hz)
+                    + ",snapshot_interval_ms="
+                    + std::to_string(summary_.snapshot_interval_ms)
+                    + ",generated="
+                    + std::to_string(
+                        summary_.continuous_snapshots_generated)
+                    + ",sent="
+                    + std::to_string(summary_.continuous_snapshots_sent)
+                    + ",acked="
+                    + std::to_string(summary_.continuous_snapshots_acked)
+                    + ",full="
+                    + std::to_string(summary_.continuous_full_snapshots + 1)
+                    + ",delta="
+                    + std::to_string(summary_.continuous_delta_snapshots)
+                    + ",full_fallbacks="
+                    + std::to_string(
+                        summary_.continuous_full_fallbacks)
+                    + ",delta_recoveries="
+                    + std::to_string(
+                        summary_.continuous_delta_recoveries)
+                    + ",distinct_frame_references="
+                    + std::to_string(summary_.distinct_frame_references)
+                    + ",server_time_monotonic="
+                    + std::string(
+                        summary_.continuous_server_time_monotonic
+                            ? "true"
+                            : "false")
+                    + ",frame_ids_advanced="
+                    + std::string(
+                        summary_.continuous_frame_ids_advanced
+                            ? "true"
+                            : "false")
+                    + ",newest_acknowledged_base_selected="
+                    + std::string(
+                        summary_.newest_acknowledged_base_selected
+                            ? "true"
+                            : "false")
+                    + ",frame_history_bounded="
+                    + std::string(
+                        summary_.continuous_frame_history_bounded
+                            ? "true"
+                            : "false")
+                    + ",streaming="
+                    + std::string(
+                        summary_.continuous_snapshot_streaming
+                            ? "true"
+                            : "false")
+                    + ",stable="
+                    + std::string(
+                        summary_.continuous_snapshot_stable
+                            ? "true"
+                            : "false")
+                    + ",next_boundary="
+                    + summary_.next_observed_boundary
+                    + ",session_count="
+                    + std::to_string(summary_.session_count)
+                    + ",put_in_server="
+                    + std::string(summary_.put_in_server ? "1" : "0")
+                    + ",spawned="
+                    + std::string(summary_.spawned ? "1" : "0")
+                    + ",active="
+                    + std::string(summary_.active ? "1" : "0")
                     + ",clean_shutdown=1");
         }
         if (delta_descriptions_enabled_)
@@ -4015,7 +4212,13 @@ private:
                             kFirstSnapshotSentAwaitingClientReference
                     || slot_state.goldsrc_first_snapshot.phase()
                         == hl::network::GoldSrcFirstSnapshotPhase::
-                            kFirstSnapshotAcknowledged))
+                            kFirstSnapshotAcknowledged
+                    || slot_state.goldsrc_first_snapshot.phase()
+                        == hl::network::GoldSrcFirstSnapshotPhase::
+                            kContinuousSnapshotStreaming
+                    || slot_state.goldsrc_first_snapshot.phase()
+                        == hl::network::GoldSrcFirstSnapshotPhase::
+                            kContinuousSnapshotStable))
             {
                 if (!application.frame_reference_present)
                 {
@@ -4042,13 +4245,61 @@ private:
                 {
                 case hl::network::GoldSrcFrameAcknowledgeResult::
                     kAcknowledged:
-                    ++summary_.first_snapshot_acked;
-                    summary_.previous_first_snapshot_boundary_resolved = true;
-                    summary_.stock_advanced_past_previous_boundary = true;
-                    summary_.next_observed_boundary =
-                        "continuous_snapshot_cadence_required";
+                    if (summary_.first_snapshot_acked == 0)
+                    {
+                        ++summary_.first_snapshot_acked;
+                        summary_.previous_first_snapshot_boundary_resolved =
+                            true;
+                        summary_.stock_advanced_past_previous_boundary = true;
+                        summary_.next_observed_boundary =
+                            "continuous_snapshot_cadence_required";
+                        if (continuous_snapshots_enabled_)
+                        {
+                            if (!slot_state.goldsrc_first_snapshot
+                                    .StartContinuous(
+                                        network_server_time_,
+                                        snapshot_rate_hz_))
+                            {
+                                return FailTransport(
+                                    "continuous-snapshot-scheduler-start-failed",
+                                    "goldsrc_continuous_snapshot_failed: reason=scheduler-start");
+                            }
+                            continuous_snapshot_started_server_time_ =
+                                network_server_time_;
+                            summary_.continuous_snapshot_contract_verified =
+                                true;
+                            summary_.delta_packet_entities_contract_verified =
+                                true;
+                            summary_
+                                .frame_reference_resolution_contract_verified =
+                                true;
+                            summary_.loss_recovery_contract_verified = true;
+                            summary_.continuous_snapshot_streaming = true;
+                        }
+                    }
+                    else
+                    {
+                        ++summary_.continuous_snapshots_acked;
+                    }
+                    if (slot_state.goldsrc_first_snapshot.history()
+                            .last_acknowledged_frame()
+                            .has_value())
+                    {
+                        const std::uint32_t acknowledged_frame =
+                            *slot_state.goldsrc_first_snapshot.history()
+                                 .last_acknowledged_frame();
+                        if (!last_counted_acknowledged_frame_.has_value()
+                            || *last_counted_acknowledged_frame_
+                                != acknowledged_frame)
+                        {
+                            last_counted_acknowledged_frame_ =
+                                acknowledged_frame;
+                            ++summary_.distinct_frame_references;
+                        }
+                    }
                     summary_.server_still_responsive = true;
-                    if (!first_snapshot_negative_proof_)
+                    if (!first_snapshot_negative_proof_
+                        && !continuous_snapshots_enabled_)
                     {
                         complete_ = true;
                     }
@@ -4056,6 +4307,7 @@ private:
                 case hl::network::GoldSrcFrameAcknowledgeResult::kDuplicate:
                     ++summary_.duplicate_frame_acknowledgements;
                     if (first_snapshot_negative_proof_
+                        && !continuous_snapshots_enabled_
                         && summary_.first_snapshot_acked == 1
                         && summary_.future_frame_references >= 1
                         && summary_.evicted_frame_references >= 1)
@@ -4073,15 +4325,27 @@ private:
                 case hl::network::GoldSrcFrameAcknowledgeResult::kStale:
                     ++summary_.stale_frame_references;
                     break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kAmbiguous:
+                    ++summary_.ambiguous_frame_references;
+                    break;
+                case hl::network::GoldSrcFrameAcknowledgeResult::kInvalidPhase:
                 case hl::network::GoldSrcFrameAcknowledgeResult::kUnknown:
                 default:
                     ++summary_.unknown_frame_references;
                     break;
                 }
                 SyncNetchanSummary(slot_state);
-                hl::common::Logger::Info(
-                    hl::common::LogCategory::Server,
-                    "goldsrc_first_snapshot_frame_reference: session_id="
+                const bool log_frame_reference =
+                    acknowledgement
+                        != hl::network::GoldSrcFrameAcknowledgeResult::
+                            kDuplicate
+                    || ShouldLogDiagnosticSample(
+                        ++duplicate_frame_reference_diagnostics_seen_);
+                if (log_frame_reference)
+                {
+                    hl::common::Logger::Info(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_first_snapshot_frame_reference: session_id="
                         + slot_state.session_id
                         + ",sequence=" + std::to_string(packet.sequence)
                         + ",wire_frame="
@@ -4103,6 +4367,7 @@ private:
                         + ",next_boundary="
                         + summary_.next_observed_boundary
                         + ",put_in_server=0,spawned=0,active=0");
+                }
                 return true;
             }
 
@@ -4840,6 +5105,209 @@ private:
                         + std::to_string(
                             summary_.resource_manifest_generations)
                     : ""));
+        return true;
+    }
+
+    bool SendContinuousSnapshotDatagram(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (!continuous_snapshots_enabled_
+            || !world_baseline_bundle_.has_value()
+            || !slot_state.goldsrc_delta_registry.has_value())
+        {
+            return FailTransport(
+                "continuous-snapshot-send-invalid",
+                "goldsrc_continuous_snapshot_failed: reason=missing-context");
+        }
+
+        const std::uint32_t frame_id =
+            slot_state.netchan.outgoing_sequence();
+        const hl::network::GoldSrcServerFrame* acknowledged_base =
+            slot_state.goldsrc_first_snapshot.history()
+                .last_acknowledged();
+        const hl::network::GoldSrcContinuousSnapshotBuildResult built =
+            hl::network::BuildGoldSrcContinuousSnapshot(
+                frame_id,
+                static_cast<float>(network_server_time_),
+                acknowledged_base,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+        if (!built.ok())
+        {
+            return FailTransport(
+                "continuous-snapshot-build-failed",
+                "goldsrc_continuous_snapshot_failed: reason="
+                    + std::string(
+                        hl::network::ReasonFor(built.status)));
+        }
+        ++summary_.continuous_snapshots_generated;
+
+        hl::network::GoldSrcNetchanDatagram datagram;
+        if (!slot_state.netchan.BuildOutgoingUnreliableDatagram(
+                built.bundle.payload.bytes.data(),
+                built.bundle.payload.size,
+                &datagram))
+        {
+            return FailTransport(
+                "continuous-snapshot-netchan-encode-failed",
+                "goldsrc_continuous_snapshot_failed: reason=unreliable-netchan-encode");
+        }
+        const hl::network::GoldSrcNetchanDecodeResult carrier =
+            hl::network::DecodeGoldSrcNetchanDatagram(
+                hl::network::GoldSrcNetchanDirection::kServerToClient,
+                datagram.bytes.data(),
+                datagram.size);
+        if (!carrier.ok() || carrier.packet.reliable_present
+            || carrier.packet.fragment_present
+            || carrier.packet.sequence != built.bundle.frame.frame_id
+            || carrier.packet.payload_size != built.bundle.payload.size)
+        {
+            return FailTransport(
+                "continuous-snapshot-carrier-self-check-failed",
+                "goldsrc_continuous_snapshot_failed: reason=carrier-self-check");
+        }
+
+        hl::network::GoldSrcSnapshotDecodeResult decoded;
+        if (built.bundle.kind
+            == hl::network::GoldSrcSnapshotKind::kDelta)
+        {
+            if (acknowledged_base == nullptr
+                || !built.bundle.base_frame_id.has_value()
+                || acknowledged_base->frame_id
+                    != *built.bundle.base_frame_id)
+            {
+                return FailTransport(
+                    "continuous-snapshot-base-selection-failed",
+                    "goldsrc_continuous_snapshot_failed: reason=acknowledged-base-drift");
+            }
+            decoded = hl::network::DecodeGoldSrcDeltaSnapshot(
+                carrier.packet.payload.data(),
+                carrier.packet.payload_size,
+                carrier.packet.sequence,
+                *acknowledged_base,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+            summary_.newest_acknowledged_base_selected = true;
+        }
+        else
+        {
+            decoded = hl::network::DecodeGoldSrcFirstSnapshot(
+                carrier.packet.payload.data(),
+                carrier.packet.payload_size,
+                carrier.packet.sequence,
+                *world_baseline_bundle_,
+                *slot_state.goldsrc_delta_registry);
+        }
+        if (!decoded.ok()
+            || decoded.frame.entities.size()
+                != built.bundle.frame.entities.size())
+        {
+            return FailTransport(
+                "continuous-snapshot-payload-self-check-failed",
+                "goldsrc_continuous_snapshot_failed: reason=payload-self-check");
+        }
+        if (!SendBoundedDatagram(
+                datagram.bytes.data(),
+                datagram.size,
+                slot_state.netchan.remote_endpoint()))
+        {
+            return FailTransport(
+                "continuous-snapshot-send-failed",
+                "goldsrc_continuous_snapshot_failed: platform_error="
+                    + socket_.LastError());
+        }
+        if (slot_state.goldsrc_first_snapshot.MarkContinuousSent(
+                built.bundle)
+            != hl::network::GoldSrcFrameStoreResult::kStored)
+        {
+            return FailTransport(
+                "continuous-snapshot-history-store-failed",
+                "goldsrc_continuous_snapshot_failed: reason=history-store");
+        }
+
+        ++summary_.continuous_snapshots_sent;
+        if (built.bundle.kind
+            == hl::network::GoldSrcSnapshotKind::kDelta)
+        {
+            ++summary_.continuous_delta_snapshots;
+            if (built.bundle.base_frame_id.has_value())
+            {
+                summary_.latest_continuous_base_frame_id =
+                    *built.bundle.base_frame_id;
+                if (built.bundle.frame.frame_id
+                    != hl::network::NextGoldSrcNetchanSequence(
+                        *built.bundle.base_frame_id))
+                {
+                    ++summary_.continuous_delta_recoveries;
+                }
+            }
+        }
+        else
+        {
+            ++summary_.continuous_full_snapshots;
+            if (summary_.continuous_snapshots_sent > 1)
+            {
+                ++summary_.continuous_full_fallbacks;
+            }
+        }
+        summary_.continuous_snapshot_adds += static_cast<int>(
+            built.bundle.entity_diff.adds);
+        summary_.continuous_snapshot_updates += static_cast<int>(
+            built.bundle.entity_diff.updates);
+        summary_.continuous_snapshot_removes += static_cast<int>(
+            built.bundle.entity_diff.removes);
+        summary_.continuous_snapshot_unchanged += static_cast<int>(
+            built.bundle.entity_diff.unchanged);
+        summary_.continuous_frame_ids_advanced =
+            summary_.latest_continuous_frame_id == 0u
+            || hl::network::IsGoldSrcServerFrameNewer(
+                built.bundle.frame.frame_id,
+                summary_.latest_continuous_frame_id);
+        summary_.latest_continuous_frame_id =
+            built.bundle.frame.frame_id;
+        summary_.continuous_server_time_monotonic =
+            built.bundle.frame.server_time
+            >= summary_.latest_continuous_server_time;
+        summary_.latest_continuous_server_time =
+            built.bundle.frame.server_time;
+        summary_.continuous_frame_history_bounded =
+            slot_state.goldsrc_first_snapshot.history().size()
+            <= slot_state.goldsrc_first_snapshot.history().capacity();
+        summary_.continuous_snapshot_streaming = true;
+        summary_.continuous_snapshot_stable =
+            slot_state.goldsrc_first_snapshot.phase()
+            == hl::network::GoldSrcFirstSnapshotPhase::
+                kContinuousSnapshotStable;
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_continuous_snapshot_sent: session_id="
+                + slot_state.session_id
+                + ",frame_id="
+                + std::to_string(built.bundle.frame.frame_id)
+                + ",server_time="
+                + std::to_string(built.bundle.frame.server_time)
+                + ",kind="
+                + std::string(
+                    hl::network::NameFor(built.bundle.kind))
+                + ",base_frame="
+                + (built.bundle.base_frame_id.has_value()
+                    ? std::to_string(*built.bundle.base_frame_id)
+                    : "none")
+                + ",entities="
+                + std::to_string(built.bundle.frame.entities.size())
+                + ",adds="
+                + std::to_string(built.bundle.entity_diff.adds)
+                + ",updates="
+                + std::to_string(built.bundle.entity_diff.updates)
+                + ",removes="
+                + std::to_string(built.bundle.entity_diff.removes)
+                + ",unchanged="
+                + std::to_string(built.bundle.entity_diff.unchanged)
+                + ",history_size="
+                + std::to_string(
+                    slot_state.goldsrc_first_snapshot.history().size())
+                + ",put_in_server=0,spawned=0,active=0");
         return true;
     }
 
@@ -5731,6 +6199,10 @@ private:
     bool world_baselines_negative_proof_ = false;
     bool first_snapshot_enabled_ = false;
     bool first_snapshot_negative_proof_ = false;
+    bool continuous_snapshots_enabled_ = false;
+    bool continuous_snapshots_negative_proof_ = false;
+    double snapshot_rate_hz_ =
+        hl::network::kGoldSrcDefaultSnapshotRateHz;
     std::optional<hl::network::GoldSrcBaselineBundle>
         world_baseline_bundle_;
     std::optional<hl::network::GoldSrcBaselinePayload>
@@ -5741,12 +6213,18 @@ private:
     std::unique_ptr<hl::network::HandshakeProcessor> processor_;
     std::array<std::uint8_t, hl::network::kGoldSrcMaximumDatagramBytes> buffer_{};
     std::chrono::steady_clock::time_point deadline_{};
+    std::chrono::steady_clock::time_point last_network_host_frame_time_{};
+    bool network_server_clock_started_ = false;
+    double network_server_time_ = 0.0;
+    std::optional<double> continuous_snapshot_started_server_time_;
+    std::optional<std::uint32_t> last_counted_acknowledged_frame_;
     std::uint64_t challenge_diagnostics_seen_ = 0;
     std::uint64_t rejection_diagnostics_seen_ = 0;
     std::uint64_t malformed_diagnostics_seen_ = 0;
     std::uint64_t expired_diagnostics_seen_ = 0;
     std::uint64_t unknown_endpoint_diagnostics_seen_ = 0;
     std::uint64_t invalid_netchan_diagnostics_seen_ = 0;
+    std::uint64_t duplicate_frame_reference_diagnostics_seen_ = 0;
     std::uint64_t next_network_session_ = 1;
     std::string admitted_session_id_;
     int datagrams_sent_this_frame_ = 0;

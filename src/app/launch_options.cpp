@@ -1508,6 +1508,42 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-continuous-snapshots"
+            || argument
+                == L"--goldsrc-continuous-snapshots-negative-proof")
+        {
+            result.options.goldsrc_udp_handshake_enabled = true;
+            result.options.goldsrc_netchan_enabled = true;
+            result.options.goldsrc_serverinfo_enabled = true;
+            result.options.goldsrc_delta_descriptions_enabled = true;
+            result.options.goldsrc_resource_manifest_enabled = true;
+            result.options.goldsrc_world_baselines_enabled = true;
+            result.options.goldsrc_first_snapshot_enabled = true;
+            result.options.goldsrc_continuous_snapshots_enabled = true;
+            result.options.goldsrc_continuous_snapshots_negative_proof =
+                argument
+                == L"--goldsrc-continuous-snapshots-negative-proof";
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_snapshot_rate_prefix =
+            L"--goldsrc-snapshot-rate-hz=";
+        if (StartsWith(argument, goldsrc_snapshot_rate_prefix))
+        {
+            float rate = 0.0f;
+            if (!TryParseFloat(
+                    argument.substr(goldsrc_snapshot_rate_prefix.size()),
+                    &rate)
+                || rate < 10.0f || rate > 30.0f)
+            {
+                result.error_message =
+                    L"--goldsrc-snapshot-rate-hz must be within 10..30.";
+                return result;
+            }
+            result.options.goldsrc_snapshot_rate_hz = rate;
+            continue;
+        }
+
         if (argument == L"--ip" || argument == L"-ip")
         {
             if (index + 1 >= argc)
@@ -20103,6 +20139,14 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
     {
         result.options.goldsrc_first_snapshot_enabled = true;
     }
+    if (result.options.goldsrc_continuous_snapshots_negative_proof)
+    {
+        result.options.goldsrc_continuous_snapshots_enabled = true;
+    }
+    if (result.options.goldsrc_continuous_snapshots_enabled)
+    {
+        result.options.goldsrc_first_snapshot_enabled = true;
+    }
     if (result.options.goldsrc_first_snapshot_enabled)
     {
         result.options.goldsrc_world_baselines_enabled = true;
@@ -20214,6 +20258,9 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
              L"  --goldsrc-world-baselines-negative-proof Keep the baseline bundle alive for bounded retransmit/state proof\n"
              L"  --goldsrc-first-snapshot Send and acknowledge one stock-compatible full world snapshot\n"
              L"  --goldsrc-first-snapshot-negative-proof Run bounded invalid frame-reference snapshot validation\n"
+             L"  --goldsrc-continuous-snapshots Stream bounded stock-compatible full and delta snapshots\n"
+             L"  --goldsrc-continuous-snapshots-negative-proof Keep streaming for loss, wrap, and reset validation\n"
+             L"  --goldsrc-snapshot-rate-hz=<10..30> Set the bounded continuous snapshot rate (default 20)\n"
              L"  --ip, -ip <IPv4>              Exact dedicated UDP bind address (default: 0.0.0.0)\n"
              L"  --port, -port <1..65535>      Exact dedicated UDP bind port (default: 27015)\n"
              L"  --goldsrc-handshake-timeout-ms <ms>  Bounded handshake service lifetime (default: 10000)\n"

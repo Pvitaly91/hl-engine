@@ -20,6 +20,10 @@ inline constexpr std::size_t kGoldSrcMaximumSnapshotBytes = 1200u;
 inline constexpr std::size_t kGoldSrcMaximumSnapshotEntities = 2048u;
 inline constexpr std::size_t kGoldSrcMaximumSnapshotWeapons = 64u;
 inline constexpr std::size_t kGoldSrcClientFrameHistoryDepth = 64u;
+inline constexpr std::uint32_t kGoldSrcServerFrameMask = 0x3FFFFFFFu;
+inline constexpr double kGoldSrcDefaultSnapshotRateHz = 20.0;
+inline constexpr double kGoldSrcMinimumSnapshotRateHz = 10.0;
+inline constexpr double kGoldSrcMaximumSnapshotRateHz = 30.0;
 
 struct GoldSrcClientDataState final
 {
@@ -153,6 +157,113 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
     const GoldSrcDeltaRegistry& registry,
     std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes) noexcept;
 
+enum class GoldSrcSnapshotKind
+{
+    kFull,
+    kDelta,
+};
+
+std::string_view NameFor(GoldSrcSnapshotKind kind) noexcept;
+
+enum class GoldSrcEntityDeltaOperationKind
+{
+    kAdd,
+    kUpdate,
+    kRemove,
+    kUnchanged,
+};
+
+struct GoldSrcEntityDeltaOperation final
+{
+    GoldSrcEntityDeltaOperationKind kind =
+        GoldSrcEntityDeltaOperationKind::kUnchanged;
+    std::uint16_t entity_index = 0u;
+    const GoldSrcSnapshotEntityState* previous = nullptr;
+    const GoldSrcSnapshotEntityState* current = nullptr;
+};
+
+enum class GoldSrcEntityDiffStatus
+{
+    kOk,
+    kInvalidBaseFrame,
+    kInvalidCurrentFrame,
+    kIncompatibleEntityKind,
+    kOperationCountExceeded,
+};
+
+std::string_view ReasonFor(GoldSrcEntityDiffStatus status) noexcept;
+
+struct GoldSrcEntityDiffResult final
+{
+    GoldSrcEntityDiffStatus status =
+        GoldSrcEntityDiffStatus::kInvalidCurrentFrame;
+    std::vector<GoldSrcEntityDeltaOperation> operations;
+    std::size_t adds = 0u;
+    std::size_t updates = 0u;
+    std::size_t removes = 0u;
+    std::size_t unchanged = 0u;
+
+    bool ok() const noexcept
+    {
+        return status == GoldSrcEntityDiffStatus::kOk;
+    }
+};
+
+GoldSrcEntityDiffResult CompareGoldSrcSnapshotEntities(
+    const GoldSrcServerFrame& base,
+    const GoldSrcServerFrame& current) noexcept;
+
+GoldSrcSnapshotEncodeResult EncodeGoldSrcDeltaSnapshot(
+    const GoldSrcServerFrame& frame,
+    const GoldSrcServerFrame& base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry,
+    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes) noexcept;
+
+GoldSrcSnapshotDecodeResult DecodeGoldSrcDeltaSnapshot(
+    const std::uint8_t* bytes,
+    std::size_t size,
+    std::uint32_t frame_id,
+    const GoldSrcServerFrame& base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry) noexcept;
+
+struct GoldSrcContinuousSnapshotBundle final
+{
+    GoldSrcServerFrame frame;
+    GoldSrcFirstSnapshotPayload payload;
+    GoldSrcSnapshotKind kind = GoldSrcSnapshotKind::kFull;
+    std::optional<std::uint32_t> base_frame_id;
+    GoldSrcEntityDiffResult entity_diff;
+};
+
+struct GoldSrcContinuousSnapshotBuildResult final
+{
+    GoldSrcSnapshotCodecStatus status =
+        GoldSrcSnapshotCodecStatus::kInvalidFrame;
+    GoldSrcContinuousSnapshotBundle bundle;
+
+    bool ok() const noexcept
+    {
+        return status == GoldSrcSnapshotCodecStatus::kOk;
+    }
+};
+
+GoldSrcContinuousSnapshotBuildResult BuildGoldSrcContinuousSnapshot(
+    std::uint32_t frame_id,
+    float server_time,
+    const GoldSrcServerFrame* acknowledged_base,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry,
+    std::size_t output_capacity = kGoldSrcMaximumSnapshotBytes) noexcept;
+
+bool IsGoldSrcServerFrameNewer(
+    std::uint32_t candidate,
+    std::uint32_t baseline) noexcept;
+std::uint32_t GoldSrcServerFrameDistance(
+    std::uint32_t newer,
+    std::uint32_t older) noexcept;
+
 enum class GoldSrcFrameStoreResult
 {
     kStored,
@@ -171,6 +282,8 @@ enum class GoldSrcFrameAcknowledgeResult
     kFuture,
     kEvicted,
     kStale,
+    kAmbiguous,
+    kInvalidPhase,
 };
 
 std::string_view ReasonFor(GoldSrcFrameAcknowledgeResult result) noexcept;
@@ -182,7 +295,10 @@ public:
         std::size_t capacity = kGoldSrcClientFrameHistoryDepth) noexcept;
 
     void Reset() noexcept;
-    GoldSrcFrameStoreResult Store(const GoldSrcServerFrame& frame);
+    GoldSrcFrameStoreResult Store(
+        const GoldSrcServerFrame& frame,
+        GoldSrcSnapshotKind kind = GoldSrcSnapshotKind::kFull,
+        std::optional<std::uint32_t> base_frame_id = std::nullopt);
     GoldSrcFrameAcknowledgeResult Acknowledge(
         std::uint8_t wire_frame_reference) noexcept;
 
@@ -190,13 +306,91 @@ public:
     std::size_t capacity() const noexcept;
     std::size_t size() const noexcept;
     const GoldSrcServerFrame* Find(std::uint32_t frame_id) const noexcept;
+    const GoldSrcServerFrame* oldest() const noexcept;
+    const GoldSrcServerFrame* newest() const noexcept;
+    const GoldSrcServerFrame* last_acknowledged() const noexcept;
     const std::optional<std::uint32_t>&
         last_acknowledged_frame() const noexcept;
 
 private:
-    std::vector<GoldSrcServerFrame> frames_;
+    struct Entry final
+    {
+        GoldSrcServerFrame frame;
+        GoldSrcSnapshotKind kind = GoldSrcSnapshotKind::kFull;
+        std::optional<std::uint32_t> base_frame_id;
+    };
+
+    friend class GoldSrcFrameReferenceResolver;
+    std::vector<Entry> frames_;
     std::size_t capacity_ = 0u;
     std::optional<std::uint32_t> last_acknowledged_frame_;
+};
+
+struct GoldSrcFrameReferenceResolution final
+{
+    GoldSrcFrameAcknowledgeResult result =
+        GoldSrcFrameAcknowledgeResult::kUnknown;
+    std::optional<std::uint32_t> frame_id;
+};
+
+class GoldSrcFrameReferenceResolver final
+{
+public:
+    static GoldSrcFrameReferenceResolution Resolve(
+        const GoldSrcClientFrameHistory& history,
+        std::uint8_t wire_frame_reference) noexcept;
+};
+
+enum class GoldSrcSnapshotDueResult
+{
+    kDue,
+    kDisabled,
+    kNotDue,
+    kInvalidServerTime,
+    kNonMonotonicServerTime,
+};
+
+std::string_view ReasonFor(GoldSrcSnapshotDueResult result) noexcept;
+
+struct GoldSrcSnapshotScheduleState final
+{
+    bool enabled = false;
+    double snapshot_rate_hz = kGoldSrcDefaultSnapshotRateHz;
+    double snapshot_interval_seconds =
+        1.0 / kGoldSrcDefaultSnapshotRateHz;
+    double next_due_server_time = 0.0;
+    double last_observed_server_time = 0.0;
+    std::optional<std::uint32_t> last_generated_frame;
+    std::optional<std::uint32_t> last_sent_frame;
+    std::optional<std::uint32_t> last_acknowledged_frame;
+    std::uint64_t consecutive_full_snapshots = 0u;
+    std::uint64_t consecutive_delta_snapshots = 0u;
+    std::uint64_t skipped_snapshots = 0u;
+    std::uint64_t failed_builds = 0u;
+    std::uint64_t failed_sends = 0u;
+    std::uint64_t due_checks = 0u;
+    std::uint64_t due_snapshots = 0u;
+};
+
+class GoldSrcSnapshotScheduler final
+{
+public:
+    bool Start(double server_time, double snapshot_rate_hz) noexcept;
+    void Stop() noexcept;
+    void Reset() noexcept;
+    GoldSrcSnapshotDueResult CheckDue(double server_time) noexcept;
+    void RecordGenerated(std::uint32_t frame_id) noexcept;
+    void RecordSent(
+        std::uint32_t frame_id,
+        GoldSrcSnapshotKind kind) noexcept;
+    void RecordAcknowledged(std::uint32_t frame_id) noexcept;
+    void RecordBuildFailure() noexcept;
+    void RecordSendFailure() noexcept;
+
+    const GoldSrcSnapshotScheduleState& state() const noexcept;
+
+private:
+    GoldSrcSnapshotScheduleState state_;
 };
 
 enum class GoldSrcFirstSnapshotPhase
@@ -206,6 +400,8 @@ enum class GoldSrcFirstSnapshotPhase
     kFirstSnapshotPrepared,
     kFirstSnapshotSentAwaitingClientReference,
     kFirstSnapshotAcknowledged,
+    kContinuousSnapshotStreaming,
+    kContinuousSnapshotStable,
 };
 
 std::string_view NameFor(GoldSrcFirstSnapshotPhase phase) noexcept;
@@ -231,14 +427,25 @@ public:
     GoldSrcFirstSnapshotTransitionResult MarkSent();
     GoldSrcFrameAcknowledgeResult Acknowledge(
         std::uint8_t wire_frame_reference) noexcept;
+    bool StartContinuous(
+        double server_time,
+        double snapshot_rate_hz =
+            kGoldSrcDefaultSnapshotRateHz) noexcept;
+    GoldSrcSnapshotDueResult CheckContinuousDue(
+        double server_time) noexcept;
+    GoldSrcFrameStoreResult MarkContinuousSent(
+        const GoldSrcContinuousSnapshotBundle& bundle);
 
     GoldSrcFirstSnapshotPhase phase() const noexcept;
     const std::optional<GoldSrcFirstSnapshotBundle>& prepared() const noexcept;
     const GoldSrcClientFrameHistory& history() const noexcept;
+    const GoldSrcSnapshotScheduler& scheduler() const noexcept;
 
 private:
     GoldSrcFirstSnapshotPhase phase_ = GoldSrcFirstSnapshotPhase::kNone;
     std::optional<GoldSrcFirstSnapshotBundle> prepared_;
     GoldSrcClientFrameHistory history_;
+    GoldSrcSnapshotScheduler scheduler_;
+    std::size_t continuous_acknowledgements_ = 0u;
 };
 } // namespace hl::network

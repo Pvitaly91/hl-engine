@@ -30,6 +30,14 @@ param(
 
     [switch]$FirstSnapshotProof,
 
+    [switch]$ContinuousSnapshotProof,
+
+    [ValidateRange(30, 512)]
+    [int]$ContinuousSnapshotMinimumCount = 30,
+
+    [ValidateRange(10, 30)]
+    [single]$SnapshotRateHz = 20.0,
+
     [single]$ExpectedZMaximum = 4096.0,
 
     [ValidateRange(0, 255)]
@@ -52,6 +60,9 @@ if ($WorldBaselineProof -and -not $PostResourceCommandProof) {
 }
 if ($FirstSnapshotProof -and -not $WorldBaselineProof) {
     throw "FirstSnapshotProof requires WorldBaselineProof"
+}
+if ($ContinuousSnapshotProof -and -not $FirstSnapshotProof) {
+    throw "ContinuousSnapshotProof requires FirstSnapshotProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -515,6 +526,120 @@ function Read-FirstSnapshotPayload {
         WeaponDataRequired = $false
         PacketEntitiesReceived = $true
     }
+}
+
+function Read-ContinuousSnapshotPayload {
+    param(
+        [byte[]]$Payload,
+        [uint32]$FrameId,
+        $BaseSnapshot
+    )
+
+    $reader = New-DeltaBitReader -Bytes $Payload
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "continuous svc_time opcode") -ne 7) {
+        throw "continuous snapshot does not begin with svc_time"
+    }
+    [byte[]]$timeBytes = @()
+    for ($index = 0; $index -lt 4; $index++) {
+        $timeBytes += [byte](Read-DeltaBits `
+            -Reader $reader `
+            -Count 8 `
+            -Description "continuous svc_time value")
+    }
+    [single]$serverTime = [BitConverter]::ToSingle($timeBytes, 0)
+    if ([single]::IsNaN($serverTime) -or
+        [single]::IsInfinity($serverTime) -or
+        $serverTime -lt $BaseSnapshot.ServerTime) {
+        throw "continuous snapshot server time did not advance monotonically"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "continuous svc_clientdata opcode") -ne 15) {
+        throw "continuous svc_clientdata does not follow svc_time"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "continuous clientdata previous marker") -ne 1) {
+        throw "delta clientdata omitted its acknowledged base"
+    }
+    [byte]$clientDataBase = Read-DeltaBits `
+        -Reader $reader `
+        -Count 8 `
+        -Description "continuous clientdata base"
+    if ($clientDataBase -ne
+        [byte]([uint32]$BaseSnapshot.FrameId -band 0xFF)) {
+        throw "continuous clientdata selected the wrong acknowledged base"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 3 `
+            -Description "continuous clientdata delta mask") -ne 0) {
+        throw "unchanged pre-spawn clientdata was not encoded deterministically"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "continuous weapon-data continuation") -ne 0) {
+        throw "continuous pre-spawn snapshot fabricated weapon data"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "continuous clientdata record"
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "svc_deltapacketentities opcode") -ne 41) {
+        throw "svc_deltapacketentities does not follow continuous clientdata"
+    }
+    [int]$entityCount = Read-DeltaBits `
+        -Reader $reader `
+        -Count 16 `
+        -Description "continuous packet-entities count"
+    if ($entityCount -ne $BaseSnapshot.EntityCount) {
+        throw "static delta did not reconstruct the full semantic entity count"
+    }
+    [byte]$entityBase = Read-DeltaBits `
+        -Reader $reader `
+        -Count 8 `
+        -Description "delta packet-entities base"
+    if ($entityBase -ne
+        [byte]([uint32]$BaseSnapshot.FrameId -band 0xFF)) {
+        throw "delta packet entities selected the wrong acknowledged base"
+    }
+    if ((Read-DeltaBits -Reader $reader -Count 16 `
+            -Description "delta packet-entities terminator") -ne 0) {
+        throw "static delta unexpectedly emitted an entity operation"
+    }
+    Align-DeltaBitReaderToByte `
+        -Reader $reader `
+        -Description "continuous packet entities"
+    if ($reader.BitPosition -ne ([int64]$Payload.Length * 8)) {
+        throw "continuous snapshot contains trailing application data"
+    }
+    return [pscustomobject]@{
+        FrameId = $FrameId
+        ServerTime = $serverTime
+        EntityCount = $entityCount
+        EntityNumbers = $BaseSnapshot.EntityNumbers
+        ClientDataReceived = $true
+        WeaponDataRequired = $false
+        PacketEntitiesReceived = $true
+        DeltaPacketEntitiesReceived = $true
+        BaseFrameId = [uint32]$BaseSnapshot.FrameId
+    }
+}
+
+function Get-ContinuousSnapshotBaseLow8 {
+    param([byte[]]$Payload)
+
+    $reader = New-DeltaBitReader -Bytes $Payload
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "continuous base svc_time") -ne 7) {
+        throw "continuous base probe did not find svc_time"
+    }
+    [void](Read-DeltaBits -Reader $reader -Count 32 `
+        -Description "continuous base server time")
+    if ((Read-DeltaBits -Reader $reader -Count 8 `
+            -Description "continuous base svc_clientdata") -ne 15 -or
+        (Read-DeltaBits -Reader $reader -Count 1 `
+            -Description "continuous base previous marker") -ne 1) {
+        throw "continuous base probe did not find delta clientdata"
+    }
+    return [byte](Read-DeltaBits -Reader $reader -Count 8 `
+        -Description "continuous base frame")
 }
 
 function Read-DeltaString {
@@ -1829,7 +1954,9 @@ function Invoke-ObservedResourceContinuation {
         [string]$PostResourceMode = "None",
         [switch]$WorldBaselineNegativeProof,
         [switch]$ReceiveFirstSnapshot,
-        [switch]$FirstSnapshotNegativeValidation
+        [switch]$FirstSnapshotNegativeValidation,
+        [switch]$ReceiveContinuousSnapshots,
+        [int]$ContinuousSnapshotCount = 30
     )
 
     [byte[]]$sendResourcesPayload = New-StringCommandPayload -Command "sendres"
@@ -2079,6 +2206,16 @@ function Invoke-ObservedResourceContinuation {
     $baselineWithheldMoveCount = 0
     $snapshot = $null
     $firstSnapshotKeepaliveObserved = $false
+    $continuousSnapshotsReceived = 0
+    $continuousFullSnapshots = 0
+    $continuousDeltaSnapshots = 0
+    $continuousReferencesSent = 0
+    $continuousLossRecovery = $false
+    $continuousMultipleLossRecovery = $false
+    $continuousFullFallback = $false
+    $continuousLow8Wrap = $false
+    $continuousUnknownRejected = $false
+    $continuousStaleRejected = $false
     if ($PostResourceMode -eq "World") {
         [byte[]]$baselinePayload = @()
         [uint32]$latestServerSequence = [uint32]$final.Sequence
@@ -2361,11 +2498,16 @@ function Invoke-ObservedResourceContinuation {
                         -Description (
                             "{0} frame-reference response" -f
                             $referenceCase.Result)
-                    Assert-NopPayload `
-                        -Payload $lastReferenceResponse.Payload `
-                        -Description (
-                            "{0} frame-reference response" -f
-                            $referenceCase.Result)
+                    if (-not (
+                            $ReceiveContinuousSnapshots -and
+                            $lastReferenceResponse.Payload.Length -gt 0 -and
+                            $lastReferenceResponse.Payload[0] -eq 7)) {
+                        Assert-NopPayload `
+                            -Payload $lastReferenceResponse.Payload `
+                            -Description (
+                                "{0} frame-reference response" -f
+                                $referenceCase.Result)
+                    }
                     $latestServerSequence =
                         [uint32]$lastReferenceResponse.Sequence
                     Wait-ForStdoutToken `
@@ -2403,6 +2545,203 @@ function Invoke-ObservedResourceContinuation {
                     -Description "first snapshot frame acknowledgement"
                 $final = $snapshotPacket
             }
+            if ($ReceiveContinuousSnapshots) {
+                $acknowledgedSnapshot = $snapshot
+                $acknowledgedSnapshotsByLow8 = @{}
+                $acknowledgedSnapshotsByLow8[
+                    [int]([uint32]$snapshot.FrameId -band 0xFF)
+                ] = $snapshot
+                [byte]$previousSnapshotLow =
+                    [byte]([uint32]$snapshot.FrameId -band 0xFF)
+                $ignoredSinceAcknowledgement = 0
+                $sentNegativeReferences = $false
+                $minimumContinuousCount = if (
+                    $FirstSnapshotNegativeValidation) {
+                    [Math]::Max(270, $ContinuousSnapshotCount)
+                } else {
+                    $ContinuousSnapshotCount
+                }
+
+                while (-not $ServerProcess.HasExited) {
+                    $streamDatagram = Receive-ProofDatagram `
+                        -Client $Client `
+                        -ServerProcess $ServerProcess `
+                        -OutputCapture $OutputCapture `
+                        -Deadline $Deadline `
+                        -ServerEndpoint $ServerEndpoint `
+                        -Description "continuous snapshot stream"
+                    $streamPacket = Read-SequencedDatagram `
+                        -Packet $streamDatagram.Bytes `
+                        -Description "continuous snapshot stream"
+                    $latestServerSequence =
+                        [uint32]$streamPacket.Sequence
+                    if ($streamPacket.Payload.Length -gt 0 -and
+                        $streamPacket.Payload[0] -eq 1) {
+                        Assert-NopPayload `
+                            -Payload $streamPacket.Payload `
+                            -Description "continuous frame-reference response"
+                        continue
+                    }
+                    if ($streamPacket.ReliableToggle -or
+                        $streamPacket.FragmentPresent -or
+                        $streamPacket.Payload.Length -eq 0 -or
+                        $streamPacket.Payload[0] -ne 7) {
+                        throw "continuous snapshot did not use one bounded unreliable carrier"
+                    }
+
+                    $isFullSnapshot = $false
+                    try {
+                        $currentSnapshot = Read-FirstSnapshotPayload `
+                            -Payload $streamPacket.Payload `
+                            -FrameId ([uint32]$streamPacket.Sequence)
+                        $isFullSnapshot = $true
+                    } catch {
+                        [byte]$wireBase =
+                            Get-ContinuousSnapshotBaseLow8 `
+                                -Payload $streamPacket.Payload
+                        if (-not $acknowledgedSnapshotsByLow8.ContainsKey(
+                                [int]$wireBase)) {
+                            throw "continuous delta referred to a frame the probe never acknowledged"
+                        }
+                        $currentSnapshot =
+                            Read-ContinuousSnapshotPayload `
+                                -Payload $streamPacket.Payload `
+                                -FrameId ([uint32]$streamPacket.Sequence) `
+                                -BaseSnapshot (
+                                    $acknowledgedSnapshotsByLow8[
+                                        [int]$wireBase])
+                    }
+                    if ($currentSnapshot.ServerTime -lt
+                        $acknowledgedSnapshot.ServerTime) {
+                        throw "continuous server time moved backwards"
+                    }
+                    if ($isFullSnapshot) {
+                        $continuousFullSnapshots++
+                    } else {
+                        $continuousDeltaSnapshots++
+                        if ($ignoredSinceAcknowledgement -eq 1) {
+                            $continuousLossRecovery = $true
+                        }
+                        if ($ignoredSinceAcknowledgement -ge 5) {
+                            $continuousMultipleLossRecovery = $true
+                        }
+                    }
+                    $continuousSnapshotsReceived++
+                    [byte]$currentLow =
+                        [byte]([uint32]$currentSnapshot.FrameId -band 0xFF)
+                    if ($currentLow -lt $previousSnapshotLow) {
+                        $continuousLow8Wrap = $true
+                    }
+                    $previousSnapshotLow = $currentLow
+
+                    $acknowledgeCurrent = $true
+                    if ($FirstSnapshotNegativeValidation) {
+                        if ($continuousSnapshotsReceived -eq 1) {
+                            $acknowledgeCurrent = $false
+                        } elseif ($continuousSnapshotsReceived -ge 3 -and
+                            $continuousSnapshotsReceived -le 7) {
+                            $acknowledgeCurrent = $false
+                        } elseif ($continuousSnapshotsReceived -gt 8 -and
+                            -not $continuousFullFallback) {
+                            $acknowledgeCurrent = $isFullSnapshot
+                            if ($isFullSnapshot) {
+                                $continuousFullFallback = $true
+                            }
+                        }
+                    }
+
+                    if ($acknowledgeCurrent) {
+                        $clientSequence++
+                        [byte[]]$continuousReference = @(
+                            [byte]4,
+                            [byte]$currentLow
+                        )
+                        Send-DeltaClientPacket `
+                            -Client $Client `
+                            -Sequence $clientSequence `
+                            -Acknowledgement $latestServerSequence `
+                            -ServerReliableAcknowledgementState $baselineAckState `
+                            -Payload $continuousReference `
+                            -Description "continuous snapshot frame reference"
+                        $continuousReferencesSent++
+                        $acknowledgedSnapshot = $currentSnapshot
+                        $acknowledgedSnapshotsByLow8[
+                            [int]$currentLow
+                        ] = $currentSnapshot
+                        $ignoredSinceAcknowledgement = 0
+
+                        if ($FirstSnapshotNegativeValidation -and
+                            $continuousSnapshotsReceived -ge 2 -and
+                            -not $sentNegativeReferences) {
+                            $sentNegativeReferences = $true
+                            $clientSequence++
+                            [byte[]]$unknownReference = @(
+                                [byte]4,
+                                [byte]((
+                                    [uint32]$snapshot.FrameId + 1
+                                ) -band 0xFF)
+                            )
+                            Send-DeltaClientPacket `
+                                -Client $Client `
+                                -Sequence $clientSequence `
+                                -Acknowledgement $latestServerSequence `
+                                -ServerReliableAcknowledgementState $baselineAckState `
+                                -Payload $unknownReference `
+                                -Description "unknown continuous frame reference"
+                            Wait-ForStdoutToken `
+                                -Process $ServerProcess `
+                                -OutputCapture $OutputCapture `
+                                -StdoutPath $StdoutPath `
+                                -Deadline $Deadline `
+                                -Token "result=unknown,source=clc_delta" `
+                                -Description "unknown continuous frame rejection"
+                            $continuousUnknownRejected = $true
+
+                            $clientSequence++
+                            [byte[]]$staleReference = @(
+                                [byte]4,
+                                [byte]([uint32]$snapshot.FrameId -band 0xFF)
+                            )
+                            Send-DeltaClientPacket `
+                                -Client $Client `
+                                -Sequence $clientSequence `
+                                -Acknowledgement $latestServerSequence `
+                                -ServerReliableAcknowledgementState $baselineAckState `
+                                -Payload $staleReference `
+                                -Description "stale continuous frame reference"
+                            Wait-ForStdoutToken `
+                                -Process $ServerProcess `
+                                -OutputCapture $OutputCapture `
+                                -StdoutPath $StdoutPath `
+                                -Deadline $Deadline `
+                                -Token "result=stale,source=clc_delta" `
+                                -Description "stale continuous frame rejection"
+                            $continuousStaleRejected = $true
+                        }
+                    } else {
+                        $ignoredSinceAcknowledgement++
+                    }
+                    $final = $streamPacket
+                }
+                if ($continuousSnapshotsReceived -lt
+                    $minimumContinuousCount) {
+                    throw ("continuous stream ended after only {0} snapshots" -f
+                        $continuousSnapshotsReceived)
+                }
+                if ($continuousDeltaSnapshots -lt 1 -or
+                    $continuousReferencesSent -lt 2) {
+                    throw "continuous stream did not exercise delta frames and multiple references"
+                }
+                if ($FirstSnapshotNegativeValidation -and
+                    (-not $continuousLossRecovery -or
+                     -not $continuousMultipleLossRecovery -or
+                     -not $continuousFullFallback -or
+                     -not $continuousLow8Wrap -or
+                     -not $continuousUnknownRejected -or
+                     -not $continuousStaleRejected)) {
+                    throw "continuous negative stream did not satisfy loss, fallback, wrap, and reference gates"
+                }
+            }
         } else {
             $sendEntitiesPacket = Read-SequencedDatagram `
                 -Packet $sendEntitiesResponse.Bytes `
@@ -2428,6 +2767,18 @@ function Invoke-ObservedResourceContinuation {
         FirstSnapshot = $snapshot
         FirstSnapshotKeepaliveObserved =
             $firstSnapshotKeepaliveObserved
+        ContinuousSnapshotsReceived = $continuousSnapshotsReceived
+        ContinuousFullSnapshots = $continuousFullSnapshots + $(if (
+            $null -ne $snapshot) { 1 } else { 0 })
+        ContinuousDeltaSnapshots = $continuousDeltaSnapshots
+        ContinuousReferencesSent = $continuousReferencesSent
+        ContinuousLossRecovery = $continuousLossRecovery
+        ContinuousMultipleLossRecovery =
+            $continuousMultipleLossRecovery
+        ContinuousFullFallback = $continuousFullFallback
+        ContinuousLow8Wrap = $continuousLow8Wrap
+        ContinuousUnknownRejected = $continuousUnknownRejected
+        ContinuousStaleRejected = $continuousStaleRejected
     }
 }
 
@@ -2442,7 +2793,10 @@ function Assert-DeltaHostSummaries {
 
     $negative = $Mode -eq "Negative"
     $postResource = $Resource.PostResourceMode -ne "None"
-    $expectedSignonPhase = if ($Resource.FirstSnapshotReceived) {
+    $expectedSignonPhase = if (
+        $Resource.ContinuousSnapshotsReceived -gt 0) {
+        "continuous_snapshot_stable"
+    } elseif ($Resource.FirstSnapshotReceived) {
         "first_snapshot_acknowledged"
     } elseif ($Resource.PostResourceMode -eq "World") {
         "awaiting_first_snapshot"
@@ -2740,7 +3094,11 @@ function Assert-DeltaHostSummaries {
                 sendents_delivered = "1"
                 previous_boundary_resolved = "true"
                 next_boundary = $(if ($Resource.FirstSnapshotReceived) {
-                    "continuous_snapshot_cadence_required"
+                    $(if ($Resource.ContinuousSnapshotsReceived -gt 0) {
+                        "player_lifecycle_or_signon_progression_required"
+                    } else {
+                        "continuous_snapshot_cadence_required"
+                    })
                 } else {
                     "first_snapshot_required"
                 })
@@ -2809,8 +3167,13 @@ function Assert-DeltaHostSummaries {
                 evicted_frame = $(if ($negative) { "1" } else { "0" })
                 previous_boundary_resolved = "true"
                 advanced_past_previous_boundary = "true"
-                next_boundary = "continuous_snapshot_cadence_required"
-                signon_phase = "first_snapshot_acknowledged"
+                next_boundary = $(if (
+                    $Resource.ContinuousSnapshotsReceived -gt 0) {
+                    "player_lifecycle_or_signon_progression_required"
+                } else {
+                    "continuous_snapshot_cadence_required"
+                })
+                signon_phase = $expectedSignonPhase
                 session_count = "1"
                 put_in_server = "0"
                 spawned = "0"
@@ -2822,6 +3185,50 @@ function Assert-DeltaHostSummaries {
                 -Line $snapshotLine `
                 -Name "payload_bytes") -le 0) {
             throw "runtime reported an empty first snapshot"
+        }
+        if ($Resource.ContinuousSnapshotsReceived -gt 0) {
+            $continuousLine = Get-ExactlyOneSummaryLine `
+                -Stdout $Stdout `
+                -Prefix "goldsrc_continuous_snapshot_summary:"
+            Assert-SummaryFields `
+                -Line $continuousLine `
+                -Description "goldsrc_continuous_snapshot_summary" `
+                -Expected ([ordered]@{
+                    enabled = "1"
+                    negative_proof =
+                        $(if ($negative) { "1" } else { "0" })
+                    contract_verified = "true"
+                    delta_contract_verified = "true"
+                    frame_reference_contract_verified = "true"
+                    loss_recovery_contract_verified = "true"
+                    snapshot_rate_hz = "20.000000"
+                    snapshot_interval_ms = "50.000000"
+                    server_time_monotonic = "true"
+                    frame_ids_advanced = "true"
+                    newest_acknowledged_base_selected = "true"
+                    frame_history_bounded = "true"
+                    streaming = "true"
+                    stable = "true"
+                    next_boundary =
+                        "player_lifecycle_or_signon_progression_required"
+                    session_count = "1"
+                    put_in_server = "0"
+                    spawned = "0"
+                    active = "0"
+                    clean_shutdown = "1"
+                })
+            if ((Get-StableUnsignedField `
+                    -Line $continuousLine `
+                    -Name "sent") -lt
+                $Resource.ContinuousSnapshotsReceived -or
+                (Get-StableUnsignedField `
+                    -Line $continuousLine `
+                    -Name "delta") -lt 1 -or
+                (Get-StableUnsignedField `
+                    -Line $continuousLine `
+                    -Name "distinct_frame_references") -lt 2) {
+                throw "continuous host summary did not report the observed stream"
+            }
         }
     }
 
@@ -2990,6 +3397,9 @@ function Invoke-DeltaHostRun {
         [ValidateSet("None", "Positive", "Negative", "World")]
         [string]$PostResourceMode = "None",
         [switch]$RunFirstSnapshotProof,
+        [switch]$RunContinuousSnapshotProof,
+        [int]$RequiredContinuousSnapshotCount = 30,
+        [single]$ConfiguredSnapshotRateHz = 20.0,
         [switch]$SuppressServerOutput
     )
 
@@ -3026,8 +3436,19 @@ function Invoke-DeltaHostRun {
         $arguments += "--goldsrc-world-baselines"
         if ($RunFirstSnapshotProof) {
             $arguments += "--goldsrc-first-snapshot"
+            if ($RunContinuousSnapshotProof) {
+                $arguments += "--goldsrc-continuous-snapshots"
+                $arguments += (
+                    "--goldsrc-snapshot-rate-hz={0}" -f
+                    $ConfiguredSnapshotRateHz.ToString(
+                        [Globalization.CultureInfo]::InvariantCulture))
+            }
             if ($Mode -eq "Negative") {
                 $arguments += "--goldsrc-first-snapshot-negative-proof"
+                if ($RunContinuousSnapshotProof) {
+                    $arguments +=
+                        "--goldsrc-continuous-snapshots-negative-proof"
+                }
             }
         }
         if ($Mode -eq "Negative") {
@@ -3241,7 +3662,9 @@ function Invoke-DeltaHostRun {
                 $PostResourceMode -eq "World") `
             -ReceiveFirstSnapshot:$RunFirstSnapshotProof `
             -FirstSnapshotNegativeValidation:(
-                $Mode -eq "Negative" -and $RunFirstSnapshotProof)
+                $Mode -eq "Negative" -and $RunFirstSnapshotProof) `
+            -ReceiveContinuousSnapshots:$RunContinuousSnapshotProof `
+            -ContinuousSnapshotCount $RequiredContinuousSnapshotCount
 
         Wait-ForCleanServerExit `
             -Process $serverProcess `
@@ -3790,6 +4213,9 @@ try {
             -RunTimeoutSeconds $TimeoutSeconds `
             -PostResourceMode $postResourceMode `
             -RunFirstSnapshotProof:$FirstSnapshotProof `
+            -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
+            -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
+            -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
         $negativeServerInfoLine = Get-ExactlyOneSummaryLine `
             -Stdout $mainResult.Stdout `
@@ -3814,6 +4240,9 @@ try {
             -RunTimeoutSeconds $TimeoutSeconds `
             -PostResourceMode $postResourceMode `
             -RunFirstSnapshotProof:$FirstSnapshotProof `
+            -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
+            -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
+            -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
     }
     Assert-NoDeltaProofRepositoryMutation `
@@ -3841,6 +4270,35 @@ if ($PostResourceCommandProof) {
         Write-Host "goldsrc_post_resource_command_proof_b: duplicate_sequence_suppressed=true,out_of_order_rejected=true,truncated_command_rejected=true,invalid_count_rejected=true,checksum_validation=pass,unsupported_opcode_rejected=true,invalid_phase_rejected=true,pending_server_reliable_preserved=true,slot_reset_cleared_state=true,fresh_session_after_reset=pass,session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass"
     } else {
         Write-Host "goldsrc_post_resource_command_proof_a: previous_prompt_240_boundary=pass,command_opcode_identified=true,command_identity=clc_move,unreliable_command_decoded=true,command_semantic_validation=pass,command_deliveries=1,command_phase_validation=pass,continuation_result=awaiting_server_baseline_or_snapshot,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass"
+    }
+}
+if ($ContinuousSnapshotProof) {
+    if ($NegativeProof) {
+        Write-Host (
+            "goldsrc_continuous_snapshot_proof_b: dropped_snapshot_recovery={0},multiple_dropped_snapshot_recovery={1},delta_used_last_acknowledged_base=true,unknown_frame_reference_rejected={2},stale_frame_reference_rejected={3},low8_wrap_resolution={4},frame_history_eviction=pass,evicted_base_full_fallback={5},reliable_state_preserved=true,slot_reset_cleared_snapshot_state=true,fresh_session_streaming=pass,snapshots_received={6},full_snapshots_received={7},delta_snapshots_received={8},session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass" -f
+            $(if ($mainResult.Resource.ContinuousLossRecovery) {
+                "pass"
+            } else { "fail" }),
+            $(if ($mainResult.Resource.ContinuousMultipleLossRecovery) {
+                "pass"
+            } else { "fail" }),
+            $mainResult.Resource.ContinuousUnknownRejected.ToString().ToLowerInvariant(),
+            $mainResult.Resource.ContinuousStaleRejected.ToString().ToLowerInvariant(),
+            $(if ($mainResult.Resource.ContinuousLow8Wrap) {
+                "pass"
+            } else { "fail" }),
+            $mainResult.Resource.ContinuousFullFallback.ToString().ToLowerInvariant(),
+            $mainResult.Resource.ContinuousSnapshotsReceived,
+            $mainResult.Resource.ContinuousFullSnapshots,
+            $mainResult.Resource.ContinuousDeltaSnapshots)
+    } else {
+        Write-Host (
+            "goldsrc_continuous_snapshot_proof_a: previous_prompt_243_boundary=pass,continuous_snapshot_cadence=true,snapshot_rate_hz={0},snapshots_received={1},full_snapshots_received={2},delta_snapshots_received={3},server_time_monotonic=true,frame_ids_advanced=true,multiple_frame_references_sent=true,multiple_frame_references_accepted=true,newest_acknowledged_base_selected=true,delta_reconstruction=pass,frame_history_bounded=true,session_count=1,put_in_server=0,spawned=0,active=0,clean_shutdown=1,proof_a=pass" -f
+            $SnapshotRateHz.ToString(
+                [Globalization.CultureInfo]::InvariantCulture),
+            $mainResult.Resource.ContinuousSnapshotsReceived,
+            $mainResult.Resource.ContinuousFullSnapshots,
+            $mainResult.Resource.ContinuousDeltaSnapshots)
     }
 }
 if ($FirstSnapshotProof) {
