@@ -273,6 +273,42 @@ void TestApplicationDispatch()
     assert(DecodeGoldSrcClientApplicationPayload(
         unknown.data(), unknown.size(), kObservedSequence, registry).status
         == GoldSrcClientApplicationDecodeStatus::kUnknownOpcode);
+
+    const std::array<std::uint8_t, 13> disconnect = {
+        kGoldSrcClientApplicationStringCommandOpcode,
+        'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't', '\n', '\0'};
+    const GoldSrcClientApplicationDecodeResult disconnect_decoded =
+        DecodeGoldSrcClientApplicationPayload(
+            disconnect.data(),
+            disconnect.size(),
+            kObservedSequence,
+            registry);
+    assert(disconnect_decoded.ok());
+    assert(disconnect_decoded.disconnect_present);
+    assert(!disconnect_decoded.move_present);
+    assert(!disconnect_decoded.frame_reference_present);
+
+    const std::array<std::uint8_t, 12> unterminated_disconnect = {
+        kGoldSrcClientApplicationStringCommandOpcode,
+        'd', 'r', 'o', 'p', 'c', 'l', 'i', 'e', 'n', 't', '\n'};
+    assert(DecodeGoldSrcClientApplicationPayload(
+        unterminated_disconnect.data(),
+        unterminated_disconnect.size(),
+        kObservedSequence,
+        registry).status
+        == GoldSrcClientApplicationDecodeStatus::kMalformedStringCommand);
+
+    std::vector<std::uint8_t> move_then_disconnect = move;
+    move_then_disconnect.insert(
+        move_then_disconnect.end(),
+        disconnect.begin(),
+        disconnect.end());
+    assert(DecodeGoldSrcClientApplicationPayload(
+        move_then_disconnect.data(),
+        move_then_disconnect.size(),
+        kObservedSequence,
+        registry).status
+        == GoldSrcClientApplicationDecodeStatus::kUnsupportedTrailingData);
 }
 
 void TestEnvelopeAndChecksumRejections()

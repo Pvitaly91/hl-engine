@@ -40,6 +40,23 @@ bool Append(
     output.runfuncs = true;
     return true;
 }
+
+bool CommandsEqual(
+    const GoldSrcDecodedUserCommand& left,
+    const GoldSrcDecodedUserCommand& right) noexcept
+{
+    return left.lerp_msec == right.lerp_msec
+        && left.msec == right.msec
+        && left.viewangles == right.viewangles
+        && left.forwardmove == right.forwardmove
+        && left.sidemove == right.sidemove
+        && left.upmove == right.upmove
+        && left.lightlevel == right.lightlevel
+        && left.buttons == right.buttons
+        && left.impulse == right.impulse
+        && left.impact_index == right.impact_index
+        && left.impact_position == right.impact_position;
+}
 } // namespace
 
 std::string_view NameFor(GoldSrcMovementPhase phase) noexcept
@@ -335,6 +352,8 @@ std::string_view ReasonFor(GoldSrcCommandPlanStatus status) noexcept
         return "command_time_overflow";
     case GoldSrcCommandPlanStatus::kCommandTimeBudgetExceeded:
         return "command_time_budget_exceeded";
+    case GoldSrcCommandPlanStatus::kTemporarilyAhead:
+        return "temporarily_ahead";
     case GoldSrcCommandPlanStatus::kPlanCapacityExceeded:
         return "command_plan_capacity_exceeded";
     }
@@ -385,6 +404,7 @@ GoldSrcCommandExecutionPlan GoldSrcCommandExecutionState::Plan(
     std::uint64_t host_time_msec) noexcept
 {
     GoldSrcCommandExecutionPlan plan;
+    plan.host_time_msec = host_time_msec;
     ++diagnostics_.packets_received;
     diagnostics_.commands_received += move.command_count;
     diagnostics_.backup_commands_observed += move.backup_command_count;
@@ -404,16 +424,16 @@ GoldSrcCommandExecutionPlan GoldSrcCommandExecutionState::Plan(
     {
         plan.status = GoldSrcCommandPlanStatus::kInvalidCount;
     }
-    else if (initialized_
-        && packet_sequence == last_accepted_packet_sequence_)
+    else if (observed_initialized_
+        && packet_sequence == last_observed_packet_sequence_)
     {
         plan.status = GoldSrcCommandPlanStatus::kStalePacket;
         diagnostics_.duplicate_commands_suppressed += fresh + backup;
     }
-    else if (initialized_
+    else if (observed_initialized_
         && !IsGoldSrcNetchanSequenceNewer(
             packet_sequence,
-            last_accepted_packet_sequence_))
+            last_observed_packet_sequence_))
     {
         plan.status = GoldSrcCommandPlanStatus::kOutOfOrderPacket;
         diagnostics_.duplicate_commands_suppressed += fresh + backup;
@@ -438,80 +458,71 @@ GoldSrcCommandExecutionPlan GoldSrcCommandExecutionState::Plan(
         }
     }
 
-    std::size_t dropped = 0u;
-    if (initialized_)
+    if (observed_initialized_)
     {
-        const std::uint32_t distance = GoldSrcNetchanSequenceDistance(
+        plan.raw_netchan_sequence_distance = GoldSrcNetchanSequenceDistance(
             packet_sequence,
-            last_accepted_packet_sequence_);
-        if (distance == 0u)
+            last_observed_packet_sequence_);
+        if (plan.raw_netchan_sequence_distance == 0u)
         {
             plan.status = GoldSrcCommandPlanStatus::kOutOfOrderPacket;
             ++diagnostics_.malformed_commands_rejected;
             return plan;
         }
-        dropped = std::min<std::size_t>(
-            distance - 1u,
-            kGoldSrcMaximumDroppedCommandRecovery);
-    }
-
-    if (dropped == 0u)
-    {
-        plan.duplicate_backups_suppressed = backup;
-        diagnostics_.duplicate_commands_suppressed += backup;
-    }
-    else
-    {
-        const std::size_t available = std::min(dropped, backup);
-        const std::size_t missing = dropped - available;
-        if (missing > 0u && has_last_command_)
+        if (plan.raw_netchan_sequence_distance > 1u)
         {
-            for (std::size_t index = 0; index < missing; ++index)
-            {
-                if (!Append(
-                        &plan,
-                        last_command_,
-                        packet_sequence,
-                        true,
-                        true))
-                {
-                    plan.status =
-                        GoldSrcCommandPlanStatus::kPlanCapacityExceeded;
-                    ++diagnostics_.malformed_commands_rejected;
-                    return plan;
-                }
-                ++plan.replayed_last_commands;
-            }
-        }
-        for (std::size_t offset = available; offset > 0u; --offset)
-        {
-            const std::size_t command_index = fresh + offset - 1u;
-            if (!Append(
-                    &plan,
-                    move.commands[command_index],
-                    packet_sequence,
-                    true,
-                    false))
-            {
-                plan.status =
-                    GoldSrcCommandPlanStatus::kPlanCapacityExceeded;
-                ++diagnostics_.malformed_commands_rejected;
-                return plan;
-            }
-            ++plan.recovered_backups;
-        }
-        if (backup > available)
-        {
-            plan.duplicate_backups_suppressed = backup - available;
-            diagnostics_.duplicate_commands_suppressed += backup - available;
+            ++diagnostics_.raw_netchan_sequence_gaps;
         }
     }
 
-    for (std::size_t offset = fresh; offset > 0u; --offset)
+    std::size_t explicit_recovery_begin = backup;
+    if (has_last_command_)
+    {
+        for (std::size_t backup_index = 0u;
+             backup_index < backup;
+             ++backup_index)
+        {
+            if (CommandsEqual(
+                    move.commands[backup_index],
+                    last_command_))
+            {
+                explicit_recovery_begin = backup_index + 1u;
+                break;
+            }
+        }
+    }
+    const std::size_t explicit_recovery_count =
+        explicit_recovery_begin < backup
+        ? backup - explicit_recovery_begin
+        : 0u;
+    for (std::size_t command_index = explicit_recovery_begin;
+         command_index < backup;
+         ++command_index)
     {
         if (!Append(
                 &plan,
-                move.commands[offset - 1u],
+                move.commands[command_index],
+                packet_sequence,
+                true,
+                false))
+        {
+            plan.status = GoldSrcCommandPlanStatus::kPlanCapacityExceeded;
+            ++diagnostics_.malformed_commands_rejected;
+            return plan;
+        }
+        ++plan.recovered_backups;
+    }
+    plan.duplicate_backups_suppressed = backup - explicit_recovery_count;
+    diagnostics_.duplicate_commands_suppressed +=
+        plan.duplicate_backups_suppressed;
+
+    for (std::size_t command_index = backup;
+         command_index < backup + fresh;
+         ++command_index)
+    {
+        if (!Append(
+                &plan,
+                move.commands[command_index],
                 packet_sequence,
                 false,
                 false))
@@ -539,34 +550,112 @@ GoldSrcCommandExecutionPlan GoldSrcCommandExecutionState::Plan(
         return plan;
     }
     if (command_time_msec_ > std::numeric_limits<std::uint64_t>::max()
-            - plan.total_command_msec
-        || command_time_msec_ + plan.total_command_msec
-            > host_time_msec + kGoldSrcMaximumCommandLeadMsec)
+            - plan.total_command_msec)
     {
-        plan.status = GoldSrcCommandPlanStatus::kCommandTimeBudgetExceeded;
-        ++diagnostics_.command_time_budget_rejections;
+        plan.status = GoldSrcCommandPlanStatus::kCommandTimeOverflow;
+        ++diagnostics_.malformed_commands_rejected;
         return plan;
     }
-
-    initialized_ = true;
-    last_accepted_packet_sequence_ = packet_sequence;
-    if (phase_ == GoldSrcMovementPhase::kPlayerSpawnedAwaitingMovement)
+    plan.command_elapsed_msec = command_time_msec_;
+    plan.proposed_command_elapsed_msec =
+        command_time_msec_ + plan.total_command_msec;
+    plan.establishes_command_clock_epoch =
+        !command_clock_epoch_initialized_;
+    if (command_clock_epoch_initialized_)
     {
-        phase_ = GoldSrcMovementPhase::kMovementReady;
+        if (host_time_msec < host_epoch_msec_)
+        {
+            plan.status = GoldSrcCommandPlanStatus::kCommandTimeOverflow;
+            ++diagnostics_.malformed_commands_rejected;
+            return plan;
+        }
+        plan.host_elapsed_msec = host_time_msec - host_epoch_msec_;
+    }
+    if (plan.proposed_command_elapsed_msec
+        > plan.host_elapsed_msec + kGoldSrcMaximumCommandLeadMsec)
+    {
+        plan.status = GoldSrcCommandPlanStatus::kTemporarilyAhead;
+        ++diagnostics_.move_packets_temporarily_rejected;
+        ++diagnostics_.command_time_budget_rejections;
+        return plan;
     }
     return plan;
 }
 
-void GoldSrcCommandExecutionState::CommitExecuted(
-    const GoldSrcPlannedUserCommand& command) noexcept
+void GoldSrcCommandExecutionState::CommitObservedMovePacket(
+    std::uint32_t packet_sequence,
+    bool structurally_valid,
+    bool temporarily_ahead) noexcept
 {
-    has_last_command_ = true;
-    last_command_ = command.command;
-    command_time_msec_ += command.command.msec;
-    ++diagnostics_.commands_executed;
-    if (command.recovered_backup)
+    if (!observed_initialized_
+        || IsGoldSrcNetchanSequenceNewer(
+            packet_sequence,
+            last_observed_packet_sequence_))
     {
-        ++diagnostics_.backup_commands_replayed;
+        observed_initialized_ = true;
+        last_observed_packet_sequence_ = packet_sequence;
+        ++diagnostics_.move_packets_observed;
+    }
+    if (structurally_valid
+        && (!validated_initialized_
+            || IsGoldSrcNetchanSequenceNewer(
+                packet_sequence,
+                last_validated_move_sequence_)))
+    {
+        validated_initialized_ = true;
+        last_validated_move_sequence_ = packet_sequence;
+        ++diagnostics_.move_packets_validated;
+    }
+    if (phase_ == GoldSrcMovementPhase::kPlayerSpawnedAwaitingMovement)
+    {
+        phase_ = GoldSrcMovementPhase::kMovementReady;
+    }
+    command_clock_wait_pending_ =
+        command_clock_wait_pending_ || temporarily_ahead;
+}
+
+void GoldSrcCommandExecutionState::CommitExecutedBatch(
+    const GoldSrcCommandExecutionPlan& plan,
+    std::uint32_t packet_sequence,
+    std::uint64_t host_time_msec) noexcept
+{
+    if (!plan.ok() || plan.command_count == 0u)
+    {
+        return;
+    }
+    if (!command_clock_epoch_initialized_)
+    {
+        command_clock_epoch_initialized_ = true;
+        host_epoch_msec_ = host_time_msec;
+        command_time_msec_ = 0u;
+    }
+    if (last_execution_host_time_msec_ != 0u
+        && host_time_msec >= last_execution_host_time_msec_)
+    {
+        diagnostics_.maximum_move_execution_gap_msec = (std::max)(
+            diagnostics_.maximum_move_execution_gap_msec,
+            host_time_msec - last_execution_host_time_msec_);
+    }
+    last_execution_host_time_msec_ = host_time_msec;
+    for (std::size_t index = 0u; index < plan.command_count; ++index)
+    {
+        const GoldSrcPlannedUserCommand& command = plan.commands[index];
+        has_last_command_ = true;
+        last_command_ = command.command;
+        command_time_msec_ += command.command.msec;
+        ++diagnostics_.commands_executed;
+        if (command.recovered_backup)
+        {
+            ++diagnostics_.backup_commands_replayed;
+        }
+    }
+    executed_initialized_ = true;
+    last_executed_move_sequence_ = packet_sequence;
+    ++diagnostics_.move_packets_executed;
+    if (command_clock_wait_pending_)
+    {
+        command_clock_wait_pending_ = false;
+        ++diagnostics_.command_clock_recoveries;
     }
     phase_ = diagnostics_.commands_executed > 1u
         ? GoldSrcMovementPhase::kMovementStable
@@ -580,7 +669,7 @@ void GoldSrcCommandExecutionState::RecordRollback() noexcept
 
 bool GoldSrcCommandExecutionState::initialized() const noexcept
 {
-    return initialized_;
+    return observed_initialized_;
 }
 
 bool GoldSrcCommandExecutionState::has_last_command() const noexcept
@@ -597,12 +686,40 @@ GoldSrcCommandExecutionState::last_command() const noexcept
 std::uint32_t
 GoldSrcCommandExecutionState::last_accepted_packet_sequence() const noexcept
 {
-    return last_accepted_packet_sequence_;
+    return last_executed_move_sequence_;
+}
+
+std::uint32_t
+GoldSrcCommandExecutionState::last_observed_packet_sequence() const noexcept
+{
+    return last_observed_packet_sequence_;
+}
+
+std::uint32_t
+GoldSrcCommandExecutionState::last_validated_move_sequence() const noexcept
+{
+    return last_validated_move_sequence_;
+}
+
+std::uint32_t
+GoldSrcCommandExecutionState::last_executed_move_sequence() const noexcept
+{
+    return last_executed_move_sequence_;
 }
 
 std::uint64_t GoldSrcCommandExecutionState::command_time_msec() const noexcept
 {
     return command_time_msec_;
+}
+
+std::uint64_t GoldSrcCommandExecutionState::host_epoch_msec() const noexcept
+{
+    return host_epoch_msec_;
+}
+
+bool GoldSrcCommandExecutionState::command_clock_epoch_initialized() const noexcept
+{
+    return command_clock_epoch_initialized_;
 }
 
 std::uint64_t GoldSrcCommandExecutionState::rollback_count() const noexcept

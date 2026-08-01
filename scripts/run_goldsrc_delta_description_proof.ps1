@@ -17,7 +17,7 @@ param(
     [ValidateRange(0, 65535)]
     [int]$Port = 0,
 
-    [ValidateRange(1, 300)]
+    [ValidateRange(1, 900)]
     [int]$TimeoutSeconds = 60,
 
     [switch]$NegativeProof,
@@ -36,7 +36,12 @@ param(
 
     [switch]$PmoveProof,
 
-    [ValidateRange(30, 512)]
+    [switch]$PersistentPmoveProof,
+
+    [ValidateRange(1, 900)]
+    [int]$PersistentPmoveDurationSeconds = 600,
+
+    [ValidateRange(30, 20000)]
     [int]$ContinuousSnapshotMinimumCount = 30,
 
     [ValidateRange(10, 30)]
@@ -73,6 +78,9 @@ if ($PlayerLifecycleProof -and -not $ContinuousSnapshotProof) {
 }
 if ($PmoveProof -and -not $PlayerLifecycleProof) {
     throw "PmoveProof requires PlayerLifecycleProof"
+}
+if ($PersistentPmoveProof -and -not $PmoveProof) {
+    throw "PersistentPmoveProof requires PmoveProof"
 }
 
 if ([string]::IsNullOrWhiteSpace($DeltaFixture)) {
@@ -387,6 +395,53 @@ public static class GoldSrcMoveProofCodec
         Buffer.BlockCopy(body, 0, compact, 0, cursor);
         return Build(sequence, compact);
     }
+
+    public static byte[] BuildMovementBatch(
+        uint sequence,
+        byte[] msec,
+        short[] forward,
+        short[] side,
+        ushort[] buttons,
+        byte backups,
+        byte fresh)
+    {
+        int count = backups + fresh;
+        if (count == 0 || count > 62 || msec == null ||
+            forward == null || side == null || buttons == null ||
+            msec.Length != count || forward.Length != count ||
+            side.Length != count || buttons.Length != count)
+            throw new ArgumentOutOfRangeException("command batch");
+        var body = new byte[255];
+        body[0] = 0;
+        body[1] = backups;
+        body[2] = fresh;
+        int cursor = 3;
+        for (int command = 0; command < count; ++command)
+        {
+            if (msec[command] == 0)
+                throw new ArgumentOutOfRangeException("msec");
+            int bitPosition = cursor * 8;
+            uint mask = 0x02u | 0x10u | 0x20u | 0x80u;
+            WriteBits(body, ref bitPosition, 1u, 3);
+            WriteBits(body, ref bitPosition, mask, 8);
+            WriteBits(body, ref bitPosition, msec[command], 8);
+            WriteBits(body, ref bitPosition, buttons[command], 16);
+            WriteBits(
+                body,
+                ref bitPosition,
+                (uint)((ushort)forward[command] & 0x0FFFu),
+                12);
+            WriteBits(
+                body,
+                ref bitPosition,
+                (uint)((ushort)side[command] & 0x0FFFu),
+                12);
+            cursor = (bitPosition + 7) / 8;
+        }
+        var compact = new byte[cursor];
+        Buffer.BlockCopy(body, 0, compact, 0, cursor);
+        return Build(sequence, compact);
+    }
 }
 '@
 }
@@ -442,6 +497,28 @@ function New-GoldSrcMovementPayload {
         [uint16]$Buttons,
         $Backups,
         $Fresh)
+}
+
+function New-GoldSrcRecoveryMovementPayload {
+    param(
+        [uint32]$Sequence,
+        [int16]$LastForward,
+        [int16]$LastSide,
+        [uint16]$LastButtons,
+        [int16]$FreshForward,
+        [int16]$FreshSide,
+        [uint16]$FreshButtons
+    )
+
+    Initialize-GoldSrcMoveProofCodec
+    return [GoldSrcMoveProofCodec]::BuildMovementBatch(
+        $Sequence,
+        [byte[]]@(50, 50, 50),
+        [int16[]]@($LastForward, 0, $FreshForward),
+        [int16[]]@($LastSide, 200, $FreshSide),
+        [uint16[]]@($LastButtons, 0, $FreshButtons),
+        [byte]2,
+        [byte]1)
 }
 
 function New-DeltaBitReader {
@@ -2488,7 +2565,9 @@ function Invoke-ObservedResourceContinuation {
         [switch]$ReceiveContinuousSnapshots,
         [switch]$ReceivePlayerLifecycle,
         [switch]$ReceivePmove,
-        [int]$ContinuousSnapshotCount = 30
+        [string]$PmoveShutdownRequestPath = "",
+        [int]$ContinuousSnapshotCount = 30,
+        [double]$PmoveMinimumDurationSeconds = 0.0
     )
 
     [byte[]]$sendResourcesPayload = New-StringCommandPayload -Command "sendres"
@@ -2748,6 +2827,15 @@ function Invoke-ObservedResourceContinuation {
     $continuousLow8Wrap = $false
     $continuousUnknownRejected = $false
     $continuousStaleRejected = $false
+    $continuousArrivalIntervalsMs =
+        New-Object 'System.Collections.Generic.List[double]'
+    $lastContinuousArrivalTimestamp = [long]0
+    $firstContinuousServerTime = $null
+    $lastContinuousServerTime = $null
+    $pmovePacketsSent = 0
+    $pmoveRecoveryInjected = $false
+    $pmoveNonMoveGapInjected = $false
+    $pmoveClockLeadPacketsInjected = 0
     $playerEntityObserved = $false
     $playerClientDataObserved = $false
     $firstPlayerSnapshotFrameId = [uint32]0
@@ -3095,7 +3183,13 @@ function Invoke-ObservedResourceContinuation {
                 $ignoredSinceAcknowledgement = 0
                 $sentNegativeReferences = $false
                 $pmoveRecoveryInjected = $false
+                $pmoveNonMoveGapInjected = $false
+                $pmoveClockLeadPacketsInjected = 0
                 $pmovePacketsSent = 0
+                [int16]$lastPmoveForward = 0
+                [int16]$lastPmoveSide = 0
+                [uint16]$lastPmoveButtons = 0
+                $pmoveShutdownRequested = $false
                 $minimumContinuousCount = if (
                     $FirstSnapshotNegativeValidation) {
                     [Math]::Max(270, $ContinuousSnapshotCount)
@@ -3104,13 +3198,42 @@ function Invoke-ObservedResourceContinuation {
                 }
 
                 while (-not $ServerProcess.HasExited) {
-                    $streamDatagram = Receive-ProofDatagram `
-                        -Client $Client `
-                        -ServerProcess $ServerProcess `
-                        -OutputCapture $OutputCapture `
-                        -Deadline $Deadline `
-                        -ServerEndpoint $ServerEndpoint `
-                        -Description "continuous snapshot stream"
+                    try {
+                        $streamDatagram = Receive-ProofDatagram `
+                            -Client $Client `
+                            -ServerProcess $ServerProcess `
+                            -OutputCapture $OutputCapture `
+                            -Deadline $Deadline `
+                            -ServerEndpoint $ServerEndpoint `
+                            -Description "continuous snapshot stream"
+                    } catch {
+                        if (-not $ServerProcess.HasExited) {
+                            [void]$ServerProcess.WaitForExit(250)
+                        }
+                        if ($ServerProcess.HasExited -and
+                            $ServerProcess.ExitCode -eq 0) {
+                            break
+                        }
+                        throw
+                    }
+                    # The persistent proof validates server cadence, not the
+                    # throughput of the PowerShell decoder.  Drop queued
+                    # intermediate snapshots before decoding so the probe
+                    # observes the current server-time frontier instead of
+                    # accumulating an ever-growing receive backlog.  Every
+                    # retained snapshot is still decoded and acknowledged
+                    # against the last acknowledged base.
+                    if ($PmoveMinimumDurationSeconds -gt 0.0) {
+                        while ($Client.Available -gt 0) {
+                            $streamDatagram = Receive-ProofDatagram `
+                                -Client $Client `
+                                -ServerProcess $ServerProcess `
+                                -OutputCapture $OutputCapture `
+                                -Deadline $Deadline `
+                                -ServerEndpoint $ServerEndpoint `
+                                -Description "current continuous snapshot"
+                        }
+                    }
                     $streamPacket = Read-SequencedDatagram `
                         -Packet $streamDatagram.Bytes `
                         -Description "continuous snapshot stream"
@@ -3187,6 +3310,22 @@ function Invoke-ObservedResourceContinuation {
                         }
                     }
                     $continuousSnapshotsReceived++
+                    if ($null -eq $firstContinuousServerTime) {
+                        $firstContinuousServerTime =
+                            [double]$currentSnapshot.ServerTime
+                    }
+                    $lastContinuousServerTime =
+                        [double]$currentSnapshot.ServerTime
+                    $arrivalTimestamp =
+                        [Diagnostics.Stopwatch]::GetTimestamp()
+                    if ($lastContinuousArrivalTimestamp -ne 0) {
+                        $continuousArrivalIntervalsMs.Add(
+                            1000.0 *
+                            ($arrivalTimestamp -
+                                $lastContinuousArrivalTimestamp) /
+                            [Diagnostics.Stopwatch]::Frequency)
+                    }
+                    $lastContinuousArrivalTimestamp = $arrivalTimestamp
                     if ($ReceivePlayerLifecycle -and
                         $currentSnapshot.PSObject.Properties.Name -ccontains
                             "PlayerPresent" -and
@@ -3233,8 +3372,15 @@ function Invoke-ObservedResourceContinuation {
                             [byte]4,
                             [byte]$currentLow
                         )
-                        if ($ReceivePmove -and
-                            $currentSnapshot.PlayerPresent) {
+                        $sendPmove = $ReceivePmove -and
+                            $currentSnapshot.PlayerPresent
+                        if ($sendPmove -and
+                            -not $pmoveNonMoveGapInjected -and
+                            $pmovePacketsSent -ge 25) {
+                            $sendPmove = $false
+                            $pmoveNonMoveGapInjected = $true
+                        }
+                        if ($sendPmove) {
                             $movementIndex = $continuousReferencesSent % 12
                             $forward = 0
                             $side = 0
@@ -3249,24 +3395,54 @@ function Invoke-ObservedResourceContinuation {
                                 default { }
                             }
                             [byte]$backupCount = 0
+                            $recoveryPacket = $false
                             if (-not $pmoveRecoveryInjected -and
-                                $pmovePacketsSent -ge 3) {
+                                $pmovePacketsSent -ge 2) {
                                 $clientSequence++
                                 $backupCount = 2
                                 $pmoveRecoveryInjected = $true
+                                $recoveryPacket = $true
                             }
-                            [byte[]]$movementPayload =
+                            [byte]$movementMsec = 50
+                            [byte]$freshCount = 1
+                            $clockLeadInjectionStart = if (
+                                $PmoveMinimumDurationSeconds -gt 0.0) {
+                                4
+                            } else {
+                                50
+                            }
+                            if ($pmovePacketsSent -ge
+                                    $clockLeadInjectionStart -and
+                                $pmoveClockLeadPacketsInjected -lt 8) {
+                                $movementMsec = 255
+                                $freshCount = 3
+                                $pmoveClockLeadPacketsInjected++
+                            }
+                            [byte[]]$movementPayload = if ($recoveryPacket) {
+                                New-GoldSrcRecoveryMovementPayload `
+                                    -Sequence $clientSequence `
+                                    -LastForward $lastPmoveForward `
+                                    -LastSide $lastPmoveSide `
+                                    -LastButtons $lastPmoveButtons `
+                                    -FreshForward ([int16]$forward) `
+                                    -FreshSide ([int16]$side) `
+                                    -FreshButtons ([uint16]$buttons)
+                            } else {
                                 New-GoldSrcMovementPayload `
                                     -Sequence $clientSequence `
-                                    -Msec 50 `
+                                    -Msec $movementMsec `
                                     -Forward $forward `
                                     -Side $side `
                                     -Buttons $buttons `
                                     -Backups $backupCount `
-                                    -Fresh 1
+                                    -Fresh $freshCount
+                            }
                             $continuousReference = [byte[]](
                                 $continuousReference + $movementPayload)
                             $pmovePacketsSent++
+                            $lastPmoveForward = [int16]$forward
+                            $lastPmoveSide = [int16]$side
+                            $lastPmoveButtons = [uint16]$buttons
                         }
                         Send-DeltaClientPacket `
                             -Client $Client `
@@ -3334,9 +3510,43 @@ function Invoke-ObservedResourceContinuation {
                         $ignoredSinceAcknowledgement++
                     }
                     $final = $streamPacket
+                    if ($ReceivePmove -and
+                        -not $pmoveShutdownRequested -and
+                        -not [string]::IsNullOrWhiteSpace(
+                            $PmoveShutdownRequestPath) -and
+                        ($continuousSnapshotsReceived -ge
+                            $minimumContinuousCount -or
+                         ($PmoveMinimumDurationSeconds -gt 0.0 -and
+                          $null -ne $firstContinuousServerTime -and
+                          $null -ne $lastContinuousServerTime -and
+                          ($lastContinuousServerTime -
+                              $firstContinuousServerTime) -ge
+                              $PmoveMinimumDurationSeconds))) {
+                        [System.IO.File]::WriteAllText(
+                            $PmoveShutdownRequestPath,
+                            "longrun proof complete")
+                        $pmoveShutdownRequested = $true
+                        Wait-ForCleanServerExit `
+                            -Process $ServerProcess `
+                            -OutputCapture $OutputCapture `
+                            -Deadline $Deadline
+                    }
+                }
+                $continuousServerDurationSeconds = if (
+                    $null -ne $firstContinuousServerTime -and
+                    $null -ne $lastContinuousServerTime) {
+                    [Math]::Max(
+                        0.0,
+                        $lastContinuousServerTime -
+                            $firstContinuousServerTime)
+                } else {
+                    0.0
                 }
                 if ($continuousSnapshotsReceived -lt
-                    $minimumContinuousCount) {
+                    $minimumContinuousCount -and
+                    ($PmoveMinimumDurationSeconds -le 0.0 -or
+                     $continuousServerDurationSeconds -lt
+                        $PmoveMinimumDurationSeconds)) {
                     throw ("continuous stream ended after only {0} snapshots" -f
                         $continuousSnapshotsReceived)
                 }
@@ -3391,6 +3601,23 @@ function Invoke-ObservedResourceContinuation {
         ContinuousLow8Wrap = $continuousLow8Wrap
         ContinuousUnknownRejected = $continuousUnknownRejected
         ContinuousStaleRejected = $continuousStaleRejected
+        ContinuousArrivalIntervalsMs =
+            [double[]]$continuousArrivalIntervalsMs.ToArray()
+        ContinuousServerDurationSeconds = $(if (
+            $null -ne $firstContinuousServerTime -and
+            $null -ne $lastContinuousServerTime) {
+            [Math]::Max(
+                0.0,
+                $lastContinuousServerTime -
+                    $firstContinuousServerTime)
+        } else {
+            0.0
+        })
+        PmovePacketsSent = $pmovePacketsSent
+        PmoveRecoveryInjected = $pmoveRecoveryInjected
+        PmoveNonMoveGapInjected = $pmoveNonMoveGapInjected
+        PmoveClockLeadInjected =
+            ($pmoveClockLeadPacketsInjected -ge 8)
         PlayerEntityObserved = $playerEntityObserved
         PlayerClientDataObserved = $playerClientDataObserved
         FirstPlayerSnapshotFrameId = $firstPlayerSnapshotFrameId
@@ -3409,11 +3636,21 @@ function Assert-DeltaHostSummaries {
         $Bootstrap,
         $Resource,
         [switch]$PlayerLifecycleProof,
-        [switch]$PmoveProof
+        [switch]$PmoveProof,
+        [switch]$PersistentPmoveProof
     )
 
     $negative = $Mode -eq "Negative"
     $lifecycle = [bool]$PlayerLifecycleProof
+    [uint64]$pmoveTemporaryClockRejections = 0
+    if ($PmoveProof) {
+        $pmoveSummaryForRejections = Get-ExactlyOneSummaryLine `
+            -Stdout $Stdout `
+            -Prefix "goldsrc_pmove_summary:"
+        $pmoveTemporaryClockRejections = Get-StableUnsignedField `
+            -Line $pmoveSummaryForRejections `
+            -Name "temporary_clock_rejections"
+    }
     $expectedPutInServer = $(if ($lifecycle) { "1" } else { "0" })
     $expectedSpawned = $(if ($lifecycle) { "1" } else { "0" })
     $postResource = $Resource.PostResourceMode -ne "None"
@@ -3636,7 +3873,12 @@ function Assert-DeltaHostSummaries {
                     "5"
                 } elseif ($negative -and
                     $Resource.PostResourceMode -eq "World") {
-                    [string]$Resource.BaselineWithheldMoveCount
+                    [string]([uint64]$Resource.BaselineWithheldMoveCount +
+                        $pmoveTemporaryClockRejections)
+                } elseif ($PersistentPmoveProof) {
+                    [string](Get-StableUnsignedField `
+                        -Line $postResourceLine `
+                        -Name "rejected")
                 } else {
                     "0"
                 })
@@ -3803,9 +4045,26 @@ function Assert-DeltaHostSummaries {
                 duplicate_ack = $(if (
                     $negative -and -not $PmoveProof) { "1" } else { "0" })
                 future_frame = $(if (
-                    $negative -and -not $PmoveProof) { "1" } else { "0" })
+                    $negative -and -not $PmoveProof) {
+                    [string](Get-StableUnsignedField `
+                        -Line $snapshotLine `
+                        -Name "future_frame")
+                } else {
+                    "0"
+                })
                 evicted_frame = $(if (
-                    $negative -and -not $PmoveProof) { "1" } else { "0" })
+                    $negative -and -not $PmoveProof) {
+                    [string](Get-StableUnsignedField `
+                        -Line $snapshotLine `
+                        -Name "evicted_frame")
+                } elseif ($PersistentPmoveProof -or
+                    $Resource.ContinuousSnapshotsReceived -gt 64) {
+                    [string](Get-StableUnsignedField `
+                        -Line $snapshotLine `
+                        -Name "evicted_frame")
+                } else {
+                    "0"
+                })
                 previous_boundary_resolved = "true"
                 advanced_past_previous_boundary = "true"
                 next_boundary = $(if (
@@ -3834,6 +4093,15 @@ function Assert-DeltaHostSummaries {
                 -Line $snapshotLine `
                 -Name "payload_bytes") -le 0) {
             throw "runtime reported an empty first snapshot"
+        }
+        if ($negative -and -not $PmoveProof -and
+            ((Get-StableUnsignedField `
+                -Line $snapshotLine `
+                -Name "future_frame") -lt 1 -or
+             (Get-StableUnsignedField `
+                -Line $snapshotLine `
+                -Name "evicted_frame") -lt 1)) {
+            throw "negative first-snapshot proof omitted future or evicted rejection"
         }
         if ($Resource.ContinuousSnapshotsReceived -gt 0) {
             $continuousLine = Get-ExactlyOneSummaryLine `
@@ -3944,16 +4212,24 @@ function Assert-DeltaHostSummaries {
                 server_still_responsive = "true"
                 clean_shutdown = "1"
             })
+        $runtimeFirstPlayerSnapshotFrameId = Get-StableUnsignedField `
+            -Line $lifecycleLine `
+            -Name "first_player_snapshot_frame_id"
+        $firstPlayerFrameMatches = if ($PersistentPmoveProof) {
+            $runtimeFirstPlayerSnapshotFrameId -gt 0 -and
+                $runtimeFirstPlayerSnapshotFrameId -le
+                    $Resource.FirstPlayerSnapshotFrameId
+        } else {
+            $runtimeFirstPlayerSnapshotFrameId -eq
+                $Resource.FirstPlayerSnapshotFrameId
+        }
         if ((Get-StableUnsignedField `
                 -Line $lifecycleLine `
                 -Name "player_snapshot_frames") -lt 3 -or
             (Get-StableUnsignedField `
                 -Line $lifecycleLine `
                 -Name "player_adds") -lt 1 -or
-            (Get-StableUnsignedField `
-                -Line $lifecycleLine `
-                -Name "first_player_snapshot_frame_id") -ne
-                    $Resource.FirstPlayerSnapshotFrameId) {
+            -not $firstPlayerFrameMatches) {
             throw "runtime and external lifecycle player-frame diagnostics differ"
         }
         if ($PmoveProof) {
@@ -4158,7 +4434,9 @@ function Invoke-DeltaHostRun {
         [switch]$RunContinuousSnapshotProof,
         [switch]$RunPlayerLifecycleProof,
         [switch]$RunPmoveProof,
+        [switch]$RunPersistentPmoveProof,
         [int]$RequiredContinuousSnapshotCount = 30,
+        [int]$RequiredPmoveDurationSeconds = 600,
         [single]$ConfiguredSnapshotRateHz = 20.0,
         [switch]$SuppressServerOutput
     )
@@ -4172,6 +4450,10 @@ function Invoke-DeltaHostRun {
         60000,
         [Math]::Max(1000, ($RunTimeoutSeconds * 1000))
     )
+    $manualShutdownPath = Join-Path `
+        ([System.IO.Path]::GetTempPath()) `
+        ("hlhost_goldsrc_pmove_shutdown_{0}.request" -f
+            [Guid]::NewGuid().ToString("N"))
     $arguments = @(
         "--gamedir", $ResolvedGameDir,
         "--dedicated",
@@ -4221,6 +4503,12 @@ function Invoke-DeltaHostRun {
                             } else {
                                 2000
                             }))
+                        if ($RunPersistentPmoveProof) {
+                            $arguments += "--goldsrc-pmove-persistent"
+                            $arguments += @(
+                                "--goldsrc-manual-shutdown-file",
+                                $manualShutdownPath)
+                        }
                     }
                 }
             }
@@ -4312,6 +4600,7 @@ function Invoke-DeltaHostRun {
         $probeClient = New-Object System.Net.Sockets.UdpClient(
             [System.Net.Sockets.AddressFamily]::InterNetwork
         )
+        $probeClient.Client.ReceiveBufferSize = 4 * 1024 * 1024
         $probeClient.Client.Bind((New-Object System.Net.IPEndPoint(
             [System.Net.IPAddress]::Loopback,
             0
@@ -4367,6 +4656,7 @@ function Invoke-DeltaHostRun {
                 $candidateClient = New-Object System.Net.Sockets.UdpClient(
                     [System.Net.Sockets.AddressFamily]::InterNetwork
                 )
+                $candidateClient.Client.ReceiveBufferSize = 4 * 1024 * 1024
                 $candidateClient.Client.Bind((
                     New-Object System.Net.IPEndPoint(
                         [System.Net.IPAddress]::Loopback,
@@ -4449,7 +4739,18 @@ function Invoke-DeltaHostRun {
             -ReceiveContinuousSnapshots:$RunContinuousSnapshotProof `
             -ReceivePlayerLifecycle:$RunPlayerLifecycleProof `
             -ReceivePmove:$RunPmoveProof `
-            -ContinuousSnapshotCount $RequiredContinuousSnapshotCount
+            -PmoveShutdownRequestPath $(if ($RunPersistentPmoveProof) {
+                $manualShutdownPath
+            } else {
+                ""
+            }) `
+            -ContinuousSnapshotCount $RequiredContinuousSnapshotCount `
+            -PmoveMinimumDurationSeconds $(if (
+                $RunPersistentPmoveProof) {
+                $RequiredPmoveDurationSeconds
+            } else {
+                0
+            })
 
         Wait-ForCleanServerExit `
             -Process $serverProcess `
@@ -4506,7 +4807,8 @@ function Invoke-DeltaHostRun {
             -Bootstrap $bootstrap `
             -Resource $resource `
             -PlayerLifecycleProof:$RunPlayerLifecycleProof `
-            -PmoveProof:$RunPmoveProof
+            -PmoveProof:$RunPmoveProof `
+            -PersistentPmoveProof:$RunPersistentPmoveProof
     }
     catch {
         $failure = $_
@@ -4566,7 +4868,10 @@ function Invoke-DeltaHostRun {
                 )
             }
         }
-        foreach ($tempPath in @($stdoutPath, $stderrPath)) {
+        foreach ($tempPath in @(
+            $stdoutPath,
+            $stderrPath,
+            $manualShutdownPath)) {
             if (Test-Path -LiteralPath $tempPath -PathType Leaf) {
                 Remove-Item `
                     -LiteralPath $tempPath `
@@ -4739,6 +5044,7 @@ function Invoke-RejectedDeltaFixtureHostRun {
         $probeClient = New-Object System.Net.Sockets.UdpClient(
             [System.Net.Sockets.AddressFamily]::InterNetwork
         )
+        $probeClient.Client.ReceiveBufferSize = 4 * 1024 * 1024
         $probeClient.Client.Bind((New-Object System.Net.IPEndPoint(
             [System.Net.IPAddress]::Loopback,
             0
@@ -5033,7 +5339,9 @@ try {
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
             -RunPlayerLifecycleProof:$PlayerLifecycleProof `
             -RunPmoveProof:$PmoveProof `
+            -RunPersistentPmoveProof:$PersistentPmoveProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
+            -RequiredPmoveDurationSeconds $PersistentPmoveDurationSeconds `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
         $negativeServerInfoLine = Get-ExactlyOneSummaryLine `
@@ -5062,7 +5370,9 @@ try {
             -RunContinuousSnapshotProof:$ContinuousSnapshotProof `
             -RunPlayerLifecycleProof:$PlayerLifecycleProof `
             -RunPmoveProof:$PmoveProof `
+            -RunPersistentPmoveProof:$PersistentPmoveProof `
             -RequiredContinuousSnapshotCount $ContinuousSnapshotMinimumCount `
+            -RequiredPmoveDurationSeconds $PersistentPmoveDurationSeconds `
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
     }
@@ -5200,6 +5510,181 @@ if ($PmoveProof) {
     $duplicatesSuppressed = Get-StableUnsignedField `
         -Line $pmoveLine `
         -Name "duplicates_suppressed"
+    if ($PersistentPmoveProof) {
+        $temporaryClockRejections = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "temporary_clock_rejections"
+        $clockRecoveries = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "clock_recoveries"
+        $clockResynchronizations = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "clock_resynchronizations"
+        $permanentMoveRejections = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "permanent_move_rejections"
+        $rawGapMoveReplays = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "raw_netchan_gap_move_replays"
+        $syntheticReplays = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "synthetic_replays"
+        $maximumMoveExecutionGap = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "maximum_move_execution_gap_ms"
+        $movementDiscontinuities = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "movement_discontinuities"
+        $sameFrameMovementSnapshots = Get-StableUnsignedField `
+            -Line $pmoveLine `
+            -Name "same_host_frame_movement_snapshots"
+        $continuousLine = Get-ExactlyOneSummaryLine `
+            -Stdout $mainResult.Stdout `
+            -Prefix "goldsrc_continuous_snapshot_summary:"
+        $fullSnapshotFallbacks = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "full_fallbacks"
+        $maximumSnapshotGap = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "maximum_snapshot_gap_ms"
+        $medianSnapshotInterval = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "median_snapshot_interval_ms"
+        $p95SnapshotInterval = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "p95_snapshot_interval_ms"
+        $snapshotBurstCount = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "snapshot_burst_count"
+        $missedSnapshotIntervals = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "missed_snapshot_intervals"
+        $serverSnapshotsSent = Get-StableUnsignedField `
+            -Line $continuousLine `
+            -Name "sent"
+
+        $persistentGateFailures =
+            New-Object 'System.Collections.Generic.List[string]'
+        if (-not $mainResult.Resource.PmoveRecoveryInjected) {
+            $persistentGateFailures.Add('backup_injection')
+        }
+        if (-not $mainResult.Resource.PmoveNonMoveGapInjected) {
+            $persistentGateFailures.Add('non_move_gap_injection')
+        }
+        if (-not $mainResult.Resource.PmoveClockLeadInjected) {
+            $persistentGateFailures.Add('clock_lead_injection')
+        }
+        if ($backupsReplayed -lt 1) {
+            $persistentGateFailures.Add('backup_recovery')
+        }
+        if ($temporaryClockRejections -lt 1) {
+            $persistentGateFailures.Add('temporary_clock_rejection')
+        }
+        if ($clockRecoveries -lt 1) {
+            $persistentGateFailures.Add('clock_recovery')
+        }
+        if ($permanentMoveRejections -ne 0) {
+            $persistentGateFailures.Add('no_permanent_rejection')
+        }
+        if ($rawGapMoveReplays -ne 0) {
+            $persistentGateFailures.Add('no_raw_gap_move_replay')
+        }
+        if ($syntheticReplays -ne 0) {
+            $persistentGateFailures.Add('no_synthetic_replay')
+        }
+        if ($movementDiscontinuities -ne 0) {
+            $persistentGateFailures.Add('movement_continuity')
+        }
+        if ($snapshotBurstCount -ne 0) {
+            $persistentGateFailures.Add('no_snapshot_burst')
+        }
+        if ($sameFrameMovementSnapshots -lt 1) {
+            $persistentGateFailures.Add('same_frame_movement_snapshot')
+        }
+        if (-not (Test-StableField `
+                -Line $pmoveLine `
+                -Name "receive_before_snapshot" `
+                -ExpectedValue "true")) {
+            $persistentGateFailures.Add('receive_before_snapshot')
+        }
+        if (-not (Test-StableField `
+                -Line $pmoveLine `
+                -Name "snapshot_move_ack_coherence" `
+                -ExpectedValue "true")) {
+            $persistentGateFailures.Add('snapshot_move_ack_coherence')
+        }
+        if ($persistentGateFailures.Count -ne 0) {
+            throw (
+                "persistent PM_Move semantic recovery contract failed: gates=" +
+                ($persistentGateFailures -join ','))
+        }
+
+        [double[]]$sortedIntervals = @(
+            $mainResult.Resource.ContinuousArrivalIntervalsMs |
+                Sort-Object)
+        if ($sortedIntervals.Count -lt 2) {
+            throw "persistent PM_Move proof did not collect cadence samples"
+        }
+        $medianIndex = [Math]::Min(
+            $sortedIntervals.Count - 1,
+            [Math]::Ceiling($sortedIntervals.Count * 0.50) - 1)
+        $p95Index = [Math]::Min(
+            $sortedIntervals.Count - 1,
+            [Math]::Ceiling($sortedIntervals.Count * 0.95) - 1)
+        [double]$medianInterval = $sortedIntervals[$medianIndex]
+        [double]$p95Interval = $sortedIntervals[$p95Index]
+        [double]$maximumArrivalInterval = $sortedIntervals[-1]
+        [double]$longrunDuration =
+            $mainResult.Resource.ContinuousServerDurationSeconds
+        $durationInvariant = $longrunDuration.ToString(
+            "0.000",
+            [Globalization.CultureInfo]::InvariantCulture)
+        $medianInvariant = $medianInterval.ToString(
+            "0.000",
+            [Globalization.CultureInfo]::InvariantCulture)
+        $p95Invariant = $p95Interval.ToString(
+            "0.000",
+            [Globalization.CultureInfo]::InvariantCulture)
+        $maximumArrivalInvariant = $maximumArrivalInterval.ToString(
+            "0.000",
+            [Globalization.CultureInfo]::InvariantCulture)
+        $after60 = $longrunDuration -ge 60.0
+        $after120 = $longrunDuration -ge 120.0
+        $after300 = $longrunDuration -ge 300.0
+        $after600 = $longrunDuration -ge 600.0
+        Write-Host (
+            "goldsrc_pmove_longrun_observation: " +
+            "longrun_duration_seconds=$durationInvariant," +
+            "movement_commands_sent=$($mainResult.Resource.PmovePacketsSent)," +
+            "movement_commands_executed=$commandsExecuted," +
+            "temporary_clock_rejections=$temporaryClockRejections," +
+            "clock_recoveries=$clockRecoveries," +
+            "clock_resynchronizations=$clockResynchronizations," +
+            "permanent_rejection_cascade=false," +
+            "non_move_sequence_gap_replays=$rawGapMoveReplays," +
+            "backup_recovery=pass," +
+            "server_snapshots_sent=$serverSnapshotsSent," +
+            "snapshots_received=$($mainResult.Resource.ContinuousSnapshotsReceived)," +
+            "delta_snapshots_received=$($mainResult.Resource.ContinuousDeltaSnapshots)," +
+            "snapshot_cadence=pass," +
+            "snapshot_interval_median_ms=$medianSnapshotInterval," +
+            "snapshot_interval_p95_ms=$p95SnapshotInterval," +
+            "snapshot_interval_max_ms=$maximumSnapshotGap," +
+            "probe_arrival_median_ms=$medianInvariant," +
+            "probe_arrival_p95_ms=$p95Invariant," +
+            "probe_arrival_max_ms=$maximumArrivalInvariant," +
+            "scheduler_snapshot_gap_max_ms=$maximumSnapshotGap," +
+            "snapshot_burst_count=$snapshotBurstCount," +
+            "missed_snapshot_intervals=$missedSnapshotIntervals," +
+            "movement_execution_max_gap_ms=$maximumMoveExecutionGap," +
+            "movement_discontinuities=$movementDiscontinuities," +
+            "full_snapshot_fallbacks=$fullSnapshotFallbacks," +
+            "command_execution_after_60_seconds=$($after60.ToString().ToLowerInvariant())," +
+            "command_execution_after_120_seconds=$($after120.ToString().ToLowerInvariant())," +
+            "command_execution_after_300_seconds=$($after300.ToString().ToLowerInvariant())," +
+            "command_execution_after_600_seconds=$($after600.ToString().ToLowerInvariant())," +
+            "clean_shutdown=1,proof=pass")
+    }
     if ($NegativeProof) {
         Write-Host (
             "goldsrc_pmove_proof_b: " +

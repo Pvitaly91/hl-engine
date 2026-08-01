@@ -263051,6 +263051,19 @@ bool SafeCallGameInit(void (*function)())
         return false;
     }
 }
+
+bool SafeCallServerDeactivate(void (*function)())
+{
+    __try
+    {
+        function();
+        return true;
+    }
+    __except (HandleSehException("pfnServerDeactivate", GetExceptionCode()))
+    {
+        return false;
+    }
+}
 } // namespace
 
 namespace hl::game_api
@@ -263063,6 +263076,7 @@ struct HlServerModule::Impl
     EngineShimState shim_state;
     HlServerModuleSummary summary;
     std::unique_ptr<GoldSrcUdpHandshakeRuntime> goldsrc_udp_handshake_runtime;
+    bool goldsrc_server_deactivated = false;
 };
 
 HlServerModule::HlServerModule()
@@ -263082,6 +263096,7 @@ HlServerModule::~HlServerModule()
 bool HlServerModule::Load(const std::filesystem::path& path)
 {
     impl_->goldsrc_udp_handshake_runtime.reset();
+    impl_->goldsrc_server_deactivated = false;
     if (g_active_shim_state == &impl_->shim_state)
     {
         g_active_shim_state = nullptr;
@@ -263129,6 +263144,7 @@ bool HlServerModule::Load(const std::filesystem::path& path)
 bool HlServerModule::InitializeEngineShim(const HlServerModuleInitOptions& options)
 {
     impl_->goldsrc_udp_handshake_runtime.reset();
+    impl_->goldsrc_server_deactivated = false;
     impl_->summary.give_fnptrs_to_dll_called = false;
     impl_->summary.get_entity_api2_succeeded = false;
     impl_->summary.dll_functions_acquired = false;
@@ -279453,7 +279469,22 @@ bool HlServerModule::FinishGoldSrcUdpHandshake()
     }
 
     impl_->goldsrc_udp_handshake_runtime->Shutdown();
-    const bool succeeded = impl_->goldsrc_udp_handshake_runtime->Succeeded();
+    bool succeeded = impl_->goldsrc_udp_handshake_runtime->Succeeded();
+    if (!impl_->goldsrc_server_deactivated
+        && impl_->summary.server_activation.succeeded
+        && impl_->shim_state.dll_functions.pfnServerDeactivate != nullptr)
+    {
+        impl_->goldsrc_server_deactivated = true;
+        const bool deactivated = SafeCallServerDeactivate(
+            impl_->shim_state.dll_functions.pfnServerDeactivate);
+        succeeded = succeeded && deactivated;
+        if (deactivated)
+        {
+            common::Logger::Info(
+                common::LogCategory::Dll,
+                "GoldSrc runtime ServerDeactivate completed before module unload");
+        }
+    }
     RefreshExecutionSummary(
         impl_->summary,
         impl_->shim_state,

@@ -92,6 +92,74 @@ const GoldSrcEntityBaseline* FindEntityBaseline(
         : nullptr;
 }
 
+bool ApplyLocalPlayerConditionalEncoder(
+    GoldSrcServerFrame* frame,
+    std::uint16_t local_player_entity_index,
+    const GoldSrcBaselineBundle& baselines,
+    const GoldSrcDeltaRegistry& registry) noexcept
+{
+    if (frame == nullptr || local_player_entity_index == 0u)
+    {
+        return false;
+    }
+    const GoldSrcEntityBaseline* baseline =
+        FindEntityBaseline(baselines, local_player_entity_index);
+    if (baseline == nullptr
+        || baseline->kind != GoldSrcBaselineKind::kPlayer)
+    {
+        return false;
+    }
+    bool duplicate = false;
+    const GoldSrcDeltaTable* table =
+        FindTable(registry, "entity_state_player_t", &duplicate);
+    if (duplicate || table == nullptr
+        || baseline->state.field_count != table->fields.size())
+    {
+        return false;
+    }
+    if (table->conditional_encoder_kind
+        == GoldSrcDeltaConditionalEncoderKind::kNone)
+    {
+        return true;
+    }
+    if (table->conditional_encoder_kind
+            != GoldSrcDeltaConditionalEncoderKind::kGameDll
+        || table->conditional_encoder_name != "Player_Encode")
+    {
+        return false;
+    }
+    const auto entity = std::find_if(
+        frame->entities.begin(),
+        frame->entities.end(),
+        [local_player_entity_index](
+            const GoldSrcSnapshotEntityState& candidate)
+        {
+            return candidate.entity_index == local_player_entity_index;
+        });
+    if (entity == frame->entities.end()
+        || entity->kind != GoldSrcBaselineKind::kPlayer
+        || entity->state.field_count != table->fields.size())
+    {
+        return false;
+    }
+
+    // HLSDK Player_Encode suppresses the local player's low-resolution
+    // entity origin.  The authoritative local origin is carried by the
+    // higher-resolution clientdata_t channel instead.
+    std::size_t suppressed = 0u;
+    for (std::size_t index = 0u; index < table->fields.size(); ++index)
+    {
+        const std::string& name = table->fields[index].name;
+        if (name == "origin[0]" || name == "origin[1]"
+            || name == "origin[2]")
+        {
+            entity->state.values[index] = baseline->state.values[index];
+            ++suppressed;
+        }
+    }
+    return suppressed == 3u;
+}
+
 bool NumericValue(
     const GoldSrcDecodedDeltaValue& value,
     double* output) noexcept
@@ -1239,6 +1307,15 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
                 : GoldSrcSnapshotCodecStatus::kInvalidFrame;
             return result;
         }
+        if (!ApplyLocalPlayerConditionalEncoder(
+                &result.bundle.frame,
+                player->entity.entity_index,
+                baselines,
+                registry))
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidFrame;
+            return result;
+        }
     }
 
     const GoldSrcSnapshotEncodeResult encoded =
@@ -2340,13 +2417,71 @@ GoldSrcSnapshotDueResult GoldSrcSnapshotScheduler::CheckDue(
 
     const double lateness =
         server_time - state_.next_due_server_time;
-    if (lateness >= state_.snapshot_interval_seconds)
+    const std::uint64_t due_intervals =
+        static_cast<std::uint64_t>(
+            lateness / state_.snapshot_interval_seconds)
+        + 1u;
+    if (due_intervals > 1u)
     {
-        state_.skipped_snapshots += static_cast<std::uint64_t>(
-            lateness / state_.snapshot_interval_seconds);
+        state_.skipped_snapshots += due_intervals - 1u;
     }
-    state_.next_due_server_time =
-        server_time + state_.snapshot_interval_seconds;
+    state_.next_due_server_time +=
+        static_cast<double>(due_intervals)
+        * state_.snapshot_interval_seconds;
+    const double minimum_spacing =
+        state_.snapshot_interval_seconds * 0.5;
+    if (state_.next_due_server_time - server_time < minimum_spacing)
+    {
+        state_.next_due_server_time +=
+            state_.snapshot_interval_seconds;
+        ++state_.skipped_snapshots;
+    }
+    if (state_.has_last_due_server_time)
+    {
+        const double interval =
+            server_time - state_.last_due_server_time;
+        if (state_.minimum_due_interval_seconds == 0.0
+            || interval < state_.minimum_due_interval_seconds)
+        {
+            state_.minimum_due_interval_seconds = interval;
+        }
+        state_.maximum_due_interval_seconds = (std::max)(
+            state_.maximum_due_interval_seconds,
+            interval);
+        const std::size_t interval_bucket = (std::min)(
+            state_.due_interval_histogram.size() - 1u,
+            static_cast<std::size_t>(
+                std::llround((std::max)(0.0, interval) * 1000.0)));
+        ++state_.due_interval_histogram[interval_bucket];
+        ++state_.due_interval_samples;
+        const auto percentile_bucket = [this](std::uint64_t numerator)
+        {
+            const std::uint64_t rank = (std::max<std::uint64_t>)(
+                1u,
+                (state_.due_interval_samples * numerator + 99u) / 100u);
+            std::uint64_t cumulative = 0u;
+            for (std::size_t bucket = 0u;
+                 bucket < state_.due_interval_histogram.size();
+                 ++bucket)
+            {
+                cumulative += state_.due_interval_histogram[bucket];
+                if (cumulative >= rank)
+                {
+                    return static_cast<std::uint32_t>(bucket);
+                }
+            }
+            return static_cast<std::uint32_t>(
+                state_.due_interval_histogram.size() - 1u);
+        };
+        state_.median_due_interval_msec = percentile_bucket(50u);
+        state_.p95_due_interval_msec = percentile_bucket(95u);
+        if (interval < state_.snapshot_interval_seconds * 0.5)
+        {
+            ++state_.snapshot_burst_count;
+        }
+    }
+    state_.last_due_server_time = server_time;
+    state_.has_last_due_server_time = true;
     ++state_.due_snapshots;
     return GoldSrcSnapshotDueResult::kDue;
 }

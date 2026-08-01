@@ -887,8 +887,14 @@ std::string_view ReasonFor(
         return "multiple_move_commands";
     case GoldSrcClientApplicationDecodeStatus::kMultipleFrameReferences:
         return "multiple_frame_references";
+    case GoldSrcClientApplicationDecodeStatus::kMultipleDisconnectCommands:
+        return "multiple_disconnect_commands";
     case GoldSrcClientApplicationDecodeStatus::kTruncatedFrameReference:
         return "truncated_frame_reference";
+    case GoldSrcClientApplicationDecodeStatus::kMalformedStringCommand:
+        return "malformed_string_command";
+    case GoldSrcClientApplicationDecodeStatus::kUnsupportedStringCommand:
+        return "unsupported_string_command";
     case GoldSrcClientApplicationDecodeStatus::kMalformedMoveCommand:
         return "malformed_move_command";
     case GoldSrcClientApplicationDecodeStatus::kUnsupportedTrailingData:
@@ -956,6 +962,54 @@ GoldSrcClientApplicationDecodeResult DecodeGoldSrcClientApplicationPayload(
             cursor += 2u;
             continue;
         }
+        if (opcode == kGoldSrcClientApplicationStringCommandOpcode)
+        {
+            if (result.disconnect_present)
+            {
+                result.status = GoldSrcClientApplicationDecodeStatus::
+                    kMultipleDisconnectCommands;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            if (result.move_present || result.frame_reference_present)
+            {
+                result.status = GoldSrcClientApplicationDecodeStatus::
+                    kUnsupportedTrailingData;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            const std::size_t command_begin = cursor + 1u;
+            const void* const terminator = std::memchr(
+                bytes + command_begin,
+                '\0',
+                size - command_begin);
+            if (terminator == nullptr)
+            {
+                result.status = GoldSrcClientApplicationDecodeStatus::
+                    kMalformedStringCommand;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            const auto* const command_end =
+                static_cast<const std::uint8_t*>(terminator);
+            const std::size_t command_size =
+                command_end - (bytes + command_begin);
+            constexpr std::string_view disconnect = "dropclient\n";
+            if (command_size != disconnect.size()
+                || std::memcmp(
+                    bytes + command_begin,
+                    disconnect.data(),
+                    disconnect.size()) != 0)
+            {
+                result.status = GoldSrcClientApplicationDecodeStatus::
+                    kUnsupportedStringCommand;
+                result.bytes_consumed = cursor;
+                return result;
+            }
+            result.disconnect_present = true;
+            cursor = command_begin + command_size + 1u;
+            continue;
+        }
         if (opcode != kGoldSrcClientMoveOpcode)
         {
             result.status =
@@ -993,7 +1047,8 @@ GoldSrcClientApplicationDecodeResult DecodeGoldSrcClientApplicationPayload(
         cursor += decoded.command.bytes_consumed;
     }
 
-    if (!result.move_present && !result.frame_reference_present)
+    if (!result.move_present && !result.frame_reference_present
+        && !result.disconnect_present)
     {
         result.status = GoldSrcClientApplicationDecodeStatus::kUnknownOpcode;
         result.bytes_consumed = cursor;

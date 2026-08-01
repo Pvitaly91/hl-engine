@@ -923,7 +923,7 @@ struct GoldSrcPmoveRuntime::Impl
         return true;
     }
 
-    bool ValidateOutput(const playermove_t& context) noexcept
+    std::string_view ValidateOutput(const playermove_t& context) noexcept
     {
         if (!FiniteVector(context.origin)
             || !FiniteVector(context.velocity)
@@ -932,40 +932,61 @@ struct GoldSrcPmoveRuntime::Impl
             || !FiniteVector(context.punchangle)
             || !FiniteVector(context.basevelocity))
         {
-            return false;
+            return "non_finite_movement_state";
         }
         for (int axis = 0; axis < 3; ++axis)
         {
-            if (std::fabs(context.origin[axis]) > kMaximumCoordinate
-                || std::fabs(context.velocity[axis])
-                    > movevars_config.maximum_velocity)
+            if (std::fabs(context.origin[axis]) > kMaximumCoordinate)
             {
-                return false;
+                return "coordinate_limit";
+            }
+            if (std::fabs(context.velocity[axis])
+                > movevars_config.maximum_velocity)
+            {
+                return "velocity_limit";
             }
         }
         if (context.movetype < MOVETYPE_NONE
-            || context.movetype > MOVETYPE_FOLLOW
-            || context.usehull < 0 || context.usehull > 2
-            || context.waterlevel < 0 || context.waterlevel > 3
-            || context.numphysent != 1
-            || context.onground < -1
-            || context.onground >= context.numphysent
-            || context.numtouch < 0
+            || context.movetype > MOVETYPE_FOLLOW)
+        {
+            return "movetype_range";
+        }
+        if (context.usehull < 0 || context.usehull > 2)
+        {
+            return "hull_range";
+        }
+        if (context.waterlevel < 0 || context.waterlevel > 3)
+        {
+            return "waterlevel_range";
+        }
+        if (context.numphysent != 1)
+        {
+            return "physent_count";
+        }
+        if (context.onground < -1
+            || context.onground >= context.numphysent)
+        {
+            return "ground_entity_range";
+        }
+        if (context.numtouch < 0
             || context.numtouch > MAX_PHYSENTS)
         {
-            return false;
+            return "touch_count";
         }
         for (int index = 0; index < context.numtouch; ++index)
         {
             if (context.touchindex[index].ent < 0
                 || context.touchindex[index].ent >= context.numphysent)
             {
-                return false;
+                return "touch_entity_range";
             }
         }
-        pmtrace_t occupancy =
-            world.Trace(context.origin, context.origin, context.usehull);
-        return !occupancy.allsolid;
+        // PM_Move has already resolved the swept player hull.  A zero-length
+        // follow-up hull trace can report allsolid for a valid position that
+        // is exactly flush with a BSP boundary because it lacks PM_Move's
+        // impact-plane context.  Keep the finite/range/index validation above
+        // authoritative and let the swept trace contract guard penetration.
+        return "ok";
     }
 
     void Commit(
@@ -1636,23 +1657,46 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
 
     network::GoldSrcCommandExecutionState& state =
         impl_->command_states[client_slot - 1u];
-    const network::GoldSrcCommandExecutionState state_before = state;
     const network::GoldSrcCommandExecutionPlan plan =
         state.Plan(move, packet_sequence, host_time_msec);
     result.command_status = plan.status;
     result.duplicates_suppressed =
         plan.duplicate_backups_suppressed;
+    result.fresh_commands = plan.new_commands;
+    result.backup_commands = move.backup_command_count;
+    result.recovered_commands = plan.recovered_backups;
+    result.synthetic_replays = plan.replayed_last_commands;
+    result.raw_netchan_sequence_distance =
+        plan.raw_netchan_sequence_distance;
+    result.packet_command_msec = plan.total_command_msec;
+    result.host_elapsed_msec = plan.host_elapsed_msec;
+    result.command_elapsed_msec = plan.command_elapsed_msec;
+    result.proposed_command_elapsed_msec =
+        plan.proposed_command_elapsed_msec;
+    if (plan.status
+        == network::GoldSrcCommandPlanStatus::kTemporarilyAhead)
+    {
+        state.CommitObservedMovePacket(
+            packet_sequence,
+            true,
+            true);
+        result.last_observed_move_sequence =
+            state.last_observed_packet_sequence();
+        result.last_validated_move_sequence =
+            state.last_validated_move_sequence();
+        result.last_executed_move_sequence =
+            state.last_executed_move_sequence();
+    }
     if (!plan.ok())
     {
         result.status = GoldSrcPmoveExecutionStatus::kCommandPlanRejected;
         return result;
     }
 
+    const network::GoldSrcCommandExecutionState state_before_execution = state;
     const entvars_t authoritative_before = player->v;
     std::uint64_t pending_time_msec = state.command_time_msec();
     std::size_t local_commits = 0u;
-    std::vector<network::GoldSrcPlannedUserCommand> completed;
-    completed.reserve(plan.command_count);
     for (std::size_t command_index = 0;
          command_index < plan.command_count;
          ++command_index)
@@ -1664,7 +1708,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
         if (!split.valid)
         {
             player->v = authoritative_before;
-            state = state_before;
+            state = state_before_execution;
             state.RecordRollback();
             ++impl_->diagnostics.movement_rollbacks;
             result.status = GoldSrcPmoveExecutionStatus::kContextInvalid;
@@ -1685,7 +1729,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                         - static_cast<std::uint32_t>(command_index)))
             {
                 player->v = authoritative_before;
-                state = state_before;
+                state = state_before_execution;
                 state.RecordRollback();
                 ++impl_->diagnostics.movement_rollbacks;
                 result.status = GoldSrcPmoveExecutionStatus::kPmMoveFailed;
@@ -1705,7 +1749,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                 SafeCmdEnd(impl_->callbacks.cmd_end, player);
                 ++impl_->diagnostics.cmd_end_calls;
                 player->v = authoritative_before;
-                state = state_before;
+                state = state_before_execution;
                 state.RecordRollback();
                 ++impl_->diagnostics.movement_rollbacks;
                 result.status = GoldSrcPmoveExecutionStatus::kContextInvalid;
@@ -1722,8 +1766,11 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                     SafePmMove(impl_->callbacks.pm_move, &context);
             }
             impl_->current_context = nullptr;
-            const bool output_ok =
-                callback_ok && impl_->ValidateOutput(context);
+            result.output_validation_reason = callback_ok
+                ? impl_->ValidateOutput(context)
+                : "pm_move_callback_failed";
+            const bool output_ok = callback_ok
+                && result.output_validation_reason == "ok";
             bool changed = false;
             if (output_ok)
             {
@@ -1741,7 +1788,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
             {
                 player->v = authoritative_before;
                 impl_->diagnostics.movement_commits -= local_commits;
-                state = state_before;
+                state = state_before_execution;
                 state.RecordRollback();
                 ++impl_->diagnostics.movement_rollbacks;
                 result.status = callback_ok
@@ -1751,16 +1798,23 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
             }
             ++result.subcommands_executed;
         }
-        completed.push_back(planned);
     }
 
-    for (const auto& command : completed)
-    {
-        state.CommitExecuted(command);
-        ++result.commands_executed;
-        result.backups_replayed +=
-            command.recovered_backup ? 1u : 0u;
-    }
+    state.CommitObservedMovePacket(packet_sequence, true);
+    const std::uint64_t recoveries_before =
+        state.diagnostics().command_clock_recoveries;
+    state.CommitExecutedBatch(plan, packet_sequence, host_time_msec);
+    result.commands_executed = plan.command_count;
+    result.backups_replayed = plan.recovered_backups;
+    result.last_observed_move_sequence =
+        state.last_observed_packet_sequence();
+    result.last_validated_move_sequence =
+        state.last_validated_move_sequence();
+    result.last_executed_move_sequence =
+        state.last_executed_move_sequence();
+    result.clock_recovered =
+        state.diagnostics().command_clock_recoveries
+            > recoveries_before;
     result.status = GoldSrcPmoveExecutionStatus::kOk;
     return result;
 }

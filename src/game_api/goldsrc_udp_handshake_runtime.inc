@@ -498,7 +498,13 @@ public:
         {
             DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
+            const bool established_movement_streaming =
+                pmove_enabled_
+                && slot_state != nullptr
+                && slot_state->goldsrc_player_lifecycle.put_in_server()
+                && slot_state->goldsrc_player_lifecycle.signon_complete();
             if (slot_state != nullptr
+                && !established_movement_streaming
                 && datagrams_sent_this_frame_
                     < kMaximumDatagramsSentPerHostFrame
                 && slot_state->goldsrc_first_snapshot
@@ -561,6 +567,30 @@ public:
         {
             DedicatedPlayerRuntimeSlot* slot_state =
                 FindAdmittedNetchanSlot();
+            const bool established_movement_streaming =
+                pmove_enabled_
+                && slot_state != nullptr
+                && slot_state->goldsrc_player_lifecycle.put_in_server()
+                && slot_state->goldsrc_player_lifecycle.signon_complete();
+            summary_.receive_before_snapshot_in_streaming_phase =
+                summary_.receive_before_snapshot_in_streaming_phase
+                || established_movement_streaming;
+            if (established_movement_streaming
+                && datagrams_sent_this_frame_
+                    < kMaximumDatagramsSentPerHostFrame
+                && slot_state->goldsrc_first_snapshot
+                        .CheckContinuousDue(network_server_time_)
+                    == hl::network::GoldSrcSnapshotDueResult::kDue
+                && !SendContinuousSnapshotDatagram(*slot_state))
+            {
+                return false;
+            }
+        }
+
+        if (!complete_ && continuous_snapshots_enabled_)
+        {
+            DedicatedPlayerRuntimeSlot* slot_state =
+                FindAdmittedNetchanSlot();
             if (player_lifecycle_enabled_
                 && slot_state != nullptr
                 && continuous_snapshot_started_server_time_.has_value()
@@ -569,6 +599,9 @@ public:
                 && summary_.distinct_frame_references >= 2)
             {
                 if (!slot_state->goldsrc_player_lifecycle.put_in_server()
+                    && slot_state->goldsrc_player_lifecycle.phase()
+                        == hl::network::GoldSrcPlayerLifecyclePhase::
+                            kAwaitingPutInServer
                     && !ReconcilePlayerLifecycle(*slot_state))
                 {
                     return false;
@@ -606,7 +639,7 @@ public:
                             - *continuous_snapshot_started_server_time_
                         >= 10.0
                     && summary_.player_snapshot_frames
-                        >= (player_lifecycle_negative_proof_ ? 360 : 30))
+                        >= (player_lifecycle_negative_proof_ ? 500 : 30))
                 {
                     summary_.continuous_snapshot_stable = true;
                     summary_.server_still_responsive = true;
@@ -623,7 +656,7 @@ public:
                         - *continuous_snapshot_started_server_time_
                     >= 10.0
                 && summary_.continuous_snapshots_sent
-                    >= (continuous_snapshots_negative_proof_ ? 300 : 30)
+                    >= (continuous_snapshots_negative_proof_ ? 400 : 30)
                 && summary_.continuous_delta_snapshots >= 1
                 && summary_.distinct_frame_references >= 2)
             {
@@ -1633,6 +1666,20 @@ public:
                     + std::to_string(summary_.snapshot_rate_hz)
                     + ",snapshot_interval_ms="
                     + std::to_string(summary_.snapshot_interval_ms)
+                    + ",minimum_snapshot_gap_ms="
+                    + std::to_string(summary_.minimum_snapshot_gap_ms)
+                    + ",median_snapshot_interval_ms="
+                    + std::to_string(
+                        summary_.median_snapshot_interval_ms)
+                    + ",p95_snapshot_interval_ms="
+                    + std::to_string(
+                        summary_.p95_snapshot_interval_ms)
+                    + ",maximum_snapshot_gap_ms="
+                    + std::to_string(summary_.maximum_snapshot_gap_ms)
+                    + ",snapshot_burst_count="
+                    + std::to_string(summary_.snapshot_burst_count)
+                    + ",missed_snapshot_intervals="
+                    + std::to_string(summary_.missed_snapshot_intervals)
                     + ",generated="
                     + std::to_string(
                         summary_.continuous_snapshots_generated)
@@ -1759,6 +1806,10 @@ public:
                     + std::string(
                         summary_.player_clientdata_implemented
                             ? "true" : "false")
+                    + ",clientdata_playerstate_consistent="
+                    + std::string(
+                        summary_.clientdata_playerstate_consistent
+                            ? "true" : "false")
                     + ",signon_complete="
                     + std::string(
                         summary_.player_signon_complete
@@ -1812,6 +1863,53 @@ public:
                     + ",duplicates_suppressed="
                     + std::to_string(
                         summary_.duplicate_commands_suppressed)
+                    + ",move_packets_observed="
+                    + std::to_string(summary_.move_packets_observed)
+                    + ",move_packets_validated="
+                    + std::to_string(summary_.move_packets_validated)
+                    + ",move_packets_executed="
+                    + std::to_string(summary_.move_packets_executed)
+                    + ",temporary_clock_rejections="
+                    + std::to_string(
+                        summary_.move_packets_temporarily_rejected)
+                    + ",permanent_move_rejections="
+                    + std::to_string(
+                        summary_.move_packets_permanently_rejected)
+                    + ",clock_recoveries="
+                    + std::to_string(summary_.command_clock_recoveries)
+                    + ",clock_resynchronizations="
+                    + std::to_string(
+                        summary_.command_clock_resynchronizations)
+                    + ",raw_netchan_sequence_gaps="
+                    + std::to_string(
+                        summary_.raw_netchan_sequence_gaps)
+                    + ",raw_netchan_gap_move_replays="
+                    + std::to_string(
+                        summary_.raw_netchan_gap_move_replays)
+                    + ",synthetic_replays="
+                    + std::to_string(
+                        summary_.synthetic_command_replays)
+                    + ",maximum_move_execution_gap_ms="
+                    + std::to_string(
+                        summary_.maximum_move_execution_gap_ms)
+                    + ",movement_discontinuities="
+                    + std::to_string(
+                        summary_.movement_discontinuity_count)
+                    + ",authoritative_position_jumps="
+                    + std::to_string(
+                        summary_.authoritative_position_jump_count)
+                    + ",receive_before_snapshot="
+                    + std::string(
+                        summary_
+                                .receive_before_snapshot_in_streaming_phase
+                            ? "true" : "false")
+                    + ",snapshot_move_ack_coherence="
+                    + std::string(
+                        summary_.snapshot_move_ack_coherence
+                            ? "true" : "false")
+                    + ",same_host_frame_movement_snapshots="
+                    + std::to_string(
+                        summary_.same_host_frame_movement_snapshots)
                     + ",rollbacks="
                     + std::to_string(summary_.movement_rollbacks)
                     + ",movement_ready="
@@ -3330,6 +3428,84 @@ private:
         summary_.serverinfo_fallback_dir = "none";
         summary_.serverinfo_allow_cheats = false;
         summary_.serverinfo_payload_bytes = 0;
+    }
+
+    void ResetWorldBaselineSessionSummary() noexcept
+    {
+        // The encoded world baseline is map-scoped and may be reused, but its
+        // reliable delivery state belongs to one admitted netchan session.
+        summary_.baseline_queued = 0;
+        summary_.baseline_sent = 0;
+        summary_.baseline_resent = 0;
+        summary_.baseline_acked = 0;
+        summary_.baseline_fragmented = false;
+        summary_.baseline_fragment_count = 0;
+        summary_.baseline_fragment_acknowledged_count = 0;
+        summary_.send_entities_received = 0;
+        summary_.send_entities_delivered = 0;
+        summary_.previous_server_baseline_boundary_resolved = false;
+    }
+
+    void ResetSnapshotSessionSummary() noexcept
+    {
+        summary_.snapshot_contract_verified = false;
+        summary_.snapshot_message_order_verified = false;
+        summary_.frame_ack_contract_verified = false;
+        summary_.frame_history_implemented = false;
+        summary_.frame_history_depth = 0;
+        summary_.clientdata_implemented = false;
+        summary_.weapon_data_required = false;
+        summary_.packet_entities_implemented = false;
+        summary_.first_snapshot_entity_count = 0;
+        summary_.first_snapshot_payload_bytes = 0;
+        summary_.first_snapshot_frame_id = 0u;
+        summary_.first_snapshot_server_time = 0.0f;
+        summary_.first_snapshot_visibility_policy = "none";
+        summary_.frame_ack_source = "none";
+        summary_.first_snapshot_prepared = 0;
+        summary_.first_snapshot_sent = 0;
+        summary_.first_snapshot_acked = 0;
+        summary_.duplicate_frame_acknowledgements = 0;
+        summary_.unknown_frame_references = 0;
+        summary_.future_frame_references = 0;
+        summary_.evicted_frame_references = 0;
+        summary_.stale_frame_references = 0;
+        summary_.ambiguous_frame_references = 0;
+        summary_.previous_first_snapshot_boundary_resolved = false;
+        summary_.stock_advanced_past_previous_boundary = false;
+
+        summary_.continuous_snapshot_contract_verified = false;
+        summary_.delta_packet_entities_contract_verified = false;
+        summary_.frame_reference_resolution_contract_verified = false;
+        summary_.loss_recovery_contract_verified = false;
+        summary_.minimum_snapshot_gap_ms = 0;
+        summary_.median_snapshot_interval_ms = 0;
+        summary_.p95_snapshot_interval_ms = 0;
+        summary_.maximum_snapshot_gap_ms = 0;
+        summary_.snapshot_burst_count = 0;
+        summary_.missed_snapshot_intervals = 0;
+        summary_.continuous_snapshots_generated = 0;
+        summary_.continuous_snapshots_sent = 0;
+        summary_.continuous_snapshots_acked = 0;
+        summary_.continuous_full_snapshots = 0;
+        summary_.continuous_delta_snapshots = 0;
+        summary_.continuous_full_fallbacks = 0;
+        summary_.continuous_delta_recoveries = 0;
+        summary_.continuous_snapshot_adds = 0;
+        summary_.continuous_snapshot_updates = 0;
+        summary_.continuous_snapshot_removes = 0;
+        summary_.continuous_snapshot_unchanged = 0;
+        summary_.distinct_frame_references = 0;
+        summary_.continuous_server_time_monotonic = false;
+        summary_.continuous_frame_ids_advanced = false;
+        summary_.newest_acknowledged_base_selected = false;
+        summary_.continuous_frame_history_bounded = false;
+        summary_.continuous_snapshot_streaming = false;
+        summary_.continuous_snapshot_stable = false;
+        summary_.latest_continuous_frame_id = 0u;
+        summary_.latest_continuous_base_frame_id = 0u;
+        summary_.latest_continuous_server_time = 0.0f;
+        last_observed_snapshot_gap_ms_ = 0;
     }
 
     static std::string HexUint32(std::uint32_t value)
@@ -4963,6 +5139,75 @@ private:
             }
             return false;
         }
+        // The stock engine supplements the Game DLL callbacks with the
+        // authoritative movement fields it owns.  Keep the entity and local
+        // client channels on one committed PM_Move state before delta capture.
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            entity_state.origin[axis] = client->v.origin[axis];
+            entity_state.velocity[axis] = client->v.velocity[axis];
+            entity_state.basevelocity[axis] = client->v.basevelocity[axis];
+            entity_state.mins[axis] = client->v.mins[axis];
+            entity_state.maxs[axis] = client->v.maxs[axis];
+            clientdata.origin[axis] = client->v.origin[axis];
+            clientdata.velocity[axis] = client->v.velocity[axis];
+            clientdata.view_ofs[axis] = client->v.view_ofs[axis];
+        }
+        entity_state.usehull =
+            (client->v.flags & FL_DUCKING) != 0 ? 1 : 0;
+        entity_state.oldbuttons = client->v.oldbuttons;
+        entity_state.onground =
+            client->v.groundentity != nullptr ? 0 : -1;
+        clientdata.flags = client->v.flags;
+        clientdata.waterlevel = client->v.waterlevel;
+        clientdata.watertype = client->v.watertype;
+        clientdata.bInDuck = client->v.bInDuck;
+        clientdata.flDuckTime = static_cast<int>(client->v.flDuckTime);
+        clientdata.flTimeStepSound =
+            static_cast<int>(client->v.flTimeStepSound);
+        clientdata.flSwimTime = static_cast<int>(client->v.flSwimTime);
+        clientdata.waterjumptime =
+            static_cast<int>(client->v.teleport_time);
+        clientdata.maxspeed = client->v.maxspeed;
+
+        bool prediction_state_consistent =
+            entity_state.usehull
+                == ((clientdata.flags & FL_DUCKING) != 0 ? 1 : 0)
+            && clientdata.bInDuck == client->v.bInDuck
+            && clientdata.waterlevel == client->v.waterlevel
+            && clientdata.watertype == client->v.watertype;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            prediction_state_consistent = prediction_state_consistent
+                && std::isfinite(entity_state.origin[axis])
+                && std::isfinite(entity_state.velocity[axis])
+                && std::isfinite(clientdata.origin[axis])
+                && std::isfinite(clientdata.velocity[axis])
+                && std::fabs(
+                    entity_state.origin[axis]
+                        - clientdata.origin[axis]) <= 0.0001f
+                && std::fabs(
+                    entity_state.velocity[axis]
+                        - clientdata.velocity[axis]) <= 0.0001f;
+        }
+        if (!prediction_state_consistent)
+        {
+            ++summary_.movement_discontinuity_count;
+            ++prediction_state_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(
+                    prediction_state_diagnostics_seen_))
+            {
+                hl::common::Logger::Warn(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_prediction_state_discontinuity: reason=entity-clientdata-mismatch");
+            }
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "prediction-state-discontinuity";
+            }
+            return false;
+        }
+        summary_.clientdata_playerstate_consistent = true;
         // The lifecycle slice requests clientdata with sendweapons=0 and does
         // not run PlayerPreThink/PM_Move. Keep the corresponding prediction
         // and ammo extension channels at their neutral stock values instead
@@ -5085,7 +5330,116 @@ private:
                 static_cast<int>(commands.backup_commands_replayed);
             summary_.duplicate_commands_suppressed =
                 static_cast<int>(commands.duplicate_commands_suppressed);
+            summary_.move_packets_observed =
+                static_cast<int>(commands.move_packets_observed);
+            summary_.move_packets_validated =
+                static_cast<int>(commands.move_packets_validated);
+            summary_.move_packets_executed =
+                static_cast<int>(commands.move_packets_executed);
+            summary_.move_packets_temporarily_rejected =
+                static_cast<int>(
+                    commands.move_packets_temporarily_rejected);
+            summary_.command_clock_recoveries =
+                static_cast<int>(commands.command_clock_recoveries);
+            summary_.command_clock_resynchronizations =
+                static_cast<int>(
+                    commands.command_clock_resynchronizations);
+            summary_.raw_netchan_sequence_gaps =
+                static_cast<int>(commands.raw_netchan_sequence_gaps);
+            summary_.raw_netchan_gap_move_replays =
+                static_cast<int>(commands.raw_netchan_gap_move_replays);
+            summary_.synthetic_command_replays =
+                static_cast<int>(commands.synthetic_command_replays);
+            summary_.maximum_move_execution_gap_ms =
+                static_cast<int>(commands.maximum_move_execution_gap_msec);
         }
+    }
+
+    bool HandleClientDisconnect(DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        const int disconnected_slot = slot_state.slot;
+        const std::string disconnected_session = slot_state.session_id;
+        const bool delta_pending =
+            slot_state.goldsrc_signon_bootstrap_size > 0u
+            && slot_state.netchan.pending_reliable_kind()
+                == hl::network::GoldSrcNetchanReliablePayloadKind::
+                    kSignonBootstrap
+            && (slot_state.netchan.reliable_pending()
+                || slot_state.netchan.fragment_sender().active());
+        if (player_lifecycle_enabled_
+            && !DisconnectPlayerLifecycle(slot_state, "client-command"))
+        {
+            return FailTransport(
+                "player-lifecycle-disconnect-callback-failed",
+                "goldsrc_player_lifecycle_failed: reason=disconnect-callback");
+        }
+        if (pmove_enabled_)
+        {
+            pmove_runtime_.ResetClient(
+                static_cast<std::size_t>(disconnected_slot));
+            last_movement_commit_packet_sequence_.reset();
+            last_movement_commit_host_frame_ = 0;
+            SyncPmoveSummary(static_cast<std::size_t>(disconnected_slot));
+        }
+        ApplyDedicatedClientDisconnect(state_, slot_state);
+        RecordDedicatedLifecycleTransition(
+            state_.dedicated_multiplayer_foundation,
+            slot_state,
+            DedicatedPlayerLifecycleState::kDisconnected,
+            "bounded client disconnect during GoldSrc streaming");
+        const bool state_cleared =
+            !slot_state.netchan.initialized()
+            && slot_state.goldsrc_signon.phase()
+                == hl::network::GoldSrcSignonPhase::kNone
+            && slot_state.goldsrc_first_snapshot.phase()
+                == hl::network::GoldSrcFirstSnapshotPhase::kNone
+            && slot_state.goldsrc_first_snapshot.history().size() == 0u
+            && !slot_state.goldsrc_first_snapshot.prepared().has_value()
+            && !slot_state.goldsrc_serverinfo_context.has_value()
+            && !slot_state.goldsrc_serverinfo_payload.has_value()
+            && !slot_state.goldsrc_delta_registry.has_value()
+            && !slot_state.goldsrc_delta_bundle.has_value()
+            && slot_state.goldsrc_signon_bootstrap_size == 0u
+            && !slot_state.goldsrc_resource_manifest.has_value()
+            && slot_state.goldsrc_resource_manifest_response_size == 0u;
+        ++summary_.delta_slot_resets;
+        summary_.delta_pending_state_cleared_on_reset =
+            summary_.delta_pending_state_cleared_on_reset
+            || (delta_pending && state_cleared);
+        delta_reset_slot_ = disconnected_slot;
+        awaiting_fresh_session_after_delta_reset_ = true;
+        admitted_session_id_.clear();
+        negative_advance_pending_ = false;
+        continuous_snapshot_started_server_time_.reset();
+        last_counted_acknowledged_frame_.reset();
+        summary_.final_state = "disconnected";
+        summary_.connected = false;
+        summary_.put_in_server = false;
+        summary_.spawned = false;
+        summary_.active = false;
+        if (pmove_persistent_
+            && manual_session_lifecycle_.MarkClientDisconnected())
+        {
+            SyncManualSessionSummary();
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_client_disconnected: mode=persistent"
+                ",reason=client_command,reconnect_ready=1");
+        }
+        SyncNetchanSummary(slot_state);
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_delta_session_reset: session_id="
+                + disconnected_session
+                + ",slot=" + std::to_string(disconnected_slot)
+                + ",pending_before_reset="
+                + std::string(delta_pending ? "true" : "false")
+                + ",state_cleared="
+                + std::string(state_cleared ? "true" : "false")
+                + ",session_count="
+                + std::to_string(summary_.session_count)
+                + ",put_in_server=0,spawned=0,active=0");
+        return true;
     }
 
     bool ExecutePmove(
@@ -5149,21 +5503,144 @@ private:
                 player,
                 world);
         SyncPmoveSummary(static_cast<std::size_t>(slot_state.slot));
+        if (summary_.maximum_move_execution_gap_ms
+                > last_observed_move_execution_gap_ms_)
+        {
+            last_observed_move_execution_gap_ms_ =
+                summary_.maximum_move_execution_gap_ms;
+            if (summary_.maximum_move_execution_gap_ms
+                    > static_cast<int>(summary_.snapshot_interval_ms * 2.0))
+            {
+                ++pmove_execution_gap_diagnostics_seen_;
+                if (ShouldLogDiagnosticSample(
+                        pmove_execution_gap_diagnostics_seen_))
+                {
+                    hl::common::Logger::Warn(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_pmove_execution_gap: packet_sequence="
+                            + std::to_string(packet_sequence)
+                            + ",maximum_gap_msec="
+                            + std::to_string(
+                                summary_.maximum_move_execution_gap_ms));
+                }
+            }
+        }
+        if (summary_.command_clock_resynchronizations
+                > last_reported_clock_resynchronizations_)
+        {
+            last_reported_clock_resynchronizations_ =
+                summary_.command_clock_resynchronizations;
+            ++pmove_clock_resync_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(
+                    pmove_clock_resync_diagnostics_seen_))
+            {
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_pmove_clock_resynchronized: packet_sequence="
+                        + std::to_string(packet_sequence)
+                        + ",resynchronizations="
+                        + std::to_string(
+                            summary_.command_clock_resynchronizations));
+            }
+        }
         if (!executed.ok())
         {
             ++summary_.clc_move_rejected;
-            hl::common::Logger::Warn(
-                hl::common::LogCategory::Server,
-                "goldsrc_pmove_rejected: reason="
-                    + std::string(
-                        hl::game_api::detail::ReasonFor(executed.status))
-                    + ",command_reason="
-                    + std::string(
-                        hl::network::ReasonFor(executed.command_status)));
+            if (executed.command_status
+                == hl::network::GoldSrcCommandPlanStatus::kTemporarilyAhead)
+            {
+                ++pmove_clock_rejection_diagnostics_seen_;
+                if (ShouldLogDiagnosticSample(
+                        pmove_clock_rejection_diagnostics_seen_))
+                {
+                    hl::common::Logger::Warn(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_pmove_clock_rejected: packet_sequence="
+                            + std::to_string(packet_sequence)
+                            + ",last_observed_move_sequence="
+                            + std::to_string(
+                                executed.last_observed_move_sequence)
+                            + ",last_validated_move_sequence="
+                            + std::to_string(
+                                executed.last_validated_move_sequence)
+                            + ",last_executed_move_sequence="
+                            + std::to_string(
+                                executed.last_executed_move_sequence)
+                            + ",raw_netchan_sequence_distance="
+                            + std::to_string(
+                                executed.raw_netchan_sequence_distance)
+                            + ",backup_commands="
+                            + std::to_string(executed.backup_commands)
+                            + ",fresh_commands="
+                            + std::to_string(executed.fresh_commands)
+                            + ",recovered_commands="
+                            + std::to_string(executed.recovered_commands)
+                            + ",synthetic_replays="
+                            + std::to_string(executed.synthetic_replays)
+                            + ",packet_command_msec="
+                            + std::to_string(executed.packet_command_msec)
+                            + ",host_elapsed_msec="
+                            + std::to_string(executed.host_elapsed_msec)
+                            + ",command_elapsed_msec="
+                            + std::to_string(
+                                executed.command_elapsed_msec)
+                            + ",proposed_command_lead_msec="
+                            + std::to_string(
+                                executed.proposed_command_elapsed_msec
+                                    > executed.host_elapsed_msec
+                                ? executed.proposed_command_elapsed_msec
+                                    - executed.host_elapsed_msec
+                                : 0u));
+                }
+            }
+            else
+            {
+                ++summary_.move_packets_permanently_rejected;
+                ++pmove_rejection_diagnostics_seen_;
+                if (ShouldLogDiagnosticSample(
+                        pmove_rejection_diagnostics_seen_))
+                {
+                    hl::common::Logger::Warn(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_pmove_rejected: reason="
+                            + std::string(
+                                hl::game_api::detail::ReasonFor(
+                                    executed.status))
+                            + ",command_reason="
+                            + std::string(
+                                hl::network::ReasonFor(
+                                    executed.command_status))
+                            + ",output_reason="
+                            + std::string(
+                                executed.output_validation_reason));
+                }
+            }
             return true;
+        }
+        if (executed.clock_recovered)
+        {
+            ++pmove_clock_recovery_diagnostics_seen_;
+            if (ShouldLogDiagnosticSample(
+                    pmove_clock_recovery_diagnostics_seen_))
+            {
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_pmove_clock_recovered: packet_sequence="
+                        + std::to_string(packet_sequence)
+                        + ",last_executed_move_sequence="
+                        + std::to_string(
+                            executed.last_executed_move_sequence)
+                        + ",host_elapsed_msec="
+                        + std::to_string(executed.host_elapsed_msec)
+                        + ",command_elapsed_msec="
+                        + std::to_string(
+                            executed.proposed_command_elapsed_msec));
+            }
         }
         if (executed.commands_executed > 0u)
         {
+            last_movement_commit_packet_sequence_ = packet_sequence;
+            last_movement_commit_host_frame_ = summary_.host_frames_pumped;
             if (pmove_persistent_)
             {
                 manual_session_lifecycle_.RecordClcMove(
@@ -5730,6 +6207,12 @@ private:
                 return true;
             }
 
+            if (application.disconnect_present)
+            {
+                ++summary_.clc_stringcmd_decoded;
+                return HandleClientDisconnect(slot_state);
+            }
+
             if (first_snapshot_enabled_
                 && (slot_state.goldsrc_first_snapshot.phase()
                         == hl::network::GoldSrcFirstSnapshotPhase::
@@ -5756,15 +6239,20 @@ private:
                         {
                             return false;
                         }
-                        hl::common::Logger::Info(
-                            hl::common::LogCategory::Server,
-                            "goldsrc_first_snapshot_keepalive: session_id="
-                                + slot_state.session_id
-                                + ",sequence="
-                                + std::to_string(packet.sequence)
-                                + ",frame_reference=absent"
-                                + ",handling=decoded_pre_spawn_keepalive"
-                                + ",put_in_server=0,spawned=0,active=0");
+                        ++first_snapshot_keepalive_diagnostics_seen_;
+                        if (ShouldLogDiagnosticSample(
+                                first_snapshot_keepalive_diagnostics_seen_))
+                        {
+                            hl::common::Logger::Info(
+                                hl::common::LogCategory::Server,
+                                "goldsrc_first_snapshot_keepalive: session_id="
+                                    + slot_state.session_id
+                                    + ",sequence="
+                                    + std::to_string(packet.sequence)
+                                    + ",frame_reference=absent"
+                                    + ",handling=decoded_pre_spawn_keepalive"
+                                    + ",put_in_server=0,spawned=0,active=0");
+                        }
                     }
                     return true;
                 }
@@ -5776,7 +6264,7 @@ private:
                 {
                 case hl::network::GoldSrcFrameAcknowledgeResult::
                     kAcknowledged:
-                    if (summary_.first_snapshot_acked == 0)
+                    if (!continuous_snapshot_started_server_time_.has_value())
                     {
                         ++summary_.first_snapshot_acked;
                         summary_.previous_first_snapshot_boundary_resolved =
@@ -5906,10 +6394,10 @@ private:
                 SyncNetchanSummary(slot_state);
                 const bool log_frame_reference =
                     acknowledgement
-                        != hl::network::GoldSrcFrameAcknowledgeResult::
-                            kDuplicate
+                        == hl::network::GoldSrcFrameAcknowledgeResult::
+                            kAcknowledged
                     || ShouldLogDiagnosticSample(
-                        ++duplicate_frame_reference_diagnostics_seen_);
+                        ++frame_reference_diagnostics_seen_);
                 if (log_frame_reference)
                 {
                     hl::common::Logger::Info(
@@ -6121,88 +6609,7 @@ private:
         if (decoded.command
             == hl::network::GoldSrcClientSignonCommand::kDisconnect)
         {
-            const int disconnected_slot = slot_state.slot;
-            const std::string disconnected_session = slot_state.session_id;
-            const bool delta_pending =
-                slot_state.goldsrc_signon_bootstrap_size > 0u
-                && slot_state.netchan.pending_reliable_kind()
-                    == hl::network::GoldSrcNetchanReliablePayloadKind::
-                        kSignonBootstrap
-                && (slot_state.netchan.reliable_pending()
-                    || slot_state.netchan.fragment_sender().active());
-            if (player_lifecycle_enabled_
-                && !DisconnectPlayerLifecycle(
-                    slot_state,
-                    "client-command"))
-            {
-                return FailTransport(
-                    "player-lifecycle-disconnect-callback-failed",
-                    "goldsrc_player_lifecycle_failed: reason=disconnect-callback");
-            }
-            if (pmove_enabled_)
-            {
-                pmove_runtime_.ResetClient(
-                    static_cast<std::size_t>(disconnected_slot));
-                SyncPmoveSummary(
-                    static_cast<std::size_t>(disconnected_slot));
-            }
-            ApplyDedicatedClientDisconnect(state_, slot_state);
-            RecordDedicatedLifecycleTransition(
-                state_.dedicated_multiplayer_foundation,
-                slot_state,
-                DedicatedPlayerLifecycleState::kDisconnected,
-                "bounded client disconnect during GoldSrc signon");
-            const bool state_cleared =
-                !slot_state.netchan.initialized()
-                && slot_state.goldsrc_signon.phase()
-                    == hl::network::GoldSrcSignonPhase::kNone
-                && slot_state.goldsrc_first_snapshot.phase()
-                    == hl::network::GoldSrcFirstSnapshotPhase::kNone
-                && slot_state.goldsrc_first_snapshot.history().size() == 0u
-                && !slot_state.goldsrc_first_snapshot.prepared().has_value()
-                && !slot_state.goldsrc_serverinfo_context.has_value()
-                && !slot_state.goldsrc_serverinfo_payload.has_value()
-                && !slot_state.goldsrc_delta_registry.has_value()
-                && !slot_state.goldsrc_delta_bundle.has_value()
-                && slot_state.goldsrc_signon_bootstrap_size == 0u
-                && !slot_state.goldsrc_resource_manifest.has_value()
-                && slot_state.goldsrc_resource_manifest_response_size == 0u;
-            ++summary_.delta_slot_resets;
-            summary_.delta_pending_state_cleared_on_reset =
-                summary_.delta_pending_state_cleared_on_reset
-                || (delta_pending && state_cleared);
-            delta_reset_slot_ = disconnected_slot;
-            awaiting_fresh_session_after_delta_reset_ = true;
-            admitted_session_id_.clear();
-            negative_advance_pending_ = false;
-            summary_.final_state = "disconnected";
-            summary_.connected = false;
-            summary_.put_in_server = false;
-            summary_.spawned = false;
-            summary_.active = false;
-            if (pmove_persistent_
-                && manual_session_lifecycle_.MarkClientDisconnected())
-            {
-                SyncManualSessionSummary();
-                hl::common::Logger::Info(
-                    hl::common::LogCategory::Server,
-                    "goldsrc_client_disconnected: mode=persistent"
-                    ",reason=client_command,reconnect_ready=1");
-            }
-            SyncNetchanSummary(slot_state);
-            hl::common::Logger::Info(
-                hl::common::LogCategory::Server,
-                "goldsrc_delta_session_reset: session_id="
-                    + disconnected_session
-                    + ",slot=" + std::to_string(disconnected_slot)
-                    + ",pending_before_reset="
-                    + std::string(delta_pending ? "true" : "false")
-                    + ",state_cleared="
-                    + std::string(state_cleared ? "true" : "false")
-                    + ",session_count="
-                    + std::to_string(summary_.session_count)
-                    + ",put_in_server=0,spawned=0,active=0");
-            return true;
+            return HandleClientDisconnect(slot_state);
         }
 
         if (decoded.command
@@ -6684,9 +7091,16 @@ private:
         }
 
         SyncNetchanSummary(slot_state);
-        hl::common::Logger::Info(
-            hl::common::LogCategory::Server,
-            std::string(event_name)
+        const bool steady_ack_response =
+            std::string_view(event_name).find("_ack_response")
+            != std::string_view::npos;
+        if (!steady_ack_response
+            || ShouldLogDiagnosticSample(
+                ++steady_netchan_send_diagnostics_seen_))
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                std::string(event_name)
                 + ": session_id=" + slot_state.session_id
                 + ",endpoint=" + slot_state.netchan.remote_endpoint().ToString()
                 + ",sequence=" + std::to_string(decoded.packet.sequence)
@@ -6733,7 +7147,8 @@ private:
                         + ",resource_manifest_generations="
                         + std::to_string(
                             summary_.resource_manifest_generations)
-                    : ""));
+                        : ""));
+        }
         return true;
     }
 
@@ -6824,11 +7239,36 @@ private:
         if (!carrier.ok() || carrier.packet.reliable_present
             || carrier.packet.fragment_present
             || carrier.packet.sequence != built.bundle.frame.frame_id
+            || carrier.packet.acknowledgement
+                != slot_state.netchan.incoming_sequence()
             || carrier.packet.payload_size != built.bundle.payload.size)
         {
             return FailTransport(
                 "continuous-snapshot-carrier-self-check-failed",
                 "goldsrc_continuous_snapshot_failed: reason=carrier-self-check");
+        }
+        const bool same_frame_movement_commit =
+            last_movement_commit_packet_sequence_.has_value()
+            && last_movement_commit_host_frame_
+                == summary_.host_frames_pumped;
+        if (same_frame_movement_commit)
+        {
+            const std::uint32_t movement_sequence =
+                *last_movement_commit_packet_sequence_;
+            const bool acknowledgement_covers_movement =
+                carrier.packet.acknowledgement == movement_sequence
+                || hl::network::IsGoldSrcNetchanSequenceNewer(
+                    carrier.packet.acknowledgement,
+                    movement_sequence);
+            if (!acknowledgement_covers_movement)
+            {
+                return FailTransport(
+                    "continuous-snapshot-movement-ack-incoherent",
+                    "goldsrc_continuous_snapshot_failed: reason=movement-ack-incoherent");
+            }
+            summary_.snapshot_move_ack_coherence = true;
+            summary_.same_host_frame_movement_visible = true;
+            ++summary_.same_host_frame_movement_snapshots;
         }
 
         hl::network::GoldSrcSnapshotDecodeResult decoded;
@@ -6887,6 +7327,45 @@ private:
             return FailTransport(
                 "continuous-snapshot-history-store-failed",
                 "goldsrc_continuous_snapshot_failed: reason=history-store");
+        }
+
+        const auto& scheduler =
+            slot_state.goldsrc_first_snapshot.scheduler().state();
+        summary_.minimum_snapshot_gap_ms = static_cast<int>(
+            std::llround(
+                scheduler.minimum_due_interval_seconds * 1000.0));
+        summary_.median_snapshot_interval_ms = static_cast<int>(
+            scheduler.median_due_interval_msec);
+        summary_.p95_snapshot_interval_ms = static_cast<int>(
+            scheduler.p95_due_interval_msec);
+        summary_.maximum_snapshot_gap_ms = static_cast<int>(
+            std::llround(
+                scheduler.maximum_due_interval_seconds * 1000.0));
+        summary_.snapshot_burst_count = static_cast<int>(
+            scheduler.snapshot_burst_count);
+        summary_.missed_snapshot_intervals = static_cast<int>(
+            scheduler.skipped_snapshots);
+        if (summary_.maximum_snapshot_gap_ms
+                > last_observed_snapshot_gap_ms_)
+        {
+            last_observed_snapshot_gap_ms_ =
+                summary_.maximum_snapshot_gap_ms;
+            if (summary_.maximum_snapshot_gap_ms
+                    > static_cast<int>(summary_.snapshot_interval_ms * 2.0))
+            {
+                ++snapshot_cadence_gap_diagnostics_seen_;
+                if (ShouldLogDiagnosticSample(
+                        snapshot_cadence_gap_diagnostics_seen_))
+                {
+                    hl::common::Logger::Warn(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_snapshot_cadence_gap: snapshot_frame_id="
+                            + std::to_string(built.bundle.frame.frame_id)
+                            + ",snapshot_gap_msec="
+                            + std::to_string(
+                                summary_.maximum_snapshot_gap_ms));
+                }
+            }
         }
 
         ++summary_.continuous_snapshots_sent;
@@ -7011,9 +7490,13 @@ private:
             == hl::network::GoldSrcFirstSnapshotPhase::
                 kContinuousSnapshotStable;
         SyncNetchanSummary(slot_state);
-        hl::common::Logger::Info(
-            hl::common::LogCategory::Server,
-            "goldsrc_continuous_snapshot_sent: session_id="
+        ++continuous_snapshot_diagnostics_seen_;
+        if (ShouldLogDiagnosticSample(
+                continuous_snapshot_diagnostics_seen_))
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_continuous_snapshot_sent: session_id="
                 + slot_state.session_id
                 + ",frame_id="
                 + std::to_string(built.bundle.frame.frame_id)
@@ -7046,6 +7529,7 @@ private:
                 + (slot_state.goldsrc_player_lifecycle.player().player_spawned
                     ? "1" : "0")
                 + ",active=0");
+        }
         return true;
     }
 
@@ -7514,16 +7998,24 @@ private:
                     + ",put_in_server=0,spawned=0,active=0");
         }
 
-        hl::common::Logger::Info(
-            hl::common::LogCategory::Server,
-            "goldsrc_netchan_received: endpoint=" + sender.ToString()
-                + ",sequence=" + std::to_string(decoded.packet.sequence)
-                + ",ack=" + std::to_string(decoded.packet.acknowledgement)
-                + ",reliable="
-                + (decoded.packet.reliable_present ? "1" : "0")
-                + ",reliable_ack="
-                + (decoded.packet.reliable_acknowledgement ? "1" : "0")
-                + ",result=accepted");
+        const bool movement_streaming =
+            slot_state->goldsrc_player_lifecycle.put_in_server()
+            && slot_state->goldsrc_player_lifecycle.signon_complete();
+        if (!movement_streaming
+            || ShouldLogDiagnosticSample(
+                ++steady_netchan_receive_diagnostics_seen_))
+        {
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_netchan_received: endpoint=" + sender.ToString()
+                    + ",sequence=" + std::to_string(decoded.packet.sequence)
+                    + ",ack=" + std::to_string(decoded.packet.acknowledgement)
+                    + ",reliable="
+                    + (decoded.packet.reliable_present ? "1" : "0")
+                    + ",reliable_ack="
+                    + (decoded.packet.reliable_acknowledgement ? "1" : "0")
+                    + ",result=accepted");
+        }
         if (process_outcome.incoming_fragment_consumed)
         {
             hl::common::Logger::Info(
@@ -7675,6 +8167,19 @@ private:
 
         if (resource_manifest_enabled_)
         {
+            const bool continuous_movement_streaming =
+                continuous_snapshots_enabled_
+                && slot_state->goldsrc_player_lifecycle.put_in_server()
+                && slot_state->goldsrc_player_lifecycle.signon_complete();
+            if (continuous_movement_streaming)
+            {
+                // The due snapshot is the stock-style server response for an
+                // established movement stream. Sending an extra empty ack for
+                // every clc_move would advance the server sequence much faster
+                // than snapshot history and make low-8 delta references
+                // ambiguous after wrap.
+                return true;
+            }
             if (!SendNetchanDatagram(
                     *slot_state,
                     false,
@@ -7872,6 +8377,14 @@ private:
                     + ",slot=" + std::to_string(slot_state->slot)
                     + ",reason=admission,signon_phase=none");
         }
+        if (world_baselines_enabled_)
+        {
+            ResetWorldBaselineSessionSummary();
+        }
+        if (first_snapshot_enabled_)
+        {
+            ResetSnapshotSessionSummary();
+        }
         if (netchan_enabled_)
         {
             if (!slot_state->netchan.initialized())
@@ -7987,7 +8500,23 @@ private:
     std::uint64_t expired_diagnostics_seen_ = 0;
     std::uint64_t unknown_endpoint_diagnostics_seen_ = 0;
     std::uint64_t invalid_netchan_diagnostics_seen_ = 0;
-    std::uint64_t duplicate_frame_reference_diagnostics_seen_ = 0;
+    std::uint64_t frame_reference_diagnostics_seen_ = 0;
+    std::uint64_t first_snapshot_keepalive_diagnostics_seen_ = 0;
+    std::uint64_t steady_netchan_receive_diagnostics_seen_ = 0;
+    std::uint64_t steady_netchan_send_diagnostics_seen_ = 0;
+    std::uint64_t pmove_rejection_diagnostics_seen_ = 0;
+    std::uint64_t pmove_clock_rejection_diagnostics_seen_ = 0;
+    std::uint64_t pmove_clock_recovery_diagnostics_seen_ = 0;
+    std::uint64_t pmove_clock_resync_diagnostics_seen_ = 0;
+    std::uint64_t pmove_execution_gap_diagnostics_seen_ = 0;
+    std::uint64_t snapshot_cadence_gap_diagnostics_seen_ = 0;
+    std::uint64_t prediction_state_diagnostics_seen_ = 0;
+    std::uint64_t continuous_snapshot_diagnostics_seen_ = 0;
+    int last_observed_move_execution_gap_ms_ = 0;
+    int last_reported_clock_resynchronizations_ = 0;
+    int last_observed_snapshot_gap_ms_ = 0;
+    std::optional<std::uint32_t> last_movement_commit_packet_sequence_;
+    int last_movement_commit_host_frame_ = 0;
     std::uint64_t next_network_session_ = 1;
     std::string admitted_session_id_;
     int datagrams_sent_this_frame_ = 0;

@@ -11,6 +11,7 @@
 namespace hl::network
 {
 inline constexpr std::uint8_t kGoldSrcClientMoveOpcode = 2u;
+inline constexpr std::uint8_t kGoldSrcClientApplicationStringCommandOpcode = 3u;
 inline constexpr std::uint8_t kGoldSrcClientFrameReferenceOpcode = 4u;
 inline constexpr std::size_t kGoldSrcMaximumMoveBodyBytes = 255u;
 inline constexpr std::size_t kGoldSrcMaximumMoveCommands = 62u;
@@ -168,7 +169,10 @@ enum class GoldSrcClientApplicationDecodeStatus
     kUnknownOpcode,
     kMultipleMoveCommands,
     kMultipleFrameReferences,
+    kMultipleDisconnectCommands,
     kTruncatedFrameReference,
+    kMalformedStringCommand,
+    kUnsupportedStringCommand,
     kMalformedMoveCommand,
     kUnsupportedTrailingData,
 };
@@ -183,6 +187,7 @@ struct GoldSrcClientApplicationDecodeResult final
         GoldSrcClientMoveDecodeStatus::kEmptyPayload;
     GoldSrcDecodedMoveCommand move;
     bool move_present = false;
+    bool disconnect_present = false;
     bool frame_reference_present = false;
     std::uint8_t frame_reference = 0u;
     std::size_t frame_reference_count = 0u;

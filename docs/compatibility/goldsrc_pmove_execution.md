@@ -2,10 +2,10 @@
 
 ## Scope and evidence
 
-This note records the Prompt 246 contract and completed movement slice.  The
-baseline is `4ea479a1b6f800df7e28025bff9e040431fff149` on
-`codex/goldsrc-player-lifecycle-slice`; the task branch is
-`codex/goldsrc-pmove-slice`.  The SDK remains at
+This note records the Prompt 246 movement slice and its persistent-session
+stabilization. The stabilization baseline is
+`87504e22ff0c4fea146bbab85dba9aff643053e6`; the task branch is
+`codex/manual-pmove-smooth-longrun-fix`. The SDK remains at
 `b1b5cf5892918535619b2937bb927e46cb097ba1`.
 
 The pre-change Half-Life 1.1.2.2 Steam build 15961492 observation used the
@@ -32,9 +32,9 @@ uses an independent bounded implementation.
 
 ## Command execution and replay
 
-The decoded command array is newest-first.  Indices `0..new-1` are new
-commands; the remaining indices are backup history.  Execution walks each
-selected range in reverse so commands reach PM_Move oldest-first.
+The move codec exposes commands in chronological wire order: explicit backup
+history first and fresh commands last. Execution preserves that order so
+PM_Move receives each selected command oldest-first.
 
 The bounded contract is:
 
@@ -45,18 +45,19 @@ The bounded contract is:
 - duplicate and out-of-order outer netchan packets are rejected before the
   execution planner;
 - new commands from an accepted packet execute once;
-- backups execute only to recover a positive outer-sequence gap;
+- raw outer-netchan gaps are diagnostic only and never synthesize movement;
+- backups execute only when their explicit history extends the last committed
+  user command;
 - each available missing command is recovered once, oldest-first;
-- a gap beyond the supplied backups uses the last valid command only within
-  the bounded recovery window;
+- gaps beyond supplied backups do not replay the last command;
 - repeated backups in a later non-gap packet are ignored;
 - disconnect and slot reuse clear all sequence and command history;
 - a PM_Move failure neither commits player state nor advances the successful
   command cursor.
 
-The implementation limits recovery to 24 missing commands, matching the
-reference drop guard.  It uses checked arithmetic and never allocates an
-unbounded command queue.
+The synthetic replay limit is zero. Recovery is bounded by the explicit
+backup commands carried in the validated packet, uses checked arithmetic, and
+never allocates an unbounded command queue.
 
 ## Command time
 
@@ -66,18 +67,23 @@ Commands over 50 ms are split into bounded subcommands no greater than 50 ms.
 The independent splitter preserves the exact original duration and permits at
 most eight subcommands for one byte-sized command.
 
-One move packet may contribute at most 1000 ms and may not advance accumulated
-command time more than 250 ms ahead of monotonic host time.  Stock commands
-are normally far below these limits.  Stable rejection identifiers include
+One move packet may contribute at most 1000 ms and may not advance the client
+command frontier more than 250 ms ahead of elapsed monotonic host time. The
+first committed executable command establishes a per-session host epoch.
+Committed command time advances only after a complete PM_Move batch succeeds.
+A temporary lead advances the observed/validated packet frontiers but neither
+the execution frontier nor authoritative state; later host-time catch-up and
+explicit backups recover it without a replay cascade. Stable rejection
+identifiers include
 `excessive_backup_count`, `excessive_new_count`, `invalid_command_msec`,
 `command_time_overflow`, `command_time_budget_exceeded`,
 `duplicate_command`, `stale_command`, `invalid_checksum`, and
 `truncated_usercmd`.
 
-The reference time base places the end of the current command group at the
-current server frame, after accounting for bounded recovered commands.  The
-host retains a monotonic per-session millisecond accumulator and uses it as
-the PM_Move time source.
+Planning is side-effect free apart from bounded diagnostics. Separate
+observed, structurally validated, and successfully executed frontiers prevent
+a temporary clock rejection from poisoning duplicate detection. Disconnect
+and slot reuse reset all sequence and clock state.
 
 The verified contract gates are:
 
@@ -189,15 +195,56 @@ does not partially advance the execution cursor.
 
 A successful output atomically commits origin, velocity, base velocity,
 angles, view offset, punch angle, flags, movetype, ground entity, water state,
-duck state, fall/step timers, friction, and old buttons.  The existing
-clientdata and player-entity snapshot builders then consume only that
-committed edict.  The 20 Hz frame history, delta selection, packet-loss
-recovery, and full fallback remain unchanged.
+duck state, fall/step timers, friction, and old buttons. The clientdata and
+player-entity snapshot builders then consume only that committed edict.
+
+In the established streaming phase, bounded receive and PM_Move execution
+occur before a due snapshot. The carrier acknowledgement therefore covers
+the client packet represented by that snapshot. The scheduler retains the
+20 Hz default, sends at most one scheduled snapshot per due interval, and
+skips catch-up bursts after a late host frame.
+
+The Game DLL `Player_Encode` conditional is honored for the local player:
+low-resolution entity `origin[0..2]` stays at the baseline while the precise
+committed origin is carried by `clientdata_t`. This matches stock prediction
+reconciliation and avoids conflicting local-origin channels. Entity hull,
+flags, base velocity, and clientdata movement fields remain coherent.
 
 Authoritative PM_Move-based player movement does not mean that weapon
 processing, item interaction, moving platforms, ladders, water movement,
 player-to-player collision, damage, death, respawn, or complete multiplayer
 gameplay are implemented.
+
+## Persistent-session stabilization
+
+The visible jerk and eventual movement freeze were separate defects. Jerk
+combined three coherence faults: backup/fresh commands were partitioned with
+the wrong semantic indexing, raw netchan gaps could cause synthetic command
+replay, and a due snapshot could be built before same-frame movement. The
+freeze began when a temporarily ahead packet left the observed frontier
+stalled; later packet sequences were then interpreted through the wrong gap
+history and formed a growing rejection/replay cascade.
+
+The stabilized model uses explicit backup recovery, a zero synthetic-replay
+limit, independent observed/validated/executed frontiers, a transactional
+PM_Move batch commit, and receive-before-snapshot ordering in the established
+stream. A rejected output restores the authoritative edict and planner state.
+Sampled diagnostics report only semantic discontinuities and aggregate
+cadence/clock counters; normal packets and snapshots are not logged one by
+one.
+
+Session shutdown follows the stock lifecycle order: the persistent network
+runtime and client slot are drained first, the Game DLL receives exactly one
+`ServerDeactivate` callback after successful activation, and only then is the
+module unloaded. This prevents long-running map allocations from surviving
+into `FreeLibrary` while preserving feature-off startup and shutdown.
+
+Deterministic tests simulate ten minutes at 100 commands per second, 6/7 ms
+high-FPS rounding, idle/resume, non-move sequence gaps, explicit backup
+recovery, temporary clock lead, the former permanent cascade, rollback,
+same-frame snapshot ordering, scheduler jitter, sequence wrap, and reconnect.
+The external proof uses a separate localhost UDP client and the real host
+process; it never calls movement internals directly.
 
 ## Implemented slice
 

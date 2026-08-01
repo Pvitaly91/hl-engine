@@ -627,5 +627,86 @@ int main()
             == 0u);
     }
 
+    {
+        GoldSrcDeltaRegistry registry;
+        GoldSrcDeltaTable clientdata_table;
+        clientdata_table.name = "clientdata_t";
+        GoldSrcDeltaField client_origin;
+        client_origin.field_type =
+            kGoldSrcDeltaTypeSigned | kGoldSrcDeltaTypeFloat;
+        client_origin.name = "origin[0]";
+        client_origin.field_size = sizeof(float);
+        client_origin.significant_bits = 21u;
+        client_origin.premultiply = 8.0;
+        client_origin.postmultiply = 1.0;
+        clientdata_table.fields.push_back(client_origin);
+        registry.tables.push_back(clientdata_table);
+
+        GoldSrcDeltaTable player_table;
+        player_table.name = "entity_state_player_t";
+        player_table.conditional_encoder_kind =
+            GoldSrcDeltaConditionalEncoderKind::kGameDll;
+        player_table.conditional_encoder_name = "Player_Encode";
+        for (const char* name : {
+                 "origin[0]", "origin[1]", "origin[2]"})
+        {
+            GoldSrcDeltaField origin;
+            origin.field_type =
+                kGoldSrcDeltaTypeSigned | kGoldSrcDeltaTypeFloat;
+            origin.name = name;
+            origin.field_size = sizeof(float);
+            origin.significant_bits = 18u;
+            origin.premultiply = 8.0;
+            origin.postmultiply = 1.0;
+            player_table.fields.push_back(origin);
+        }
+        registry.tables.push_back(player_table);
+
+        GoldSrcBaselineBundle baselines;
+        baselines.maximum_clients = 1u;
+        GoldSrcEntityBaseline player_baseline;
+        player_baseline.entity_index = 1u;
+        player_baseline.kind = GoldSrcBaselineKind::kPlayer;
+        player_baseline.state.field_count = 3u;
+        for (std::size_t index = 0u; index < 3u; ++index)
+        {
+            player_baseline.state.values[index].kind =
+                GoldSrcDeltaValueKind::kFloatingPoint;
+            player_baseline.state.values[index].floating_value =
+                100.0 + static_cast<double>(index);
+        }
+        baselines.entities.push_back(player_baseline);
+
+        GoldSrcPlayerSnapshotInput player;
+        player.entity.entity_index = 1u;
+        player.entity.kind = GoldSrcBaselineKind::kPlayer;
+        player.entity.state = player_baseline.state;
+        for (std::size_t index = 0u; index < 3u; ++index)
+        {
+            player.entity.state.values[index].floating_value =
+                200.0 + static_cast<double>(index);
+        }
+        player.clientdata.state.field_count = 1u;
+        player.clientdata.state.values[0].kind =
+            GoldSrcDeltaValueKind::kFloatingPoint;
+        player.clientdata.state.values[0].floating_value = 200.0;
+
+        const GoldSrcSnapshotBuildResult built =
+            BuildGoldSrcFirstSnapshot(
+                15u,
+                2.05f,
+                baselines,
+                registry,
+                kGoldSrcMaximumSnapshotBytes,
+                &player);
+        assert(built.ok());
+        assert(
+            built.bundle.frame.entities[0]
+                .state.values[0].floating_value == 100.0);
+        assert(
+            built.bundle.frame.clientdata
+                .state.values[0].floating_value == 200.0);
+    }
+
     return 0;
 }

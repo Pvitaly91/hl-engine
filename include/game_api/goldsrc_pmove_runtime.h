@@ -82,9 +82,23 @@ struct GoldSrcPmoveExecutionResult final
     std::size_t subcommands_executed = 0u;
     std::size_t backups_replayed = 0u;
     std::size_t duplicates_suppressed = 0u;
+    std::size_t fresh_commands = 0u;
+    std::size_t backup_commands = 0u;
+    std::size_t recovered_commands = 0u;
+    std::size_t synthetic_replays = 0u;
+    std::uint32_t raw_netchan_sequence_distance = 0u;
+    std::uint32_t packet_command_msec = 0u;
+    std::uint64_t host_elapsed_msec = 0u;
+    std::uint64_t command_elapsed_msec = 0u;
+    std::uint64_t proposed_command_elapsed_msec = 0u;
+    std::uint32_t last_observed_move_sequence = 0u;
+    std::uint32_t last_validated_move_sequence = 0u;
+    std::uint32_t last_executed_move_sequence = 0u;
+    std::string_view output_validation_reason = "not_checked";
     bool authoritative_state_changed = false;
     bool grounded = false;
     bool ducked = false;
+    bool clock_recovered = false;
 
     bool ok() const noexcept
     {

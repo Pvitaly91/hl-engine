@@ -13,6 +13,7 @@ inline constexpr std::uint8_t kGoldSrcMaximumCommandMsec = 255u;
 inline constexpr std::uint8_t kGoldSrcPmoveSplitThresholdMsec = 50u;
 inline constexpr std::size_t kGoldSrcMaximumPmoveSubcommands = 8u;
 inline constexpr std::size_t kGoldSrcMaximumDroppedCommandRecovery = 24u;
+inline constexpr std::size_t kGoldSrcSyntheticReplayLimit = 0u;
 inline constexpr std::uint32_t kGoldSrcMaximumMovePacketTimeMsec = 1000u;
 inline constexpr std::uint32_t kGoldSrcMaximumCommandLeadMsec = 250u;
 inline constexpr std::size_t kGoldSrcMaximumPlannedCommands =
@@ -123,6 +124,7 @@ enum class GoldSrcCommandPlanStatus
     kInvalidCommandMsec,
     kCommandTimeOverflow,
     kCommandTimeBudgetExceeded,
+    kTemporarilyAhead,
     kPlanCapacityExceeded,
 };
 
@@ -150,10 +152,22 @@ struct GoldSrcCommandExecutionPlan final
     std::size_t replayed_last_commands = 0u;
     std::size_t duplicate_backups_suppressed = 0u;
     std::uint32_t total_command_msec = 0u;
+    std::uint64_t host_time_msec = 0u;
+    std::uint64_t host_elapsed_msec = 0u;
+    std::uint64_t command_elapsed_msec = 0u;
+    std::uint64_t proposed_command_elapsed_msec = 0u;
+    std::uint32_t raw_netchan_sequence_distance = 0u;
+    bool establishes_command_clock_epoch = false;
 
     bool ok() const noexcept
     {
         return status == GoldSrcCommandPlanStatus::kOk;
+    }
+
+    bool observation_committable() const noexcept
+    {
+        return status == GoldSrcCommandPlanStatus::kOk
+            || status == GoldSrcCommandPlanStatus::kTemporarilyAhead;
     }
 };
 
@@ -178,6 +192,16 @@ struct GoldSrcCommandExecutionDiagnostics final
     std::uint64_t duplicate_commands_suppressed = 0u;
     std::uint64_t malformed_commands_rejected = 0u;
     std::uint64_t command_time_budget_rejections = 0u;
+    std::uint64_t move_packets_observed = 0u;
+    std::uint64_t move_packets_validated = 0u;
+    std::uint64_t move_packets_executed = 0u;
+    std::uint64_t move_packets_temporarily_rejected = 0u;
+    std::uint64_t command_clock_recoveries = 0u;
+    std::uint64_t command_clock_resynchronizations = 0u;
+    std::uint64_t raw_netchan_sequence_gaps = 0u;
+    std::uint64_t raw_netchan_gap_move_replays = 0u;
+    std::uint64_t synthetic_command_replays = 0u;
+    std::uint64_t maximum_move_execution_gap_msec = 0u;
 };
 
 class GoldSrcCommandExecutionState final
@@ -190,24 +214,43 @@ public:
         std::uint32_t packet_sequence,
         std::uint64_t host_time_msec) noexcept;
 
-    void CommitExecuted(
-        const GoldSrcPlannedUserCommand& command) noexcept;
+    void CommitObservedMovePacket(
+        std::uint32_t packet_sequence,
+        bool structurally_valid,
+        bool temporarily_ahead = false) noexcept;
+    void CommitExecutedBatch(
+        const GoldSrcCommandExecutionPlan& plan,
+        std::uint32_t packet_sequence,
+        std::uint64_t host_time_msec) noexcept;
     void RecordRollback() noexcept;
 
     bool initialized() const noexcept;
     bool has_last_command() const noexcept;
     const GoldSrcDecodedUserCommand& last_command() const noexcept;
     std::uint32_t last_accepted_packet_sequence() const noexcept;
+    std::uint32_t last_observed_packet_sequence() const noexcept;
+    std::uint32_t last_validated_move_sequence() const noexcept;
+    std::uint32_t last_executed_move_sequence() const noexcept;
     std::uint64_t command_time_msec() const noexcept;
+    std::uint64_t host_epoch_msec() const noexcept;
+    bool command_clock_epoch_initialized() const noexcept;
     std::uint64_t rollback_count() const noexcept;
     GoldSrcMovementPhase phase() const noexcept;
     const GoldSrcCommandExecutionDiagnostics& diagnostics() const noexcept;
 
 private:
-    bool initialized_ = false;
+    bool observed_initialized_ = false;
+    bool validated_initialized_ = false;
+    bool executed_initialized_ = false;
+    bool command_clock_epoch_initialized_ = false;
     bool has_last_command_ = false;
-    std::uint32_t last_accepted_packet_sequence_ = 0u;
+    bool command_clock_wait_pending_ = false;
+    std::uint32_t last_observed_packet_sequence_ = 0u;
+    std::uint32_t last_validated_move_sequence_ = 0u;
+    std::uint32_t last_executed_move_sequence_ = 0u;
+    std::uint64_t host_epoch_msec_ = 0u;
     std::uint64_t command_time_msec_ = 0u;
+    std::uint64_t last_execution_host_time_msec_ = 0u;
     std::uint64_t rollback_count_ = 0u;
     GoldSrcDecodedUserCommand last_command_{};
     GoldSrcMovementPhase phase_ =

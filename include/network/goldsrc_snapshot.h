@@ -24,6 +24,8 @@ inline constexpr std::uint32_t kGoldSrcServerFrameMask = 0x3FFFFFFFu;
 inline constexpr double kGoldSrcDefaultSnapshotRateHz = 20.0;
 inline constexpr double kGoldSrcMinimumSnapshotRateHz = 10.0;
 inline constexpr double kGoldSrcMaximumSnapshotRateHz = 30.0;
+inline constexpr std::size_t kGoldSrcSnapshotIntervalHistogramBuckets =
+    1002u;
 
 struct GoldSrcClientDataState final
 {
@@ -394,6 +396,17 @@ struct GoldSrcSnapshotScheduleState final
         1.0 / kGoldSrcDefaultSnapshotRateHz;
     double next_due_server_time = 0.0;
     double last_observed_server_time = 0.0;
+    double last_due_server_time = 0.0;
+    double minimum_due_interval_seconds = 0.0;
+    double maximum_due_interval_seconds = 0.0;
+    std::uint32_t median_due_interval_msec = 0u;
+    std::uint32_t p95_due_interval_msec = 0u;
+    std::array<
+        std::uint64_t,
+        kGoldSrcSnapshotIntervalHistogramBuckets>
+        due_interval_histogram{};
+    std::uint64_t due_interval_samples = 0u;
+    bool has_last_due_server_time = false;
     std::optional<std::uint32_t> last_generated_frame;
     std::optional<std::uint32_t> last_sent_frame;
     std::optional<std::uint32_t> last_acknowledged_frame;
@@ -404,6 +417,7 @@ struct GoldSrcSnapshotScheduleState final
     std::uint64_t failed_sends = 0u;
     std::uint64_t due_checks = 0u;
     std::uint64_t due_snapshots = 0u;
+    std::uint64_t snapshot_burst_count = 0u;
 };
 
 class GoldSrcSnapshotScheduler final

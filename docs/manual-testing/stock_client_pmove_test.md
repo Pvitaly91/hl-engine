@@ -76,6 +76,35 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -RunTests
 ```
 
+Run the bounded automated stock-client scenario after the automated proofs:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\run_goldsrc_pmove_stock_longrun_verification.ps1 `
+  -ExecutablePath .\out\build\vs2022-win32-reference-sdk\Release\hlhost.exe `
+  -GameDir '<path-to-valve>' `
+  -ClientPath '<path-to-hl.exe>' `
+  -MovementDurationSeconds 610
+```
+
+Add `-DirectClientLaunch` when Steam's `-applaunch` handoff does not retain a
+stable process/window handle. The same installed `hl.exe` is then started with
+`-steam`; Steam must still be running and authenticated.
+
+Window discovery is restricted to the newly launched process whose command
+line contains the unique localhost endpoint. Foreground transfer temporarily
+attaches only the verifier, current foreground, and owned client GUI threads;
+cleanup never closes a pre-existing Half-Life process.
+
+This verifier uses only `127.0.0.1`, validates the hashes of its read-only
+client/GameDir inputs before and after the run, and writes screenshots and
+logs only to a temporary directory outside the repository. It applies
+`fps_override 0`, `fps_max 100`, and `cl_cmdrate 100` only to the running
+process so the required approximately 100-command-per-second scenario is not
+affected by a user's persistent high-FPS configuration. No config file is
+written. `-MovementProfile` can select `varied`, `idle`, `forward`, `strafe`,
+`jump`, or `duck`; `-SkipReconnect` is intended only for short smoke checks.
+
 Use `-SkipBuild` to run an existing `hlhost.exe`, `-Configuration Release`
 to select the Release output, `-Port <number>` for a fixed free local port,
 `-DurationSeconds <seconds>` for a timed session, and `-Map <name>` for another
@@ -175,6 +204,10 @@ Select-String -LiteralPath (Join-Path $latest.FullName 'server.stdout.log') `
 9. Under a low ceiling, a blocked unduck should keep the player crouched.
 10. Move before and after 60 seconds, then remain connected past 120 seconds.
     There should be no repeated snap-back, stalled snapshots, or timeout.
+11. Continue through 300 and 600 seconds. At both boundaries, verify that
+    movement responds immediately and does not arrive in periodic bursts.
+12. After 600 seconds, repeat jump, duck, stop/start, and static wall
+    collision before performing the reconnect checklist.
 
 Reconnect checklist: open the client console, run `disconnect`, then
 `connect 127.0.0.1:<printed-port>` while the server is still active. Verify a
