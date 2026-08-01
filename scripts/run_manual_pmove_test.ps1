@@ -35,6 +35,7 @@ param(
     [switch]$SkipBuild,
     [switch]$RunTests,
     [switch]$ServerOnly,
+    [switch]$BoundedObservation,
     [switch]$DryRun,
     [switch]$KeepServerRunning,
     [switch]$StopClientOnExit,
@@ -418,7 +419,12 @@ function Quote-ProcessArgument {
 }
 
 function New-ServerArguments {
-    param([string]$GameDirectory, [string]$MapName, [string]$Address, [int]$SelectedPort)
+    param(
+        [string]$GameDirectory,
+        [string]$MapName,
+        [string]$Address,
+        [int]$SelectedPort,
+        [string]$ShutdownRequestPath)
 
     $arguments = @(
         '--gamedir', (Quote-ProcessArgument $GameDirectory),
@@ -433,10 +439,17 @@ function New-ServerArguments {
         '--ip', $Address,
         '--port', [string]$SelectedPort,
         '--goldsrc-pmove',
-        '--goldsrc-pmove-observation-ms=60000',
         '--goldsrc-snapshot-rate-hz=20',
         '--goldsrc-handshake-timeout-ms', '300000'
     )
+    if ($BoundedObservation) {
+        $arguments += '--goldsrc-pmove-observation-ms=60000'
+    } else {
+        $arguments += @(
+            '--goldsrc-pmove-persistent',
+            '--goldsrc-manual-shutdown-file',
+            (Quote-ProcessArgument $ShutdownRequestPath))
+    }
     return @($arguments + @(Convert-AdditionalArguments $AdditionalServerArguments))
 }
 
@@ -534,13 +547,22 @@ function Wait-UdpEndpointOwnership {
 }
 
 function Stop-OwnedProcess {
-    param([System.Diagnostics.Process]$Process, [string]$Description)
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$Description,
+        [string]$ShutdownRequestPath = '')
 
     if ($null -eq $Process) { return 'not_started' }
     try { $Process.Refresh() } catch { return 'already_exited' }
     if ($Process.HasExited) { return 'already_exited' }
 
+    $shutdownRequested = $false
     try {
+        if (-not [string]::IsNullOrWhiteSpace($ShutdownRequestPath)) {
+            [System.IO.File]::WriteAllText($ShutdownRequestPath, 'shutdown')
+            $shutdownRequested = $true
+            if ($Process.WaitForExit(8000)) { return 'graceful_request' }
+        }
         if ($Process.CloseMainWindow()) {
             if ($Process.WaitForExit(2000)) { return 'graceful' }
         }
@@ -552,6 +574,12 @@ function Stop-OwnedProcess {
     }
     catch {
         throw ("Failed to stop the owned {0} process: {1}" -f $Description, $_.Exception.Message)
+    }
+    finally {
+        if ($shutdownRequested -and
+            (Test-Path -LiteralPath $ShutdownRequestPath -PathType Leaf)) {
+            [System.IO.File]::Delete($ShutdownRequestPath)
+        }
     }
 }
 
@@ -617,6 +645,7 @@ function Write-SessionMetadata {
         ('server_executable={0}' -f $Session.server_executable),
         ('server_timestamp_utc={0}' -f $Session.server_timestamp_utc),
         ('map={0}' -f $Session.map),
+        ('session_mode={0}' -f $Session.session_mode),
         ('address={0}:{1}' -f $Session.bind_address, $Session.port),
         ('server_pid={0}' -f $Session.server_pid),
         ('client_pid={0}' -f $Session.client_pid),
@@ -639,6 +668,7 @@ Assert-SafeAdditionalArguments -Arguments $AdditionalServerArguments `
         '--frames', '--log-to-file', '--log-summary-file',
         '--log-disable-categories', '--ip', '-ip', '--port', '-port',
         '--goldsrc-pmove', '--goldsrc-pmove-observation-ms',
+        '--goldsrc-pmove-persistent', '--goldsrc-manual-shutdown-file',
         '--goldsrc-snapshot-rate-hz', '--goldsrc-handshake-timeout-ms') `
     -Kind 'server'
 Assert-SafeAdditionalArguments -Arguments $AdditionalClientArguments `
@@ -679,6 +709,12 @@ $logPath = if ([string]::IsNullOrWhiteSpace($LogDirectory)) {
 if (Test-PathInsideRoot -PathValue $logPath -Root $repositoryRoot) {
     throw 'Manual session logs must be stored outside the repository.'
 }
+$shutdownRequestPath = Join-Path $logPath 'shutdown.request'
+$sessionMode = if ($BoundedObservation) {
+    'bounded_observation'
+} else {
+    'persistent'
+}
 
 $canonicalTreeValid = Test-CanonicalBuildTree `
     -BuildDirectory $buildDirectory -RepositoryRoot $repositoryRoot
@@ -690,20 +726,25 @@ if ($DryRun) {
         -BuildDirectory $buildDirectory -BuildConfiguration $Configuration
     $serverArguments = New-ServerArguments `
         -GameDirectory $serverGamePath -MapName $Map `
-        -Address $BindAddress -SelectedPort $selectedPort
+        -Address $BindAddress -SelectedPort $selectedPort `
+        -ShutdownRequestPath $shutdownRequestPath
     $clientArguments = if ($ServerOnly) { @() } else {
         New-ClientArguments -Address $BindAddress -SelectedPort $selectedPort
     }
     Write-Host 'Manual PM_Move dry run'
     Write-Host 'server_executable=<resolved-hlhost.exe>'
     Write-Host ('server_timestamp_utc={0:o}' -f (Get-Item -LiteralPath $serverPath).LastWriteTimeUtc)
-    Write-Host ('server_arguments={0}' -f (($serverArguments -replace [regex]::Escape($serverGamePath), '<server-gamedir>') -join ' '))
+    $displayServerArguments = $serverArguments `
+        -replace [regex]::Escape($serverGamePath), '<server-gamedir>' `
+        -replace [regex]::Escape($shutdownRequestPath), '<shutdown-request-file>'
+    Write-Host ('server_arguments={0}' -f ($displayServerArguments -join ' '))
     if (-not $ServerOnly) {
         Write-Host 'client_executable=<resolved-hl.exe>'
         Write-Host ('client_arguments={0}' -f ($clientArguments -join ' '))
     }
     Write-Host ('address={0}:{1}' -f $BindAddress, $selectedPort)
     Write-Host ('map={0}' -f $Map)
+    Write-Host ('session_mode={0}' -f $sessionMode)
     Write-Host ('logs={0}' -f $logPath)
     Write-Host ('configure_would_run={0}' -f $wouldConfigure.ToString().ToLowerInvariant())
     Write-Host ('build_would_run={0}' -f (-not $SkipBuild).ToString().ToLowerInvariant())
@@ -747,6 +788,7 @@ $session = [ordered]@{
     server_executable = $serverPath
     server_timestamp_utc = (Get-Item -LiteralPath $serverPath).LastWriteTimeUtc.ToString('o')
     map = $Map
+    session_mode = $sessionMode
     bind_address = $BindAddress
     port = $selectedPort
     server_pid = $null
@@ -781,7 +823,8 @@ try {
         }
         $serverArguments = New-ServerArguments `
             -GameDirectory $serverGamePath -MapName $Map `
-            -Address $BindAddress -SelectedPort $selectedPort
+            -Address $BindAddress -SelectedPort $selectedPort `
+            -ShutdownRequestPath $shutdownRequestPath
         try {
             $serverProcess = Start-Process -FilePath $serverPath `
                 -ArgumentList $serverArguments `
@@ -801,7 +844,12 @@ try {
         catch {
             if ($null -ne $serverProcess) {
                 $session.server_cleanup = Stop-OwnedProcess `
-                    -Process $serverProcess -Description 'server'
+                    -Process $serverProcess -Description 'server' `
+                    -ShutdownRequestPath $(if ($BoundedObservation) {
+                        ''
+                    } else {
+                        $shutdownRequestPath
+                    })
                 $serverProcess.Dispose()
                 $serverProcess = $null
             }
@@ -816,6 +864,12 @@ try {
     Write-Host ('PID: {0}' -f $serverProcess.Id)
     Write-Host ('Server build: {0:o}' -f (Get-Item -LiteralPath $serverPath).LastWriteTimeUtc)
     Write-Host ('Logs: {0}' -f $logPath)
+    if ($BoundedObservation) {
+        Write-Host 'Bounded PM_Move observation session'
+    } else {
+        Write-Host 'Persistent manual PM_Move session'
+        Write-Host 'The server remains active until Enter or Ctrl+C.'
+    }
 
     if (-not $ServerOnly) {
         $clientArguments = New-ClientArguments `
@@ -851,7 +905,11 @@ try {
     $readTask = $null
     if ($DurationSeconds -eq 0) {
         Write-Host ''
-        Write-Host 'Press Enter to stop the server.'
+        Write-Host $(if ($BoundedObservation) {
+            'Press Enter to stop the bounded server session.'
+        } else {
+            'Press Enter to stop the persistent server session.'
+        })
         Write-Host 'Press Ctrl+C to abort and clean up.'
         $readTask = [Console]::In.ReadLineAsync()
     }
@@ -909,7 +967,12 @@ finally {
         } else {
             try {
                 $session.server_cleanup = Stop-OwnedProcess `
-                    -Process $serverProcess -Description 'server'
+                    -Process $serverProcess -Description 'server' `
+                    -ShutdownRequestPath $(if ($BoundedObservation) {
+                        ''
+                    } else {
+                        $shutdownRequestPath
+                    })
             }
             catch {
                 $session.server_cleanup = 'failed'

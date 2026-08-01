@@ -28,6 +28,90 @@ enum class GoldSrcMovementPhase
 
 std::string_view NameFor(GoldSrcMovementPhase phase) noexcept;
 
+enum class GoldSrcManualSessionPhase
+{
+    kWaitingForClient,
+    kHandshakeInProgress,
+    kSessionEstablished,
+    kPersistentManualSession,
+    kStopped,
+};
+
+std::string_view NameFor(GoldSrcManualSessionPhase phase) noexcept;
+
+struct GoldSrcManualSessionConfig final
+{
+    bool persistent = false;
+    std::uint64_t handshake_timeout_ms = 10000u;
+    std::uint64_t movement_observation_ms = 2000u;
+    std::uint64_t heartbeat_interval_ms = 30000u;
+};
+
+struct GoldSrcManualSessionEvents final
+{
+    bool handshake_timed_out = false;
+    bool movement_milestone_reached = false;
+    bool proof_completed = false;
+    bool runtime_completed = false;
+    bool heartbeat_due = false;
+};
+
+class GoldSrcManualSessionLifecycle final
+{
+public:
+    explicit GoldSrcManualSessionLifecycle(
+        GoldSrcManualSessionConfig config = {}) noexcept;
+
+    void Start(std::uint64_t now_ms) noexcept;
+    bool MarkClientAdmitted() noexcept;
+    bool MarkSessionEstablished(std::uint64_t now_ms) noexcept;
+    void RecordClcMove(std::uint64_t now_ms) noexcept;
+    void RecordMovementSnapshot() noexcept;
+    GoldSrcManualSessionEvents Advance(
+        std::uint64_t now_ms,
+        bool movement_snapshot_integrated) noexcept;
+    bool MarkClientDisconnected() noexcept;
+    void RequestShutdown() noexcept;
+
+    bool can_pump() const noexcept;
+    bool persistent() const noexcept;
+    bool movement_milestone_reached() const noexcept;
+    bool proof_complete() const noexcept;
+    bool runtime_complete() const noexcept;
+    bool shutdown_requested() const noexcept;
+    bool global_deadline_suppressed() const noexcept;
+    std::uint64_t clc_moves_after_milestone() const noexcept;
+    std::uint64_t snapshots_after_milestone() const noexcept;
+    std::uint64_t movement_milestone_count() const noexcept;
+    std::uint64_t disconnect_count() const noexcept;
+    std::uint64_t reconnect_count() const noexcept;
+    GoldSrcManualSessionPhase phase() const noexcept;
+
+private:
+    GoldSrcManualSessionConfig config_{};
+    GoldSrcManualSessionPhase phase_ =
+        GoldSrcManualSessionPhase::kWaitingForClient;
+    std::uint64_t deadline_ms_ = 0u;
+    std::uint64_t next_heartbeat_ms_ = 0u;
+    std::uint64_t first_movement_ms_ = 0u;
+    std::uint64_t movement_commands_ = 0u;
+    std::uint64_t movement_snapshots_ = 0u;
+    std::uint64_t clc_moves_after_milestone_ = 0u;
+    std::uint64_t snapshots_after_milestone_ = 0u;
+    std::uint64_t movement_milestone_count_ = 0u;
+    std::uint64_t disconnect_count_ = 0u;
+    std::uint64_t reconnect_count_ = 0u;
+    bool started_ = false;
+    bool client_admitted_ = false;
+    bool session_established_ = false;
+    bool session_ever_established_ = false;
+    bool first_movement_recorded_ = false;
+    bool movement_milestone_reached_ = false;
+    bool proof_complete_ = false;
+    bool runtime_complete_ = false;
+    bool shutdown_requested_ = false;
+};
+
 enum class GoldSrcCommandPlanStatus
 {
     kOk,

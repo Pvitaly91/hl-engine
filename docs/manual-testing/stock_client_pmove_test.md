@@ -17,10 +17,11 @@ Prerequisites:
 - Steam already authenticated when the local client requires it.
 
 The launcher never automates Steam credentials, edits the client or GameDir,
-or opens a non-loopback server. The current engine owns a bounded compatibility
-runtime rather than a persistent gameplay loop: the launcher requests the
-maximum supported 60-second PM_Move observation and five-minute handshake
-lifetime. End a normal manual movement pass before that runtime completes.
+or opens a non-loopback server. Its default manual mode is persistent: after
+the stock client establishes the session, network pumping, snapshots,
+`clc_move`, and authoritative PM_Move continue until the launcher requests a
+clean shutdown. The five-minute deadline still bounds an initial abandoned
+connection, but it does not end an established persistent session.
 
 ## Common usage
 
@@ -50,6 +51,14 @@ powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -SkipBuild
 ```
 
+Run the old proof-style 60-second bounded observation:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\run_manual_pmove_test.ps1 `
+  -BoundedObservation
+```
+
 Run a noninteractive server-only smoke test:
 
 ```powershell
@@ -74,7 +83,11 @@ map that exists in the selected GameDir. `-ServerOnly` never launches the GUI
 client. `-Fullscreen` omits the windowed width/height arguments.
 
 `-FollowServerLog` shows only incremental bounded output. `-KeepServerRunning`
-leaves the owned server process running after a successful launcher exit.
+leaves both the owned server process and its active persistent network runtime
+running after a successful launcher exit. `-DurationSeconds N` requests a
+launcher-controlled clean shutdown after N seconds; without it, press Enter or
+Ctrl+C to end the persistent session. `-BoundedObservation` restores the old
+60-second compatibility milestone behavior for proof comparison.
 `-StopClientOnExit` closes a client only when the launcher can positively
 identify the new direct `hl.exe` process; Steam and pre-existing clients are
 never stopped.
@@ -86,7 +99,7 @@ server assets may come from a separate valid `valve` directory. Advanced
 controls include `-ReadinessTimeoutSeconds`, `-WindowWidth`, `-WindowHeight`,
 `-AdditionalServerArguments`, and `-AdditionalClientArguments`. Additional
 arguments cannot replace launcher-owned networking, lifecycle, logging,
-PM_Move, connection, or window arguments.
+PM_Move, persistence, timeout, shutdown, connection, or window arguments.
 
 ## Discovery and build behavior
 
@@ -96,6 +109,11 @@ tree has no source-local `CMakePresets.json`, so the documented canonical
 build tree is configured as Visual Studio 2022 Win32 under
 `out/build/vs2022-win32-reference-sdk` when its cache is absent or invalid.
 Only the `hlhost` target is built by default.
+
+`--frames 1` remains intentional. It controls the bounded host/Game DLL
+bootstrap frame count before the host enters its separately owned GoldSrc
+network loop; it does not limit persistent UDP pumping, snapshot cadence, or
+PM_Move processing.
 
 Client discovery checks explicit parameters first, then configured Steam
 install and library folders from the Windows registry and
@@ -115,15 +133,33 @@ temporary directory in `HL-Engine\manual-pmove\<session>`. Each run writes:
 - `session-summary.txt`;
 - optional `build.log` and `ctest.log`.
 
+Persistent mode also uses a transient `shutdown.request` sentinel in the same
+external session directory. The launcher removes it after the server confirms
+shutdown, so it is not a retained session artifact.
+
 An explicit `-LogDirectory` must also be outside the repository. Metadata is
 bounded to session identity, selected endpoint, executable/version fields,
 PIDs when positively known, timing, exit codes, and cleanup results. It does
 not contain packets, credentials, environment dumps, or proprietary content.
 
 Normal exit and failure cleanup target only the exact server `Process` object
-started by the launcher. The client is left running by default. Press Enter
-to end an interactive session; Ctrl+C normally enters the same `finally`
-cleanup path supported by Windows PowerShell.
+started by the launcher. Persistent cleanup first requests host-owned runtime
+and socket shutdown, waits for the process, and uses bounded force cleanup only
+as a fallback. The client is left running by default. Press Enter to end an
+interactive session; Ctrl+C normally enters the same `finally` cleanup path
+supported by Windows PowerShell.
+
+Inspect the latest retained session without hard-coding a machine path:
+
+```powershell
+$root = Join-Path ([IO.Path]::GetTempPath()) 'HL-Engine\manual-pmove'
+$latest = Get-ChildItem -LiteralPath $root -Directory |
+  Sort-Object LastWriteTimeUtc -Descending |
+  Select-Object -First 1
+Get-Content -LiteralPath (Join-Path $latest.FullName 'session-summary.txt')
+Select-String -LiteralPath (Join-Path $latest.FullName 'server.stdout.log') `
+  -Pattern 'goldsrc_manual_session_|goldsrc_movement_milestone_'
+```
 
 ## Manual movement checklist
 
@@ -137,8 +173,8 @@ cleanup path supported by Windows PowerShell.
 7. Hold and release Ctrl. Verify duck/unduck view and hull changes.
 8. Walk into a wall. Static BSP collision should block penetration.
 9. Under a low ceiling, a blocked unduck should keep the player crouched.
-10. Move for at least 30 seconds. There should be no repeated snap-back or
-    disconnect during the bounded observation.
+10. Move before and after 60 seconds, then remain connected past 120 seconds.
+    There should be no repeated snap-back, stalled snapshots, or timeout.
 
 Reconnect checklist: open the client console, run `disconnect`, then
 `connect 127.0.0.1:<printed-port>` while the server is still active. Verify a
@@ -148,7 +184,9 @@ fresh player state with no reused position or velocity.
 
 This checkpoint does not implement weapons or firing, damage, item pickup,
 moving platforms, ladders, complete water movement, player-to-player
-collision, multiplayer combat, or a persistent post-bootstrap gameplay loop.
+collision, or multiplayer combat. Persistent manual mode keeps the implemented
+post-bootstrap network and PM_Move slice active; it does not imply those
+unimplemented gameplay systems are complete.
 
 ## Troubleshooting
 
@@ -160,6 +198,11 @@ collision, multiplayer combat, or a persistent post-bootstrap gameplay loop.
   automatic selection. The launcher never terminates the current owner.
 - If readiness fails, inspect the last bounded terminal excerpt and the
   external `server.stdout.log` / `server.stderr.log` files.
+- If a real client timeout occurs, confirm `goldsrc_manual_session_started`,
+  `goldsrc_movement_milestone_reached`, and later
+  `goldsrc_manual_session_still_active` markers are present. A milestone
+  without a later active marker indicates that the persistent runtime did not
+  remain established.
 - If an old Debug binary is selected with `-SkipBuild`, build once without
   `-SkipBuild` or use the current Release configuration explicitly.
 - If Steam redirects the direct launch, the launcher may be unable to prove

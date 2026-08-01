@@ -6716,6 +6716,15 @@ struct GoldSrcUdpHandshakeSummary
     bool player_lifecycle_negative_proof = false;
     bool pmove_enabled = false;
     bool pmove_negative_proof = false;
+    bool pmove_persistent = false;
+    bool manual_session_started = false;
+    bool movement_milestone_reached = false;
+    bool manual_session_active = false;
+    bool manual_session_shutdown = false;
+    int manual_session_heartbeats = 0;
+    int manual_session_disconnects = 0;
+    int manual_session_reconnects = 0;
+    std::string manual_session_phase = "disabled";
     bool command_execution_contract_verified = false;
     bool command_replay_contract_verified = false;
     bool game_dll_movement_callback_order_verified = false;
@@ -6733,6 +6742,7 @@ struct GoldSrcUdpHandshakeSummary
     bool pmove_context_builder_implemented = false;
     bool pmove_execution_implemented = false;
     int pmove_calls = 0;
+    int pmove_player_trace_calls = 0;
     int movement_commands_received = 0;
     int movement_commands_executed = 0;
     int backup_commands_replayed = 0;
@@ -22957,7 +22967,9 @@ struct HlServerModuleInitOptions
     bool goldsrc_player_lifecycle_negative_proof = false;
     bool goldsrc_pmove_enabled = false;
     bool goldsrc_pmove_negative_proof = false;
+    bool goldsrc_pmove_persistent = false;
     int goldsrc_pmove_observation_ms = 2000;
+    std::optional<std::filesystem::path> goldsrc_manual_shutdown_file;
     float goldsrc_snapshot_rate_hz = 20.0f;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;

@@ -129,6 +129,103 @@ int main()
     using namespace hl::game_api::detail;
 
     {
+        GoldSrcManualSessionConfig config;
+        config.persistent = false;
+        config.handshake_timeout_ms = 300000u;
+        config.movement_observation_ms = 60000u;
+        GoldSrcManualSessionLifecycle bounded(config);
+        bounded.Start(0u);
+        assert(!bounded.persistent());
+        assert(!bounded.MarkClientAdmitted());
+        assert(bounded.MarkSessionEstablished(10u));
+        bounded.RecordClcMove(1000u);
+        bounded.RecordMovementSnapshot();
+        bounded.RecordMovementSnapshot();
+        bounded.RecordMovementSnapshot();
+        assert(!bounded.Advance(60999u, true).movement_milestone_reached);
+        const auto completed = bounded.Advance(61000u, true);
+        assert(completed.movement_milestone_reached);
+        assert(completed.proof_completed);
+        assert(completed.runtime_completed);
+        assert(bounded.movement_milestone_reached());
+        assert(bounded.proof_complete());
+        assert(bounded.runtime_complete());
+        assert(!bounded.can_pump());
+    }
+
+    {
+        GoldSrcManualSessionConfig config;
+        config.persistent = true;
+        config.handshake_timeout_ms = 300000u;
+        config.movement_observation_ms = 60000u;
+        config.heartbeat_interval_ms = 30000u;
+        GoldSrcManualSessionLifecycle persistent(config);
+        persistent.Start(0u);
+        assert(persistent.persistent());
+        assert(!persistent.MarkClientAdmitted());
+        assert(persistent.MarkSessionEstablished(10u));
+        persistent.RecordClcMove(1000u);
+        persistent.RecordMovementSnapshot();
+        persistent.RecordMovementSnapshot();
+        persistent.RecordMovementSnapshot();
+        const auto milestone = persistent.Advance(61000u, true);
+        assert(milestone.movement_milestone_reached);
+        assert(milestone.proof_completed);
+        assert(!milestone.runtime_completed);
+        assert(milestone.heartbeat_due);
+        assert(persistent.can_pump());
+        assert(persistent.global_deadline_suppressed());
+
+        persistent.RecordClcMove(61001u);
+        persistent.RecordMovementSnapshot();
+        const auto after_deadline = persistent.Advance(600000u, true);
+        assert(!after_deadline.handshake_timed_out);
+        assert(!after_deadline.runtime_completed);
+        assert(after_deadline.heartbeat_due);
+        assert(!persistent.Advance(600000u, true).heartbeat_due);
+        assert(persistent.clc_moves_after_milestone() == 1u);
+        assert(persistent.snapshots_after_milestone() == 1u);
+        assert(persistent.can_pump());
+
+        assert(persistent.MarkClientDisconnected());
+        assert(persistent.disconnect_count() == 1u);
+        assert(persistent.global_deadline_suppressed());
+        assert(persistent.MarkClientAdmitted());
+        assert(persistent.reconnect_count() == 1u);
+        assert(persistent.MarkSessionEstablished(600010u));
+        persistent.RecordClcMove(600020u);
+        persistent.RecordMovementSnapshot();
+        persistent.RecordMovementSnapshot();
+        persistent.RecordMovementSnapshot();
+        assert(
+            persistent.Advance(660020u, true)
+                .movement_milestone_reached);
+        assert(persistent.movement_milestone_count() == 2u);
+        assert(persistent.can_pump());
+
+        persistent.RequestShutdown();
+        assert(persistent.shutdown_requested());
+        assert(persistent.runtime_complete());
+        assert(!persistent.can_pump());
+        assert(
+            persistent.phase()
+            == GoldSrcManualSessionPhase::kStopped);
+    }
+
+    {
+        GoldSrcManualSessionConfig config;
+        config.persistent = true;
+        config.handshake_timeout_ms = 300000u;
+        GoldSrcManualSessionLifecycle unconnected(config);
+        unconnected.Start(0u);
+        const auto timeout = unconnected.Advance(300000u, false);
+        assert(timeout.handshake_timed_out);
+        assert(timeout.runtime_completed);
+        assert(!unconnected.global_deadline_suppressed());
+        assert(!unconnected.can_pump());
+    }
+
+    {
         const auto split = SplitGoldSrcPmoveCommand(255u);
         assert(split.valid);
         assert(split.count == 6u);

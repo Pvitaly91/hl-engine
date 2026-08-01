@@ -53,9 +53,18 @@ public:
               options.goldsrc_player_lifecycle_negative_proof),
           pmove_enabled_(options.goldsrc_pmove_enabled),
           pmove_negative_proof_(options.goldsrc_pmove_negative_proof),
+          pmove_persistent_(options.goldsrc_pmove_persistent),
           pmove_observation_seconds_(
               static_cast<double>(options.goldsrc_pmove_observation_ms)
               / 1000.0),
+          manual_shutdown_file_(options.goldsrc_manual_shutdown_file),
+          manual_session_lifecycle_({
+              options.goldsrc_pmove_persistent,
+              static_cast<std::uint64_t>(
+                  options.goldsrc_handshake_timeout_ms),
+              static_cast<std::uint64_t>(
+                  options.goldsrc_pmove_observation_ms),
+              30000u}),
           snapshot_rate_hz_(options.goldsrc_snapshot_rate_hz),
           dedicated_runtime_(
               options.runtime_mode == hl::game_api::ServerRuntimeMode::kDedicated)
@@ -83,6 +92,9 @@ public:
         summary_.first_snapshot_enabled = first_snapshot_enabled_;
         summary_.pmove_enabled = pmove_enabled_;
         summary_.pmove_negative_proof = pmove_negative_proof_;
+        summary_.pmove_persistent = pmove_persistent_;
+        summary_.manual_session_phase =
+            pmove_persistent_ ? "waiting_for_client" : "disabled";
         summary_.gameplay_active = false;
         if (pmove_enabled_)
         {
@@ -222,6 +234,29 @@ public:
         {
             return FailBind("pmove-negative-proof-requires-pmove");
         }
+        if (pmove_persistent_ && !pmove_enabled_)
+        {
+            return FailBind("pmove-persistent-requires-pmove");
+        }
+        if (pmove_persistent_ && pmove_negative_proof_)
+        {
+            return FailBind("pmove-persistent-conflicts-with-negative-proof");
+        }
+        if (manual_shutdown_file_.has_value() && !pmove_persistent_)
+        {
+            return FailBind("manual-shutdown-file-requires-persistent-pmove");
+        }
+        if (manual_shutdown_file_.has_value())
+        {
+            std::error_code shutdown_file_error;
+            if (std::filesystem::exists(
+                    *manual_shutdown_file_,
+                    shutdown_file_error)
+                || shutdown_file_error)
+            {
+                return FailBind("manual-shutdown-file-not-ready");
+            }
+        }
         lifecycle_edict_registry_.Reset(
             static_cast<std::uint16_t>(state_.server_state.maxclients));
         if (pmove_enabled_)
@@ -312,6 +347,18 @@ public:
         summary_.ready = true;
         summary_.bound_port = static_cast<int>(socket_.LocalEndpoint().port);
         started_ = true;
+        if (pmove_persistent_)
+        {
+            manual_session_lifecycle_.Start(MonotonicMilliseconds(
+                std::chrono::steady_clock::now()));
+            SyncManualSessionSummary();
+            summary_.manual_session_started = true;
+            summary_.manual_session_active = true;
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_manual_session_started: mode=persistent"
+                ",phase=waiting_for_client,runtime_active=1");
+        }
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
             "goldsrc_udp_ready: address=" + bind_address_
@@ -334,6 +381,10 @@ public:
         }
 
         const auto frame_time = std::chrono::steady_clock::now();
+        if (CheckManualShutdownRequest(frame_time))
+        {
+            return !transport_failed_;
+        }
         if (!network_server_clock_started_)
         {
             network_server_clock_started_ = true;
@@ -355,7 +406,10 @@ public:
             deadline_ = frame_time + std::chrono::milliseconds(timeout_ms_);
             deadline_started_ = true;
         }
-        if (frame_time >= deadline_)
+        if (frame_time >= deadline_
+            && !(pmove_persistent_
+                && manual_session_lifecycle_
+                    .global_deadline_suppressed()))
         {
             MarkTimeout();
             return true;
@@ -520,22 +574,31 @@ public:
                     return false;
                 }
                 if (slot_state->goldsrc_player_lifecycle.signon_complete()
-                    && pmove_enabled_
-                    && first_movement_server_time_.has_value()
-                    && network_server_time_
-                            - *first_movement_server_time_
-                        >= pmove_observation_seconds_
-                    && summary_.movement_executed
-                    && summary_.movement_snapshot_integration
-                    && summary_.movement_snapshots_sent >= 3)
+                    && pmove_enabled_)
                 {
-                    summary_.continuous_snapshot_stable = true;
-                    summary_.server_still_responsive = true;
-                    summary_.next_observed_boundary =
-                        "two_client_player_replication_required";
-                    summary_.previous_player_lifecycle_boundary_resolved =
-                        true;
-                    complete_ = true;
+                    if (pmove_persistent_)
+                    {
+                        ProcessManualSessionEvents(
+                            manual_session_lifecycle_.Advance(
+                                MonotonicMilliseconds(frame_time),
+                                summary_.movement_snapshot_integration));
+                    }
+                    else if (first_movement_server_time_.has_value()
+                        && network_server_time_
+                                - *first_movement_server_time_
+                            >= pmove_observation_seconds_
+                        && summary_.movement_executed
+                        && summary_.movement_snapshot_integration
+                        && summary_.movement_snapshots_sent >= 3)
+                    {
+                        summary_.continuous_snapshot_stable = true;
+                        summary_.server_still_responsive = true;
+                        summary_.next_observed_boundary =
+                            "two_client_player_replication_required";
+                        summary_.previous_player_lifecycle_boundary_resolved =
+                            true;
+                        complete_ = true;
+                    }
                 }
                 else if (slot_state->goldsrc_player_lifecycle.signon_complete()
                     && !pmove_enabled_
@@ -572,7 +635,10 @@ public:
             }
         }
 
-        if (!complete_ && std::chrono::steady_clock::now() >= deadline_)
+        if (!complete_ && std::chrono::steady_clock::now() >= deadline_
+            && !(pmove_persistent_
+                && manual_session_lifecycle_
+                    .global_deadline_suppressed()))
         {
             MarkTimeout();
         }
@@ -586,6 +652,12 @@ public:
 
     bool Succeeded() const noexcept
     {
+        if (pmove_persistent_
+            && manual_session_lifecycle_.shutdown_requested())
+        {
+            return complete_ && !transport_failed_
+                && summary_.ready && summary_.clean_shutdown;
+        }
         const int expected_accept_count =
             summary_.delta_slot_resets > 0 ? 2 : 1;
         const bool handshake_succeeded = complete_
@@ -941,6 +1013,20 @@ public:
                 }
                 ApplyDedicatedClientDisconnect(state_, *slot_state);
             }
+        }
+        if (pmove_persistent_)
+        {
+            if (manual_session_lifecycle_.MarkClientDisconnected())
+            {
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_client_disconnected: mode=persistent"
+                    ",reason=host_shutdown,reconnect_ready=0");
+            }
+            manual_session_lifecycle_.RequestShutdown();
+            complete_ = true;
+            SyncManualSessionSummary();
+            LogManualSessionShutdown("process_shutdown");
         }
         const bool was_open = socket_.IsOpen();
         socket_.Close();
@@ -1715,6 +1801,8 @@ public:
                     + std::to_string(summary_.pm_init_call_count)
                     + ",pm_move_calls="
                     + std::to_string(summary_.pmove_calls)
+                    + ",player_trace_calls="
+                    + std::to_string(summary_.pmove_player_trace_calls)
                     + ",commands_received="
                     + std::to_string(summary_.movement_commands_received)
                     + ",commands_executed="
@@ -1768,6 +1856,28 @@ public:
                     + ",grounding="
                     + std::string(
                         summary_.stock_grounding ? "true" : "false")
+                    + ",persistent="
+                    + std::string(pmove_persistent_ ? "true" : "false")
+                    + ",movement_milestone="
+                    + std::string(
+                        summary_.movement_milestone_reached
+                            ? "true" : "false")
+                    + ",manual_session_phase="
+                    + summary_.manual_session_phase
+                    + ",manual_session_heartbeats="
+                    + std::to_string(summary_.manual_session_heartbeats)
+                    + ",manual_session_disconnects="
+                    + std::to_string(summary_.manual_session_disconnects)
+                    + ",manual_session_reconnects="
+                    + std::to_string(summary_.manual_session_reconnects)
+                    + ",clc_moves_after_milestone="
+                    + std::to_string(
+                        manual_session_lifecycle_
+                            .clc_moves_after_milestone())
+                    + ",snapshots_after_milestone="
+                    + std::to_string(
+                        manual_session_lifecycle_
+                            .snapshots_after_milestone())
                     + ",next_boundary="
                     + summary_.next_observed_boundary
                     + ",gameplay_active=false,clean_shutdown=1");
@@ -1873,6 +1983,131 @@ public:
     }
 
 private:
+    static std::uint64_t MonotonicMilliseconds(
+        std::chrono::steady_clock::time_point value) noexcept
+    {
+        const auto count = std::chrono::duration_cast<std::chrono::milliseconds>(
+            value.time_since_epoch()).count();
+        return count > 0 ? static_cast<std::uint64_t>(count) : 0u;
+    }
+
+    void SyncManualSessionSummary() noexcept
+    {
+        if (!pmove_persistent_)
+        {
+            return;
+        }
+        summary_.manual_session_phase = std::string(
+            hl::network::NameFor(manual_session_lifecycle_.phase()));
+        summary_.movement_milestone_reached =
+            manual_session_lifecycle_.proof_complete();
+        summary_.manual_session_active =
+            manual_session_lifecycle_.can_pump();
+        summary_.manual_session_disconnects = static_cast<int>(
+            manual_session_lifecycle_.disconnect_count());
+        summary_.manual_session_reconnects = static_cast<int>(
+            manual_session_lifecycle_.reconnect_count());
+    }
+
+    void LogManualSessionShutdown(std::string_view reason) noexcept
+    {
+        if (!pmove_persistent_ || manual_session_shutdown_logged_)
+        {
+            return;
+        }
+        manual_session_shutdown_logged_ = true;
+        summary_.manual_session_shutdown = true;
+        summary_.manual_session_active = false;
+        summary_.manual_session_phase = "stopped";
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_manual_session_shutdown: reason="
+                + std::string(reason)
+                + ",movement_milestone="
+                + std::string(
+                    summary_.movement_milestone_reached ? "1" : "0")
+                + ",clean_runtime_stop=1");
+    }
+
+    bool CheckManualShutdownRequest(
+        std::chrono::steady_clock::time_point frame_time)
+    {
+        if (!pmove_persistent_ || !manual_shutdown_file_.has_value()
+            || frame_time < next_manual_shutdown_probe_time_)
+        {
+            return false;
+        }
+        next_manual_shutdown_probe_time_ =
+            frame_time + std::chrono::milliseconds(100);
+        std::error_code shutdown_file_error;
+        const bool requested = std::filesystem::exists(
+            *manual_shutdown_file_,
+            shutdown_file_error);
+        if (shutdown_file_error)
+        {
+            return !FailTransport(
+                "manual-shutdown-file-check-failed",
+                "goldsrc_manual_session_failed: reason=shutdown-file-check");
+        }
+        if (!requested)
+        {
+            return false;
+        }
+        manual_session_lifecycle_.RequestShutdown();
+        SyncManualSessionSummary();
+        LogManualSessionShutdown("launcher_request");
+        complete_ = true;
+        return true;
+    }
+
+    void ProcessManualSessionEvents(
+        const hl::network::GoldSrcManualSessionEvents& events)
+    {
+        if (!pmove_persistent_)
+        {
+            return;
+        }
+        if (events.movement_milestone_reached)
+        {
+            summary_.continuous_snapshot_stable = true;
+            summary_.server_still_responsive = true;
+            summary_.next_observed_boundary =
+                "persistent_manual_session_active";
+            summary_.previous_player_lifecycle_boundary_resolved = true;
+            SyncManualSessionSummary();
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_movement_milestone_reached: mode=persistent"
+                ",milestone_count="
+                    + std::to_string(
+                        manual_session_lifecycle_
+                            .movement_milestone_count())
+                    + ",commands_executed="
+                    + std::to_string(summary_.movement_commands_executed)
+                    + ",movement_snapshots="
+                    + std::to_string(summary_.movement_snapshots_sent)
+                    + ",runtime_active=1");
+        }
+        if (events.heartbeat_due)
+        {
+            ++summary_.manual_session_heartbeats;
+            SyncManualSessionSummary();
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_manual_session_still_active: phase="
+                    + summary_.manual_session_phase
+                    + ",heartbeat="
+                    + std::to_string(summary_.manual_session_heartbeats)
+                    + ",clc_move_delivered="
+                    + std::to_string(summary_.clc_move_delivered)
+                    + ",continuous_snapshots_sent="
+                    + std::to_string(summary_.continuous_snapshots_sent)
+                    + ",movement_milestone="
+                    + std::string(
+                        summary_.movement_milestone_reached ? "1" : "0"));
+        }
+    }
+
     static bool ShouldLogDiagnosticSample(std::uint64_t count) noexcept
     {
         // Preserve the first few diagnostics, then sample at powers of two.
@@ -4828,6 +5063,8 @@ private:
         summary_.pm_init_call_count =
             static_cast<int>(runtime.pm_init_calls);
         summary_.pmove_calls = static_cast<int>(runtime.pm_move_calls);
+        summary_.pmove_player_trace_calls = static_cast<int>(
+            runtime.player_trace_calls);
         summary_.movement_rollbacks =
             static_cast<int>(runtime.movement_rollbacks);
         summary_.movement_snapshots_sent =
@@ -4927,6 +5164,11 @@ private:
         }
         if (executed.commands_executed > 0u)
         {
+            if (pmove_persistent_)
+            {
+                manual_session_lifecycle_.RecordClcMove(
+                    MonotonicMilliseconds(last_network_host_frame_time_));
+            }
             summary_.stock_forward_input =
                 summary_.stock_forward_input || forward_requested;
             summary_.stock_backward_input =
@@ -5614,6 +5856,14 @@ private:
                             summary_.next_observed_boundary =
                                 "movement_execution_required";
                             SyncPlayerLifecycleSummary(slot_state);
+                            if (pmove_persistent_)
+                            {
+                                manual_session_lifecycle_
+                                    .MarkSessionEstablished(
+                                        MonotonicMilliseconds(
+                                            last_network_host_frame_time_));
+                                SyncManualSessionSummary();
+                            }
                         }
                     }
                     summary_.server_still_responsive = true;
@@ -5930,6 +6180,15 @@ private:
             summary_.put_in_server = false;
             summary_.spawned = false;
             summary_.active = false;
+            if (pmove_persistent_
+                && manual_session_lifecycle_.MarkClientDisconnected())
+            {
+                SyncManualSessionSummary();
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_client_disconnected: mode=persistent"
+                    ",reason=client_command,reconnect_ready=1");
+            }
             SyncNetchanSummary(slot_state);
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
@@ -6674,6 +6933,10 @@ private:
             {
                 pmove_runtime_.RecordMovementSnapshot(
                     static_cast<std::size_t>(slot_state.slot));
+                if (pmove_persistent_)
+                {
+                    manual_session_lifecycle_.RecordMovementSnapshot();
+                }
                 summary_.movement_snapshot_integration = true;
                 SyncPmoveSummary(
                     static_cast<std::size_t>(slot_state.slot));
@@ -7550,6 +7813,19 @@ private:
         summary_.allocated_slot = slot_state->slot;
         summary_.session_id = slot_state->session_id;
         admitted_session_id_ = slot_state->session_id;
+        if (pmove_persistent_)
+        {
+            const bool reconnected =
+                manual_session_lifecycle_.MarkClientAdmitted();
+            SyncManualSessionSummary();
+            if (reconnected)
+            {
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_client_reconnected: mode=persistent"
+                    ",phase=handshake_in_progress");
+            }
+        }
         summary_.remote_endpoint = slot_state->remote_endpoint;
         summary_.final_state =
             DedicatedPlayerLifecycleStateName(slot_state->lifecycle_state);
@@ -7680,7 +7956,10 @@ private:
     bool player_lifecycle_negative_proof_ = false;
     bool pmove_enabled_ = false;
     bool pmove_negative_proof_ = false;
+    bool pmove_persistent_ = false;
     double pmove_observation_seconds_ = 2.0;
+    std::optional<std::filesystem::path> manual_shutdown_file_;
+    hl::network::GoldSrcManualSessionLifecycle manual_session_lifecycle_;
     hl::game_api::detail::GoldSrcPmoveRuntime pmove_runtime_;
     hl::network::GoldSrcClientEdictRegistry lifecycle_edict_registry_;
     double snapshot_rate_hz_ =
@@ -7696,6 +7975,7 @@ private:
     std::array<std::uint8_t, hl::network::kGoldSrcMaximumDatagramBytes> buffer_{};
     std::chrono::steady_clock::time_point deadline_{};
     std::chrono::steady_clock::time_point last_network_host_frame_time_{};
+    std::chrono::steady_clock::time_point next_manual_shutdown_probe_time_{};
     bool network_server_clock_started_ = false;
     double network_server_time_ = 0.0;
     std::optional<double> continuous_snapshot_started_server_time_;
@@ -7718,6 +7998,7 @@ private:
     bool transport_failed_ = false;
     bool accepted_ = false;
     bool shutdown_ = false;
+    bool manual_session_shutdown_logged_ = false;
     bool awaiting_fresh_session_after_delta_reset_ = false;
     int delta_reset_slot_ = 0;
 };

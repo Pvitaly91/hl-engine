@@ -60,7 +60,9 @@ struct LaunchOptions
     bool goldsrc_player_lifecycle_negative_proof = false;
     bool goldsrc_pmove_enabled = false;
     bool goldsrc_pmove_negative_proof = false;
+    bool goldsrc_pmove_persistent = false;
     int goldsrc_pmove_observation_ms = 2000;
+    std::optional<std::filesystem::path> goldsrc_manual_shutdown_file;
     float goldsrc_snapshot_rate_hz = 20.0f;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;
