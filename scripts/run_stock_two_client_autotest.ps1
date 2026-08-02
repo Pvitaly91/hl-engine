@@ -196,8 +196,21 @@ function Invoke-QuietNative {
         [string]$OutputPath,
         [string]$Description)
 
-    & $Executable @Arguments *> $OutputPath
-    if ($LASTEXITCODE -ne 0) {
+    # Windows PowerShell 5.1 can promote a native process' stderr output to a
+    # terminating NativeCommandError when the script-wide preference is Stop.
+    # CMake writes non-fatal diagnostics to stderr, so keep native execution
+    # non-terminating here and use its exit code as the authoritative result.
+    $previousErrorActionPreference = $ErrorActionPreference
+    $nativeExitCode = $null
+    try {
+        $ErrorActionPreference = 'Continue'
+        & $Executable @Arguments *> $OutputPath
+        $nativeExitCode = $LASTEXITCODE
+    }
+    finally {
+        $ErrorActionPreference = $previousErrorActionPreference
+    }
+    if ($nativeExitCode -ne 0) {
         throw ('{0}_failed' -f $Description)
     }
 }
@@ -1130,6 +1143,7 @@ $result = [ordered]@{
     client_b_cleanup = 'not_started'
     reconnect_client_cleanup = 'not_started'
     process_leak = $false
+    preflight_stage = 'not_started'
     blocker = 'none'
 }
 
@@ -1144,7 +1158,9 @@ $inspectOnlyPassed = $false
 $clientBPreexistingIds = @()
 
 try {
+    $result.preflight_stage = 'self_tests'
     $selfTests = Invoke-LauncherSelfTests
+    $result.preflight_stage = 'cmake_resolution'
     $cmake = Resolve-CMakeExecutable
     if (-not [string]::IsNullOrWhiteSpace($HandleExecutablePath) -and
         -not (Test-Path -LiteralPath $HandleExecutablePath -PathType Leaf)) {
@@ -1154,6 +1170,7 @@ try {
         $MultiInstanceMode -ceq 'MutexUnlock' -or
         ($MultiInstanceMode -ceq 'Auto' -and
          -not $DisableLauncherMutexFallback)
+    $result.preflight_stage = 'unlocker_resolution'
     $unlockerPath = if ($needsUnlocker) {
         Resolve-InstanceUnlocker -RequestedPath $InstanceUnlockerPath `
             -RepositoryRoot $repositoryRoot -CMakeExecutable $cmake `
@@ -1168,6 +1185,7 @@ try {
     $canonicalTreeValid = Test-CanonicalBuildTree `
         -BuildDirectory $buildDirectory -RepositoryRoot $repositoryRoot
 
+    $result.preflight_stage = 'client_resolution'
     $requestedA = if (-not [string]::IsNullOrWhiteSpace(
             $ClientAExecutablePath)) {
         $ClientAExecutablePath
@@ -1192,6 +1210,7 @@ try {
         throw 'server_port_unavailable'
     }
     $result.server_port = $selectedPort
+    $result.preflight_stage = 'server_resolution'
     $serverPath = Resolve-HlhostExecutable `
         -RequestedPath $ServerExecutablePath -RepositoryRoot $repositoryRoot `
         -BuildDirectory $buildDirectory -BuildConfiguration $Configuration
@@ -1257,6 +1276,7 @@ try {
         [System.IO.File]::WriteAllText($stdoutPath, '')
         [System.IO.File]::WriteAllText($stderrPath, '')
         if (-not $SkipBuild) {
+            $result.preflight_stage = 'server_build'
             if (-not $canonicalTreeValid) {
                 Invoke-QuietNative -Executable $cmake -Arguments @(
                     '-S', $repositoryRoot, '-B', $buildDirectory,
@@ -1269,12 +1289,14 @@ try {
                 -OutputPath $buildLogPath -Description 'build'
         }
         if ($RunTests) {
+            $result.preflight_stage = 'tests'
             Invoke-QuietNative -Executable $ctest -Arguments @(
                 '--test-dir', $buildDirectory, '-C', $Configuration,
                 '--output-on-failure') `
                 -OutputPath $testLogPath -Description 'ctest'
         }
 
+        $result.preflight_stage = 'complete'
         $serverProcess = Start-Process -FilePath $serverPath `
             -ArgumentList $serverArguments `
             -WorkingDirectory (Split-Path -Parent $serverPath) `
@@ -1702,6 +1724,10 @@ catch {
     $result.status = 'fail'
     $result.blocker = Convert-FailureIdentifier `
         -Message $_.Exception.Message
+    if ($result.blocker -ceq 'stock_two_client_autotest_failed' -and
+        $result.preflight_stage -cne 'complete') {
+        $result.blocker = 'preflight_{0}_failed' -f $result.preflight_stage
+    }
     if ($result.blocker.EndsWith('_single_instance_dialog',
             [StringComparison]::Ordinal)) {
         $result.last_stock_error_single_instance_dialog = $true
