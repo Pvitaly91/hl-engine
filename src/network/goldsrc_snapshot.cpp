@@ -645,24 +645,62 @@ GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
     {
         return GoldSrcPlayerSnapshotApplyStatus::kInvalidClientData;
     }
-    const auto insertion = std::lower_bound(
-        frame->entities.begin(),
-        frame->entities.end(),
-        player.entity.entity_index,
-        [](const GoldSrcSnapshotEntityState& entity, std::uint16_t index)
+    const auto insert_player =
+        [frame, maximum_clients](
+            const GoldSrcSnapshotEntityState& candidate)
+            -> GoldSrcPlayerSnapshotApplyStatus
         {
-            return entity.entity_index < index;
-        });
-    if (insertion != frame->entities.end()
-        && insertion->entity_index == player.entity.entity_index)
+            if (candidate.entity_index == 0u
+                || candidate.entity_index > maximum_clients)
+            {
+                return GoldSrcPlayerSnapshotApplyStatus::kInvalidEntityIndex;
+            }
+            if (candidate.kind != GoldSrcBaselineKind::kPlayer)
+            {
+                return GoldSrcPlayerSnapshotApplyStatus::kWrongEntityKind;
+            }
+            if (candidate.state.field_count == 0u
+                || !DeltaRecordFinite(candidate.state))
+            {
+                return GoldSrcPlayerSnapshotApplyStatus::kInvalidPlayerState;
+            }
+            const auto insertion = std::lower_bound(
+                frame->entities.begin(),
+                frame->entities.end(),
+                candidate.entity_index,
+                [](const GoldSrcSnapshotEntityState& entity,
+                   std::uint16_t index)
+                {
+                    return entity.entity_index < index;
+                });
+            if (insertion != frame->entities.end()
+                && insertion->entity_index == candidate.entity_index)
+            {
+                return GoldSrcPlayerSnapshotApplyStatus::kDuplicateEntity;
+            }
+            if (frame->entities.size() >= kGoldSrcMaximumSnapshotEntities)
+            {
+                return GoldSrcPlayerSnapshotApplyStatus::
+                    kEntityCountExceeded;
+            }
+            frame->entities.insert(insertion, candidate);
+            return GoldSrcPlayerSnapshotApplyStatus::kApplied;
+        };
+    const GoldSrcPlayerSnapshotApplyStatus local_applied =
+        insert_player(player.entity);
+    if (local_applied != GoldSrcPlayerSnapshotApplyStatus::kApplied)
     {
-        return GoldSrcPlayerSnapshotApplyStatus::kDuplicateEntity;
+        return local_applied;
     }
-    if (frame->entities.size() >= kGoldSrcMaximumSnapshotEntities)
+    for (const GoldSrcSnapshotEntityState& remote : player.remote_entities)
     {
-        return GoldSrcPlayerSnapshotApplyStatus::kEntityCountExceeded;
+        const GoldSrcPlayerSnapshotApplyStatus remote_applied =
+            insert_player(remote);
+        if (remote_applied != GoldSrcPlayerSnapshotApplyStatus::kApplied)
+        {
+            return remote_applied;
+        }
     }
-    frame->entities.insert(insertion, player.entity);
     frame->clientdata = player.clientdata;
     return GoldSrcPlayerSnapshotApplyStatus::kApplied;
 }

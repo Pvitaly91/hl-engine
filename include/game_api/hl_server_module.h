@@ -6670,9 +6670,61 @@ struct DedicatedConnectProbeSummary
     std::string detail;
 };
 
+struct GoldSrcClientReplicationSummary
+{
+    int slot = 0;
+    int edict = 0;
+    int admission_count = 0;
+    int disconnect_count = 0;
+    int reconnect_count = 0;
+    bool connected = false;
+    bool put_in_server = false;
+    bool spawned = false;
+    bool signon_complete = false;
+    bool private_data_ready = false;
+    bool frame_history_independent = false;
+    bool delta_base_independent = false;
+    bool command_clock_independent = false;
+    bool pmove_state_independent = false;
+    std::string signon_phase = "none";
+    std::uint64_t snapshots_sent = 0u;
+    std::uint64_t frames_acknowledged = 0u;
+    std::uint64_t pmove_calls = 0u;
+    std::uint64_t remote_player_adds = 0u;
+    std::uint64_t remote_player_updates = 0u;
+    std::uint64_t remote_player_removes = 0u;
+    std::uint64_t remote_player_readds = 0u;
+    std::uint64_t remote_origin_discontinuities = 0u;
+    std::uint64_t remote_snapshot_update_gaps = 0u;
+    int maximum_remote_snapshot_gap_ms = 0;
+    bool survived_other_disconnect = false;
+    bool slot_reuse_clean = false;
+};
+
 struct GoldSrcUdpHandshakeSummary
 {
     bool enabled = false;
+    int max_clients = 0;
+    int connected_client_count = 0;
+    bool multi_client_routing_implemented = false;
+    bool two_client_admission_implemented = false;
+    bool per_client_signon_state = false;
+    bool per_client_frame_history = false;
+    bool per_client_delta_base = false;
+    bool per_client_command_clock = false;
+    bool per_client_pmove_state = false;
+    bool two_distinct_edicts = false;
+    bool two_distinct_private_data = false;
+    bool mutual_player_visibility = false;
+    bool remote_player_movement_smooth = false;
+    bool simultaneous_movement = false;
+    bool disconnect_isolation = false;
+    bool reconnect_slot_reuse = false;
+    bool cross_client_state_leak = false;
+    std::string two_client_visibility_policy = "disabled";
+    std::string multi_client_receive_policy = "disabled";
+    std::string multi_client_send_policy = "disabled";
+    std::vector<GoldSrcClientReplicationSummary> client_replication;
     bool ready = false;
     bool clean_shutdown = false;
     bool timed_out = false;
@@ -22994,6 +23046,7 @@ struct HlServerModuleInitOptions
     bool goldsrc_pmove_persistent = false;
     int goldsrc_pmove_observation_ms = 2000;
     std::optional<std::filesystem::path> goldsrc_manual_shutdown_file;
+    std::optional<std::filesystem::path> goldsrc_manual_disconnect_file;
     float goldsrc_snapshot_rate_hz = 20.0f;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;

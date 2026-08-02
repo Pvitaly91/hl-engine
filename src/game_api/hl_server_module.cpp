@@ -445,6 +445,15 @@ enum class DedicatedPlayerLifecycleState
     kDisconnected,
 };
 
+struct GoldSrcRemotePlayerObservation
+{
+    int slot = 0;
+    std::string session_id;
+    Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    double server_time = 0.0;
+    bool visible = false;
+};
+
 struct DedicatedPlayerRuntimeSlot
 {
     int slot = 0;
@@ -487,6 +496,21 @@ struct DedicatedPlayerRuntimeSlot
         hl::network::kGoldSrcMaximumResourceManifestBytes>
         goldsrc_resource_manifest_response{};
     std::size_t goldsrc_resource_manifest_response_size = 0;
+    std::optional<double> goldsrc_continuous_snapshot_started_server_time;
+    std::optional<double> goldsrc_first_movement_server_time;
+    std::optional<std::uint32_t> goldsrc_last_counted_acknowledged_frame;
+    std::optional<std::uint32_t> goldsrc_last_movement_commit_packet_sequence;
+    int goldsrc_last_movement_commit_host_frame = 0;
+    int goldsrc_last_observed_move_execution_gap_ms = 0;
+    int goldsrc_last_reported_clock_resynchronizations = 0;
+    int goldsrc_last_observed_snapshot_gap_ms = 0;
+    bool goldsrc_negative_advance_pending = false;
+    std::uint64_t goldsrc_continuous_snapshots_sent = 0u;
+    std::uint64_t goldsrc_frames_acknowledged = 0u;
+    std::uint64_t goldsrc_distinct_frame_references = 0u;
+    std::uint64_t goldsrc_pmove_calls = 0u;
+    std::vector<GoldSrcRemotePlayerObservation>
+        goldsrc_remote_player_observations;
     bool external_loopback_admission = false;
     bool signon_ready = false;
     bool bootstrap_delivered = false;
@@ -257952,6 +257976,23 @@ unsigned char* StubSetFatPAS(float* /*origin*/)
     return EmptyVisibilitySet().data();
 }
 
+int StubCheckVisibility(
+    const edict_t* entity,
+    unsigned char* /*visibility_set*/)
+{
+    EngineShimState& state = CurrentShimState();
+    RecordCallback(
+        "pfnCheckVisibility",
+        DescribeEdict(state, entity) + ", result=true",
+        entity);
+    // This compatibility slice intentionally has no BSP PVS/PAS model.  A
+    // null visibility set therefore represents the deterministic no-PVS
+    // policy used by the snapshot scheduler: every live player is visible to
+    // every receiver.  The stock Game DLL still owns all other FullPack
+    // filtering decisions.
+    return TRUE;
+}
+
 void PopulateEngineFunctions(enginefuncs_t& engine_functions)
 {
     engine_functions = {};
@@ -258045,6 +258086,7 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnCanSkipPlayer = &StubCanSkipPlayer;
     engine_functions.pfnSetFatPVS = &StubSetFatPVS;
     engine_functions.pfnSetFatPAS = &StubSetFatPAS;
+    engine_functions.pfnCheckVisibility = &StubCheckVisibility;
 }
 
 void PopulateGlobalVariables(

@@ -1621,6 +1621,42 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-manual-disconnect-file")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --goldsrc-manual-disconnect-file.";
+                return result;
+            }
+            const std::filesystem::path disconnect_path(argv[++index]);
+            if (disconnect_path.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-manual-disconnect-file.";
+                return result;
+            }
+            result.options.goldsrc_manual_disconnect_file = disconnect_path;
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_manual_disconnect_file_prefix =
+            L"--goldsrc-manual-disconnect-file=";
+        if (StartsWith(argument, goldsrc_manual_disconnect_file_prefix))
+        {
+            const std::wstring_view value = argument.substr(
+                goldsrc_manual_disconnect_file_prefix.size());
+            if (value.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-manual-disconnect-file.";
+                return result;
+            }
+            result.options.goldsrc_manual_disconnect_file =
+                std::filesystem::path(value);
+            continue;
+        }
+
         constexpr std::wstring_view goldsrc_snapshot_rate_prefix =
             L"--goldsrc-snapshot-rate-hz=";
         if (StartsWith(argument, goldsrc_snapshot_rate_prefix))
@@ -20264,6 +20300,13 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             L"--goldsrc-manual-shutdown-file requires --goldsrc-pmove-persistent.";
         return result;
     }
+    if (result.options.goldsrc_manual_disconnect_file.has_value()
+        && !result.options.goldsrc_pmove_persistent)
+    {
+        result.error_message =
+            L"--goldsrc-manual-disconnect-file requires --goldsrc-pmove-persistent.";
+        return result;
+    }
     if (result.options.goldsrc_pmove_persistent)
     {
         result.options.goldsrc_pmove_enabled = true;
@@ -20395,7 +20438,8 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
                L"  --goldsrc-pmove-negative-proof  Exercise bounded movement replay, validation, and rollback gates\n"
                L"  --goldsrc-pmove-persistent      Keep an established manual PM_Move session pumping until shutdown\n"
                L"  --goldsrc-pmove-observation-ms=<2000..60000> Set the bounded movement observation duration\n"
-               L"  --goldsrc-manual-shutdown-file <path> Stop a persistent manual session when the file appears\n"
+             L"  --goldsrc-manual-shutdown-file <path> Stop a persistent manual session when the file appears\n"
+             L"  --goldsrc-manual-disconnect-file <path> Disconnect persistent slot 1 once when the file appears\n"
              L"  --goldsrc-snapshot-rate-hz=<10..30> Set the bounded continuous snapshot rate (default 20)\n"
              L"  --ip, -ip <IPv4>              Exact dedicated UDP bind address (default: 0.0.0.0)\n"
              L"  --port, -port <1..65535>      Exact dedicated UDP bind port (default: 27015)\n"

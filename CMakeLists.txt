@@ -389,6 +389,46 @@ set_target_properties(
     goldsrc_snapshot_unit_tests
     PROPERTIES FOLDER "host/tests")
 
+add_executable(goldsrc_two_client_replication_unit_tests
+    src/tests/goldsrc_two_client_replication_tests.cpp
+)
+target_include_directories(
+    goldsrc_two_client_replication_unit_tests
+    PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(
+    goldsrc_two_client_replication_unit_tests
+    PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(
+        goldsrc_two_client_replication_unit_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(
+        goldsrc_two_client_replication_unit_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_two_client_replication_unit_tests
+    PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_two_client_replication_unit_tests
+    COMMAND goldsrc_two_client_replication_unit_tests
+)
+
+# Keep the narrow Windows handle helper isolated from the 32-bit engine build.
+# It must be configured in a separate x64 build tree so it can reliably inspect
+# stock 32-bit GoldSrc processes on 64-bit Windows.
+if(WIN32 AND CMAKE_SIZEOF_VOID_P EQUAL 8)
+    add_executable(goldsrc_instance_unlocker
+        src/tools/goldsrc_instance_unlocker.cpp
+    )
+    target_compile_features(goldsrc_instance_unlocker PRIVATE cxx_std_17)
+    target_compile_definitions(
+        goldsrc_instance_unlocker
+        PRIVATE UNICODE _UNICODE WIN32_LEAN_AND_MEAN NOMINMAX)
+    set_target_properties(
+        goldsrc_instance_unlocker
+        PROPERTIES FOLDER "tools")
+endif()
+
 add_executable(goldsrc_continuous_snapshot_tests
     src/tests/goldsrc_continuous_snapshot_tests.cpp
 )

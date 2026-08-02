@@ -58,6 +58,7 @@ struct GoldSrcPlayerSnapshotInput final
 {
     GoldSrcSnapshotEntityState entity;
     GoldSrcClientDataState clientdata;
+    std::vector<GoldSrcSnapshotEntityState> remote_entities;
 };
 
 enum class GoldSrcPlayerSnapshotApplyStatus

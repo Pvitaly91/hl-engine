@@ -22510,6 +22510,8 @@ bool HostApplication::RunServerEngineShim(
         options.goldsrc_pmove_observation_ms;
     init_options.goldsrc_manual_shutdown_file =
         options.goldsrc_manual_shutdown_file;
+    init_options.goldsrc_manual_disconnect_file =
+        options.goldsrc_manual_disconnect_file;
     init_options.goldsrc_snapshot_rate_hz =
         options.goldsrc_snapshot_rate_hz;
     init_options.bind_address = options.bind_address;

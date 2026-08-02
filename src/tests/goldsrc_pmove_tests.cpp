@@ -547,6 +547,17 @@ int main()
     assert(g_cmd_start_calls == 1);
     assert(g_cmd_end_calls == 1);
 
+    edict_t player_b = player;
+    player_b.v.origin = Vector(0.0f, 0.0f, 0.0f);
+    player_b.v.velocity = Vector(0.0f, 0.0f, 0.0f);
+    auto first_move_b = Move(0u, 1u);
+    first_move_b.commands[0] = Command(10u, 0.0f, 120.0f);
+    const auto first_result_b =
+        runtime.Execute(2u, first_move_b, 1u, 1000u, &player_b, &world);
+    assert(first_result_b.ok());
+    assert(first_result_b.commands_executed == 1u);
+    assert(player_b.v.origin.y > 0.0f);
+
     const auto duplicate =
         runtime.Execute(1u, first_move, 1u, 1000u, &player, &world);
     assert(!duplicate.ok());
@@ -565,6 +576,11 @@ int main()
     assert(recovered_result.backups_replayed == 1u);
 
     const Vector before_invalid = player.v.origin;
+    const Vector player_b_before_invalid = player_b.v.origin;
+    const auto* command_b_before_invalid = runtime.CommandState(2u);
+    assert(command_b_before_invalid != nullptr);
+    const std::uint64_t command_time_b_before_invalid =
+        command_b_before_invalid->command_time_msec();
     auto invalid_output = Move(0u, 1u);
     invalid_output.commands[0] = Command(10u, 100.0f);
     g_emit_invalid_output = true;
@@ -574,6 +590,21 @@ int main()
     assert(!rejected.ok());
     assert(rejected.status == GoldSrcPmoveExecutionStatus::kOutputInvalid);
     assert(player.v.origin == before_invalid);
+    assert(player_b.v.origin == player_b_before_invalid);
+    assert(runtime.movement_executed(2u));
+    assert(runtime.CommandState(2u)->command_time_msec()
+        == command_time_b_before_invalid);
+    auto continuing_move_b = Move(0u, 1u);
+    continuing_move_b.commands[0] = Command(10u, 0.0f, 120.0f);
+    const auto continuing_result_b = runtime.Execute(
+        2u,
+        continuing_move_b,
+        2u,
+        1210u,
+        &player_b,
+        &world);
+    assert(continuing_result_b.ok());
+    assert(player_b.v.origin.y > player_b_before_invalid.y);
     const auto retry =
         runtime.Execute(1u, invalid_output, 4u, 1200u, &player, &world);
     assert(retry.ok());
@@ -600,12 +631,12 @@ int main()
 
     runtime.ResetClient(1u);
     assert(!runtime.movement_executed(1u));
-    assert(!runtime.movement_executed(2u));
+    assert(runtime.movement_executed(2u));
 
     auto duck = Move(0u, 1u);
     duck.commands[0] = Command(10u, 0.0f, 0.0f, IN_DUCK);
     const auto second_slot =
-        runtime.Execute(2u, duck, 1u, 1000u, &player, &world);
+        runtime.Execute(2u, duck, 3u, 22000u, &player_b, &world);
     assert(second_slot.ok());
     assert(second_slot.ducked);
     assert(runtime.movement_executed(2u));

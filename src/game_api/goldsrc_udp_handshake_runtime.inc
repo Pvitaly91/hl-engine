@@ -58,6 +58,7 @@ public:
               static_cast<double>(options.goldsrc_pmove_observation_ms)
               / 1000.0),
           manual_shutdown_file_(options.goldsrc_manual_shutdown_file),
+          manual_disconnect_file_(options.goldsrc_manual_disconnect_file),
           manual_session_lifecycle_({
               options.goldsrc_pmove_persistent,
               static_cast<std::uint64_t>(
@@ -71,6 +72,35 @@ public:
     {
         summary_ = {};
         summary_.enabled = true;
+        summary_.max_clients = state_.server_state.maxclients;
+        summary_.multi_client_routing_implemented = true;
+        summary_.two_client_admission_implemented =
+            state_.server_state.maxclients >= 2;
+        summary_.per_client_signon_state = true;
+        summary_.per_client_frame_history = true;
+        summary_.per_client_delta_base = true;
+        summary_.per_client_command_clock = true;
+        summary_.per_client_pmove_state = true;
+        summary_.two_client_visibility_policy =
+            "all_connected_players_plus_existing_modeled_entities_no_pvs";
+        summary_.multi_client_receive_policy =
+            "bounded_endpoint_routed_host_frame_drain";
+        summary_.multi_client_send_policy =
+            "bounded_round_robin_per_client_due_scheduler";
+        summary_.client_replication.resize(static_cast<std::size_t>(
+            (std::max)(0, state_.server_state.maxclients)));
+        awaiting_fresh_session_after_delta_reset_.resize(
+            summary_.client_replication.size(),
+            false);
+        for (std::size_t index = 0;
+             index < summary_.client_replication.size();
+             ++index)
+        {
+            summary_.client_replication[index].slot =
+                static_cast<int>(index + 1u);
+            summary_.client_replication[index].edict =
+                static_cast<int>(index + 1u);
+        }
         summary_.bind_address = bind_address_;
         summary_.requested_port = requested_port_;
         summary_.max_datagrams_per_frame = kMaximumDatagramsPerHostFrame;
@@ -217,7 +247,7 @@ public:
         if (!socket_.Open(*requested_endpoint))
         {
             summary_.last_reject_reason = "udp-bind-failed";
-            complete_ = true;
+            MarkComplete("udp_bind_failed");
             transport_failed_ = true;
             hl::common::Logger::Error(
                 hl::common::LogCategory::Server,
@@ -255,6 +285,21 @@ public:
                 || shutdown_file_error)
             {
                 return FailBind("manual-shutdown-file-not-ready");
+            }
+        }
+        if (manual_disconnect_file_.has_value() && !pmove_persistent_)
+        {
+            return FailBind("manual-disconnect-file-requires-persistent-pmove");
+        }
+        if (manual_disconnect_file_.has_value())
+        {
+            std::error_code disconnect_file_error;
+            if (std::filesystem::exists(
+                    *manual_disconnect_file_,
+                    disconnect_file_error)
+                || disconnect_file_error)
+            {
+                return FailBind("manual-disconnect-file-not-ready");
             }
         }
         lifecycle_edict_registry_.Reset(
@@ -385,6 +430,10 @@ public:
         {
             return !transport_failed_;
         }
+        if (CheckManualDisconnectRequest(frame_time))
+        {
+            return !transport_failed_;
+        }
         if (!network_server_clock_started_)
         {
             network_server_clock_started_ = true;
@@ -407,9 +456,7 @@ public:
             deadline_started_ = true;
         }
         if (frame_time >= deadline_
-            && !(pmove_persistent_
-                && manual_session_lifecycle_
-                    .global_deadline_suppressed()))
+            && !PersistentDeadlineSuppressed())
         {
             MarkTimeout();
             return true;
@@ -472,48 +519,32 @@ public:
         {
             return FailBind("continuous-snapshot-rate-out-of-range");
         }
-        if (DedicatedPlayerRuntimeSlot* slot_state =
-                FindAdmittedNetchanSlot();
-            slot_state != nullptr
-            && slot_state->netchan.ExpireFragmentTransfer(frame_time))
+        for (DedicatedPlayerRuntimeSlot& slot_state :
+             state_.dedicated_multiplayer_foundation.slots)
         {
-            SyncNetchanSummary(*slot_state);
-            return FailTransport(
-                "fragment-transfer-timeout",
+            if (!IsDedicatedSlotConnectedOccupant(slot_state)
+                || !slot_state.netchan.initialized()
+                || !slot_state.netchan.ExpireFragmentTransfer(frame_time))
+            {
+                continue;
+            }
+            SyncNetchanSummary(slot_state);
+            if (!HandleClientDisconnect(slot_state))
+            {
+                return false;
+            }
+            hl::common::Logger::Warn(
+                hl::common::LogCategory::Server,
                 "goldsrc_fragment_transfer_failed: session_id="
-                    + slot_state->session_id + ",reason=timeout");
+                    + slot_state.session_id
+                    + ",reason=timeout,scope=client");
         }
 
         ++summary_.host_frames_pumped;
         datagrams_sent_this_frame_ = 0;
-        if (negative_advance_pending_)
+        if (!SendPendingOrdinaryAdvances())
         {
-            negative_advance_pending_ = false;
-            if (!SendPendingOrdinaryAdvance())
-            {
-                return false;
-            }
-        }
-        if (continuous_snapshots_enabled_)
-        {
-            DedicatedPlayerRuntimeSlot* slot_state =
-                FindAdmittedNetchanSlot();
-            const bool established_movement_streaming =
-                pmove_enabled_
-                && slot_state != nullptr
-                && slot_state->goldsrc_player_lifecycle.put_in_server()
-                && slot_state->goldsrc_player_lifecycle.signon_complete();
-            if (slot_state != nullptr
-                && !established_movement_streaming
-                && datagrams_sent_this_frame_
-                    < kMaximumDatagramsSentPerHostFrame
-                && slot_state->goldsrc_first_snapshot
-                        .CheckContinuousDue(network_server_time_)
-                    == hl::network::GoldSrcSnapshotDueResult::kDue
-                && !SendContinuousSnapshotDatagram(*slot_state))
-            {
-                return false;
-            }
+            return false;
         }
         for (int packet_index = 0;
              packet_index < kMaximumDatagramsPerHostFrame;
@@ -563,80 +594,103 @@ public:
             }
         }
 
+        DedicatedPlayerRuntimeSlot* legacy_completion_slot = nullptr;
         if (!complete_ && continuous_snapshots_enabled_)
         {
-            DedicatedPlayerRuntimeSlot* slot_state =
-                FindAdmittedNetchanSlot();
-            const bool established_movement_streaming =
-                pmove_enabled_
-                && slot_state != nullptr
-                && slot_state->goldsrc_player_lifecycle.put_in_server()
-                && slot_state->goldsrc_player_lifecycle.signon_complete();
-            summary_.receive_before_snapshot_in_streaming_phase =
-                summary_.receive_before_snapshot_in_streaming_phase
-                || established_movement_streaming;
-            if (established_movement_streaming
-                && datagrams_sent_this_frame_
-                    < kMaximumDatagramsSentPerHostFrame
-                && slot_state->goldsrc_first_snapshot
-                        .CheckContinuousDue(network_server_time_)
-                    == hl::network::GoldSrcSnapshotDueResult::kDue
-                && !SendContinuousSnapshotDatagram(*slot_state))
+            for (DedicatedPlayerRuntimeSlot& slot_state :
+                 state_.dedicated_multiplayer_foundation.slots)
+            {
+                if (!IsDedicatedSlotConnectedOccupant(slot_state))
+                {
+                    continue;
+                }
+                if (legacy_completion_slot == nullptr)
+                {
+                    legacy_completion_slot = &slot_state;
+                }
+                const bool established_movement_streaming =
+                    pmove_enabled_
+                    && slot_state.goldsrc_player_lifecycle.put_in_server()
+                    && slot_state.goldsrc_player_lifecycle.signon_complete();
+                summary_.receive_before_snapshot_in_streaming_phase =
+                    summary_.receive_before_snapshot_in_streaming_phase
+                    || established_movement_streaming;
+            }
+            if (!SendDueSnapshotsFairly())
             {
                 return false;
             }
+            for (DedicatedPlayerRuntimeSlot& slot_state :
+                 state_.dedicated_multiplayer_foundation.slots)
+            {
+                if (!IsDedicatedSlotConnectedOccupant(slot_state)
+                    || !player_lifecycle_enabled_
+                    || !slot_state
+                            .goldsrc_continuous_snapshot_started_server_time
+                            .has_value()
+                    || slot_state.goldsrc_continuous_snapshots_sent < 3u
+                    || slot_state.goldsrc_distinct_frame_references < 2u)
+                {
+                    continue;
+                }
+                if (!slot_state.goldsrc_player_lifecycle.put_in_server()
+                    && slot_state.goldsrc_player_lifecycle.phase()
+                        == hl::network::GoldSrcPlayerLifecyclePhase::
+                            kAwaitingPutInServer
+                    && !ReconcilePlayerLifecycle(slot_state))
+                {
+                    return false;
+                }
+                if (pmove_persistent_
+                    && slot_state.slot == 1
+                    && slot_state.goldsrc_player_lifecycle.signon_complete())
+                {
+                    ProcessManualSessionEvents(
+                        manual_session_lifecycle_.Advance(
+                            MonotonicMilliseconds(frame_time),
+                            summary_.movement_snapshot_integration));
+                }
+                SyncClientReplicationSummary(slot_state);
+            }
         }
 
-        if (!complete_ && continuous_snapshots_enabled_)
+        if (!complete_ && continuous_snapshots_enabled_
+            && summary_.max_clients == 1
+            && legacy_completion_slot != nullptr)
         {
-            DedicatedPlayerRuntimeSlot* slot_state =
-                FindAdmittedNetchanSlot();
+            DedicatedPlayerRuntimeSlot& slot_state =
+                *legacy_completion_slot;
             if (player_lifecycle_enabled_
-                && slot_state != nullptr
-                && continuous_snapshot_started_server_time_.has_value()
+                && slot_state
+                    .goldsrc_continuous_snapshot_started_server_time
+                    .has_value()
                 && summary_.continuous_snapshots_sent >= 3
                 && summary_.continuous_delta_snapshots >= 1
                 && summary_.distinct_frame_references >= 2)
             {
-                if (!slot_state->goldsrc_player_lifecycle.put_in_server()
-                    && slot_state->goldsrc_player_lifecycle.phase()
-                        == hl::network::GoldSrcPlayerLifecyclePhase::
-                            kAwaitingPutInServer
-                    && !ReconcilePlayerLifecycle(*slot_state))
+                if (slot_state.goldsrc_player_lifecycle.signon_complete()
+                    && pmove_enabled_ && !pmove_persistent_
+                    && slot_state.goldsrc_first_movement_server_time.has_value()
+                    && network_server_time_
+                            - *slot_state.goldsrc_first_movement_server_time
+                        >= pmove_observation_seconds_
+                    && summary_.movement_executed
+                    && summary_.movement_snapshot_integration
+                    && summary_.movement_snapshots_sent >= 3)
                 {
-                    return false;
+                    summary_.continuous_snapshot_stable = true;
+                    summary_.server_still_responsive = true;
+                    summary_.next_observed_boundary =
+                        "two_client_player_replication_required";
+                    summary_.previous_player_lifecycle_boundary_resolved =
+                        true;
+                    MarkComplete("legacy_pmove_proof_complete");
                 }
-                if (slot_state->goldsrc_player_lifecycle.signon_complete()
-                    && pmove_enabled_)
-                {
-                    if (pmove_persistent_)
-                    {
-                        ProcessManualSessionEvents(
-                            manual_session_lifecycle_.Advance(
-                                MonotonicMilliseconds(frame_time),
-                                summary_.movement_snapshot_integration));
-                    }
-                    else if (first_movement_server_time_.has_value()
-                        && network_server_time_
-                                - *first_movement_server_time_
-                            >= pmove_observation_seconds_
-                        && summary_.movement_executed
-                        && summary_.movement_snapshot_integration
-                        && summary_.movement_snapshots_sent >= 3)
-                    {
-                        summary_.continuous_snapshot_stable = true;
-                        summary_.server_still_responsive = true;
-                        summary_.next_observed_boundary =
-                            "two_client_player_replication_required";
-                        summary_.previous_player_lifecycle_boundary_resolved =
-                            true;
-                        complete_ = true;
-                    }
-                }
-                else if (slot_state->goldsrc_player_lifecycle.signon_complete()
+                else if (slot_state.goldsrc_player_lifecycle.signon_complete()
                     && !pmove_enabled_
                     && network_server_time_
-                            - *continuous_snapshot_started_server_time_
+                            - *slot_state
+                                .goldsrc_continuous_snapshot_started_server_time
                         >= 10.0
                     && summary_.player_snapshot_frames
                         >= (player_lifecycle_negative_proof_ ? 500 : 30))
@@ -647,31 +701,34 @@ public:
                         "movement_execution_required";
                     summary_.previous_player_lifecycle_boundary_resolved =
                         true;
-                    complete_ = true;
+                    MarkComplete("legacy_player_lifecycle_proof_complete");
                 }
             }
-            else if (slot_state != nullptr
-                && continuous_snapshot_started_server_time_.has_value()
+            else if (slot_state
+                    .goldsrc_continuous_snapshot_started_server_time
+                    .has_value()
                 && network_server_time_
-                        - *continuous_snapshot_started_server_time_
+                        - *slot_state
+                            .goldsrc_continuous_snapshot_started_server_time
                     >= 10.0
                 && summary_.continuous_snapshots_sent
                     >= (continuous_snapshots_negative_proof_ ? 400 : 30)
                 && summary_.continuous_delta_snapshots >= 1
-                && summary_.distinct_frame_references >= 2)
+                && summary_.distinct_frame_references >= 2
+                && (!continuous_snapshots_negative_proof_
+                    || (continuous_negative_unknown_observed_
+                        && continuous_negative_stale_after_unknown_observed_)))
             {
                 summary_.continuous_snapshot_stable = true;
                 summary_.server_still_responsive = true;
                 summary_.next_observed_boundary =
                     "player_lifecycle_or_signon_progression_required";
-                complete_ = true;
+                MarkComplete("legacy_continuous_snapshot_proof_complete");
             }
         }
 
         if (!complete_ && std::chrono::steady_clock::now() >= deadline_
-            && !(pmove_persistent_
-                && manual_session_lifecycle_
-                    .global_deadline_suppressed()))
+            && !PersistentDeadlineSuppressed())
         {
             MarkTimeout();
         }
@@ -1027,24 +1084,28 @@ public:
             return;
         }
         shutdown_ = true;
+        RefreshTwoClientReplicationSummary();
 
         if (player_lifecycle_enabled_)
         {
-            if (DedicatedPlayerRuntimeSlot* slot_state =
-                    FindAdmittedNetchanSlot();
-                slot_state != nullptr
-                && slot_state->goldsrc_player_lifecycle
-                    .game_dll_connected())
+            for (DedicatedPlayerRuntimeSlot& slot_state :
+                 state_.dedicated_multiplayer_foundation.slots)
             {
+                if (!slot_state.goldsrc_player_lifecycle
+                        .game_dll_connected())
+                {
+                    continue;
+                }
                 if (!DisconnectPlayerLifecycle(
-                        *slot_state,
+                        slot_state,
                         "host-shutdown"))
                 {
                     transport_failed_ = true;
                     summary_.last_reject_reason =
                         "player-lifecycle-shutdown-disconnect-failed";
                 }
-                ApplyDedicatedClientDisconnect(state_, *slot_state);
+                ApplyDedicatedClientDisconnect(state_, slot_state);
+                SyncClientReplicationSummary(slot_state);
             }
         }
         if (pmove_persistent_)
@@ -1057,7 +1118,10 @@ public:
                     ",reason=host_shutdown,reconnect_ready=0");
             }
             manual_session_lifecycle_.RequestShutdown();
-            complete_ = true;
+            if (!complete_)
+            {
+                MarkComplete("process_shutdown");
+            }
             SyncManualSessionSummary();
             LogManualSessionShutdown("process_shutdown");
         }
@@ -1073,6 +1137,7 @@ public:
         {
             RefreshAuthoritativeNetchanSessionSummary();
         }
+        RefreshTwoClientReplicationSummary();
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
             "goldsrc_udp_shutdown: address=" + bind_address_
@@ -1092,6 +1157,7 @@ public:
                 + ",accepted=" + std::to_string(summary_.accepted)
                 + ",rejected=" + std::to_string(summary_.rejected)
                 + ",last_reject_reason=" + summary_.last_reject_reason
+                + ",completion_reason=" + completion_reason_
                 + ",session_count=" + std::to_string(summary_.session_count)
                 + ",state=" + summary_.final_state);
         if (netchan_enabled_)
@@ -2078,6 +2144,91 @@ public:
                     + std::string(summary_.active ? "1" : "0")
                     + ",clean_shutdown=1");
         }
+        if (state_.server_state.maxclients >= 2)
+        {
+            RefreshTwoClientReplicationSummary();
+            for (const auto& client : summary_.client_replication)
+            {
+                if (client.admission_count == 0)
+                {
+                    continue;
+                }
+                hl::common::Logger::Info(
+                    hl::common::LogCategory::Summary,
+                    "goldsrc_client_replication_summary: slot="
+                        + std::to_string(client.slot)
+                        + ",edict=" + std::to_string(client.edict)
+                        + ",admissions="
+                        + std::to_string(client.admission_count)
+                        + ",disconnects="
+                        + std::to_string(client.disconnect_count)
+                        + ",reconnects="
+                        + std::to_string(client.reconnect_count)
+                        + ",connected="
+                        + (client.connected ? "true" : "false")
+                        + ",put_in_server="
+                        + (client.put_in_server ? "true" : "false")
+                        + ",spawned="
+                        + (client.spawned ? "true" : "false")
+                        + ",signon_complete="
+                        + (client.signon_complete ? "true" : "false")
+                        + ",private_data_ready="
+                        + (client.private_data_ready ? "true" : "false")
+                        + ",snapshots_sent="
+                        + std::to_string(client.snapshots_sent)
+                        + ",frames_acknowledged="
+                        + std::to_string(client.frames_acknowledged)
+                        + ",pmove_calls="
+                        + std::to_string(client.pmove_calls)
+                        + ",remote_adds="
+                        + std::to_string(client.remote_player_adds)
+                        + ",remote_updates="
+                        + std::to_string(client.remote_player_updates)
+                        + ",remote_removes="
+                        + std::to_string(client.remote_player_removes)
+                        + ",remote_readds="
+                        + std::to_string(client.remote_player_readds)
+                        + ",remote_origin_discontinuities="
+                        + std::to_string(
+                            client.remote_origin_discontinuities)
+                        + ",maximum_remote_snapshot_gap_ms="
+                        + std::to_string(
+                            client.maximum_remote_snapshot_gap_ms)
+                        + ",slot_reuse_clean="
+                        + (client.slot_reuse_clean ? "true" : "false"));
+            }
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                "goldsrc_two_client_replication_summary: max_clients="
+                    + std::to_string(summary_.max_clients)
+                    + ",connected_clients="
+                    + std::to_string(summary_.connected_client_count)
+                    + ",routing=per_slot_endpoint_netchan_generation"
+                    + ",visibility_policy="
+                    + summary_.two_client_visibility_policy
+                    + ",receive_policy="
+                    + summary_.multi_client_receive_policy
+                    + ",send_policy="
+                    + summary_.multi_client_send_policy
+                    + ",distinct_edicts="
+                    + (summary_.two_distinct_edicts ? "true" : "false")
+                    + ",distinct_private_data="
+                    + (summary_.two_distinct_private_data ? "true" : "false")
+                    + ",mutual_visibility="
+                    + (summary_.mutual_player_visibility ? "true" : "false")
+                    + ",remote_movement_smooth="
+                    + (summary_.remote_player_movement_smooth
+                        ? "true" : "false")
+                    + ",simultaneous_movement="
+                    + (summary_.simultaneous_movement ? "true" : "false")
+                    + ",disconnect_isolation="
+                    + (summary_.disconnect_isolation ? "true" : "false")
+                    + ",reconnect_slot_reuse="
+                    + (summary_.reconnect_slot_reuse ? "true" : "false")
+                    + ",cross_client_state_leak="
+                    + (summary_.cross_client_state_leak ? "true" : "false")
+                    + ",gameplay_active=false,clean_shutdown=1");
+        }
     }
 
 private:
@@ -2154,7 +2305,60 @@ private:
         manual_session_lifecycle_.RequestShutdown();
         SyncManualSessionSummary();
         LogManualSessionShutdown("launcher_request");
-        complete_ = true;
+        MarkComplete("manual_shutdown_request");
+        return true;
+    }
+
+    bool CheckManualDisconnectRequest(
+        std::chrono::steady_clock::time_point frame_time)
+    {
+        if (!pmove_persistent_ || !manual_disconnect_file_.has_value()
+            || manual_disconnect_consumed_
+            || frame_time < next_manual_disconnect_probe_time_)
+        {
+            return false;
+        }
+        next_manual_disconnect_probe_time_ =
+            frame_time + std::chrono::milliseconds(100);
+        std::error_code disconnect_file_error;
+        const bool requested = std::filesystem::exists(
+            *manual_disconnect_file_,
+            disconnect_file_error);
+        if (disconnect_file_error)
+        {
+            return !FailTransport(
+                "manual-disconnect-file-check-failed",
+                "goldsrc_manual_client_disconnect_failed: reason=file-check");
+        }
+        if (!requested)
+        {
+            return false;
+        }
+        DedicatedPlayerRuntimeSlot* target = nullptr;
+        for (DedicatedPlayerRuntimeSlot& candidate :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.slot == 1
+                && IsDedicatedSlotConnectedOccupant(candidate))
+            {
+                target = &candidate;
+                break;
+            }
+        }
+        if (target == nullptr)
+        {
+            return !FailTransport(
+                "manual-disconnect-target-not-connected",
+                "goldsrc_manual_client_disconnect_failed: reason=slot-1-not-connected");
+        }
+        if (!HandleClientDisconnect(*target))
+        {
+            return true;
+        }
+        manual_disconnect_consumed_ = true;
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_manual_client_disconnect: slot=1,status=completed");
         return true;
     }
 
@@ -2214,10 +2418,16 @@ private:
         return count <= 4 || (count != 0 && (count & (count - 1)) == 0);
     }
 
+    void MarkComplete(std::string_view reason)
+    {
+        completion_reason_.assign(reason.data(), reason.size());
+        complete_ = true;
+    }
+
     bool FailBind(std::string reason)
     {
         summary_.last_reject_reason = std::move(reason);
-        complete_ = true;
+        MarkComplete("bind_failure");
         transport_failed_ = true;
         hl::common::Logger::Error(
             hl::common::LogCategory::Server,
@@ -2231,7 +2441,7 @@ private:
     {
         summary_.last_reject_reason = std::move(reason);
         transport_failed_ = true;
-        complete_ = true;
+        MarkComplete("transport_failure");
         hl::common::Logger::Error(
             hl::common::LogCategory::Server,
             std::move(message));
@@ -2691,6 +2901,8 @@ private:
             && summary_.client_put_in_server_calls == 1;
         summary_.view_entity_contract_verified = true;
         SyncPlayerLifecycleSummary(slot_state);
+        SyncClientReplicationSummary(slot_state);
+        RefreshTwoClientReplicationSummary();
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
             "goldsrc_player_materialized: session_id="
@@ -2775,7 +2987,7 @@ private:
             : accepted_ && netchan_enabled_
             ? "netchan-timeout"
             : "handshake-timeout";
-        complete_ = true;
+        MarkComplete("timeout");
         hl::common::Logger::Warn(
             hl::common::LogCategory::Server,
             "goldsrc_udp_timeout: address=" + bind_address_
@@ -3115,29 +3327,137 @@ private:
             }
             if (netchan_enabled_)
             {
-                if (!SendInitialNetchanDatagram())
+                DedicatedPlayerRuntimeSlot* const slot_state =
+                    handshake.admission.has_value()
+                    ? FindDedicatedPlayerRuntimeSlotBySession(
+                        state_.dedicated_multiplayer_foundation,
+                        handshake.admission->session_identifier)
+                    : nullptr;
+                if (slot_state == nullptr
+                    || !SendInitialNetchanDatagram(*slot_state))
                 {
                     return false;
                 }
-                negative_advance_pending_ = negative_proof_;
+                slot_state->goldsrc_negative_advance_pending =
+                    negative_proof_;
             }
             else
             {
-                complete_ = true;
+                MarkComplete("connectionless_only_complete");
             }
         }
         return true;
     }
 
-    DedicatedPlayerRuntimeSlot* FindAdmittedNetchanSlot()
+    hl::game_api::GoldSrcClientReplicationSummary*
+    FindClientReplicationSummary(int slot) noexcept
     {
-        if (admitted_session_id_.empty())
+        if (slot < 1
+            || static_cast<std::size_t>(slot)
+                > summary_.client_replication.size())
         {
             return nullptr;
         }
-        return FindDedicatedPlayerRuntimeSlotBySession(
-            state_.dedicated_multiplayer_foundation,
-            admitted_session_id_);
+        return &summary_.client_replication[
+            static_cast<std::size_t>(slot - 1)];
+    }
+
+    int ConnectedClientCount() const noexcept
+    {
+        return CountDedicatedQueryPlayers(
+            state_.dedicated_multiplayer_foundation);
+    }
+
+    bool PersistentDeadlineSuppressed() const noexcept
+    {
+        return pmove_persistent_
+            && (manual_session_lifecycle_.global_deadline_suppressed()
+                || ConnectedClientCount() > 0);
+    }
+
+    void SyncClientReplicationSummary(
+        const DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        hl::game_api::GoldSrcClientReplicationSummary* client =
+            FindClientReplicationSummary(slot_state.slot);
+        if (client == nullptr)
+        {
+            return;
+        }
+        client->edict = slot_state.slot;
+        client->connected = client->connected
+            || IsDedicatedSlotConnectedOccupant(slot_state);
+        client->put_in_server = client->put_in_server
+            || slot_state.goldsrc_player_lifecycle.put_in_server();
+        client->spawned = client->spawned
+            || slot_state.goldsrc_player_lifecycle.player().player_spawned;
+        client->signon_complete = client->signon_complete
+            || slot_state.goldsrc_player_lifecycle.signon_complete();
+        client->private_data_ready = client->private_data_ready
+            || slot_state.goldsrc_player_lifecycle.player().private_data_ready;
+        if (slot_state.goldsrc_signon.phase()
+            != hl::network::GoldSrcSignonPhase::kNone)
+        {
+            client->signon_phase = std::string(
+                hl::network::NameFor(slot_state.goldsrc_signon.phase()));
+        }
+        client->frame_history_independent =
+            client->frame_history_independent
+            || slot_state.goldsrc_first_snapshot.history().capacity()
+                == hl::network::kGoldSrcClientFrameHistoryDepth;
+        client->delta_base_independent = true;
+        client->command_clock_independent = pmove_enabled_;
+        client->pmove_state_independent = pmove_enabled_;
+    }
+
+    void RefreshTwoClientReplicationSummary()
+    {
+        summary_.connected_client_count = (std::max)(
+            summary_.connected_client_count,
+            ConnectedClientCount());
+        std::vector<const void*> private_data;
+        int ready_edicts = 0;
+        for (const DedicatedPlayerRuntimeSlot& slot_state :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            SyncClientReplicationSummary(slot_state);
+            if (!slot_state.goldsrc_player_lifecycle.put_in_server())
+            {
+                continue;
+            }
+            const auto& binding =
+                slot_state.goldsrc_player_lifecycle.binding();
+            edict_t* const player =
+                state_.edict_store.EntityOfIndex(binding.edict_index);
+            const void* const data = player == nullptr
+                ? nullptr
+                : state_.edict_store.PrivateDataOf(player);
+            if (binding.edict_index == slot_state.slot && data != nullptr)
+            {
+                ++ready_edicts;
+                private_data.push_back(data);
+            }
+        }
+        summary_.two_distinct_edicts = summary_.two_distinct_edicts
+            || ready_edicts >= 2;
+        summary_.two_distinct_private_data =
+            summary_.two_distinct_private_data
+            || (private_data.size() >= 2u
+                && private_data[0] != private_data[1]);
+        if (summary_.client_replication.size() >= 2u)
+        {
+            const auto& a = summary_.client_replication[0];
+            const auto& b = summary_.client_replication[1];
+            summary_.mutual_player_visibility =
+                (a.remote_player_adds + a.remote_player_updates) > 0u
+                && (b.remote_player_adds + b.remote_player_updates) > 0u;
+            summary_.remote_player_movement_smooth =
+                summary_.mutual_player_visibility
+                && a.remote_origin_discontinuities == 0u
+                && b.remote_origin_discontinuities == 0u;
+            summary_.reconnect_slot_reuse =
+                a.reconnect_count > 0 && a.slot_reuse_clean;
+        }
     }
 
     DedicatedPlayerRuntimeSlot* FindNetchanSlotForSender(
@@ -3193,8 +3513,9 @@ private:
         }
 
         summary_.session_count = session_count;
-        summary_.duplicate_sessions = std::max(0, session_count - 1);
+        summary_.duplicate_sessions = 0;
         summary_.partial_sessions = partial_sessions;
+        RefreshTwoClientReplicationSummary();
     }
 
     void SyncNetchanSummary(const DedicatedPlayerRuntimeSlot& slot_state)
@@ -3505,7 +3826,6 @@ private:
         summary_.latest_continuous_frame_id = 0u;
         summary_.latest_continuous_base_frame_id = 0u;
         summary_.latest_continuous_server_time = 0.0f;
-        last_observed_snapshot_gap_ms_ = 0;
     }
 
     static std::string HexUint32(std::uint32_t value)
@@ -5079,9 +5399,9 @@ private:
             }
             return false;
         }
-        const auto& binding =
+        const auto& receiver_binding =
             slot_state.goldsrc_player_lifecycle.binding();
-        if (lifecycle_edict_registry_.Validate(binding)
+        if (lifecycle_edict_registry_.Validate(receiver_binding)
             != hl::network::GoldSrcClientEdictBindingResult::kBound)
         {
             if (failure_detail != nullptr)
@@ -5090,10 +5410,10 @@ private:
             }
             return false;
         }
-        edict_t* const client =
-            state_.edict_store.EntityOfIndex(binding.edict_index);
-        if (client == nullptr
-            || state_.edict_store.PrivateDataOf(client) == nullptr)
+        edict_t* const receiver =
+            state_.edict_store.EntityOfIndex(receiver_binding.edict_index);
+        if (receiver == nullptr
+            || state_.edict_store.PrivateDataOf(receiver) == nullptr)
         {
             if (failure_detail != nullptr)
             {
@@ -5117,21 +5437,116 @@ private:
             }
             return false;
         }
-        entity_state_t entity_state{};
-        if (!CallAddToFullPack(
-                &entity_state,
-                binding.edict_index,
-                client,
-                client))
+        const auto capture_entity =
+            [this,
+             receiver,
+             player_table,
+             failure_detail](
+                DedicatedPlayerRuntimeSlot& candidate,
+                hl::network::GoldSrcSnapshotEntityState* captured,
+                entity_state_t* raw_state) -> bool
         {
-            if (failure_detail != nullptr)
+            if (captured == nullptr
+                || !candidate.goldsrc_player_lifecycle.put_in_server())
             {
-                *failure_detail = "add-to-full-pack-rejected";
+                if (failure_detail != nullptr)
+                {
+                    *failure_detail = "missing-visible-player-context";
+                }
+                return false;
             }
+            const auto& binding =
+                candidate.goldsrc_player_lifecycle.binding();
+            if (lifecycle_edict_registry_.Validate(binding)
+                != hl::network::GoldSrcClientEdictBindingResult::kBound)
+            {
+                if (failure_detail != nullptr)
+                {
+                    *failure_detail = "stale-visible-player-edict-binding";
+                }
+                return false;
+            }
+            edict_t* const entity =
+                state_.edict_store.EntityOfIndex(binding.edict_index);
+            if (entity == nullptr
+                || state_.edict_store.PrivateDataOf(entity) == nullptr)
+            {
+                if (failure_detail != nullptr)
+                {
+                    *failure_detail = "missing-visible-player-private-data";
+                }
+                return false;
+            }
+            entity_state_t state{};
+            if (!CallAddToFullPack(
+                    &state,
+                    binding.edict_index,
+                    entity,
+                    receiver))
+            {
+                if (failure_detail != nullptr)
+                {
+                    *failure_detail = "add-to-full-pack-rejected";
+                }
+                return false;
+            }
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                state.origin[axis] = entity->v.origin[axis];
+                state.velocity[axis] = entity->v.velocity[axis];
+                state.basevelocity[axis] = entity->v.basevelocity[axis];
+                state.mins[axis] = entity->v.mins[axis];
+                state.maxs[axis] = entity->v.maxs[axis];
+            }
+            state.usehull =
+                (entity->v.flags & FL_DUCKING) != 0 ? 1 : 0;
+            state.oldbuttons = entity->v.oldbuttons;
+            state.onground = entity->v.groundentity != nullptr ? 0 : -1;
+            captured->entity_index = binding.edict_index;
+            captured->kind = hl::network::GoldSrcBaselineKind::kPlayer;
+            if (!CaptureDeltaState(
+                    &state,
+                    sizeof(state),
+                    *player_table,
+                    &captured->state,
+                    failure_detail))
+            {
+                return false;
+            }
+            if (raw_state != nullptr)
+            {
+                *raw_state = state;
+            }
+            return true;
+        };
+
+        hl::network::GoldSrcPlayerSnapshotInput captured;
+        entity_state_t entity_state{};
+        if (!capture_entity(
+                slot_state,
+                &captured.entity,
+                &entity_state))
+        {
             return false;
         }
+        for (DedicatedPlayerRuntimeSlot& candidate :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.slot == slot_state.slot
+                || !IsDedicatedSlotConnectedOccupant(candidate)
+                || !candidate.goldsrc_player_lifecycle.put_in_server())
+            {
+                continue;
+            }
+            hl::network::GoldSrcSnapshotEntityState remote;
+            if (!capture_entity(candidate, &remote, nullptr))
+            {
+                return false;
+            }
+            captured.remote_entities.push_back(std::move(remote));
+        }
         clientdata_t clientdata{};
-        if (!CallUpdateClientData(client, &clientdata))
+        if (!CallUpdateClientData(receiver, &clientdata))
         {
             if (failure_detail != nullptr)
             {
@@ -5144,38 +5559,28 @@ private:
         // client channels on one committed PM_Move state before delta capture.
         for (int axis = 0; axis < 3; ++axis)
         {
-            entity_state.origin[axis] = client->v.origin[axis];
-            entity_state.velocity[axis] = client->v.velocity[axis];
-            entity_state.basevelocity[axis] = client->v.basevelocity[axis];
-            entity_state.mins[axis] = client->v.mins[axis];
-            entity_state.maxs[axis] = client->v.maxs[axis];
-            clientdata.origin[axis] = client->v.origin[axis];
-            clientdata.velocity[axis] = client->v.velocity[axis];
-            clientdata.view_ofs[axis] = client->v.view_ofs[axis];
+            clientdata.origin[axis] = receiver->v.origin[axis];
+            clientdata.velocity[axis] = receiver->v.velocity[axis];
+            clientdata.view_ofs[axis] = receiver->v.view_ofs[axis];
         }
-        entity_state.usehull =
-            (client->v.flags & FL_DUCKING) != 0 ? 1 : 0;
-        entity_state.oldbuttons = client->v.oldbuttons;
-        entity_state.onground =
-            client->v.groundentity != nullptr ? 0 : -1;
-        clientdata.flags = client->v.flags;
-        clientdata.waterlevel = client->v.waterlevel;
-        clientdata.watertype = client->v.watertype;
-        clientdata.bInDuck = client->v.bInDuck;
-        clientdata.flDuckTime = static_cast<int>(client->v.flDuckTime);
+        clientdata.flags = receiver->v.flags;
+        clientdata.waterlevel = receiver->v.waterlevel;
+        clientdata.watertype = receiver->v.watertype;
+        clientdata.bInDuck = receiver->v.bInDuck;
+        clientdata.flDuckTime = static_cast<int>(receiver->v.flDuckTime);
         clientdata.flTimeStepSound =
-            static_cast<int>(client->v.flTimeStepSound);
-        clientdata.flSwimTime = static_cast<int>(client->v.flSwimTime);
+            static_cast<int>(receiver->v.flTimeStepSound);
+        clientdata.flSwimTime = static_cast<int>(receiver->v.flSwimTime);
         clientdata.waterjumptime =
-            static_cast<int>(client->v.teleport_time);
-        clientdata.maxspeed = client->v.maxspeed;
+            static_cast<int>(receiver->v.teleport_time);
+        clientdata.maxspeed = receiver->v.maxspeed;
 
         bool prediction_state_consistent =
             entity_state.usehull
                 == ((clientdata.flags & FL_DUCKING) != 0 ? 1 : 0)
-            && clientdata.bInDuck == client->v.bInDuck
-            && clientdata.waterlevel == client->v.waterlevel
-            && clientdata.watertype == client->v.watertype;
+            && clientdata.bInDuck == receiver->v.bInDuck
+            && clientdata.waterlevel == receiver->v.waterlevel
+            && clientdata.watertype == receiver->v.watertype;
         for (int axis = 0; axis < 3; ++axis)
         {
             prediction_state_consistent = prediction_state_consistent
@@ -5226,17 +5631,7 @@ private:
         clientdata.vuser2 = Vector(0.0f, 0.0f, 0.0f);
         clientdata.vuser3 = Vector(0.0f, 0.0f, 0.0f);
         clientdata.vuser4 = Vector(0.0f, 0.0f, 0.0f);
-        hl::network::GoldSrcPlayerSnapshotInput captured;
-        captured.entity.entity_index = binding.edict_index;
-        captured.entity.kind =
-            hl::network::GoldSrcBaselineKind::kPlayer;
         if (!CaptureDeltaState(
-                &entity_state,
-                sizeof(entity_state),
-                *player_table,
-                &captured.entity.state,
-                failure_detail)
-            || !CaptureDeltaState(
                 &clientdata,
                 sizeof(clientdata),
                 *clientdata_table,
@@ -5377,8 +5772,8 @@ private:
         {
             pmove_runtime_.ResetClient(
                 static_cast<std::size_t>(disconnected_slot));
-            last_movement_commit_packet_sequence_.reset();
-            last_movement_commit_host_frame_ = 0;
+            slot_state.goldsrc_last_movement_commit_packet_sequence.reset();
+            slot_state.goldsrc_last_movement_commit_host_frame = 0;
             SyncPmoveSummary(static_cast<std::size_t>(disconnected_slot));
         }
         ApplyDedicatedClientDisconnect(state_, slot_state);
@@ -5406,18 +5801,27 @@ private:
         summary_.delta_pending_state_cleared_on_reset =
             summary_.delta_pending_state_cleared_on_reset
             || (delta_pending && state_cleared);
-        delta_reset_slot_ = disconnected_slot;
-        awaiting_fresh_session_after_delta_reset_ = true;
-        admitted_session_id_.clear();
-        negative_advance_pending_ = false;
-        continuous_snapshot_started_server_time_.reset();
-        last_counted_acknowledged_frame_.reset();
+        const std::size_t reset_index = static_cast<std::size_t>(
+            disconnected_slot - 1);
+        if (reset_index < awaiting_fresh_session_after_delta_reset_.size())
+        {
+            awaiting_fresh_session_after_delta_reset_[reset_index] = true;
+        }
+        slot_state.goldsrc_negative_advance_pending = false;
+        slot_state.goldsrc_continuous_snapshot_started_server_time.reset();
+        slot_state.goldsrc_last_counted_acknowledged_frame.reset();
+        if (hl::game_api::GoldSrcClientReplicationSummary* client =
+                FindClientReplicationSummary(disconnected_slot);
+            client != nullptr)
+        {
+            ++client->disconnect_count;
+        }
         summary_.final_state = "disconnected";
         summary_.connected = false;
         summary_.put_in_server = false;
         summary_.spawned = false;
         summary_.active = false;
-        if (pmove_persistent_
+        if (pmove_persistent_ && disconnected_slot == 1
             && manual_session_lifecycle_.MarkClientDisconnected())
         {
             SyncManualSessionSummary();
@@ -5426,7 +5830,27 @@ private:
                 "goldsrc_client_disconnected: mode=persistent"
                 ",reason=client_command,reconnect_ready=1");
         }
+        bool surviving_client = false;
+        for (const DedicatedPlayerRuntimeSlot& candidate :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.slot == disconnected_slot
+                || !IsDedicatedSlotConnectedOccupant(candidate))
+            {
+                continue;
+            }
+            surviving_client = true;
+            if (hl::game_api::GoldSrcClientReplicationSummary* survivor =
+                    FindClientReplicationSummary(candidate.slot);
+                survivor != nullptr)
+            {
+                survivor->survived_other_disconnect = true;
+            }
+        }
+        summary_.disconnect_isolation =
+            summary_.disconnect_isolation || surviving_client;
         SyncNetchanSummary(slot_state);
+        SyncClientReplicationSummary(slot_state);
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
             "goldsrc_delta_session_reset: session_id="
@@ -5504,9 +5928,9 @@ private:
                 world);
         SyncPmoveSummary(static_cast<std::size_t>(slot_state.slot));
         if (summary_.maximum_move_execution_gap_ms
-                > last_observed_move_execution_gap_ms_)
+                > slot_state.goldsrc_last_observed_move_execution_gap_ms)
         {
-            last_observed_move_execution_gap_ms_ =
+            slot_state.goldsrc_last_observed_move_execution_gap_ms =
                 summary_.maximum_move_execution_gap_ms;
             if (summary_.maximum_move_execution_gap_ms
                     > static_cast<int>(summary_.snapshot_interval_ms * 2.0))
@@ -5526,9 +5950,10 @@ private:
             }
         }
         if (summary_.command_clock_resynchronizations
-                > last_reported_clock_resynchronizations_)
+                > slot_state
+                    .goldsrc_last_reported_clock_resynchronizations)
         {
-            last_reported_clock_resynchronizations_ =
+            slot_state.goldsrc_last_reported_clock_resynchronizations =
                 summary_.command_clock_resynchronizations;
             ++pmove_clock_resync_diagnostics_seen_;
             if (ShouldLogDiagnosticSample(
@@ -5639,9 +6064,29 @@ private:
         }
         if (executed.commands_executed > 0u)
         {
-            last_movement_commit_packet_sequence_ = packet_sequence;
-            last_movement_commit_host_frame_ = summary_.host_frames_pumped;
-            if (pmove_persistent_)
+            slot_state.goldsrc_last_movement_commit_packet_sequence =
+                packet_sequence;
+            slot_state.goldsrc_last_movement_commit_host_frame =
+                summary_.host_frames_pumped;
+            slot_state.goldsrc_pmove_calls += executed.commands_executed;
+            if (hl::game_api::GoldSrcClientReplicationSummary* client =
+                    FindClientReplicationSummary(slot_state.slot);
+                client != nullptr)
+            {
+                client->pmove_calls += executed.commands_executed;
+            }
+            for (const DedicatedPlayerRuntimeSlot& other :
+                 state_.dedicated_multiplayer_foundation.slots)
+            {
+                if (other.slot != slot_state.slot
+                    && other.goldsrc_last_movement_commit_host_frame
+                        == summary_.host_frames_pumped)
+                {
+                    summary_.simultaneous_movement = true;
+                    break;
+                }
+            }
+            if (pmove_persistent_ && slot_state.slot == 1)
             {
                 manual_session_lifecycle_.RecordClcMove(
                     MonotonicMilliseconds(last_network_host_frame_time_));
@@ -5656,9 +6101,10 @@ private:
                 summary_.stock_jump_input || jump_requested;
             summary_.stock_duck_input =
                 summary_.stock_duck_input || duck_requested;
-            if (!first_movement_server_time_.has_value())
+            if (!slot_state.goldsrc_first_movement_server_time.has_value())
             {
-                first_movement_server_time_ = network_server_time_;
+                slot_state.goldsrc_first_movement_server_time =
+                    network_server_time_;
             }
             summary_.movement_ready = true;
             summary_.movement_executed = true;
@@ -5691,6 +6137,7 @@ private:
             summary_.stock_advanced_past_previous_boundary = true;
             summary_.next_observed_boundary =
                 "two_client_player_replication_required";
+            SyncClientReplicationSummary(slot_state);
         }
         return true;
     }
@@ -6264,7 +6711,16 @@ private:
                 {
                 case hl::network::GoldSrcFrameAcknowledgeResult::
                     kAcknowledged:
-                    if (!continuous_snapshot_started_server_time_.has_value())
+                    ++slot_state.goldsrc_frames_acknowledged;
+                    if (hl::game_api::GoldSrcClientReplicationSummary* client =
+                            FindClientReplicationSummary(slot_state.slot);
+                        client != nullptr)
+                    {
+                        ++client->frames_acknowledged;
+                    }
+                    if (!slot_state
+                            .goldsrc_continuous_snapshot_started_server_time
+                            .has_value())
                     {
                         ++summary_.first_snapshot_acked;
                         summary_.previous_first_snapshot_boundary_resolved =
@@ -6283,7 +6739,8 @@ private:
                                     "continuous-snapshot-scheduler-start-failed",
                                     "goldsrc_continuous_snapshot_failed: reason=scheduler-start");
                             }
-                            continuous_snapshot_started_server_time_ =
+                            slot_state
+                                .goldsrc_continuous_snapshot_started_server_time =
                                 network_server_time_;
                             summary_.continuous_snapshot_contract_verified =
                                 true;
@@ -6307,12 +6764,17 @@ private:
                         const std::uint32_t acknowledged_frame =
                             *slot_state.goldsrc_first_snapshot.history()
                                  .last_acknowledged_frame();
-                        if (!last_counted_acknowledged_frame_.has_value()
-                            || *last_counted_acknowledged_frame_
+                        if (!slot_state
+                                .goldsrc_last_counted_acknowledged_frame
+                                .has_value()
+                            || *slot_state
+                                .goldsrc_last_counted_acknowledged_frame
                                 != acknowledged_frame)
                         {
-                            last_counted_acknowledged_frame_ =
+                            slot_state
+                                .goldsrc_last_counted_acknowledged_frame =
                                 acknowledged_frame;
+                            ++slot_state.goldsrc_distinct_frame_references;
                             ++summary_.distinct_frame_references;
                         }
                         const auto first_player_frame =
@@ -6344,7 +6806,7 @@ private:
                             summary_.next_observed_boundary =
                                 "movement_execution_required";
                             SyncPlayerLifecycleSummary(slot_state);
-                            if (pmove_persistent_)
+                            if (pmove_persistent_ && slot_state.slot == 1)
                             {
                                 manual_session_lifecycle_
                                     .MarkSessionEstablished(
@@ -6358,8 +6820,9 @@ private:
                     if (!first_snapshot_negative_proof_
                         && !continuous_snapshots_enabled_)
                     {
-                        complete_ = true;
+                        MarkComplete("first_snapshot_complete");
                     }
+                    SyncClientReplicationSummary(slot_state);
                     break;
                 case hl::network::GoldSrcFrameAcknowledgeResult::kDuplicate:
                     ++summary_.duplicate_frame_acknowledgements;
@@ -6370,7 +6833,7 @@ private:
                         && summary_.evicted_frame_references >= 1)
                     {
                         summary_.server_still_responsive = true;
-                        complete_ = true;
+                        MarkComplete("first_snapshot_negative_complete");
                     }
                     break;
                 case hl::network::GoldSrcFrameAcknowledgeResult::kFuture:
@@ -6381,6 +6844,12 @@ private:
                     break;
                 case hl::network::GoldSrcFrameAcknowledgeResult::kStale:
                     ++summary_.stale_frame_references;
+                    if (continuous_snapshots_negative_proof_
+                        && continuous_negative_unknown_observed_)
+                    {
+                        continuous_negative_stale_after_unknown_observed_ =
+                            true;
+                    }
                     break;
                 case hl::network::GoldSrcFrameAcknowledgeResult::kAmbiguous:
                     ++summary_.ambiguous_frame_references;
@@ -6389,6 +6858,10 @@ private:
                 case hl::network::GoldSrcFrameAcknowledgeResult::kUnknown:
                 default:
                     ++summary_.unknown_frame_references;
+                    if (continuous_snapshots_negative_proof_)
+                    {
+                        continuous_negative_unknown_observed_ = true;
+                    }
                     break;
                 }
                 SyncNetchanSummary(slot_state);
@@ -6396,6 +6869,13 @@ private:
                     acknowledgement
                         == hl::network::GoldSrcFrameAcknowledgeResult::
                             kAcknowledged
+                    || (continuous_snapshots_negative_proof_
+                        && (acknowledgement
+                                == hl::network::
+                                    GoldSrcFrameAcknowledgeResult::kUnknown
+                            || acknowledgement
+                                == hl::network::
+                                    GoldSrcFrameAcknowledgeResult::kStale))
                     || ShouldLogDiagnosticSample(
                         ++frame_reference_diagnostics_seen_);
                 if (log_frame_reference)
@@ -6757,7 +7237,7 @@ private:
                     + ",put_in_server=0,spawned=0,active=0");
             if (!first_snapshot_enabled_)
             {
-                complete_ = true;
+                MarkComplete("post_resource_command_complete");
             }
             return true;
         }
@@ -7152,6 +7632,117 @@ private:
         return true;
     }
 
+    void RecordRemotePlayerSnapshot(
+        DedicatedPlayerRuntimeSlot& receiver,
+        const hl::network::GoldSrcPlayerSnapshotInput& snapshot)
+    {
+        hl::game_api::GoldSrcClientReplicationSummary* const client =
+            FindClientReplicationSummary(receiver.slot);
+        if (client == nullptr)
+        {
+            return;
+        }
+        std::vector<int> visible_slots;
+        visible_slots.reserve(snapshot.remote_entities.size());
+        for (const hl::network::GoldSrcSnapshotEntityState& remote :
+             snapshot.remote_entities)
+        {
+            const int remote_slot = static_cast<int>(remote.entity_index);
+            DedicatedPlayerRuntimeSlot* const candidate =
+                FindDedicatedPlayerRuntimeSlot(
+                    state_.dedicated_multiplayer_foundation,
+                    remote_slot);
+            edict_t* const entity = candidate == nullptr
+                ? nullptr
+                : state_.edict_store.EntityOfIndex(remote_slot);
+            if (candidate == nullptr || entity == nullptr)
+            {
+                continue;
+            }
+            visible_slots.push_back(remote_slot);
+            auto observation = std::find_if(
+                receiver.goldsrc_remote_player_observations.begin(),
+                receiver.goldsrc_remote_player_observations.end(),
+                [remote_slot](const GoldSrcRemotePlayerObservation& value)
+                {
+                    return value.slot == remote_slot;
+                });
+            if (observation
+                == receiver.goldsrc_remote_player_observations.end())
+            {
+                receiver.goldsrc_remote_player_observations.push_back({});
+                observation =
+                    receiver.goldsrc_remote_player_observations.end() - 1;
+                observation->slot = remote_slot;
+            }
+            const bool same_generation =
+                observation->session_id == candidate->session_id;
+            if (!observation->visible || !same_generation)
+            {
+                ++client->remote_player_adds;
+                if (!observation->session_id.empty() && !same_generation)
+                {
+                    ++client->remote_player_readds;
+                }
+            }
+            else
+            {
+                ++client->remote_player_updates;
+                const double elapsed = network_server_time_
+                    - observation->server_time;
+                if (std::isfinite(elapsed) && elapsed >= 0.0)
+                {
+                    const int gap_ms = static_cast<int>(std::llround(
+                        elapsed * 1000.0));
+                    client->maximum_remote_snapshot_gap_ms = (std::max)(
+                        client->maximum_remote_snapshot_gap_ms,
+                        gap_ms);
+                    if (gap_ms
+                        > static_cast<int>(
+                            summary_.snapshot_interval_ms * 3.0))
+                    {
+                        ++client->remote_snapshot_update_gaps;
+                    }
+                    const double dx = static_cast<double>(entity->v.origin.x)
+                        - observation->origin.x;
+                    const double dy = static_cast<double>(entity->v.origin.y)
+                        - observation->origin.y;
+                    const double dz = static_cast<double>(entity->v.origin.z)
+                        - observation->origin.z;
+                    const double distance = std::sqrt(
+                        dx * dx + dy * dy + dz * dz);
+                    const double allowed_distance = (std::max)(
+                        128.0,
+                        elapsed * 2048.0);
+                    if (!std::isfinite(distance)
+                        || distance > allowed_distance)
+                    {
+                        ++client->remote_origin_discontinuities;
+                    }
+                }
+            }
+            observation->session_id = candidate->session_id;
+            observation->origin = entity->v.origin;
+            observation->server_time = network_server_time_;
+            observation->visible = true;
+        }
+        for (GoldSrcRemotePlayerObservation& observation :
+             receiver.goldsrc_remote_player_observations)
+        {
+            if (!observation.visible
+                || std::find(
+                    visible_slots.begin(),
+                    visible_slots.end(),
+                    observation.slot) != visible_slots.end())
+            {
+                continue;
+            }
+            observation.visible = false;
+            ++client->remote_player_removes;
+        }
+        RefreshTwoClientReplicationSummary();
+    }
+
     bool SendContinuousSnapshotDatagram(
         DedicatedPlayerRuntimeSlot& slot_state)
     {
@@ -7248,13 +7839,14 @@ private:
                 "goldsrc_continuous_snapshot_failed: reason=carrier-self-check");
         }
         const bool same_frame_movement_commit =
-            last_movement_commit_packet_sequence_.has_value()
-            && last_movement_commit_host_frame_
+            slot_state.goldsrc_last_movement_commit_packet_sequence
+                .has_value()
+            && slot_state.goldsrc_last_movement_commit_host_frame
                 == summary_.host_frames_pumped;
         if (same_frame_movement_commit)
         {
             const std::uint32_t movement_sequence =
-                *last_movement_commit_packet_sequence_;
+                *slot_state.goldsrc_last_movement_commit_packet_sequence;
             const bool acknowledgement_covers_movement =
                 carrier.packet.acknowledgement == movement_sequence
                 || hl::network::IsGoldSrcNetchanSequenceNewer(
@@ -7346,9 +7938,9 @@ private:
         summary_.missed_snapshot_intervals = static_cast<int>(
             scheduler.skipped_snapshots);
         if (summary_.maximum_snapshot_gap_ms
-                > last_observed_snapshot_gap_ms_)
+                > slot_state.goldsrc_last_observed_snapshot_gap_ms)
         {
-            last_observed_snapshot_gap_ms_ =
+            slot_state.goldsrc_last_observed_snapshot_gap_ms =
                 summary_.maximum_snapshot_gap_ms;
             if (summary_.maximum_snapshot_gap_ms
                     > static_cast<int>(summary_.snapshot_interval_ms * 2.0))
@@ -7369,8 +7961,16 @@ private:
         }
 
         ++summary_.continuous_snapshots_sent;
+        ++slot_state.goldsrc_continuous_snapshots_sent;
+        if (hl::game_api::GoldSrcClientReplicationSummary* client =
+                FindClientReplicationSummary(slot_state.slot);
+            client != nullptr)
+        {
+            ++client->snapshots_sent;
+        }
         if (player_snapshot.has_value())
         {
+            RecordRemotePlayerSnapshot(slot_state, *player_snapshot);
             const std::uint16_t player_index =
                 player_snapshot->entity.entity_index;
             bool player_operation_counted = false;
@@ -7412,7 +8012,7 @@ private:
             {
                 pmove_runtime_.RecordMovementSnapshot(
                     static_cast<std::size_t>(slot_state.slot));
-                if (pmove_persistent_)
+                if (pmove_persistent_ && slot_state.slot == 1)
                 {
                     manual_session_lifecycle_.RecordMovementSnapshot();
                 }
@@ -7643,10 +8243,56 @@ private:
         return true;
     }
 
-    bool SendInitialNetchanDatagram()
+    bool SendDueSnapshotsFairly()
     {
-        DedicatedPlayerRuntimeSlot* slot_state = FindAdmittedNetchanSlot();
-        if (slot_state == nullptr || !slot_state->netchan.initialized())
+        auto& slots = state_.dedicated_multiplayer_foundation.slots;
+        if (!continuous_snapshots_enabled_ || slots.empty())
+        {
+            return true;
+        }
+        const std::size_t count = slots.size();
+        const std::size_t start = next_snapshot_scheduler_index_ % count;
+        for (std::size_t offset = 0u; offset < count; ++offset)
+        {
+            if (datagrams_sent_this_frame_
+                >= kMaximumDatagramsSentPerHostFrame)
+            {
+                break;
+            }
+            DedicatedPlayerRuntimeSlot& slot_state =
+                slots[(start + offset) % count];
+            if (!IsDedicatedSlotConnectedOccupant(slot_state)
+                || !slot_state.netchan.initialized())
+            {
+                continue;
+            }
+            const hl::network::GoldSrcSnapshotDueResult due =
+                slot_state.goldsrc_first_snapshot.CheckContinuousDue(
+                    network_server_time_);
+            if (due == hl::network::GoldSrcSnapshotDueResult::kDue
+                && !SendContinuousSnapshotDatagram(slot_state))
+            {
+                return false;
+            }
+            if (due == hl::network::GoldSrcSnapshotDueResult::kInvalidServerTime
+                || due
+                    == hl::network::GoldSrcSnapshotDueResult::
+                        kNonMonotonicServerTime)
+            {
+                return FailTransport(
+                    "continuous-snapshot-scheduler-invalid",
+                    "goldsrc_continuous_snapshot_failed: reason="
+                        + std::string(hl::network::ReasonFor(due)));
+            }
+        }
+        next_snapshot_scheduler_index_ = (start + 1u) % count;
+        return true;
+    }
+
+    bool SendInitialNetchanDatagram(
+        DedicatedPlayerRuntimeSlot& slot_state)
+    {
+        if (!slot_state.netchan.initialized())
         {
             return FailTransport(
                 "netchan-session-missing",
@@ -7655,23 +8301,23 @@ private:
 
         summary_.netchan_initialized = true;
         summary_.netchan_state = std::string(
-            hl::network::NameFor(slot_state->netchan.transport_phase()));
+            hl::network::NameFor(slot_state.netchan.transport_phase()));
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
-            "goldsrc_netchan_initialized: session_id=" + slot_state->session_id
-                + ",slot=" + std::to_string(slot_state->slot)
-                + ",endpoint=" + slot_state->netchan.remote_endpoint().ToString()
+            "goldsrc_netchan_initialized: session_id=" + slot_state.session_id
+                + ",slot=" + std::to_string(slot_state.slot)
+                + ",endpoint=" + slot_state.netchan.remote_endpoint().ToString()
                 + ",outgoing_sequence=1,incoming_sequence=0,qport_wire=absent"
                 + ",channel_id="
-                + std::to_string(slot_state->netchan.channel_identifier()));
+                + std::to_string(slot_state.netchan.channel_identifier()));
         hl::common::Logger::Info(
-            hl::common::LogCategory::Server,
-            "goldsrc_netchan_reliable_queued: session_id="
-                + slot_state->session_id
+                hl::common::LogCategory::Server,
+                "goldsrc_netchan_reliable_queued: session_id="
+                + slot_state.session_id
                 + ",payload=svc_nop,payload_bytes=1,reliable_toggle=1");
 
         if (!SendNetchanDatagram(
-                *slot_state,
+                slot_state,
                 true,
                 "goldsrc_netchan_reliable_sent"))
         {
@@ -7687,21 +8333,38 @@ private:
         return true;
     }
 
-    bool SendPendingOrdinaryAdvance()
+    bool SendPendingOrdinaryAdvances()
     {
-        DedicatedPlayerRuntimeSlot* slot_state = FindAdmittedNetchanSlot();
-        if (slot_state == nullptr
-            || !slot_state->netchan.initialized()
-            || !slot_state->netchan.reliable_pending())
+        for (DedicatedPlayerRuntimeSlot& slot_state :
+             state_.dedicated_multiplayer_foundation.slots)
         {
-            return FailTransport(
-                "netchan-negative-advance-invalid",
-                "goldsrc_netchan_send_failed: reason=negative-advance-invalid");
+            if (!slot_state.goldsrc_negative_advance_pending)
+            {
+                continue;
+            }
+            if (datagrams_sent_this_frame_
+                >= kMaximumDatagramsSentPerHostFrame)
+            {
+                return true;
+            }
+            slot_state.goldsrc_negative_advance_pending = false;
+            if (!IsDedicatedSlotConnectedOccupant(slot_state)
+                || !slot_state.netchan.initialized()
+                || !slot_state.netchan.reliable_pending())
+            {
+                return FailTransport(
+                    "netchan-negative-advance-invalid",
+                    "goldsrc_netchan_send_failed: reason=negative-advance-invalid");
+            }
+            if (!SendNetchanDatagram(
+                    slot_state,
+                    false,
+                    "goldsrc_netchan_ordinary_sent"))
+            {
+                return false;
+            }
         }
-        return SendNetchanDatagram(
-            *slot_state,
-            false,
-            "goldsrc_netchan_ordinary_sent");
+        return true;
     }
 
     bool NegativeEvidenceSatisfied() const noexcept
@@ -8086,7 +8749,7 @@ private:
             {
                 if (!negative_proof_)
                 {
-                    complete_ = true;
+                    MarkComplete("netchan_only_complete");
                 }
                 return true;
             }
@@ -8106,7 +8769,7 @@ private:
             {
                 return false;
             }
-            if (admitted_session_id_.empty())
+            if (!IsDedicatedSlotConnectedOccupant(*slot_state))
             {
                 // An exact reliable `dropclient\n` resets the authoritative
                 // slot and all session-owned transport state in the handler.
@@ -8204,18 +8867,20 @@ private:
                     // at this phase until one fully valid move envelope
                     // establishes the next bounded checkpoint.
                 }
-                else if (!resource_manifest_negative_proof_
+                else if (summary_.max_clients == 1
+                    && !resource_manifest_negative_proof_
                     && !delta_descriptions_negative_proof_)
                 {
-                    complete_ = true;
+                    MarkComplete("resource_manifest_complete");
                 }
-                else if ((!resource_manifest_negative_proof_
+                else if (summary_.max_clients == 1
+                    && ((!resource_manifest_negative_proof_
                             || ResourceManifestNegativeEvidenceSatisfied())
                     && (!delta_descriptions_negative_proof_
-                            || DeltaDescriptionsNegativeEvidenceSatisfied()))
+                            || DeltaDescriptionsNegativeEvidenceSatisfied())))
                 {
                     summary_.server_still_responsive = true;
-                    complete_ = true;
+                    MarkComplete("resource_manifest_negative_complete");
                 }
             }
             else if (slot_state->goldsrc_signon.phase()
@@ -8223,20 +8888,22 @@ private:
                         kAwaitingServerBaselineOrSnapshot
                 && summary_.clc_move_delivered >= 1)
             {
-                if (!delta_descriptions_negative_proof_
-                    || DeltaDescriptionsNegativeEvidenceSatisfied())
+                if (summary_.max_clients == 1
+                    && (!delta_descriptions_negative_proof_
+                        || DeltaDescriptionsNegativeEvidenceSatisfied()))
                 {
                     summary_.server_still_responsive = true;
-                    complete_ = true;
+                    MarkComplete("post_resource_move_complete");
                 }
             }
-            else if (resource_manifest_negative_proof_
+            else if (summary_.max_clients == 1
+                && resource_manifest_negative_proof_
                 && summary_.requires_fragmentation_reported
                 && summary_.oversized_manifest_not_truncated
                 && summary_.resource_manifest_cached_outcome_reuses >= 1)
             {
                 summary_.server_still_responsive = true;
-                complete_ = true;
+                MarkComplete("resource_manifest_fragment_complete");
             }
             return true;
         }
@@ -8257,24 +8924,27 @@ private:
                     == hl::network::GoldSrcSignonPhase::
                         kSignonBootstrapAcknowledged)
             {
-                if (!serverinfo_negative_proof_
+                if (summary_.max_clients == 1
+                    && !serverinfo_negative_proof_
                     && !delta_descriptions_negative_proof_)
                 {
-                    complete_ = true;
+                    MarkComplete("serverinfo_complete");
                 }
-                else if ((!serverinfo_negative_proof_
+                else if (summary_.max_clients == 1
+                    && ((!serverinfo_negative_proof_
                             || ServerInfoNegativeEvidenceSatisfied())
                     && (!delta_descriptions_negative_proof_
-                            || DeltaDescriptionsNegativeEvidenceSatisfied()))
+                            || DeltaDescriptionsNegativeEvidenceSatisfied())))
                 {
                     summary_.server_still_responsive = true;
-                    complete_ = true;
+                    MarkComplete("serverinfo_negative_complete");
                 }
             }
             return true;
         }
 
-        if (negative_proof_
+        if (summary_.max_clients == 1
+            && negative_proof_
             && slot_state->netchan.transport_phase()
                 == hl::network::GoldSrcNetchanTransportPhase::kEstablished
             && NegativeEvidenceSatisfied())
@@ -8287,7 +8957,7 @@ private:
                 return false;
             }
             summary_.server_still_responsive = true;
-            complete_ = true;
+            MarkComplete("netchan_negative_complete");
         }
         return true;
     }
@@ -8317,8 +8987,25 @@ private:
             CountDedicatedQueryPlayers(state_.dedicated_multiplayer_foundation);
         summary_.allocated_slot = slot_state->slot;
         summary_.session_id = slot_state->session_id;
-        admitted_session_id_ = slot_state->session_id;
-        if (pmove_persistent_)
+        hl::game_api::GoldSrcClientReplicationSummary* const client_summary =
+            FindClientReplicationSummary(slot_state->slot);
+        if (client_summary != nullptr)
+        {
+            const bool reconnect = client_summary->admission_count > 0;
+            ++client_summary->admission_count;
+            if (reconnect)
+            {
+                ++client_summary->reconnect_count;
+                client_summary->slot_reuse_clean =
+                    slot_state->goldsrc_first_snapshot.history().size() == 0u
+                    && !slot_state->goldsrc_first_snapshot
+                        .prepared().has_value()
+                    && !slot_state->goldsrc_last_counted_acknowledged_frame
+                        .has_value()
+                    && slot_state->goldsrc_pmove_calls == 0u;
+            }
+        }
+        if (pmove_persistent_ && slot_state->slot == 1)
         {
             const bool reconnected =
                 manual_session_lifecycle_.MarkClientAdmitted();
@@ -8339,17 +9026,14 @@ private:
         summary_.spawned = slot_state->spawn_count > 0 || slot_state->alive;
         summary_.active = slot_state->put_in_server && slot_state->alive;
         summary_.last_reject_reason = "<none>";
-        if (awaiting_fresh_session_after_delta_reset_)
+        const std::size_t reset_index = static_cast<std::size_t>(
+            slot_state->slot - 1);
+        if (reset_index < awaiting_fresh_session_after_delta_reset_.size()
+            && awaiting_fresh_session_after_delta_reset_[reset_index])
         {
-            if (slot_state->slot != delta_reset_slot_)
-            {
-                return FailTransport(
-                    "delta-slot-reuse-mismatch",
-                    "goldsrc_delta_session_reset_failed: reason=slot-reuse-mismatch");
-            }
             ++summary_.delta_fresh_sessions_after_reset;
             summary_.delta_slot_reused_after_reset = true;
-            awaiting_fresh_session_after_delta_reset_ = false;
+            awaiting_fresh_session_after_delta_reset_[reset_index] = false;
             hl::common::Logger::Info(
                 hl::common::LogCategory::Server,
                 "goldsrc_delta_fresh_session: session_id="
@@ -8396,6 +9080,8 @@ private:
             }
             SyncNetchanSummary(*slot_state);
         }
+        SyncClientReplicationSummary(*slot_state);
+        RefreshTwoClientReplicationSummary();
 
         hl::common::Logger::Info(
             hl::common::LogCategory::Server,
@@ -8465,6 +9151,8 @@ private:
     bool first_snapshot_negative_proof_ = false;
     bool continuous_snapshots_enabled_ = false;
     bool continuous_snapshots_negative_proof_ = false;
+    bool continuous_negative_unknown_observed_ = false;
+    bool continuous_negative_stale_after_unknown_observed_ = false;
     bool player_lifecycle_enabled_ = false;
     bool player_lifecycle_negative_proof_ = false;
     bool pmove_enabled_ = false;
@@ -8472,6 +9160,7 @@ private:
     bool pmove_persistent_ = false;
     double pmove_observation_seconds_ = 2.0;
     std::optional<std::filesystem::path> manual_shutdown_file_;
+    std::optional<std::filesystem::path> manual_disconnect_file_;
     hl::network::GoldSrcManualSessionLifecycle manual_session_lifecycle_;
     hl::game_api::detail::GoldSrcPmoveRuntime pmove_runtime_;
     hl::network::GoldSrcClientEdictRegistry lifecycle_edict_registry_;
@@ -8489,11 +9178,10 @@ private:
     std::chrono::steady_clock::time_point deadline_{};
     std::chrono::steady_clock::time_point last_network_host_frame_time_{};
     std::chrono::steady_clock::time_point next_manual_shutdown_probe_time_{};
+    std::chrono::steady_clock::time_point next_manual_disconnect_probe_time_{};
     bool network_server_clock_started_ = false;
+    bool manual_disconnect_consumed_ = false;
     double network_server_time_ = 0.0;
-    std::optional<double> continuous_snapshot_started_server_time_;
-    std::optional<double> first_movement_server_time_;
-    std::optional<std::uint32_t> last_counted_acknowledged_frame_;
     std::uint64_t challenge_diagnostics_seen_ = 0;
     std::uint64_t rejection_diagnostics_seen_ = 0;
     std::uint64_t malformed_diagnostics_seen_ = 0;
@@ -8512,22 +9200,16 @@ private:
     std::uint64_t snapshot_cadence_gap_diagnostics_seen_ = 0;
     std::uint64_t prediction_state_diagnostics_seen_ = 0;
     std::uint64_t continuous_snapshot_diagnostics_seen_ = 0;
-    int last_observed_move_execution_gap_ms_ = 0;
-    int last_reported_clock_resynchronizations_ = 0;
-    int last_observed_snapshot_gap_ms_ = 0;
-    std::optional<std::uint32_t> last_movement_commit_packet_sequence_;
-    int last_movement_commit_host_frame_ = 0;
     std::uint64_t next_network_session_ = 1;
-    std::string admitted_session_id_;
     int datagrams_sent_this_frame_ = 0;
-    bool negative_advance_pending_ = false;
+    std::size_t next_snapshot_scheduler_index_ = 0u;
     bool deadline_started_ = false;
     bool started_ = false;
     bool complete_ = false;
+    std::string completion_reason_ = "pending";
     bool transport_failed_ = false;
     bool accepted_ = false;
     bool shutdown_ = false;
     bool manual_session_shutdown_logged_ = false;
-    bool awaiting_fresh_session_after_delta_reset_ = false;
-    int delta_reset_slot_ = 0;
+    std::vector<bool> awaiting_fresh_session_after_delta_reset_;
 };

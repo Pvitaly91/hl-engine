@@ -1094,7 +1094,11 @@ function Read-ServerInfoPayload {
 function Assert-ServerInfoRuntimeExpectations {
     param(
         $ServerInfo,
-        [string]$ExpectedClientDllMd5
+        [string]$ExpectedClientDllMd5,
+        [ValidateRange(1, 255)]
+        [int]$ExpectedMaxClients = 1,
+        [ValidateRange(0, 254)]
+        [int]$ExpectedPlayerIndex = 0
     )
 
     if ($ServerInfo.Protocol -ne 48) {
@@ -1112,12 +1116,14 @@ function Assert-ServerInfoRuntimeExpectations {
             $ExpectedClientDllMd5.ToLowerInvariant(),
             $ServerInfo.ClientDllMd5Hex)
     }
-    if ($ServerInfo.MaxClients -ne 1) {
-        throw ("svc_serverinfo max clients mismatch: expected 1, received {0}" -f
+    if ($ServerInfo.MaxClients -ne $ExpectedMaxClients) {
+        throw ("svc_serverinfo max clients mismatch: expected {0}, received {1}" -f
+            $ExpectedMaxClients,
             $ServerInfo.MaxClients)
     }
-    if ($ServerInfo.PlayerIndex -ne 0) {
-        throw ("svc_serverinfo zero-based player index mismatch: expected 0, received {0}" -f
+    if ($ServerInfo.PlayerIndex -ne $ExpectedPlayerIndex) {
+        throw ("svc_serverinfo zero-based player index mismatch: expected {0}, received {1}" -f
+            $ExpectedPlayerIndex,
             $ServerInfo.PlayerIndex)
     }
     if ($ServerInfo.Deathmatch -ne 1) {

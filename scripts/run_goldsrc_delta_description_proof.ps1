@@ -886,7 +886,11 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
         [byte[]]$Payload,
         [uint32]$FrameId,
         $BaseSnapshot,
-        [object[]]$DeltaTables
+        [object[]]$DeltaTables,
+        [ValidateRange(1, 255)]
+        [int]$MaximumClients = 1,
+        [ValidateRange(1, 255)]
+        [int]$OwnEntity = 1
     )
 
     $clientDataTable = Get-RequiredDeltaTable `
@@ -973,6 +977,9 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
     [int]$playerAdds = 0
     [int]$playerUpdates = 0
     [int]$playerRemoves = 0
+    $playerAddEntities = New-Object 'System.Collections.Generic.List[int]'
+    $playerUpdateEntities = New-Object 'System.Collections.Generic.List[int]'
+    $playerRemoveEntities = New-Object 'System.Collections.Generic.List[int]'
     while ($true) {
         [int64]$operationStart = $reader.BitPosition
         if ((Read-DeltaBits -Reader $reader -Count 16 `
@@ -1011,8 +1018,9 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
             if (-not $entitySet.Remove($entityNumber)) {
                 throw "lifecycle packet entities removed an absent entity"
             }
-            if ($entityNumber -eq 1) {
+            if ($entityNumber -le $MaximumClients) {
                 $playerRemoves++
+                $playerRemoveEntities.Add($entityNumber)
             }
             continue
         }
@@ -1023,7 +1031,7 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
             -Description "lifecycle custom-entity marker") -ne 0
         $selectedTable = if ($custom) {
             $customEntityTable
-        } elseif ($entityNumber -eq 1) {
+        } elseif ($entityNumber -le $MaximumClients) {
             $playerTable
         } else {
             $entityTable
@@ -1033,11 +1041,13 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
             -Table $selectedTable `
             -Description ("lifecycle entity {0}" -f $entityNumber))
         if ($entitySet.Add($entityNumber)) {
-            if ($entityNumber -eq 1) {
+            if ($entityNumber -le $MaximumClients) {
                 $playerAdds++
+                $playerAddEntities.Add($entityNumber)
             }
-        } elseif ($entityNumber -eq 1) {
+        } elseif ($entityNumber -le $MaximumClients) {
             $playerUpdates++
+            $playerUpdateEntities.Add($entityNumber)
         }
     }
     Align-DeltaBitReaderToByte `
@@ -1061,10 +1071,15 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
         PacketEntitiesReceived = $true
         DeltaPacketEntitiesReceived = $true
         BaseFrameId = [uint32]$BaseSnapshot.FrameId
-        PlayerPresent = $entitySet.Contains(1)
+        PlayerPresent = $entitySet.Contains($OwnEntity)
+        PlayerEntities = [int[]]@(
+            $entitySet | Where-Object { $_ -le $MaximumClients } | Sort-Object)
         PlayerAdds = $playerAdds
         PlayerUpdates = $playerUpdates
         PlayerRemoves = $playerRemoves
+        PlayerAddEntities = [int[]]$playerAddEntities.ToArray()
+        PlayerUpdateEntities = [int[]]$playerUpdateEntities.ToArray()
+        PlayerRemoveEntities = [int[]]$playerRemoveEntities.ToArray()
     }
 }
 
@@ -1073,7 +1088,11 @@ function Read-PlayerLifecycleFullSnapshotPayload {
         [byte[]]$Payload,
         [uint32]$FrameId,
         $PreviousSnapshot,
-        [object[]]$DeltaTables
+        [object[]]$DeltaTables,
+        [ValidateRange(1, 255)]
+        [int]$MaximumClients = 1,
+        [ValidateRange(1, 255)]
+        [int]$OwnEntity = 1
     )
 
     $clientDataTable = Get-RequiredDeltaTable `
@@ -1140,6 +1159,9 @@ function Read-PlayerLifecycleFullSnapshotPayload {
     }
 
     $entities = New-Object 'System.Collections.Generic.List[int]'
+    $playerAddEntities = New-Object 'System.Collections.Generic.List[int]'
+    $playerUpdateEntities = New-Object 'System.Collections.Generic.List[int]'
+    $playerRemoveEntities = New-Object 'System.Collections.Generic.List[int]'
     [int]$numberBase = 0
     [int]$playerAdds = 0
     for ($index = 0; $index -lt $entityCount; $index++) {
@@ -1185,7 +1207,7 @@ function Read-PlayerLifecycleFullSnapshotPayload {
         }
         $selectedTable = if ($custom) {
             $customEntityTable
-        } elseif ($entityNumber -eq 1) {
+        } elseif ($entityNumber -le $MaximumClients) {
             $playerTable
         } else {
             $entityTable
@@ -1195,8 +1217,9 @@ function Read-PlayerLifecycleFullSnapshotPayload {
             -Table $selectedTable `
             -Description ("lifecycle full entity {0}" -f $entityNumber))
         $entities.Add($entityNumber)
-        if ($entityNumber -eq 1) {
+        if ($entityNumber -le $MaximumClients) {
             $playerAdds++
+            $playerAddEntities.Add($entityNumber)
         }
     }
     if ((Read-DeltaBits -Reader $reader -Count 16 `
@@ -1211,6 +1234,31 @@ function Read-PlayerLifecycleFullSnapshotPayload {
     }
 
     [int[]]$entityNumbers = $entities.ToArray()
+    [int[]]$playerEntities = @(
+        $entityNumbers | Where-Object { $_ -le $MaximumClients })
+    [int]$playerUpdates = 0
+    [int]$playerRemoves = 0
+    if ($null -ne $PreviousSnapshot -and
+        $null -ne $PreviousSnapshot.PSObject.Properties['PlayerEntities']) {
+        $playerAddEntities.Clear()
+        $playerAdds = 0
+        foreach ($playerEntity in $playerEntities) {
+            if ($PreviousSnapshot.PlayerEntities -contains $playerEntity) {
+                $playerUpdateEntities.Add($playerEntity)
+                $playerUpdates++
+            } else {
+                $playerAddEntities.Add($playerEntity)
+                $playerAdds++
+            }
+        }
+        foreach ($previousPlayer in $PreviousSnapshot.PlayerEntities) {
+            if ($previousPlayer -le $MaximumClients -and
+                $playerEntities -notcontains $previousPlayer) {
+                $playerRemoveEntities.Add([int]$previousPlayer)
+                $playerRemoves++
+            }
+        }
+    }
     return [pscustomobject]@{
         FrameId = $FrameId
         ServerTime = $serverTime
@@ -1222,10 +1270,14 @@ function Read-PlayerLifecycleFullSnapshotPayload {
         PacketEntitiesReceived = $true
         DeltaPacketEntitiesReceived = $false
         BaseFrameId = $null
-        PlayerPresent = $entityNumbers -contains 1
+        PlayerPresent = $entityNumbers -contains $OwnEntity
+        PlayerEntities = $playerEntities
         PlayerAdds = $playerAdds
-        PlayerUpdates = 0
-        PlayerRemoves = 0
+        PlayerUpdates = $playerUpdates
+        PlayerRemoves = $playerRemoves
+        PlayerAddEntities = [int[]]$playerAddEntities.ToArray()
+        PlayerUpdateEntities = [int[]]$playerUpdateEntities.ToArray()
+        PlayerRemoveEntities = [int[]]$playerRemoveEntities.ToArray()
     }
 }
 
@@ -1863,6 +1915,12 @@ function Read-ServerInfoDeltaBootstrap {
     param(
         [byte[]]$Payload,
         [string]$ExpectedClientDllMd5,
+        [ValidateRange(1, 255)]
+        [int]$ExpectedMaxClients = 1,
+        [ValidateRange(0, 254)]
+        [int]$ExpectedPlayerIndex = 0,
+        [ValidateRange(1, 2047)]
+        [int]$ExpectedViewEntity = 1,
         [switch]$ExactMinimal
     )
 
@@ -1928,7 +1986,9 @@ function Read-ServerInfoDeltaBootstrap {
     $serverInfo = Read-ServerInfoPayload -Payload $prefix
     Assert-ServerInfoRuntimeExpectations `
         -ServerInfo $serverInfo `
-        -ExpectedClientDllMd5 $ExpectedClientDllMd5
+        -ExpectedClientDllMd5 $ExpectedClientDllMd5 `
+        -ExpectedMaxClients $ExpectedMaxClients `
+        -ExpectedPlayerIndex $ExpectedPlayerIndex
 
     $postServerInfoBytes = New-Object byte[] ($Payload.Length - $prefixSize)
     [Array]::Copy(
@@ -1945,7 +2005,7 @@ function Read-ServerInfoDeltaBootstrap {
     }
     $bootstrapTail = Read-BootstrapTail `
         -Bytes $bundle.TrailingBytes `
-        -ExpectedViewEntity 1
+        -ExpectedViewEntity $ExpectedViewEntity
     return [pscustomobject]@{
         Payload = $Payload
         ServerInfo = $serverInfo
@@ -1962,7 +2022,11 @@ function Invoke-DeltaInitialHandshake {
         [System.Diagnostics.Process]$ServerProcess,
         $OutputCapture,
         [DateTime]$Deadline,
-        [System.Net.IPEndPoint]$ServerEndpoint
+        [System.Net.IPEndPoint]$ServerEndpoint,
+        [ValidatePattern('^[A-Za-z0-9_]{1,31}$')]
+        [string]$ProbeName = "delta_description_probe",
+        [ValidateRange(1, 255)]
+        [int]$ExpectedSlot = 1
     )
 
     $challengeRequest = New-ConnectionlessDatagram `
@@ -2005,7 +2069,7 @@ function Invoke-DeltaInitialHandshake {
 
     $clientPort = ([System.Net.IPEndPoint]$Client.Client.LocalEndPoint).Port
     $protocolInfo = '\prot\3\unique\-1\raw\steam\cdkey\00000000000000000000000000000000'
-    $userInfo = '\name\delta_description_probe\model\gordon'
+    $userInfo = '\name\' + $ProbeName + '\model\gordon'
     $connectLine = ('connect 48 {0} "{1}" "{2}"' -f
         $challengeValue,
         $protocolInfo,
@@ -2025,7 +2089,9 @@ function Invoke-DeltaInitialHandshake {
         -ExpectedRemoteEndpoint $ServerEndpoint `
         -Description "delta proof connect accept response"
     $expectedAcceptResponse = New-ConnectionlessDatagram `
-        -Text ('B 1 "127.0.0.1:{0}" 0 5971' -f $clientPort) `
+        -Text ('B {0} "127.0.0.1:{1}" 0 5971' -f
+            $ExpectedSlot,
+            $clientPort) `
         -Tail ([byte[]](0x00))
     Assert-ExactBytes `
         -Actual $acceptDatagram.Bytes `
@@ -2123,8 +2189,22 @@ function Invoke-UnfragmentedDeltaBootstrap {
         [DateTime]$Deadline,
         [System.Net.IPEndPoint]$ServerEndpoint,
         $Handshake,
-        [string]$ExpectedClientDllMd5
+        [string]$ExpectedClientDllMd5,
+        [ValidateRange(1, 255)]
+        [int]$ExpectedMaxClients = 1,
+        [ValidateRange(0, 254)]
+        [int]$ExpectedPlayerIndex = 0,
+        [ValidateRange(1, 2047)]
+        [int]$ExpectedViewEntity = 1
     )
+
+    [void](Update-ProcessOutputCapture -State $OutputCapture)
+    $acknowledgedToken = "goldsrc_signon_bootstrap_acknowledged:"
+    $acknowledgedBeforeCount = @(
+        [regex]::Matches(
+            (Get-SharedFileText -Path $StdoutPath),
+            [regex]::Escape($acknowledgedToken))
+    ).Count
 
     Send-DeltaClientPacket `
         -Client $Client `
@@ -2154,13 +2234,19 @@ function Invoke-UnfragmentedDeltaBootstrap {
     $decoded = Read-ServerInfoDeltaBootstrap `
         -Payload $bootstrapPacket.Payload `
         -ExpectedClientDllMd5 $ExpectedClientDllMd5 `
+        -ExpectedMaxClients $ExpectedMaxClients `
+        -ExpectedPlayerIndex $ExpectedPlayerIndex `
+        -ExpectedViewEntity $ExpectedViewEntity `
         -ExactMinimal
 
     [void](Update-ProcessOutputCapture -State $OutputCapture)
     $beforeAck = Get-SharedFileText -Path $StdoutPath
-    if ($beforeAck.IndexOf(
-            "goldsrc_signon_bootstrap_acknowledged:",
-            [StringComparison]::Ordinal) -ge 0) {
+    $beforeAckCount = @(
+        [regex]::Matches(
+            $beforeAck,
+            [regex]::Escape($acknowledgedToken))
+    ).Count
+    if ($beforeAckCount -ne $acknowledgedBeforeCount) {
         throw "delta signon advanced before its reliable acknowledgement"
     }
 
@@ -2182,13 +2268,24 @@ function Invoke-UnfragmentedDeltaBootstrap {
         -ExpectedServerReliableToggle $false `
         -ExpectedClientReliableToggle $true `
         -Description "combined signon bootstrap acknowledgement response")
-    Wait-ForStdoutToken `
-        -Process $ServerProcess `
-        -OutputCapture $OutputCapture `
-        -StdoutPath $StdoutPath `
-        -Deadline $Deadline `
-        -Token "goldsrc_signon_bootstrap_acknowledged:" `
-        -Description "combined signon bootstrap acknowledgement diagnostic"
+    while ([DateTime]::UtcNow -lt $Deadline) {
+        [void](Update-ProcessOutputCapture -State $OutputCapture)
+        $acknowledgedAfterCount = @(
+            [regex]::Matches(
+                (Get-SharedFileText -Path $StdoutPath),
+                [regex]::Escape($acknowledgedToken))
+        ).Count
+        if ($acknowledgedAfterCount -gt $acknowledgedBeforeCount) {
+            break
+        }
+        if ($ServerProcess.HasExited) {
+            throw "server exited before combined signon bootstrap acknowledgement"
+        }
+        Start-Sleep -Milliseconds 10
+    }
+    if ($acknowledgedAfterCount -le $acknowledgedBeforeCount) {
+        throw "timed out waiting for combined signon bootstrap acknowledgement"
+    }
 
     return [pscustomobject]@{
         Decoded = $decoded
@@ -2565,6 +2662,11 @@ function Invoke-ObservedResourceContinuation {
         [switch]$ReceiveContinuousSnapshots,
         [switch]$ReceivePlayerLifecycle,
         [switch]$ReceivePmove,
+        [switch]$ReturnAfterContinuousCount,
+        [ValidateRange(1, 255)]
+        [int]$MaximumClients = 1,
+        [ValidateRange(1, 255)]
+        [int]$OwnEntity = 1,
         [string]$PmoveShutdownRequestPath = "",
         [int]$ContinuousSnapshotCount = 30,
         [double]$PmoveMinimumDurationSeconds = 0.0
@@ -3037,9 +3139,21 @@ function Invoke-ObservedResourceContinuation {
                 $snapshotPacket.Acknowledgement -ne $clientSequence) {
                 throw "first world snapshot did not use one ordinary unreliable carrier"
             }
-            $snapshot = Read-FirstSnapshotPayload `
-                -Payload $snapshotPacket.Payload `
-                -FrameId ([uint32]$snapshotPacket.Sequence)
+            $snapshot = if ($ReceivePlayerLifecycle) {
+                Read-PlayerLifecycleFullSnapshotPayload `
+                    -Payload $snapshotPacket.Payload `
+                    -FrameId ([uint32]$snapshotPacket.Sequence) `
+                    -PreviousSnapshot ([pscustomobject]@{
+                        ServerTime = [single]0.0
+                    }) `
+                    -DeltaTables $Bootstrap.Decoded.DeltaBundle.Tables `
+                    -MaximumClients $MaximumClients `
+                    -OwnEntity $OwnEntity
+            } else {
+                Read-FirstSnapshotPayload `
+                    -Payload $snapshotPacket.Payload `
+                    -FrameId ([uint32]$snapshotPacket.Sequence)
+            }
             $latestServerSequence = [uint32]$snapshotPacket.Sequence
             if ($FirstSnapshotNegativeValidation) {
                 $clientSequence++
@@ -3261,7 +3375,9 @@ function Invoke-ObservedResourceContinuation {
                                 -FrameId ([uint32]$streamPacket.Sequence) `
                                 -PreviousSnapshot $acknowledgedSnapshot `
                                 -DeltaTables (
-                                    $Bootstrap.Decoded.DeltaBundle.Tables)
+                                    $Bootstrap.Decoded.DeltaBundle.Tables) `
+                                -MaximumClients $MaximumClients `
+                                -OwnEntity $OwnEntity
                         } else {
                             Read-FirstSnapshotPayload `
                                 -Payload $streamPacket.Payload `
@@ -3284,7 +3400,9 @@ function Invoke-ObservedResourceContinuation {
                                     $acknowledgedSnapshotsByLow8[
                                         [int]$wireBase]) `
                                 -DeltaTables (
-                                    $Bootstrap.Decoded.DeltaBundle.Tables)
+                                    $Bootstrap.Decoded.DeltaBundle.Tables) `
+                                -MaximumClients $MaximumClients `
+                                -OwnEntity $OwnEntity
                         } else {
                             Read-ContinuousSnapshotPayload `
                                 -Payload $streamPacket.Payload `
@@ -3452,6 +3570,15 @@ function Invoke-ObservedResourceContinuation {
                             -Payload $continuousReference `
                             -Description "continuous snapshot frame reference"
                         $continuousReferencesSent++
+                        if ($ReceivePmove -and
+                            $PmoveMinimumDurationSeconds -le 0.0) {
+                            # A short proof may drain a queued snapshot burst
+                            # faster than the server clock advances. Pace its
+                            # synthetic 50 ms commands so the positive path
+                            # does not accidentally exercise the separate
+                            # command-lead rejection scenario.
+                            Start-Sleep -Milliseconds 10
+                        }
                         $acknowledgedSnapshot = $currentSnapshot
                         $acknowledgedSnapshotsByLow8[
                             [int]$currentLow
@@ -3510,6 +3637,10 @@ function Invoke-ObservedResourceContinuation {
                         $ignoredSinceAcknowledgement++
                     }
                     $final = $streamPacket
+                    if ($ReturnAfterContinuousCount -and
+                        $continuousSnapshotsReceived -ge $minimumContinuousCount) {
+                        break
+                    }
                     if ($ReceivePmove -and
                         -not $pmoveShutdownRequested -and
                         -not [string]::IsNullOrWhiteSpace(
@@ -3579,6 +3710,12 @@ function Invoke-ObservedResourceContinuation {
         ClientSequence = [uint32]$clientSequence
         LatestServerSequence = [uint32]$final.Sequence
         ServerReliableAcknowledgementState = [bool]$manifestAckState
+        CurrentServerReliableAcknowledgementState =
+            [bool]$(if ($PostResourceMode -eq "World") {
+                $baselineAckState
+            } else {
+                $manifestAckState
+            })
         PostResourceMode = $PostResourceMode
         BaselineReceived = $baselineReceived
         BaselineFragmented = $baselineFragmented
@@ -3625,6 +3762,18 @@ function Invoke-ObservedResourceContinuation {
         PlayerAdds = $playerAdds
         PlayerUpdates = $playerUpdates
         PlayerRemoves = $playerRemoves
+        LatestAcknowledgedSnapshot = $(if (
+            $ReceiveContinuousSnapshots) {
+                $acknowledgedSnapshot
+            } else {
+                $snapshot
+            })
+        AcknowledgedSnapshotsByLow8 = $(if (
+            $ReceiveContinuousSnapshots) {
+                $acknowledgedSnapshotsByLow8
+            } else {
+                @{}
+            })
     }
 }
 
