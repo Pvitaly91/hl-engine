@@ -205,3 +205,69 @@ Two-client movement and mutual player visibility do not mean that
 player-to-player collision, weapons, firing, damage, death, respawn,
 scoreboard, lag compensation, or complete Half-Life Deathmatch gameplay are
 implemented. `gameplay_active` remains `no`.
+
+## Prompt 248 smoothness and long-run contract
+
+The two reported stock-client symptoms were independent. Remote stepping was
+`permanent_spawn_ef_nointerp_replication`: the ordinary Game DLL spawn flag
+was copied into every later receiver sample. The engine now retains
+`EF_NOINTERP` only for the first materialized transition sample and clears it
+from subsequent network state without mutating Game DLL entvars. Remote
+`animtime` follows monotonic server time, and receiver diagnostics cover
+origin, velocity, sequence, frame, framerate, effects, interpolation state,
+consecutive presence, gaps, and deltas.
+
+The keyboard symptom was `script_input_left_pressed`: persistent launch-time
+`+forward`, `+moveright`, and reconnect `+back` commands contaminated manual
+input and could press a player continuously into geometry. All launch-time
+movement holds are removed. Manual observation uses `InputMode None`; the
+automatic mode uses bounded physical scan-code W/S or D/A press/release pulses
+plus a short jump or duck. It resolves the visible window for the exact new
+PID, verifies its executable and foreground ownership, repeats key-down only
+during the bounded hold, releases all six movement keys in `finally`, verifies
+release, and fails if server-observed per-key input counters do not advance.
+
+Outgoing work is now bounded and ordered as required reliable/fragment
+progress, one due snapshot per active client with rotating fairness, then an
+optional coalesced empty ACK when no reliable or snapshot carrier already
+acknowledges the current incoming frontier. Movement remains receive-before-
+snapshot coherent. Normal stock observation after the fix recorded A
+snapshot median/p95/max gaps of 47/63/80 ms, B gaps of 47/63/79 ms, remote
+update p95 of 63 ms in both directions, and zero snapshot starvation.
+
+The stock acceptance gate no longer treats lifetime or cumulative
+`pmove_calls > 0` as continued movement. At each 10/30/60/120/300/600-second
+checkpoint it requires fresh clc_move receive/validate/execute, PM_Move,
+movement snapshot, horizontal authoritative displacement, outgoing snapshot,
+frame-ACK, and remote update progress for both clients. Per-pulse start/end
+origins and counter deltas are retained, so a jump/duck Z change cannot satisfy
+the reversible horizontal gate. The harness consumes live bounded semantic
+summaries and never depends on shutdown-only output or raw packet logging.
+Deterministic regressions additionally cover
+shared-budget saturation, interpolation eligibility, and 600 simulated
+seconds with independent clocks, loss, backup commands, idle/resume, bursts,
+reliable traffic, and ACK patterns.
+
+Protocol interpolation acceptance is deliberately separate from visual
+acceptance. The protocol gate requires no permanent remote `EF_NOINTERP`,
+monotonic remote animtime, no re-Add during an uninterrupted connection,
+remote-update p95 at most 80 ms, ordinary maximum at most 160 ms, snapshot p95
+at most 80 ms, advancing ACKs, and zero snapshot-starvation frames after
+startup warm-up. Only the user's five explicit answers from the 600-second
+`InputMode None` observation can establish visual smoothness and keyboard
+control.
+
+Prompt 248B removes map-route dependence from the generic long-run gate. A
+stable, valid spawn anchor is stored per slot and network session generation.
+The disabled-by-default test control is accepted only on `127.0.0.1` with
+persistent PM_Move and an external path. A reset preserves the connection,
+Game DLL private data, lifecycle generation, netchan, frame history and PM_Move
+counters. It is represented by at most one no-interpolation transition and is
+excluded from steady-state interpolation and movement-distance samples.
+
+Movement pipeline health (verified input plus advancing clc_move, PM_Move,
+snapshots and ACKs) is independent of travel. Solid BSP can block one
+direction while the pipeline remains healthy; adaptive bounded directions
+then establish liveness without traversing `crossfire`. Specific ramp/step
+behavior remains a separate diagnostic and is not a prerequisite for the
+generic 600-second network test.

@@ -165,6 +165,9 @@ public:
     std::size_t implemented_service_callback_count() const noexcept;
     bool movement_ready(std::size_t client_slot) const noexcept;
     bool movement_executed(std::size_t client_slot) const noexcept;
+    bool IsPlayerPositionValid(
+        const float* origin,
+        int use_hull) const noexcept;
     void RecordMovementSnapshot(std::size_t client_slot) noexcept;
 
 private:

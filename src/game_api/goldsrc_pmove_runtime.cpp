@@ -1604,6 +1604,29 @@ bool GoldSrcPmoveRuntime::InitializeGameDll(
         movevars);
 }
 
+bool GoldSrcPmoveRuntime::IsPlayerPositionValid(
+    const float* origin,
+    int use_hull) const noexcept
+{
+    if (origin == nullptr || use_hull < 0 || use_hull > 1
+        || !impl_->world.ready())
+    {
+        return false;
+    }
+    const pmtrace_t trace = impl_->world.Trace(origin, origin, use_hull);
+    if (trace.startsolid == FALSE && trace.allsolid == FALSE)
+    {
+        return true;
+    }
+    float raised[3]{origin[0], origin[1], origin[2] + 1.0f};
+    const pmtrace_t raised_trace = impl_->world.Trace(
+        raised,
+        raised,
+        use_hull);
+    return raised_trace.startsolid == FALSE
+        && raised_trace.allsolid == FALSE;
+}
+
 void GoldSrcPmoveRuntime::ResetClient(
     std::size_t client_slot) noexcept
 {

@@ -442,6 +442,71 @@ private:
     GoldSrcSnapshotScheduleState state_;
 };
 
+enum class GoldSrcOutgoingActionKind
+{
+    kReliable,
+    kSnapshot,
+    kEmptyAcknowledgement,
+};
+
+struct GoldSrcOutgoingClientDemand final
+{
+    bool active = false;
+    bool reliable_pending = false;
+    bool snapshot_due = false;
+    bool empty_acknowledgement_pending = false;
+    std::uint32_t incoming_frontier = 0u;
+};
+
+struct GoldSrcOutgoingAction final
+{
+    GoldSrcOutgoingActionKind kind =
+        GoldSrcOutgoingActionKind::kEmptyAcknowledgement;
+    std::size_t client_index = 0u;
+    std::uint32_t acknowledged_frontier = 0u;
+};
+
+struct GoldSrcOutgoingScheduleResult final
+{
+    std::vector<GoldSrcOutgoingAction> actions;
+    std::size_t next_fair_client_index = 0u;
+    std::size_t snapshots_deferred = 0u;
+    std::size_t empty_acknowledgements_coalesced = 0u;
+};
+
+GoldSrcOutgoingScheduleResult BuildGoldSrcBoundedOutgoingSchedule(
+    const std::vector<GoldSrcOutgoingClientDemand>& clients,
+    std::size_t send_budget,
+    std::size_t fair_client_index) noexcept;
+
+inline constexpr std::uint32_t kGoldSrcEffectNoInterpolation = 32u;
+
+struct GoldSrcRemoteInterpolationSample final
+{
+    double server_time = 0.0;
+    std::array<float, 3u> origin{};
+    std::array<float, 3u> velocity{};
+    float animtime = 0.0f;
+    std::uint32_t effects = 0u;
+    bool entity_present = false;
+};
+
+enum class GoldSrcRemoteInterpolationStatus
+{
+    kEligible,
+    kMissingEntity,
+    kInvalidTime,
+    kNonMonotonicTime,
+    kNonMonotonicAnimtime,
+    kPermanentNoInterpolation,
+    kIncoherentMotion,
+};
+
+GoldSrcRemoteInterpolationStatus ValidateGoldSrcRemoteInterpolationSamples(
+    const GoldSrcRemoteInterpolationSample& previous,
+    const GoldSrcRemoteInterpolationSample& current,
+    float position_tolerance = 1.0f) noexcept;
+
 enum class GoldSrcFirstSnapshotPhase
 {
     kNone,

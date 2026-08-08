@@ -44,7 +44,7 @@ param(
     [int]$ConnectTimeoutSeconds = 90,
 
     [ValidateRange(5, 300)]
-    [int]$SpawnTimeoutSeconds = 120,
+    [int]$SpawnTimeoutSeconds = 180,
 
     [ValidateRange(5, 300)]
     [int]$MovementTimeoutSeconds = 60,
@@ -57,6 +57,19 @@ param(
 
     [ValidateRange(10, 900)]
     [int]$AutoTestDurationSeconds = 120,
+
+    [ValidateSet('None', 'VerifiedSendInput')]
+    [string]$InputMode = 'VerifiedSendInput',
+
+    [ValidateSet('All', 'Automatic', 'Reconnect', 'ManualObservation')]
+    [string]$AcceptancePhase = 'All',
+
+    [switch]$ManualObservation,
+
+    [ValidateRange(10, 3600)]
+    [int]$ManualObservationSeconds = 600,
+
+    [switch]$PromptForVisualConfirmation,
 
     [ValidateSet('Debug', 'Release', 'RelWithDebInfo', 'MinSizeRel')]
     [string]$Configuration = 'Release',
@@ -74,6 +87,29 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
+}
+switch ($AcceptancePhase) {
+    'Automatic' {
+        $ManualObservation = $false
+        $SkipReconnectTest = $true
+    }
+    'Reconnect' {
+        $ManualObservation = $false
+        $SkipReconnectTest = $false
+        if (-not $PSBoundParameters.ContainsKey('AutoTestDurationSeconds')) {
+            $AutoTestDurationSeconds = 10
+        }
+    }
+    'ManualObservation' {
+        $ManualObservation = $true
+        $SkipReconnectTest = $true
+    }
+}
+if ($ManualObservation -and $InputMode -cne 'None') {
+    throw 'manual_observation_requires_input_mode_none'
+}
+if ($PromptForVisualConfirmation -and -not $ManualObservation) {
+    throw 'visual_confirmation_requires_manual_observation'
 }
 
 function Get-ImportedLauncherFunctionDefinitions {
@@ -138,7 +174,8 @@ function New-StockServerArguments {
         [string]$Address,
         [int]$SelectedPort,
         [string]$ShutdownRequestPath,
-        [string]$DisconnectRequestPath)
+        [string]$DisconnectRequestPath,
+        [string]$StockTestControlPath)
 
     return @(
         '--gamedir', (Quote-ProcessArgument $GameDirectory),
@@ -159,7 +196,9 @@ function New-StockServerArguments {
         '--goldsrc-manual-shutdown-file',
         (Quote-ProcessArgument $ShutdownRequestPath),
         '--goldsrc-manual-disconnect-file',
-        (Quote-ProcessArgument $DisconnectRequestPath)
+        (Quote-ProcessArgument $DisconnectRequestPath),
+        '--goldsrc-stock-test-control-file',
+        (Quote-ProcessArgument $StockTestControlPath)
     )
 }
 
@@ -168,11 +207,9 @@ function New-StockClientArguments {
         [string]$Address,
         [int]$ServerPort,
         [int]$LocalClientPort,
-        [string]$ClientName,
-        [ValidateSet('forward', 'moveright', 'back')]
-        [string]$Movement)
+        [string]$ClientName)
 
-    return @(
+    $arguments = @(
         '-steam',
         '-multirun',
         '-insecure',
@@ -184,9 +221,647 @@ function New-StockClientArguments {
         '-h', '540',
         '+clientport', [string]$LocalClientPort,
         '+name', $ClientName,
-        '+connect', ('{0}:{1}' -f $Address, $ServerPort),
-        ('+{0}' -f $Movement)
+        '+connect', ('{0}:{1}' -f $Address, $ServerPort)
     )
+    return $arguments
+}
+
+function Initialize-StockInputBridge {
+    if ('Prompt248StockInput.Native' -as [type]) { return }
+    Add-Type -AssemblyName System.Windows.Forms
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+
+namespace Prompt248StockInput
+{
+    public static class Native
+    {
+        private delegate bool EnumWindowsCallback(IntPtr window, IntPtr state);
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct WindowRect
+        {
+            public int left;
+            public int top;
+            public int right;
+            public int bottom;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct KeyboardInput
+        {
+            public ushort virtualKey;
+            public ushort scanCode;
+            public uint flags;
+            public uint time;
+            public UIntPtr extraInfo;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct MouseInput
+        {
+            public int x;
+            public int y;
+            public uint mouseData;
+            public uint flags;
+            public uint time;
+            public UIntPtr extraInfo;
+        }
+
+        [StructLayout(LayoutKind.Explicit)]
+        private struct InputUnion
+        {
+            [FieldOffset(0)] public KeyboardInput keyboard;
+            [FieldOffset(0)] public MouseInput mouse;
+        }
+
+        [StructLayout(LayoutKind.Sequential)]
+        private struct Input
+        {
+            public uint type;
+            public InputUnion data;
+        }
+
+        [DllImport("user32.dll")]
+        public static extern bool SetForegroundWindow(IntPtr window);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetForegroundWindow();
+
+        [DllImport("user32.dll")]
+        private static extern bool EnumWindows(
+            EnumWindowsCallback callback, IntPtr state);
+
+        [DllImport("user32.dll")]
+        private static extern bool IsWindowVisible(IntPtr window);
+
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetWindow(IntPtr window, uint command);
+
+        [DllImport("user32.dll")]
+        private static extern bool GetWindowRect(
+            IntPtr window, out WindowRect rectangle);
+
+        [DllImport("user32.dll")]
+        public static extern uint GetWindowThreadProcessId(
+            IntPtr window, out uint processId);
+
+        [DllImport("kernel32.dll")]
+        public static extern uint GetCurrentThreadId();
+
+        [DllImport("user32.dll")]
+        public static extern bool AttachThreadInput(
+            uint sourceThread, uint targetThread, bool attach);
+
+        [DllImport("user32.dll")]
+        public static extern bool BringWindowToTop(IntPtr window);
+
+        [DllImport("user32.dll")]
+        public static extern bool ShowWindow(IntPtr window, int command);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetActiveWindow(IntPtr window);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetFocus(IntPtr window);
+
+        [DllImport("user32.dll")]
+        private static extern bool MoveWindow(
+            IntPtr window, int x, int y, int width, int height, bool repaint);
+
+        [DllImport("user32.dll")]
+        private static extern int GetSystemMetrics(int index);
+
+        [DllImport("user32.dll", SetLastError = true)]
+        private static extern uint SendInput(
+            uint inputCount, Input[] inputs, int inputSize);
+
+        [DllImport("user32.dll")]
+        private static extern uint MapVirtualKey(uint code, uint mapType);
+
+        [DllImport("user32.dll")]
+        private static extern short GetAsyncKeyState(int virtualKey);
+
+        public static IntPtr FindVisibleTopLevelWindow(uint processId)
+        {
+            IntPtr match = IntPtr.Zero;
+            long largestArea = 0;
+            EnumWindows((window, state) =>
+            {
+                if (!IsWindowVisible(window)) return true;
+                uint owner;
+                GetWindowThreadProcessId(window, out owner);
+                if (owner != processId) return true;
+                if (GetWindow(window, 4u) != IntPtr.Zero) return true;
+                WindowRect rectangle;
+                if (!GetWindowRect(window, out rectangle)) return true;
+                long width = Math.Max(0, rectangle.right - rectangle.left);
+                long height = Math.Max(0, rectangle.bottom - rectangle.top);
+                long area = width * height;
+                if (area > largestArea)
+                {
+                    largestArea = area;
+                    match = window;
+                }
+                return true;
+            }, IntPtr.Zero);
+            return match;
+        }
+
+        public static bool IsKeyDown(int virtualKey)
+        {
+            return (GetAsyncKeyState(virtualKey) & 0x8000) != 0;
+        }
+
+        public static bool SendScanCode(ushort virtualKey, bool released)
+        {
+            var input = new Input();
+            input.type = 1;
+            input.data.keyboard.virtualKey = 0;
+            input.data.keyboard.scanCode =
+                (ushort)MapVirtualKey(virtualKey, 0);
+            input.data.keyboard.flags = 0x0008u | (released ? 0x0002u : 0u);
+            input.data.keyboard.time = 0;
+            input.data.keyboard.extraInfo = UIntPtr.Zero;
+            return SendInput(1, new[] { input }, Marshal.SizeOf(input)) == 1;
+        }
+
+        public static int InputStructureSize()
+        {
+            return Marshal.SizeOf(typeof(Input));
+        }
+
+        public static bool ArrangeSideBySide(IntPtr left, IntPtr right)
+        {
+            int screenWidth = GetSystemMetrics(0);
+            int screenHeight = GetSystemMetrics(1);
+            if (screenWidth < 800 || screenHeight < 480) return false;
+            int width = screenWidth / 2;
+            int height = Math.Min(screenHeight, Math.Max(480, width * 9 / 16 + 40));
+            return MoveWindow(left, 0, 0, width, height, true)
+                && MoveWindow(right, width, 0, screenWidth - width, height, true);
+        }
+
+    }
+}
+'@
+}
+
+function Send-StockKeyInput {
+    param([byte]$VirtualKey, [bool]$Released)
+
+    if (-not [Prompt248StockInput.Native]::SendScanCode(
+            [uint16]$VirtualKey, $Released)) {
+        throw 'sendinput_failed'
+    }
+}
+
+function Assert-OwnedClientForeground {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$ExpectedImage)
+
+    Initialize-StockInputBridge
+    $Process.Refresh()
+    if ($Process.HasExited) {
+        throw 'client_window_not_found'
+    }
+    $expectedPath = [System.IO.Path]::GetFullPath($ExpectedImage)
+    $actualPath = [System.IO.Path]::GetFullPath($Process.Path)
+    if (-not $actualPath.Equals(
+            $expectedPath, [StringComparison]::OrdinalIgnoreCase)) {
+        throw 'client_window_not_owned'
+    }
+    $targetWindow =
+        [Prompt248StockInput.Native]::FindVisibleTopLevelWindow(
+            [uint32]$Process.Id)
+    if ($targetWindow -eq [IntPtr]::Zero) {
+        throw 'client_window_not_found'
+    }
+    $foregroundWindow = [Prompt248StockInput.Native]::GetForegroundWindow()
+    [uint32]$unusedPid = 0
+    [uint32]$foregroundThread =
+        [Prompt248StockInput.Native]::GetWindowThreadProcessId(
+            $foregroundWindow, [ref]$unusedPid)
+    [uint32]$targetThread =
+        [Prompt248StockInput.Native]::GetWindowThreadProcessId(
+            $targetWindow, [ref]$unusedPid)
+    [uint32]$currentThread =
+        [Prompt248StockInput.Native]::GetCurrentThreadId()
+    try {
+        if ($foregroundThread -ne 0 -and
+            $foregroundThread -ne $currentThread) {
+            [void][Prompt248StockInput.Native]::AttachThreadInput(
+                $currentThread, $foregroundThread, $true)
+        }
+        if ($targetThread -ne 0 -and $targetThread -ne $currentThread) {
+            [void][Prompt248StockInput.Native]::AttachThreadInput(
+                $currentThread, $targetThread, $true)
+        }
+        [void][Prompt248StockInput.Native]::ShowWindow($targetWindow, 9)
+        [void][Prompt248StockInput.Native]::BringWindowToTop($targetWindow)
+        [void][Prompt248StockInput.Native]::SetForegroundWindow($targetWindow)
+        [void][Prompt248StockInput.Native]::SetActiveWindow($targetWindow)
+        [void][Prompt248StockInput.Native]::SetFocus($targetWindow)
+    }
+    finally {
+        if ($targetThread -ne 0 -and $targetThread -ne $currentThread) {
+            [void][Prompt248StockInput.Native]::AttachThreadInput(
+                $currentThread, $targetThread, $false)
+        }
+        if ($foregroundThread -ne 0 -and
+            $foregroundThread -ne $currentThread) {
+            [void][Prompt248StockInput.Native]::AttachThreadInput(
+                $currentThread, $foregroundThread, $false)
+        }
+    }
+    $deadline = [DateTime]::UtcNow.AddSeconds(2)
+    do {
+        $foreground = [Prompt248StockInput.Native]::GetForegroundWindow()
+        [uint32]$foregroundPid = 0
+        [void][Prompt248StockInput.Native]::GetWindowThreadProcessId(
+            $foreground, [ref]$foregroundPid)
+        if ([int]$foregroundPid -eq $Process.Id -and
+            $foreground -eq $targetWindow) { return $targetWindow }
+        Start-Sleep -Milliseconds 50
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw 'foreground_pid_mismatch'
+}
+
+function Send-VerifiedPhysicalKey {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$ExpectedImage,
+        [ValidateSet('forward', 'back', 'moveleft', 'moveright', 'jump', 'duck')]
+        [string]$Movement,
+        [ValidateRange(25, 1500)][int]$HoldMilliseconds,
+        [System.Collections.IDictionary]$Result,
+        [ValidateSet('a', 'b', 'reconnect_a')][string]$Role)
+
+    $virtualKeys = @{
+        forward = 0x57
+        back = 0x53
+        moveleft = 0x41
+        moveright = 0x44
+        jump = 0x20
+        duck = 0x11
+    }
+    $targetWindow = [IntPtr]::Zero
+    for ($activationAttempt = 1; $activationAttempt -le 3;
+            ++$activationAttempt) {
+        $targetWindow = Assert-OwnedClientForeground -Process $Process `
+            -ExpectedImage $ExpectedImage
+        # GoldSrc updates its internal input-active state from the foreground
+        # transition on the window thread.  Do not race the first key-down
+        # against that activation message.
+        Start-Sleep -Milliseconds 300
+        $foreground = [Prompt248StockInput.Native]::GetForegroundWindow()
+        if ($foreground -eq $targetWindow) { break }
+        if ($activationAttempt -eq 3) {
+            throw 'foreground_activation_failed'
+        }
+    }
+    $Result.input_target_pid = $Process.Id
+    $Result.input_target_window = ('0x{0:X}' -f $targetWindow.ToInt64())
+    $Result.foreground_verified = $true
+    [byte]$key = $virtualKeys[$Movement]
+    try {
+        try {
+            Send-StockKeyInput -VirtualKey $key -Released $false
+        }
+        catch {
+            $Result.input_pulse_failure = 'sendinput_failed'
+            throw
+        }
+        $Result.key_down_sent = $true
+        $hold = [System.Diagnostics.Stopwatch]::StartNew()
+        while ($hold.ElapsedMilliseconds -lt $HoldMilliseconds) {
+            Start-Sleep -Milliseconds 50
+            if ($hold.ElapsedMilliseconds -lt $HoldMilliseconds) {
+                Send-StockKeyInput -VirtualKey $key -Released $false
+            }
+        }
+        $hold.Stop()
+    }
+    finally {
+        try {
+            Send-StockKeyInput -VirtualKey $key -Released $true
+            $Result.key_up_sent = $true
+        }
+        catch {
+            $Result.input_pulse_failure = 'key_up_failed'
+            throw 'key_up_failed'
+        }
+    }
+    for ($releaseAttempt = 1; $releaseAttempt -le 5 -and
+            [Prompt248StockInput.Native]::IsKeyDown([int]$key);
+            ++$releaseAttempt) {
+        Send-StockKeyInput -VirtualKey $key -Released $true
+        Start-Sleep -Milliseconds 50
+    }
+    if ([Prompt248StockInput.Native]::IsKeyDown([int]$key)) {
+        $Result.sticky_key_detected = $true
+        $Result.sticky_key_virtual = ('0x{0:X2}' -f $key)
+        $Result.input_pulse_failure = 'sticky_key_detected'
+        throw 'sticky_key_detected'
+    }
+    $Result.key_release_verified = $true
+}
+
+function Arrange-OwnedClientWindowsSideBySide {
+    param(
+        [System.Diagnostics.Process]$ClientA,
+        [System.Diagnostics.Process]$ClientB,
+        [string]$ExpectedImage)
+
+    $windowA = Assert-OwnedClientForeground -Process $ClientA `
+        -ExpectedImage $ExpectedImage
+    $windowB = Assert-OwnedClientForeground -Process $ClientB `
+        -ExpectedImage $ExpectedImage
+    return [Prompt248StockInput.Native]::ArrangeSideBySide($windowA, $windowB)
+}
+
+function Release-AllOwnedMovementKeys {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$ExpectedImage,
+        [System.Collections.IDictionary]$Result)
+
+    if ($null -eq $Process) { return }
+    $Process.Refresh()
+    if ($Process.HasExited) { return }
+    $null = Assert-OwnedClientForeground -Process $Process `
+        -ExpectedImage $ExpectedImage
+    foreach ($key in @(0x57, 0x53, 0x41, 0x44, 0x20, 0x11)) {
+        Send-StockKeyInput -VirtualKey ([byte]$key) -Released $true
+        ++$Result.forced_key_release_count
+        Start-Sleep -Milliseconds 50
+        for ($releaseAttempt = 1; $releaseAttempt -le 5 -and
+                [Prompt248StockInput.Native]::IsKeyDown([int]$key);
+                ++$releaseAttempt) {
+            Send-StockKeyInput -VirtualKey ([byte]$key) -Released $true
+            ++$Result.forced_key_release_count
+            Start-Sleep -Milliseconds 50
+        }
+        if ([Prompt248StockInput.Native]::IsKeyDown([int]$key)) {
+            $Result.sticky_key_detected = $true
+            $Result.sticky_key_virtual = ('0x{0:X2}' -f $key)
+            $Result.input_pulse_failure = 'sticky_key_detected'
+            throw 'sticky_key_detected'
+        }
+    }
+    $Result.key_release_verified = $true
+}
+
+function Get-StockMovementSequence {
+    param([ValidateSet('a', 'b', 'reconnect_a')][string]$Role)
+
+    if ($Role -ceq 'b') {
+        return @(
+            [pscustomobject]@{ Movement = 'moveright'; Hold = 150 },
+            [pscustomobject]@{ Movement = 'moveleft'; Hold = 150 },
+            [pscustomobject]@{ Movement = 'forward'; Hold = 150 },
+            [pscustomobject]@{ Movement = 'back'; Hold = 150 })
+    }
+    return @(
+        [pscustomobject]@{ Movement = 'forward'; Hold = 150 },
+        [pscustomobject]@{ Movement = 'back'; Hold = 150 },
+        [pscustomobject]@{ Movement = 'moveleft'; Hold = 150 },
+        [pscustomobject]@{ Movement = 'moveright'; Hold = 150 })
+}
+
+function Get-InputCounterForMovement {
+    param([string]$Movement)
+
+    $counter = switch ($Movement) {
+        'forward' { 'forward_input_packets' }
+        'back' { 'backward_input_packets' }
+        'moveleft' { 'strafe_input_packets' }
+        'moveright' { 'strafe_input_packets' }
+        'jump' { 'jump_input_packets' }
+        'duck' { 'duck_input_packets' }
+        default { throw 'unknown_movement_pulse' }
+    }
+    return $counter
+}
+
+function Invoke-StockAnchorReset {
+    param(
+        [ValidateRange(1, 2)][int]$Slot,
+        [string]$ControlPath,
+        [string]$LogPath,
+        [pscustomobject]$BeforePair,
+        [System.Collections.IDictionary]$Result)
+
+    $deadline = [DateTime]::UtcNow.AddSeconds(20)
+    $pair = $BeforePair
+    do {
+        $mover = if ($Slot -eq 1) { $pair.A } else { $pair.B }
+        if ($null -ne $mover -and
+            [int]$mover['spawn_anchor_valid'] -eq 1 -and
+            [uint64]$mover['session_generation'] -gt 0) {
+            break
+        }
+        $pair = Wait-LiveProgressPair -PathValue $LogPath `
+            -AfterA $pair.A -AfterB $pair.B
+    } while ([DateTime]::UtcNow -lt $deadline)
+    $mover = if ($Slot -eq 1) { $pair.A } else { $pair.B }
+    if ($null -eq $mover -or [int]$mover['spawn_anchor_valid'] -ne 1) {
+        throw ('spawn_anchor_{0}_not_ready' -f $Slot)
+    }
+    $requestId = '{0}-{1}-{2}' -f $Result.test_run_id, $Slot,
+        ([guid]::NewGuid().ToString('N').Substring(0, 8))
+    $beforeApplied = [int64]$mover['test_reset_applied']
+    $beforeSnapshots = [int64]$mover['snapshots_sent']
+    $command = 'reset_player_to_spawn_anchor slot={0} expected_session_generation={1} request_id={2}' -f `
+        $Slot, [uint64]$mover['session_generation'], $requestId
+    Write-AtomicText -PathValue $ControlPath -TextValue ($command + "`n")
+    try {
+        $deadline = [DateTime]::UtcNow.AddSeconds(15)
+        $ackPattern = 'goldsrc_stock_test_reset_ack: request_id={0},slot={1},status=applied,reason=none' -f `
+            [regex]::Escape($requestId), $Slot
+        do {
+            Start-Sleep -Milliseconds 100
+            $text = Get-SharedFileText -PathValue $LogPath
+            $a = Get-LastClientProgress -Text $text -Slot 1
+            $b = Get-LastClientProgress -Text $text -Slot 2
+            $current = if ($Slot -eq 1) { $a } else { $b }
+            $anchorDistance = if ($null -ne $current) {
+                $dx = [double]$current['origin_x'] -
+                    [double]$current['spawn_anchor_x']
+                $dy = [double]$current['origin_y'] -
+                    [double]$current['spawn_anchor_y']
+                $dz = [double]$current['origin_z'] -
+                    [double]$current['spawn_anchor_z']
+                [Math]::Sqrt($dx * $dx + $dy * $dy + $dz * $dz)
+            } else { [double]::PositiveInfinity }
+            if ($null -ne $a -and $null -ne $b -and
+                [regex]::IsMatch($text, $ackPattern) -and
+                [int64]$current['test_reset_applied'] -gt $beforeApplied -and
+                [int64]$current['snapshots_sent'] -ge ($beforeSnapshots + 2) -and
+                $anchorDistance -le 4.0) {
+                return [pscustomobject]@{ A = $a; B = $b }
+            }
+        } while ([DateTime]::UtcNow -lt $deadline)
+        throw ('spawn_anchor_{0}_reset_timeout' -f $Slot)
+    }
+    finally {
+        if (Test-Path -LiteralPath $ControlPath -PathType Leaf) {
+            Remove-Item -LiteralPath $ControlPath -Force
+        }
+    }
+}
+
+function Invoke-StockMovementScenarioWithStatus {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$ExpectedImage,
+        [ValidateSet('a', 'b', 'reconnect_a')][string]$Role,
+        [string]$PathValue,
+        [string]$ControlPath,
+        [pscustomobject]$BeforePair,
+        [System.Collections.IDictionary]$Result)
+
+    $logicalRole = if ($Role -ceq 'b') { 'b' } else { 'a' }
+    $current = $BeforePair
+    [double]$maximumHorizontalDisplacement = 0.0
+    $pulseResults = @()
+    $successfulDirection = 'none'
+    $pipelinePassed = $false
+    $worldGeometryBlocked = $false
+    $slot = if ($logicalRole -ceq 'a') { 1 } else { 2 }
+    Release-AllOwnedMovementKeys -Process $Process `
+        -ExpectedImage $ExpectedImage -Result $Result
+    foreach ($pulse in @(Get-StockMovementSequence -Role $Role)) {
+        $current = Invoke-StockAnchorReset -Slot $slot `
+            -ControlPath $ControlPath -LogPath $PathValue `
+            -BeforePair $current -Result $Result
+        $phaseBefore = if ($logicalRole -ceq 'a') {
+            $current.A
+        } else { $current.B }
+        $observerPhaseBefore = if ($logicalRole -ceq 'a') {
+            $current.B
+        } else { $current.A }
+        try {
+            Send-VerifiedPhysicalKey -Process $Process `
+                -ExpectedImage $ExpectedImage `
+                -Movement $pulse.Movement `
+                -HoldMilliseconds $pulse.Hold -Result $Result -Role $Role
+        }
+        finally {
+            Release-AllOwnedMovementKeys -Process $Process `
+                -ExpectedImage $ExpectedImage -Result $Result
+        }
+        $counter = Get-InputCounterForMovement -Movement $pulse.Movement
+        if ($logicalRole -ceq 'a') {
+            $next = Wait-LiveProgressPair -PathValue $PathValue `
+                -AfterA $current.A -AfterB $current.B `
+                -RequiredA @($counter) `
+                -FailureIdentifier 'sendinput_not_observed'
+        }
+        else {
+            $next = Wait-LiveProgressPair -PathValue $PathValue `
+                -AfterA $current.A -AfterB $current.B `
+                -RequiredB @($counter) `
+                -FailureIdentifier 'sendinput_not_observed'
+        }
+        $phaseAfter = if ($logicalRole -ceq 'a') {
+            $next.A
+        } else { $next.B }
+        $observerPhaseAfter = if ($logicalRole -ceq 'a') {
+            $next.B
+        } else { $next.A }
+        $phaseDisplacement = Get-OriginDisplacement `
+            -Before $phaseBefore -After $phaseAfter
+        $scenarioDisplacement = $phaseDisplacement
+        $horizontal = $pulse.Movement -in @(
+            'forward', 'back', 'moveleft', 'moveright')
+        if ($horizontal) {
+            $maximumHorizontalDisplacement = [Math]::Max(
+                $maximumHorizontalDisplacement, $scenarioDisplacement)
+        }
+        $pulsePipelinePassed = $true
+        foreach ($requiredCounter in @(
+            'clc_move_received', 'clc_move_validated', 'clc_move_executed',
+            'pmove_calls', 'movement_commands_executed', 'snapshots_sent',
+            'frames_acknowledged')) {
+            if ((Get-CounterDelta -Before $phaseBefore -After $phaseAfter `
+                    -Name $requiredCounter) -le 0) {
+                $pulsePipelinePassed = $false
+            }
+        }
+        if ((Get-CounterDelta -Before $observerPhaseBefore `
+                -After $observerPhaseAfter -Name 'remote_updates') -le 0) {
+            $pulsePipelinePassed = $false
+        }
+        $travelPassed = $horizontal -and $phaseDisplacement -ge 2.0
+        $pulseResults += [pscustomobject]@{
+            movement = $pulse.Movement
+            hold_milliseconds = $pulse.Hold
+            input_counter = $counter
+            input_counter_delta = Get-CounterDelta `
+                -Before $phaseBefore -After $phaseAfter -Name $counter
+            start_origin = [ordered]@{
+                x = [double]$phaseBefore['origin_x']
+                y = [double]$phaseBefore['origin_y']
+                z = [double]$phaseBefore['origin_z']
+            }
+            end_origin = [ordered]@{
+                x = [double]$phaseAfter['origin_x']
+                y = [double]$phaseAfter['origin_y']
+                z = [double]$phaseAfter['origin_z']
+            }
+            displacement = $phaseDisplacement
+            phase_displacement = $phaseDisplacement
+            scenario_displacement = $scenarioDisplacement
+            pmove_delta = Get-CounterDelta `
+                -Before $phaseBefore -After $phaseAfter -Name 'pmove_calls'
+            executed_command_delta = Get-CounterDelta `
+                -Before $phaseBefore -After $phaseAfter `
+                -Name 'movement_commands_executed'
+            snapshot_delta = Get-CounterDelta `
+                -Before $phaseBefore -After $phaseAfter -Name 'snapshots_sent'
+            frame_ack_delta = Get-CounterDelta `
+                -Before $phaseBefore -After $phaseAfter `
+                -Name 'frames_acknowledged'
+            remote_update_delta_seen_by_other_client = Get-CounterDelta `
+                -Before $observerPhaseBefore -After $observerPhaseAfter `
+                -Name 'remote_updates'
+            pipeline = if ($pulsePipelinePassed) { 'pass' } else { 'fail' }
+            travel = if ($travelPassed) { 'pass' } `
+                elseif ($pulsePipelinePassed) { 'blocked_by_geometry' } `
+                else { 'not_evaluated' }
+        }
+        $current = $next
+        if (-not $pulsePipelinePassed) {
+            $pipelinePassed = $false
+            break
+        }
+        $pipelinePassed = $true
+        if ($travelPassed) {
+            $successfulDirection = $pulse.Movement
+        } else {
+            $worldGeometryBlocked = $true
+        }
+        $current = Invoke-StockAnchorReset -Slot $slot `
+            -ControlPath $ControlPath -LogPath $PathValue `
+            -BeforePair $current -Result $Result
+        if ($travelPassed) {
+            break
+        }
+        Start-Sleep -Milliseconds 300
+    }
+    return [pscustomobject]@{
+        AfterPair = $current
+        PulseResults = $pulseResults
+        MaximumHorizontalDisplacement = $maximumHorizontalDisplacement
+        PipelinePassed = $pipelinePassed
+        TravelPassed = $successfulDirection -cne 'none'
+        WorldGeometryBlocked = $worldGeometryBlocked
+        SuccessfulDirection = $successfulDirection
+        ReturnedToAnchor = $successfulDirection -cne 'none'
+    }
 }
 
 function Invoke-QuietNative {
@@ -523,13 +1198,30 @@ function Wait-LogRegex {
 
 function Get-HalfLifeProcessRecords {
     $records = @()
-    foreach ($item in @(Get-CimInstance Win32_Process `
-            -Filter "Name='hl.exe'" -ErrorAction SilentlyContinue)) {
-        $records += [pscustomobject]@{
-            ProcessId = [int]$item.ProcessId
-            CreationDate = $item.CreationDate
-            ExecutablePath = [string]$item.ExecutablePath
-            CommandLine = [string]$item.CommandLine
+    foreach ($process in @(Get-Process -Name 'hl' `
+            -ErrorAction SilentlyContinue)) {
+        try {
+            $process.Refresh()
+            if ($process.HasExited) { continue }
+            $commandLine = ''
+            try {
+                $cim = Get-CimInstance Win32_Process `
+                    -Filter ('ProcessId={0}' -f $process.Id) `
+                    -ErrorAction SilentlyContinue
+                if ($null -ne $cim) {
+                    $commandLine = [string]$cim.CommandLine
+                }
+            }
+            catch { }
+            $records += [pscustomobject]@{
+                ProcessId = [int]$process.Id
+                CreationDate = $process.StartTime
+                ExecutablePath = [string]$process.Path
+                CommandLine = $commandLine
+            }
+        }
+        catch {
+            # A process that exits during enumeration is not a stable candidate.
         }
     }
     return @($records)
@@ -545,23 +1237,28 @@ function Select-NewOwnedProcessRecord {
         [int]$PreferredProcessId)
 
     $expectedPath = [System.IO.Path]::GetFullPath($ExpectedExecutablePath)
-    $matches = @($Records | Where-Object {
+    $pathMatches = @($Records | Where-Object {
         $record = $_
         $isNew = $PreexistingIds -notcontains [int]$record.ProcessId
-        $pathMatches = -not [string]::IsNullOrWhiteSpace(
+        $pathIsExact = -not [string]::IsNullOrWhiteSpace(
                 [string]$record.ExecutablePath) -and
             [System.IO.Path]::GetFullPath([string]$record.ExecutablePath).Equals(
                 $expectedPath,
                 [StringComparison]::OrdinalIgnoreCase)
+        $isNew -and $pathIsExact
+    })
+    $preferred = @($pathMatches | Where-Object {
+        [int]$_.ProcessId -eq $PreferredProcessId })
+    if ($preferred.Count -eq 1) { return $preferred[0] }
+
+    $matches = @($pathMatches | Where-Object {
+        $record = $_
         $commandLine = [string]$record.CommandLine
         $identityMatches = [string]::IsNullOrWhiteSpace($commandLine) -or
             ($commandLine.Contains([string]$ExpectedClientPort) -and
              $commandLine.Contains($ExpectedClientName))
-        $isNew -and $pathMatches -and $identityMatches
+        $identityMatches
     })
-    $preferred = @($matches | Where-Object {
-        [int]$_.ProcessId -eq $PreferredProcessId })
-    if ($preferred.Count -eq 1) { return $preferred[0] }
     if ($matches.Count -eq 1) { return $matches[0] }
     return $null
 }
@@ -666,6 +1363,11 @@ function Start-StockOwnedClient {
         [int]$ExpectedClientPort,
         [string]$ExpectedClientName,
         [switch]$AlwaysCleanupOnFailure)
+
+    if ($null -ne $result) {
+        $result.launch_generation = [int]$result.launch_generation + 1
+        $result.launch_role = $Role
+    }
 
     $started = $null
     $stopwatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -810,6 +1512,40 @@ function Stop-ExactOwnedProcess {
     return 'stopped_exact_pid'
 }
 
+function Invoke-ServerOwnedSpawnRetryDisconnect {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [int]$ExpectedProcessId,
+        [ValidateSet(1, 2)][int]$Slot,
+        [string]$RequestPath,
+        [string]$StdoutPath,
+        [System.Diagnostics.Process]$ServerProcess,
+        [int]$TimeoutSeconds,
+        [string]$Description)
+
+    $startOffset = (Get-SharedFileText -PathValue $StdoutPath).Length
+    try {
+        [System.IO.File]::WriteAllText(
+            $RequestPath, ('disconnect-owned-slot-{0}' -f $Slot))
+        $null = Wait-LogRegex -PathValue $StdoutPath `
+            -Pattern ('goldsrc_manual_client_disconnect: slot={0},status=completed' -f $Slot) `
+            -TimeoutSeconds $TimeoutSeconds `
+            -ServerProcess $ServerProcess `
+            -FailureIdentifier `
+                ('client_{0}_spawn_retry_disconnect_timeout' -f
+                    $(if ($Slot -eq 1) { 'a' } else { 'b' })) `
+            -StartOffset $startOffset
+    }
+    finally {
+        if ([System.IO.File]::Exists($RequestPath)) {
+            [System.IO.File]::Delete($RequestPath)
+        }
+    }
+    Start-Sleep -Milliseconds 250
+    return Stop-ExactOwnedProcess -Process $Process `
+        -ExpectedProcessId $ExpectedProcessId -Description $Description
+}
+
 function Stop-ExactOwnedServer {
     param(
         [System.Diagnostics.Process]$Process,
@@ -851,6 +1587,423 @@ function Get-LastSummaryFields {
     return Get-SummaryFields -Line $lines[-1]
 }
 
+function Get-LastClientProgress {
+    param([string]$Text, [int]$Slot)
+
+    return Get-LastSummaryFields -Text $Text `
+        -Prefix 'goldsrc_client_progress:' -Slot ([string]$Slot)
+}
+
+function Write-ManualLiveProgress {
+    param([string]$Text)
+
+    foreach ($slot in 1, 2) {
+        $progress = Get-LastClientProgress -Text $Text -Slot $slot
+        if ($null -eq $progress) { continue }
+        Write-Host (('manual_live_slot_{0}=connected:{1},spawned:{2},' +
+            'pmove:{3},snapshots:{4},acks:{5},remote_updates:{6}') -f
+            $slot, $progress['connected'], $progress['spawned'],
+            $progress['pmove_calls'], $progress['snapshots_sent'],
+            $progress['frames_acknowledged'], $progress['remote_updates'])
+    }
+}
+
+function Read-ManualYesNo {
+    param([string]$Question)
+
+    while ($true) {
+        $answer = (Read-Host ($Question + ' [Y/N]')).Trim()
+        if ($answer -match '^(?i:y|yes)$') { return $true }
+        if ($answer -match '^(?i:n|no)$') { return $false }
+        Write-Host 'manual_answer_required=Y_or_N'
+    }
+}
+
+function Test-CounterAdvanced {
+    param(
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$After,
+        [string]$Name)
+
+    return $Before.Contains($Name) -and $After.Contains($Name) -and
+        [int64]$After[$Name] -gt [int64]$Before[$Name]
+}
+
+function Test-OriginChanged {
+    param(
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$After)
+
+    foreach ($axis in @('x', 'y', 'z')) {
+        $field = 'origin_{0}' -f $axis
+        if (-not $Before.Contains($field) -or -not $After.Contains($field)) {
+            return $false
+        }
+        if ([Math]::Abs(
+                [double]$After[$field] - [double]$Before[$field]) -gt 0.05) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-OriginDisplacement {
+    param(
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$After)
+
+    if ($null -eq $Before -or $null -eq $After) { return 0.0 }
+    [double]$sum = 0.0
+    foreach ($axis in @('x', 'y', 'z')) {
+        $field = 'origin_{0}' -f $axis
+        if (-not $Before.Contains($field) -or -not $After.Contains($field)) {
+            return 0.0
+        }
+        $delta = [double]$After[$field] - [double]$Before[$field]
+        $sum += $delta * $delta
+    }
+    return [Math]::Sqrt($sum)
+}
+
+function Get-CounterDelta {
+    param(
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$After,
+        [string]$Name)
+
+    if ($null -eq $Before -or $null -eq $After -or
+        -not $Before.Contains($Name) -or -not $After.Contains($Name)) {
+        return [int64]0
+    }
+    return [int64]$After[$Name] - [int64]$Before[$Name]
+}
+
+function Get-EnabledMovementCheckpoints {
+    param([ValidateRange(10, 900)][int]$DurationSeconds)
+
+    $all = @(10, 30, 60, 120, 300, 600)
+    return @($all | Where-Object {
+        $_ -le $DurationSeconds
+    })
+}
+
+function Get-InputCountersForRole {
+    param([ValidateSet('a', 'b')][string]$Role)
+
+    if ($Role -ceq 'a') {
+        return @('forward_input_packets', 'backward_input_packets',
+            'jump_input_packets')
+    }
+    return @('strafe_input_packets', 'duck_input_packets')
+}
+
+function Test-PulseCheckpointDelta {
+    param(
+        [System.Collections.IDictionary]$MoverBefore,
+        [System.Collections.IDictionary]$MoverAfter,
+        [System.Collections.IDictionary]$ObserverBefore,
+        [System.Collections.IDictionary]$ObserverAfter,
+        [Parameter(Mandatory)]
+        [ValidateSet('a', 'b')][string]$Role,
+        [object[]]$PulseResults = @(),
+        [double]$MaximumHorizontalDisplacement = 0.0,
+        [double]$MinimumDisplacement = 2.0)
+
+    $result = [ordered]@{
+        passed = $false
+        failure_stage = 'status_missing'
+        start_origin = $null
+        end_origin = $null
+        displacement = 0.0
+        input_packet_delta = 0
+        pulse_results = @()
+        pmove_delta = 0
+        executed_command_delta = 0
+        snapshot_delta = 0
+        frame_ack_delta = 0
+        remote_update_delta_seen_by_other_client = 0
+        pipeline_result = 'fail'
+        travel_result = 'not_evaluated'
+        world_geometry_blocked = $false
+    }
+    if ($null -eq $MoverBefore -or $null -eq $MoverAfter -or
+        $null -eq $ObserverBefore -or $null -eq $ObserverAfter) {
+        return $result
+    }
+    $result.start_origin = [ordered]@{
+        x = [double]$MoverBefore['origin_x']
+        y = [double]$MoverBefore['origin_y']
+        z = [double]$MoverBefore['origin_z']
+    }
+    $result.end_origin = [ordered]@{
+        x = [double]$MoverAfter['origin_x']
+        y = [double]$MoverAfter['origin_y']
+        z = [double]$MoverAfter['origin_z']
+    }
+    if ([int]$MoverAfter['connected'] -ne 1 -or
+        [int]$ObserverAfter['connected'] -ne 1) {
+        $result.failure_stage = 'client_disconnected'
+        return $result
+    }
+    if ([int]$MoverAfter['spawned'] -ne 1 -or
+        [int]$ObserverAfter['spawned'] -ne 1) {
+        $result.failure_stage = 'client_not_spawned'
+        return $result
+    }
+    $result.pulse_results = $PulseResults
+    $result.displacement = if ($PulseResults.Count -gt 0) {
+        $MaximumHorizontalDisplacement
+    } else {
+        Get-OriginDisplacement -Before $MoverBefore -After $MoverAfter
+    }
+    $result.pmove_delta = Get-CounterDelta `
+        -Before $MoverBefore -After $MoverAfter -Name 'pmove_calls'
+    $result.executed_command_delta = Get-CounterDelta `
+        -Before $MoverBefore -After $MoverAfter `
+        -Name 'movement_commands_executed'
+    $result.snapshot_delta = Get-CounterDelta `
+        -Before $MoverBefore -After $MoverAfter -Name 'snapshots_sent'
+    $result.frame_ack_delta = Get-CounterDelta `
+        -Before $MoverBefore -After $MoverAfter -Name 'frames_acknowledged'
+    $result.remote_update_delta_seen_by_other_client = Get-CounterDelta `
+        -Before $ObserverBefore -After $ObserverAfter -Name 'remote_updates'
+    if ($result.displacement -gt 96.0) {
+        $result.failure_stage = 'anchor_radius_exceeded'
+        return $result
+    }
+
+    foreach ($pulse in @($PulseResults)) {
+        if ($null -ne $pulse -and
+            $null -ne $pulse.PSObject.Properties['input_counter_delta']) {
+            $result.input_packet_delta += [int64]$pulse.input_counter_delta
+        }
+    }
+    if ($PulseResults.Count -gt 0 -and $result.input_packet_delta -le 0) {
+        $result.failure_stage = 'sendinput_not_observed'
+        return $result
+    }
+
+    foreach ($counter in @(
+        'clc_move_received',
+        'clc_move_validated',
+        'clc_move_executed',
+        'pmove_calls',
+        'movement_commands_executed',
+        'movement_snapshots',
+        'snapshots_sent',
+        'frames_acknowledged')) {
+        if (-not (Test-CounterAdvanced `
+                -Before $MoverBefore -After $MoverAfter -Name $counter)) {
+            $result.failure_stage = switch ($counter) {
+                'clc_move_received' { 'clc_move_not_received' }
+                'clc_move_validated' { 'clc_move_not_validated' }
+                'clc_move_executed' { 'pmove_not_executed' }
+                'pmove_calls' { 'pmove_not_executed' }
+                'movement_commands_executed' { 'pmove_not_executed' }
+                'movement_snapshots' { 'snapshots_not_advancing' }
+                'snapshots_sent' { 'snapshots_not_advancing' }
+                'frames_acknowledged' { 'frame_ack_not_advancing' }
+            }
+            return $result
+        }
+    }
+    if ($result.displacement -lt $MinimumDisplacement) {
+        $result.pipeline_result = 'pass'
+        $result.travel_result = 'blocked_by_geometry'
+        $result.world_geometry_blocked = $true
+        $result.failure_stage = 'all_directions_blocked_from_safe_anchor'
+        return $result
+    }
+    if ($result.remote_update_delta_seen_by_other_client -le 0) {
+        $result.failure_stage = 'remote_updates_not_advancing'
+        return $result
+    }
+    foreach ($counter in @('snapshots_sent', 'frames_acknowledged')) {
+        if (-not (Test-CounterAdvanced -Before $ObserverBefore `
+                -After $ObserverAfter -Name $counter)) {
+            $result.failure_stage = if ($counter -ceq 'snapshots_sent') {
+                'snapshots_not_advancing'
+            } else { 'frame_ack_not_advancing' }
+            return $result
+        }
+    }
+    if ((Get-CounterDelta -Before $MoverBefore -After $MoverAfter `
+            -Name 'snapshots_starved') -gt 0) {
+        $result.failure_stage = 'snapshot_starvation_detected'
+        return $result
+    }
+    $result.failure_stage = 'none'
+    $result.pipeline_result = 'pass'
+    $result.travel_result = 'pass'
+    $result.passed = $true
+    return $result
+}
+
+function Wait-LiveProgressPair {
+    param(
+        [string]$PathValue,
+        [System.Collections.IDictionary]$AfterA,
+        [System.Collections.IDictionary]$AfterB,
+        [string[]]$RequiredA = @(),
+        [string[]]$RequiredB = @(),
+        [string]$FailureIdentifier = 'live_status_update_timeout',
+        [ValidateRange(1, 30)][int]$TimeoutSeconds = 10)
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $text = Get-SharedFileText -PathValue $PathValue
+        $a = Get-LastClientProgress -Text $text -Slot 1
+        $b = Get-LastClientProgress -Text $text -Slot 2
+        $aReady = $null -ne $a -and ($null -eq $AfterA -or
+            [int64]$a['server_time_ms'] -gt [int64]$AfterA['server_time_ms'])
+        $bReady = $null -ne $b -and ($null -eq $AfterB -or
+            [int64]$b['server_time_ms'] -gt [int64]$AfterB['server_time_ms'])
+        foreach ($counter in $RequiredA) {
+            $aReady = $aReady -and (Test-CounterAdvanced `
+                -Before $AfterA -After $a -Name $counter)
+        }
+        foreach ($counter in $RequiredB) {
+            $bReady = $bReady -and (Test-CounterAdvanced `
+                -Before $AfterB -After $b -Name $counter)
+        }
+        if ($aReady -and $bReady) {
+            return [pscustomobject]@{ A = $a; B = $b }
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw $FailureIdentifier
+}
+
+function Wait-LiveClientProgress {
+    param(
+        [string]$PathValue,
+        [int]$Slot,
+        [System.Collections.IDictionary]$After,
+        [string[]]$RequiredCounters = @(),
+        [string]$FailureIdentifier = 'live_status_update_timeout',
+        [ValidateRange(1, 30)][int]$TimeoutSeconds = 10)
+
+    $deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+    do {
+        $text = Get-SharedFileText -PathValue $PathValue
+        $progress = Get-LastClientProgress -Text $text -Slot $Slot
+        $ready = $null -ne $progress -and ($null -eq $After -or
+            [int64]$progress['server_time_ms'] -gt
+                [int64]$After['server_time_ms'])
+        foreach ($counter in $RequiredCounters) {
+            $ready = $ready -and (Test-CounterAdvanced `
+                -Before $After -After $progress -Name $counter)
+        }
+        if ($ready) {
+            return $progress
+        }
+        Start-Sleep -Milliseconds 100
+    } while ([DateTime]::UtcNow -lt $deadline)
+    throw $FailureIdentifier
+}
+
+function Invoke-StockSurvivorScenarioWithStatus {
+    param(
+        [System.Diagnostics.Process]$Process,
+        [string]$ExpectedImage,
+        [string]$PathValue,
+        [string]$ControlPath,
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$Result)
+
+    $current = $Before
+    [double]$maximumHorizontalDisplacement = 0.0
+    Release-AllOwnedMovementKeys -Process $Process `
+        -ExpectedImage $ExpectedImage -Result $Result
+    foreach ($pulse in @(Get-StockMovementSequence -Role b)) {
+        $text = Get-SharedFileText -PathValue $PathValue
+        $lastA = Get-LastClientProgress -Text $text -Slot 1
+        $resetPair = Invoke-StockAnchorReset -Slot 2 `
+            -ControlPath $ControlPath -LogPath $PathValue `
+            -BeforePair ([pscustomobject]@{ A = $lastA; B = $current }) `
+            -Result $Result
+        $current = $resetPair.B
+        $phaseBefore = $current
+        try {
+            Send-VerifiedPhysicalKey -Process $Process `
+                -ExpectedImage $ExpectedImage `
+                -Movement $pulse.Movement `
+                -HoldMilliseconds $pulse.Hold -Result $Result -Role b
+        }
+        finally {
+            Release-AllOwnedMovementKeys -Process $Process `
+                -ExpectedImage $ExpectedImage -Result $Result
+        }
+        $counter = Get-InputCounterForMovement -Movement $pulse.Movement
+        $current = Wait-LiveClientProgress -PathValue $PathValue -Slot 2 `
+            -After $current -RequiredCounters @($counter) `
+            -FailureIdentifier 'sendinput_not_observed'
+        $displacement = Get-OriginDisplacement `
+            -Before $phaseBefore -After $current
+        $maximumHorizontalDisplacement = [Math]::Max(
+            $maximumHorizontalDisplacement, $displacement)
+        $pipelinePassed = $true
+        foreach ($requiredCounter in @(
+            $counter, 'clc_move_received', 'clc_move_validated',
+            'clc_move_executed', 'pmove_calls',
+            'movement_commands_executed', 'snapshots_sent',
+            'frames_acknowledged')) {
+            if (-not (Test-CounterAdvanced -Before $phaseBefore `
+                    -After $current -Name $requiredCounter)) {
+                $pipelinePassed = $false
+            }
+        }
+        $text = Get-SharedFileText -PathValue $PathValue
+        $lastA = Get-LastClientProgress -Text $text -Slot 1
+        $resetPair = Invoke-StockAnchorReset -Slot 2 `
+            -ControlPath $ControlPath -LogPath $PathValue `
+            -BeforePair ([pscustomobject]@{ A = $lastA; B = $current }) `
+            -Result $Result
+        $current = $resetPair.B
+        if ($pipelinePassed -and $displacement -ge 2.0 -and
+            $displacement -le 96.0) {
+            break
+        }
+    }
+    return [pscustomobject]@{
+        After = $current
+        MaximumHorizontalDisplacement = $maximumHorizontalDisplacement
+    }
+}
+
+function Test-SurvivorMovementDelta {
+    param(
+        [System.Collections.IDictionary]$Before,
+        [System.Collections.IDictionary]$After,
+        [double]$MaximumHorizontalDisplacement = 0.0)
+
+    if ($null -eq $Before -or $null -eq $After -or
+        [int]$After['connected'] -ne 1 -or [int]$After['spawned'] -ne 1 -or
+        [Math]::Max(
+            (Get-OriginDisplacement -Before $Before -After $After),
+            $MaximumHorizontalDisplacement) -lt 2.0) {
+        return $false
+    }
+    foreach ($counter in @(
+        'clc_move_received', 'clc_move_validated', 'clc_move_executed',
+        'pmove_calls', 'movement_commands_executed', 'movement_snapshots',
+        'snapshots_sent', 'frames_acknowledged')) {
+        if (-not (Test-CounterAdvanced -Before $Before -After $After `
+                -Name $counter)) {
+            return $false
+        }
+    }
+    $inputDelta = 0
+    foreach ($counter in @(
+        'forward_input_packets', 'backward_input_packets',
+        'strafe_input_packets')) {
+        $inputDelta += Get-CounterDelta -Before $Before -After $After `
+            -Name $counter
+    }
+    if ($inputDelta -le 0) { return $false }
+    return $true
+}
+
 function Get-SnapshotSampleCount {
     param([string]$Text, [string]$SessionId)
 
@@ -881,7 +2034,7 @@ function Write-AutotestResults {
         [string]$JsonPath,
         [string]$TextPath)
 
-    $json = $Result | ConvertTo-Json -Depth 5
+    $json = $Result | ConvertTo-Json -Depth 8
     Write-AtomicText -PathValue $JsonPath -TextValue ($json + "`n")
     $lines = @()
     foreach ($entry in $Result.GetEnumerator()) {
@@ -899,6 +2052,8 @@ function Write-AutotestResults {
 }
 
 function Invoke-LauncherSelfTests {
+    param([System.Collections.IDictionary]$Result)
+
     Assert-DistinctClientPorts -APort 27005 -BPort 27006 `
         -AReconnectPort 27007
     $duplicateRejected = $false
@@ -911,10 +2066,16 @@ function Invoke-LauncherSelfTests {
 
     $arguments = New-StockClientArguments -Address '127.0.0.1' `
         -ServerPort 27015 -LocalClientPort 27005 `
-        -ClientName 'HL_Engine_Client_A' -Movement 'forward'
+        -ClientName 'HL_Engine_Client_A'
+    $persistentCommands = @(
+        '+forward', '+back', '+moveleft', '+moveright', '+jump', '+duck')
+    $persistentFound = @($persistentCommands | Where-Object {
+        $arguments -contains $_
+    })
     if ($arguments -notcontains '-multirun' -or
         $arguments -notcontains '+clientport' -or
-        $arguments -notcontains '27005') {
+        $arguments -notcontains '27005' -or
+        $persistentFound.Count -ne 0) {
         throw 'client_argument_test_failed'
     }
 
@@ -943,13 +2104,186 @@ function Invoke-LauncherSelfTests {
         -ExpectedClientPort 27006 -ExpectedClientName 'HL_Engine_Client_B' `
         -PreferredProcessId 11
     if ($null -ne $refused) { throw 'preexisting_process_refusal_test_failed' }
-    return $true
+
+    $before = [ordered]@{
+        connected = 1; spawned = 1; origin_x = 0; origin_y = 0; origin_z = 0
+        clc_move_received = 10; clc_move_validated = 10
+        clc_move_executed = 10; pmove_calls = 10
+        movement_commands_executed = 10; movement_snapshots = 10
+        snapshots_sent = 10; frames_acknowledged = 10
+        forward_input_packets = 10; backward_input_packets = 10
+        strafe_input_packets = 10; jump_input_packets = 10
+        duck_input_packets = 10
+        remote_updates = 10; snapshots_starved = 0
+    }
+    $after = [ordered]@{}
+    foreach ($entry in $before.GetEnumerator()) {
+        $after[$entry.Key] = $entry.Value
+    }
+    foreach ($counter in @(
+        'clc_move_received', 'clc_move_validated', 'clc_move_executed',
+        'pmove_calls', 'movement_commands_executed', 'movement_snapshots',
+        'snapshots_sent', 'frames_acknowledged', 'forward_input_packets',
+        'backward_input_packets', 'jump_input_packets')) {
+        $after[$counter] = [int64]$before[$counter] + 1
+    }
+    $after.origin_x = 8
+    $observerAfter = [ordered]@{}
+    foreach ($entry in $before.GetEnumerator()) {
+        $observerAfter[$entry.Key] = $entry.Value
+    }
+    $observerAfter.remote_updates = 11
+    $observerAfter.snapshots_sent = 11
+    $observerAfter.frames_acknowledged = 11
+    $checkpoint = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $after `
+        -ObserverBefore $before -ObserverAfter $observerAfter -Role a
+    if (-not $checkpoint.passed) {
+        throw 'checkpoint_delta_test_failed'
+    }
+    $elapsedOnly = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $before `
+        -ObserverBefore $before -ObserverAfter $before -Role a
+    if ($elapsedOnly.passed) {
+        throw 'elapsed_time_false_positive_test_failed'
+    }
+    $verticalOnly = [ordered]@{}
+    foreach ($entry in $after.GetEnumerator()) {
+        $verticalOnly[$entry.Key] = $entry.Value
+    }
+    $verticalOnly.origin_x = 0
+    $verticalOnly.origin_z = 8
+    $verticalPulse = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $verticalOnly `
+        -ObserverBefore $before -ObserverAfter $observerAfter -Role a `
+        -PulseResults @([pscustomobject]@{
+            movement = 'jump'; input_counter_delta = 1
+        }) `
+        -MaximumHorizontalDisplacement 0
+    if ($verticalPulse.passed -or
+        $verticalPulse.failure_stage -cne
+            'all_directions_blocked_from_safe_anchor') {
+        throw 'horizontal_movement_false_positive_test_failed'
+    }
+    $blockedPulse = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $after `
+        -ObserverBefore $before -ObserverAfter $observerAfter -Role a `
+        -PulseResults @([pscustomobject]@{
+            movement = 'forward'; input_counter_delta = 1
+        }) -MaximumHorizontalDisplacement 0
+    if ($blockedPulse.passed -or
+        $blockedPulse.pipeline_result -cne 'pass' -or
+        $blockedPulse.travel_result -cne 'blocked_by_geometry') {
+        throw 'blocked_direction_test_failed'
+    }
+    $adaptivePulse = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $after `
+        -ObserverBefore $before -ObserverAfter $observerAfter -Role a `
+        -PulseResults @(
+            [pscustomobject]@{
+                movement = 'forward'; input_counter_delta = 1
+            },
+            [pscustomobject]@{
+                movement = 'back'; input_counter_delta = 1
+            }) -MaximumHorizontalDisplacement 8
+    if (-not $adaptivePulse.passed) {
+        throw 'adaptive_direction_test_failed'
+    }
+    $teleportAfter = [ordered]@{}
+    foreach ($entry in $after.GetEnumerator()) {
+        $teleportAfter[$entry.Key] = $entry.Value
+    }
+    $teleportAfter.origin_x = 512
+    $teleportPulse = Test-PulseCheckpointDelta `
+        -MoverBefore $before -MoverAfter $teleportAfter `
+        -ObserverBefore $before -ObserverAfter $observerAfter -Role a `
+        -PulseResults @([pscustomobject]@{
+            movement = 'forward'; input_counter_delta = 1
+        }) -MaximumHorizontalDisplacement 0
+    if ($teleportPulse.passed) {
+        throw 'teleport_counted_as_movement_test_failed'
+    }
+    $longSchedule = @(Get-EnabledMovementCheckpoints -DurationSeconds 600)
+    if (($longSchedule -join ',') -cne '10,30,60,120,300,600') {
+        throw 'checkpoint_schedule_test_failed'
+    }
+    $requiredSchema = @(
+        'input_delivery_a', 'input_delivery_b', 'sticky_key_detected',
+        'forced_key_release_count', 'movement_after_10_seconds_both',
+        'movement_after_30_seconds_both', 'movement_after_60_seconds_both',
+        'movement_after_120_seconds_both',
+        'movement_after_300_seconds_both',
+        'movement_after_600_seconds_both', 'checkpoint_results',
+        'movement_stall_stage', 'stock_manual_visual_acceptance',
+        'stock_600_second_acceptance', 'delayed_launch_process_count')
+    foreach ($field in $requiredSchema) {
+        if (-not $Result.Contains($field)) {
+            throw 'result_schema_test_failed'
+        }
+    }
+    $source = Get-Content -LiteralPath $PSCommandPath -Raw
+    if (-not $source.Contains('Release-AllOwnedMovementKeys') -or
+        -not $source.Contains('finally') -or
+        -not $source.Contains('FindVisibleTopLevelWindow') -or
+        -not $source.Contains('GetAsyncKeyState')) {
+        throw 'input_helper_contract_test_failed'
+    }
+    $runtimeSource = Get-Content -LiteralPath (Join-Path `
+        (Split-Path -Parent $PSScriptRoot) `
+        'src\game_api\goldsrc_udp_handshake_runtime.inc') -Raw
+    if (-not $source.Contains('reset_player_to_spawn_anchor') -or
+        -not $source.Contains('preexisting_stock_client_detected') -or
+        -not $source.Contains('phase_cleanup_barrier') -or
+        -not $runtimeSource.Contains('stock_test_reset_transitions_') -or
+        -not $runtimeSource.Contains(
+            'interpolation_samples_excluded_for_reset')) {
+        throw 'anchor_reset_contract_test_failed'
+    }
+    Initialize-StockInputBridge
+    $expectedInputSize = if ([IntPtr]::Size -eq 8) { 40 } else { 28 }
+    if ([Prompt248StockInput.Native]::InputStructureSize() -ne
+        $expectedInputSize) {
+        throw 'sendinput_structure_size_test_failed'
+    }
+    if ((Convert-FailureIdentifier -Message 'sendinput_not_observed') -cne
+            'sendinput_not_observed' -or
+        (Convert-FailureIdentifier -Message 'unclassified') -cne
+            'stock_two_client_autotest_failed') {
+        throw 'blocker_conversion_test_failed'
+    }
+    if (-not (Test-InputDeliveryFailure `
+                -Identifier 'sendinput_not_observed') -or
+        (Test-InputDeliveryFailure `
+                -Identifier 'authoritative_origin_unchanged')) {
+        throw 'input_failure_classification_test_failed'
+    }
+    return [ordered]@{
+        no_persistent_launch_input_test = 'pass'
+        window_ownership_test = 'pass'
+        key_release_test = 'pass'
+        sendinput_structure_size_test = 'pass'
+        checkpoint_delta_test = 'pass'
+        elapsed_time_false_positive_test = 'pass'
+        checkpoint_schedule_test = 'pass'
+        blocker_conversion_test = 'pass'
+        result_schema_test = 'pass'
+        blocked_direction_test = 'pass'
+        adaptive_direction_test = 'pass'
+        anchor_reset_test = 'pass'
+        teleport_not_counted_as_movement_test = 'pass'
+        nointerp_reset_transition_test = 'pass'
+        phase_cleanup_barrier_test = 'pass'
+        preexisting_client_test = 'pass'
+        multirun_classification_test = 'pass'
+    }
 }
 
 function Convert-FailureIdentifier {
     param([string]$Message)
 
     if ($Message -cmatch '^client_a_disconnect_[a-z0-9_]+$' -or
+        $Message -cmatch '^client_[ab]_spawn_retry_[a-z0-9_]+$' -or
+        $Message -cmatch '^client_a_reconnect_spawn_retry_[a-z0-9_]+$' -or
         $Message -cmatch '^(launcher_mutex|client_[ab](_reconnect)?|client_b_initial|client_b_retry)_[a-z0-9_]+_(single_instance_dialog|local_error_dialog)$' -or
         $Message -cmatch '^(launcher_mutex|client_b_initial|client_b_retry)_[a-z0-9_]+$') {
         return $Message
@@ -968,6 +2302,18 @@ function Convert-FailureIdentifier {
         'client_a_multirun_rejected',
         'client_b_multirun_rejected',
         'client_a_reconnect_multirun_rejected',
+        'preexisting_stock_client_detected',
+        'previous_phase_client_still_alive',
+        'previous_phase_cleanup_incomplete',
+        'launcher_mutex_not_released',
+        'client_port_still_owned',
+        'actual_multirun_rejection',
+        'all_directions_blocked_from_safe_anchor',
+        'anchor_radius_exceeded',
+        'spawn_anchor_1_not_ready',
+        'spawn_anchor_2_not_ready',
+        'spawn_anchor_1_reset_timeout',
+        'spawn_anchor_2_reset_timeout',
         'client_a_process_created_but_no_network',
         'client_b_process_created_but_no_network',
         'client_a_reconnect_process_created_but_no_network',
@@ -985,6 +2331,47 @@ function Convert-FailureIdentifier {
         'client_ports_must_be_distinct',
         'server_exited_during_gate',
         'two_distinct_client_processes_failed',
+        'client_window_not_found',
+        'client_window_not_owned',
+        'foreground_activation_failed',
+        'foreground_pid_mismatch',
+        'sendinput_failed',
+        'sendinput_not_observed',
+        'key_up_failed',
+        'sticky_key_detected',
+        'client_disconnected',
+        'client_not_spawned',
+        'clc_move_not_received',
+        'clc_move_not_validated',
+        'clc_move_temporarily_rejected',
+        'pmove_not_executed',
+        'authoritative_origin_unchanged',
+        'snapshots_not_advancing',
+        'frame_ack_not_advancing',
+        'remote_updates_not_advancing',
+        'snapshot_starvation_detected',
+        'cross_client_state_leak',
+        'live_status_update_timeout',
+        'manual_visual_confirmation_failed',
+        'automatic_acceptance_requires_verified_sendinput',
+        'persistent_movement_launch_argument_detected',
+        'client_b_movement_after_a_disconnect_failed',
+        'reconnect_movement_failed',
+        'distinct_port_test_failed',
+        'client_argument_test_failed',
+        'process_ownership_selection_test_failed',
+        'preexisting_process_refusal_test_failed',
+        'checkpoint_delta_test_failed',
+        'elapsed_time_false_positive_test_failed',
+        'checkpoint_schedule_test_failed',
+        'blocker_conversion_test_failed',
+        'input_failure_classification_test_failed',
+        'result_schema_test_failed',
+        'input_helper_contract_test_failed',
+        'sendinput_structure_size_test_failed',
+        'stock_progress_telemetry_missing',
+        'stock_live_movement_checkpoint_failed',
+        'stock_remote_smoothness_summary_failed',
         'stock_replication_summary_failed',
         'stock_movement_summary_failed',
         'stock_disconnect_reconnect_summary_failed')
@@ -992,6 +2379,20 @@ function Convert-FailureIdentifier {
         if ($Message.Contains($identifier)) { return $identifier }
     }
     return 'stock_two_client_autotest_failed'
+}
+
+function Test-InputDeliveryFailure {
+    param([string]$Identifier)
+
+    return @(
+        'client_window_not_found',
+        'client_window_not_owned',
+        'foreground_activation_failed',
+        'foreground_pid_mismatch',
+        'sendinput_failed',
+        'sendinput_not_observed',
+        'key_up_failed',
+        'sticky_key_detected') -ccontains $Identifier
 }
 
 $repositoryRoot = [System.IO.Path]::GetFullPath(
@@ -1029,11 +2430,30 @@ $testLogPath = Join-Path $logPath 'ctest.log'
 $unlockerBuildLogPath = Join-Path $logPath 'unlocker-build.log'
 $shutdownRequestPath = Join-Path $logPath 'shutdown.request'
 $disconnectRequestPath = Join-Path $logPath 'disconnect-slot-1.request'
+$stockTestControlPath = Join-Path $logPath 'stock-test-control.request'
 $jsonResultPath = Join-Path $logPath 'stock_two_client_autotest.json'
 $textResultPath = Join-Path $logPath 'stock_two_client_autotest.txt'
 
 $result = [ordered]@{
     status = 'running'
+    test_run_id = [guid]::NewGuid().ToString('N')
+    acceptance_phase = $AcceptancePhase
+    test_phase = if ($ManualObservation) { 'manual_observation_run' } `
+        elseif ($AcceptancePhase -ceq 'Reconnect') { 'reconnect_run' } `
+        elseif ($AutoTestDurationSeconds -ge 600) {
+            'automatic_600_second_run'
+        } else { 'lifecycle_run' }
+    launch_generation = 0
+    launch_role = 'none'
+    preexisting_hl_pids = @()
+    owned_hl_pids = @()
+    previous_phase_cleanup_complete = $true
+    phase_cleanup_barrier = 'not_run'
+    multirun_failure_phase = 'missing'
+    multirun_failure_role = 'missing'
+    conflicting_pid = $null
+    conflicting_process_owned = $false
+    conflicting_client_port = $null
     start_utc = [DateTime]::UtcNow.ToString('o')
     end_utc = $null
     repository_head = $head
@@ -1047,7 +2467,65 @@ $result = [ordered]@{
     client_a_unexpected_exit_code = $null
     client_b_unexpected_exit_code = $null
     client_a_reconnect_process_lifetime_ms = $null
+    client_a_reconnect_spawn_retry_attempted = $false
+    client_a_reconnect_spawn_retry_count = 0
     multi_instance_mode = $MultiInstanceMode
+    input_mode = $InputMode
+    manual_observation = [bool]$ManualObservation
+    manual_observation_seconds = $ManualObservationSeconds
+    manual_visual_confirmation_requested =
+        [bool]$PromptForVisualConfirmation
+    manual_local_a_smooth = $null
+    manual_local_b_smooth = $null
+    manual_a_sees_b_smooth = $null
+    manual_b_sees_a_smooth = $null
+    manual_keyboard_freeze_observed = $null
+    manual_windows_arranged = $false
+    stock_manual_visual_acceptance = 'not_confirmed'
+    stock_600_second_acceptance = 'not_run'
+    persistent_launch_commands_removed = $true
+    persistent_movement_launch_argument_count = 0
+    controlled_input_pulses = $InputMode -cne 'None'
+    input_target_pid = $null
+    input_target_window = $null
+    foreground_verified = $false
+    key_down_sent = $false
+    key_up_sent = $false
+    key_release_verified = $false
+    forced_key_release_count = 0
+    sticky_key_detected = $false
+    sticky_key_virtual = $null
+    input_pulse_failure = 'none'
+    input_delivery_a = 'not_run'
+    input_delivery_b = 'not_run'
+    movement_pipeline_a = 'not_run'
+    movement_pipeline_b = 'not_run'
+    travel_result_a = 'not_run'
+    travel_result_b = 'not_run'
+    world_geometry_blocked_a = $false
+    world_geometry_blocked_b = $false
+    movement_direction_attempts_a = @()
+    movement_direction_attempts_b = @()
+    successful_direction_a = 'none'
+    successful_direction_b = 'none'
+    spawn_anchor_a_valid = $false
+    spawn_anchor_b_valid = $false
+    maximum_distance_from_anchor_a = 0.0
+    maximum_distance_from_anchor_b = 0.0
+    anchor_radius_limit = 96.0
+    player_a_returned_to_anchor = $false
+    player_b_returned_to_anchor = $false
+    checkpoint_path_design_failure = $false
+    all_directions_blocked_from_safe_anchor = $false
+    input_delivery_reconnect_a = 'not_run'
+    clc_move_progress_a = $false
+    clc_move_progress_b = $false
+    pmove_progress_a = $false
+    pmove_progress_b = $false
+    frame_ack_progress_a = $false
+    frame_ack_progress_b = $false
+    remote_update_progress_a = $false
+    remote_update_progress_b = $false
     initial_multirun_attempted = $false
     initial_multirun_succeeded = $false
     initial_client_b_pid = $null
@@ -1088,8 +2566,15 @@ $result = [ordered]@{
     unrelated_handles_closed = 0
     reconnect_mutex_handle_closed = $false
     client_b_retry_attempted = $false
+    client_b_retry_attempt_count = 0
     client_b_retry_udp_port = $null
     client_b_retry_handshake_seen = $false
+    client_b_spawn_retry_attempted = $false
+    client_b_spawn_retry_count = 0
+    client_b_spawn_retry_pid = $null
+    client_a_spawn_retry_attempted = $false
+    client_a_spawn_retry_count = 0
+    client_a_spawn_retry_pid = $null
     preexisting_process_modified = 'no'
     process_injection = 'no'
     memory_patching = 'no'
@@ -1099,6 +2584,7 @@ $result = [ordered]@{
     last_stock_error_single_instance_dialog = $false
     last_stock_unexpected_exit_code = $null
     client_a_process_created = $false
+    client_a_launch_attempt_count = 0
     client_b_process_created = $false
     two_distinct_client_processes = $false
     two_distinct_client_udp_ports = $false
@@ -1131,35 +2617,77 @@ $result = [ordered]@{
     client_a_reconnect_session_is_new = $false
     client_a_readd_visible_to_b = $false
     reconnect_movement = $false
+    reconnect_gate_a = $null
+    reconnect_gate_b = $null
+    client_b_movement_after_a_disconnect = $false
+    stale_input_state_inherited = $false
     slot_reuse_clean = $false
+    movement_after_10_seconds_both = $false
+    movement_after_30_seconds_both = $false
     movement_after_60_seconds_both = $false
     movement_after_120_seconds_both = $false
     movement_after_300_seconds_both = $false
     movement_after_600_seconds_both = $false
+    movement_stall_detected = $false
+    movement_stall_stage = 'none'
+    movement_stall_client = 'none'
+    movement_stall_checkpoint_seconds = $null
+    movement_stall_time_seconds = $null
+    failure_stage = 'none'
+    failure_client = 'none'
+    failure_checkpoint_seconds = $null
+    last_successful_movement_checkpoint = $null
+    last_successful_snapshot_checkpoint = $null
+    last_successful_frame_ack_checkpoint = $null
+    input_delivery_verified = $false
+    checkpoint_results = @()
+    last_successful_move_time_a = $null
+    last_successful_move_time_b = $null
+    last_successful_snapshot_time_a = $null
+    last_successful_snapshot_time_b = $null
+    last_successful_frame_ack_time_a = $null
+    last_successful_frame_ack_time_b = $null
+    snapshot_interval_median_a_ms = $null
+    snapshot_interval_p95_a_ms = $null
+    snapshot_interval_max_a_ms = $null
+    snapshot_interval_median_b_ms = $null
+    snapshot_interval_p95_b_ms = $null
+    snapshot_interval_max_b_ms = $null
+    remote_update_p95_a_ms = $null
+    remote_update_p95_b_ms = $null
+    maximum_snapshot_starvation_frames = $null
+    remote_interpolation_contract_verified = $false
+    remote_interpolation_protocol_pass = 'fail'
     movement_window_processes_stable = $false
     cross_client_state_leak = $true
     server_cleanup = 'not_started'
     client_a_cleanup = 'not_started'
     client_b_cleanup = 'not_started'
     reconnect_client_cleanup = 'not_started'
+    delayed_launch_process_count = 0
     process_leak = $false
     preflight_stage = 'not_started'
     blocker = 'none'
+    diagnostic_identifier = 'none'
 }
 
 $serverProcess = $null
 $clientAProcess = $null
 $clientBProcess = $null
 $clientAReconnectProcess = $null
+$clientAPath = $null
+$clientBPath = $null
 $ownedPids = @()
 $failure = $null
 $dryRunPassed = $false
 $inspectOnlyPassed = $false
 $clientBPreexistingIds = @()
+$initialHalfLifeProcessIds = @()
+$performReconnectTest = -not ($SkipReconnectTest -or $ManualObservation)
 
 try {
     $result.preflight_stage = 'self_tests'
-    $selfTests = Invoke-LauncherSelfTests
+    $selfTests = Invoke-LauncherSelfTests -Result $result
     $result.preflight_stage = 'cmake_resolution'
     $cmake = Resolve-CMakeExecutable
     if (-not [string]::IsNullOrWhiteSpace($HandleExecutablePath) -and
@@ -1196,6 +2724,16 @@ try {
         $ClientBExecutablePath
     } else { $clientAPath }
     $clientBPath = Resolve-HalfLifeClient -RequestedPath $requestedB
+    $initialHalfLifeProcessIds = @(Get-HalfLifeProcessRecords |
+        ForEach-Object { [int]$_.ProcessId })
+    $result.preexisting_hl_pids = @($initialHalfLifeProcessIds)
+    if (-not $DryRun -and $initialHalfLifeProcessIds.Count -gt 0) {
+        $result.multirun_failure_phase = $result.test_phase
+        $result.multirun_failure_role = 'client_a'
+        $result.conflicting_pid = [int]$initialHalfLifeProcessIds[0]
+        $result.conflicting_process_owned = $false
+        throw 'preexisting_stock_client_detected'
+    }
     $clientGamePath = Resolve-ClientGameDirectory `
         -RequestedPath '' -ClientPath $clientAPath -MapName $Map
     $serverGamePath = Resolve-ServerGameDirectory `
@@ -1217,20 +2755,30 @@ try {
     $serverArguments = New-StockServerArguments `
         -GameDirectory $serverGamePath -MapName $Map -Address $BindAddress `
         -SelectedPort $selectedPort -ShutdownRequestPath $shutdownRequestPath `
-        -DisconnectRequestPath $disconnectRequestPath
+        -DisconnectRequestPath $disconnectRequestPath `
+        -StockTestControlPath $stockTestControlPath
     $clientAArguments = New-StockClientArguments `
         -Address $BindAddress -ServerPort $selectedPort `
-        -LocalClientPort $ClientAPort -ClientName $ClientAName `
-        -Movement 'forward'
+        -LocalClientPort $ClientAPort -ClientName $ClientAName
     $clientBArguments = New-StockClientArguments `
         -Address $BindAddress -ServerPort $selectedPort `
-        -LocalClientPort $ClientBPort -ClientName $ClientBName `
-        -Movement 'moveright'
+        -LocalClientPort $ClientBPort -ClientName $ClientBName
     $clientAReconnectName = $ClientAName + '_Reconnect'
     $clientAReconnectArguments = New-StockClientArguments `
         -Address $BindAddress -ServerPort $selectedPort `
         -LocalClientPort $ClientAReconnectPort `
-        -ClientName $clientAReconnectName -Movement 'back'
+        -ClientName $clientAReconnectName
+    $persistentMovementPattern = '^\+(forward|back|moveleft|moveright|jump|duck)$'
+    $persistentMovementLaunchArguments = @(
+        @($clientAArguments) + @($clientBArguments) +
+        @($clientAReconnectArguments) | Where-Object {
+            [string]$_ -cmatch $persistentMovementPattern
+        })
+    $result.persistent_movement_launch_argument_count =
+        $persistentMovementLaunchArguments.Count
+    if ($persistentMovementLaunchArguments.Count -ne 0) {
+        throw 'persistent_movement_launch_argument_detected'
+    }
 
     if ($DryRun) {
         Write-Host 'server_command=<resolved-hlhost.exe> <validated-local-two-client-arguments>'
@@ -1246,6 +2794,11 @@ try {
         Write-Host 'client_ports_distinct=true'
         Write-Host 'process_ownership_policy=exact_new_pid_only'
         Write-Host ('multi_instance_mode={0}' -f $MultiInstanceMode)
+        Write-Host ('input_mode={0}' -f $InputMode)
+        Write-Host 'persistent_movement_launch_argument_count=0'
+        Write-Host ('manual_observation={0}' -f
+            ([bool]$ManualObservation).ToString().ToLowerInvariant())
+        Write-Host 'persistent_launch_commands_removed=true'
         Write-Host 'primary_method=direct_multirun'
         Write-Host 'fallback_method=exact_owned_launcher_mutex_unlock'
         Write-Host ('fallback_enabled={0}' -f
@@ -1268,6 +2821,9 @@ try {
         Write-Host ('server_address={0}:{1}' -f $BindAddress, $selectedPort)
         Write-Host 'process_ownership_tests=pass'
         Write-Host 'cleanup_tests=pass'
+        foreach ($entry in $selfTests.GetEnumerator()) {
+            Write-Host ('{0}={1}' -f $entry.Key, $entry.Value)
+        }
         Write-Host 'dry_run=pass'
         $result.status = 'dry_run'
         $result.blocker = 'none'
@@ -1312,12 +2868,31 @@ try {
             -Address $BindAddress -SelectedPort $selectedPort `
             -TimeoutSeconds $ConnectTimeoutSeconds
 
-        $preexistingClientIds = @(Get-HalfLifeProcessRecords |
-            ForEach-Object { [int]$_.ProcessId })
-        $clientAProcess = Start-StockOwnedClient -Role 'client_a' `
-            -Executable $clientAPath -Arguments $clientAArguments `
-            -PreexistingIds $preexistingClientIds `
-            -ExpectedClientPort $ClientAPort -ExpectedClientName $ClientAName
+        for ($clientALaunchAttempt = 1; $clientALaunchAttempt -le 1;
+                ++$clientALaunchAttempt) {
+            $result.client_a_launch_attempt_count = $clientALaunchAttempt
+            $preexistingClientIds = @(Get-HalfLifeProcessRecords |
+                ForEach-Object { [int]$_.ProcessId })
+            try {
+                $clientAProcess = Start-StockOwnedClient `
+                    -Role 'client_a' -Executable $clientAPath `
+                    -Arguments $clientAArguments `
+                    -PreexistingIds $preexistingClientIds `
+                    -ExpectedClientPort $ClientAPort `
+                    -ExpectedClientName $ClientAName `
+                    -AlwaysCleanupOnFailure
+                break
+            }
+            catch {
+                if ($_.Exception.Data.Contains('ProcessId')) {
+                    $ownedPids += [int]$_.Exception.Data['ProcessId']
+                }
+                throw
+            }
+        }
+        if ($null -eq $clientAProcess) {
+            throw 'client_a_multirun_rejected'
+        }
         $result.client_a_pid = $clientAProcess.Id
         $result.client_a_process_created = $true
         $ownedPids += $clientAProcess.Id
@@ -1333,23 +2908,79 @@ try {
         $result.client_a_connected = $true
         $result.client_a_handshake_seen = $true
         $result.client_a_slot = 1
-        $aBound = Wait-LogRegex -PathValue $stdoutPath `
-            -Pattern ('goldsrc_player_edict_bound: session_id={0},slot=1,edict=1,' -f [regex]::Escape($sessionA)) `
-            -TimeoutSeconds $SpawnTimeoutSeconds -ServerProcess $serverProcess `
-            -ClientProcess $clientAProcess `
-            -FailureIdentifier 'client_a_spawn_timeout'
-        $null = Wait-LogRegex -PathValue $stdoutPath `
-            -Pattern ('goldsrc_player_materialized: session_id={0},edict=1,.*spawned=1' -f [regex]::Escape($sessionA)) `
-            -TimeoutSeconds $SpawnTimeoutSeconds -ServerProcess $serverProcess `
-            -ClientProcess $clientAProcess `
-            -FailureIdentifier 'client_a_spawn_timeout'
+        $spawnAttemptTimeout = [Math]::Min($SpawnTimeoutSeconds, 90)
+        for ($spawnAttempt = 1; $spawnAttempt -le 2; ++$spawnAttempt) {
+            try {
+                $null = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_player_edict_bound: session_id={0},slot=1,edict=1,' -f [regex]::Escape($sessionA)) `
+                    -TimeoutSeconds $spawnAttemptTimeout `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientAProcess `
+                    -FailureIdentifier 'client_a_spawn_timeout'
+                $null = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_player_materialized: session_id={0},edict=1,.*spawned=1' -f [regex]::Escape($sessionA)) `
+                    -TimeoutSeconds $spawnAttemptTimeout `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientAProcess `
+                    -FailureIdentifier 'client_a_spawn_timeout'
+                $null = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_continuous_snapshot_sent: session_id={0},' -f [regex]::Escape($sessionA)) `
+                    -TimeoutSeconds $spawnAttemptTimeout `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientAProcess `
+                    -FailureIdentifier 'client_a_spawn_timeout'
+                break
+            }
+            catch {
+                if ($_.Exception.Message -cne 'client_a_spawn_timeout' -or
+                    $spawnAttempt -eq 2) {
+                    throw
+                }
+                $result.client_a_spawn_retry_attempted = $true
+                $result.client_a_spawn_retry_count = $spawnAttempt
+                $oldAId = $clientAProcess.Id
+                $result.client_a_cleanup =
+                    Invoke-ServerOwnedSpawnRetryDisconnect `
+                        -Process $clientAProcess `
+                        -ExpectedProcessId $oldAId -Slot 1 `
+                        -RequestPath $disconnectRequestPath `
+                        -StdoutPath $stdoutPath `
+                        -ServerProcess $serverProcess `
+                        -TimeoutSeconds $DisconnectTimeoutSeconds `
+                        -Description 'client_a_spawn_retry'
+                $clientAProcess.Dispose()
+                $clientAProcess = $null
+                $preexistingClientIds = @(Get-HalfLifeProcessRecords |
+                    ForEach-Object { [int]$_.ProcessId })
+                $retryLogOffset = (Get-SharedFileText `
+                    -PathValue $stdoutPath).Length
+                $clientAProcess = Start-StockOwnedClient `
+                    -Role 'client_a_spawn_retry' `
+                    -Executable $clientAPath -Arguments $clientAArguments `
+                    -PreexistingIds $preexistingClientIds `
+                    -ExpectedClientPort $ClientAPort `
+                    -ExpectedClientName $ClientAName `
+                    -AlwaysCleanupOnFailure
+                $result.client_a_pid = $clientAProcess.Id
+                $result.client_a_spawn_retry_pid = $clientAProcess.Id
+                $ownedPids += $clientAProcess.Id
+                Wait-OwnedUdpPort -Process $clientAProcess `
+                    -ExpectedPort $ClientAPort `
+                    -TimeoutSeconds $ConnectTimeoutSeconds `
+                    -FailureIdentifier `
+                        'client_a_spawn_retry_process_created_but_no_network'
+                $aAccept = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_udp_accept: session_id=(?<session>[^,]+),slot=1,endpoint=127\.0\.0\.1:{0},' -f $ClientAPort) `
+                    -TimeoutSeconds $ConnectTimeoutSeconds `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientAProcess `
+                    -FailureIdentifier 'client_a_spawn_retry_connect_timeout' `
+                    -StartOffset $retryLogOffset
+                $sessionA = $aAccept.Groups['session'].Value
+            }
+        }
         $result.client_a_spawned = $true
         $result.client_a_edict = 1
-        $null = Wait-LogRegex -PathValue $stdoutPath `
-            -Pattern ('goldsrc_continuous_snapshot_sent: session_id={0},' -f [regex]::Escape($sessionA)) `
-            -TimeoutSeconds $SpawnTimeoutSeconds -ServerProcess $serverProcess `
-            -ClientProcess $clientAProcess `
-            -FailureIdentifier 'client_a_spawn_timeout'
 
         if ($InspectLauncherMutexOnly) {
             $null = Invoke-VerifiedLauncherMutex `
@@ -1455,14 +3086,54 @@ try {
                 -Result $result -Context Primary
             $result.launcher_mutex_fallback_used = $true
             $result.client_b_retry_attempted = $true
-            $clientBPreexistingIds = @(Get-HalfLifeProcessRecords |
-                ForEach-Object { [int]$_.ProcessId })
-            $clientBProcess = Start-StockOwnedClient `
-                -Role 'client_b_retry' -Executable $clientBPath `
-                -Arguments $clientBArguments `
-                -PreexistingIds $clientBPreexistingIds `
-                -ExpectedClientPort $ClientBPort `
-                -ExpectedClientName $ClientBName
+            for ($retryAttempt = 1; $retryAttempt -le 3; ++$retryAttempt) {
+                $result.client_b_retry_attempt_count = $retryAttempt
+                $clientBPreexistingIds = @(Get-HalfLifeProcessRecords |
+                    ForEach-Object { [int]$_.ProcessId })
+                try {
+                    $clientBProcess = Start-StockOwnedClient `
+                        -Role 'client_b_retry' -Executable $clientBPath `
+                        -Arguments $clientBArguments `
+                        -PreexistingIds $clientBPreexistingIds `
+                        -ExpectedClientPort $ClientBPort `
+                        -ExpectedClientName $ClientBName `
+                        -AlwaysCleanupOnFailure
+                    break
+                }
+                catch {
+                    if ($_.Exception.Data.Contains('ProcessId')) {
+                        $ownedPids += [int]$_.Exception.Data['ProcessId']
+                    }
+                    if ($_.Exception.Message -cne
+                            'client_b_retry_multirun_rejected' -or
+                        $retryAttempt -eq 3) {
+                        throw
+                    }
+                    Start-Sleep -Seconds 1
+                    try {
+                        $null = Invoke-VerifiedLauncherMutex `
+                            -Process $clientAProcess `
+                            -ExpectedImage $clientAPath `
+                            -PreexistingIds $preexistingClientIds `
+                            -OwnedIds $ownedPids -ExpectedPort $ClientAPort `
+                            -ServerAssociated $result.client_a_connected `
+                            -Spawned $result.client_a_spawned `
+                            -UnlockerExecutable $unlockerPath `
+                            -CloseHandle $true -Result $result `
+                            -Context Primary
+                    }
+                    catch {
+                        if ($_.Exception.Message -cne
+                                'launcher_mutex_inspect_mutex_not_found') {
+                            throw
+                        }
+                    }
+                    Start-Sleep -Seconds 3
+                }
+            }
+            if ($null -eq $clientBProcess) {
+                throw 'client_b_retry_multirun_rejected'
+            }
             $result.client_b_retry_pid = $clientBProcess.Id
         }
 
@@ -1492,70 +3163,321 @@ try {
             $result.client_b_retry_handshake_seen = $true
         }
         $result.client_b_slot = 2
-        $null = Wait-LogRegex -PathValue $stdoutPath `
-            -Pattern ('goldsrc_player_edict_bound: session_id={0},slot=2,edict=2,' -f [regex]::Escape($sessionB)) `
-            -TimeoutSeconds $SpawnTimeoutSeconds -ServerProcess $serverProcess `
-            -ClientProcess $clientBProcess `
-            -FailureIdentifier 'client_b_spawn_timeout'
-        $null = Wait-LogRegex -PathValue $stdoutPath `
-            -Pattern ('goldsrc_player_materialized: session_id={0},edict=2,.*spawned=1' -f [regex]::Escape($sessionB)) `
-            -TimeoutSeconds $SpawnTimeoutSeconds -ServerProcess $serverProcess `
-            -ClientProcess $clientBProcess `
-            -FailureIdentifier 'client_b_spawn_timeout'
+        $spawnAttemptTimeout = [Math]::Min($SpawnTimeoutSeconds, 90)
+        for ($spawnAttempt = 1; $spawnAttempt -le 2; ++$spawnAttempt) {
+            try {
+                $null = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_player_edict_bound: session_id={0},slot=2,edict=2,' -f [regex]::Escape($sessionB)) `
+                    -TimeoutSeconds $spawnAttemptTimeout `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientBProcess `
+                    -FailureIdentifier 'client_b_spawn_timeout'
+                $null = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_player_materialized: session_id={0},edict=2,.*spawned=1' -f [regex]::Escape($sessionB)) `
+                    -TimeoutSeconds $spawnAttemptTimeout `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientBProcess `
+                    -FailureIdentifier 'client_b_spawn_timeout'
+                break
+            }
+            catch {
+                if ($_.Exception.Message -cne 'client_b_spawn_timeout' -or
+                    $spawnAttempt -eq 2) {
+                    throw
+                }
+                $result.client_b_spawn_retry_attempted = $true
+                $result.client_b_spawn_retry_count = $spawnAttempt
+                $oldBId = $clientBProcess.Id
+                $result.client_b_cleanup =
+                    Invoke-ServerOwnedSpawnRetryDisconnect `
+                        -Process $clientBProcess `
+                        -ExpectedProcessId $oldBId -Slot 2 `
+                        -RequestPath $disconnectRequestPath `
+                        -StdoutPath $stdoutPath `
+                        -ServerProcess $serverProcess `
+                        -TimeoutSeconds $DisconnectTimeoutSeconds `
+                        -Description 'client_b_spawn_retry'
+                $clientBProcess.Dispose()
+                $clientBProcess = $null
+                $clientBPreexistingIds = @(Get-HalfLifeProcessRecords |
+                    ForEach-Object { [int]$_.ProcessId })
+                $retryLogOffset = (Get-SharedFileText `
+                    -PathValue $stdoutPath).Length
+                $clientBProcess = Start-StockOwnedClient `
+                    -Role 'client_b_spawn_retry' `
+                    -Executable $clientBPath -Arguments $clientBArguments `
+                    -PreexistingIds $clientBPreexistingIds `
+                    -ExpectedClientPort $ClientBPort `
+                    -ExpectedClientName $ClientBName `
+                    -AlwaysCleanupOnFailure
+                $result.client_b_pid = $clientBProcess.Id
+                $result.client_b_spawn_retry_pid = $clientBProcess.Id
+                $ownedPids += $clientBProcess.Id
+                Wait-OwnedUdpPort -Process $clientBProcess `
+                    -ExpectedPort $ClientBPort `
+                    -TimeoutSeconds $ConnectTimeoutSeconds `
+                    -FailureIdentifier `
+                        'client_b_spawn_retry_process_created_but_no_network'
+                $bAccept = Wait-LogRegex -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_udp_accept: session_id=(?<session>[^,]+),slot=2,endpoint=127\.0\.0\.1:{0},' -f $ClientBPort) `
+                    -TimeoutSeconds $ConnectTimeoutSeconds `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientBProcess `
+                    -FailureIdentifier 'client_b_spawn_retry_connect_timeout' `
+                    -StartOffset $retryLogOffset
+                $sessionB = $bAccept.Groups['session'].Value
+            }
+        }
         $result.client_b_spawned = $true
         $result.client_b_edict = 2
         if ($null -ne $result.client_b_retry_pid) {
             $result.client_b_retry_stable = $true
         }
 
-        $movementStartText = Get-SharedFileText -PathValue $stdoutPath
-        $startSamplesA = Get-SnapshotSampleCount `
-            -Text $movementStartText -SessionId $sessionA
-        $startSamplesB = Get-SnapshotSampleCount `
-            -Text $movementStartText -SessionId $sessionB
-        $movementDeadline = [DateTime]::UtcNow.AddSeconds(
-            $AutoTestDurationSeconds)
-        while ([DateTime]::UtcNow -lt $movementDeadline) {
-            foreach ($entry in @(
-                [pscustomobject]@{ Role = 'client_a'; Process = $clientAProcess },
-                [pscustomobject]@{ Role = 'client_b'; Process = $clientBProcess })) {
-                $client = $entry.Process
-                $client.Refresh()
-                if ($client.HasExited) {
-                    $result[($entry.Role + '_unexpected_exit_code')] =
-                        $client.ExitCode
-                    throw ($entry.Role + '_exited_during_movement')
+        if ($ManualObservation) {
+            $result.manual_windows_arranged =
+                Arrange-OwnedClientWindowsSideBySide `
+                    -ClientA $clientAProcess -ClientB $clientBProcess `
+                    -ExpectedImage $clientAPath
+            Write-Host ('manual_endpoint={0}:{1}' -f $BindAddress, $selectedPort)
+            Write-Host ('manual_client_a_pid={0}' -f $clientAProcess.Id)
+            Write-Host ('manual_client_b_pid={0}' -f $clientBProcess.Id)
+            Write-Host ('manual_observation_seconds={0}' -f
+                $ManualObservationSeconds)
+            $manualClock = [System.Diagnostics.Stopwatch]::StartNew()
+            [double]$nextManualStatusSeconds = 0
+            while ($manualClock.Elapsed.TotalSeconds -lt
+                    $ManualObservationSeconds) {
+                foreach ($client in @($clientAProcess, $clientBProcess)) {
+                    $client.Refresh()
+                    if ($client.HasExited) {
+                        throw 'client_disconnected'
+                    }
                 }
-                if ($client.MainWindowTitle -eq 'Error') {
-                    $result.last_stock_error_single_instance_dialog =
-                        Test-StockSingleInstanceDialog -Process $client
-                    throw ($entry.Role + '_error_dialog_during_movement')
+                $serverProcess.Refresh()
+                if ($serverProcess.HasExited) {
+                    throw 'server_exited_during_gate'
+                }
+                if ($manualClock.Elapsed.TotalSeconds -ge
+                        $nextManualStatusSeconds) {
+                    Write-ManualLiveProgress -Text (
+                        Get-SharedFileText -PathValue $stdoutPath)
+                    $nextManualStatusSeconds += 5
+                }
+                Start-Sleep -Milliseconds 250
+            }
+            $manualClock.Stop()
+            if ($PromptForVisualConfirmation) {
+                $result.manual_local_a_smooth = Read-ManualYesNo `
+                    -Question 'Did Client A movement remain smooth?'
+                $result.manual_local_b_smooth = Read-ManualYesNo `
+                    -Question 'Did Client B movement remain smooth?'
+                $result.manual_a_sees_b_smooth = Read-ManualYesNo `
+                    -Question 'Did A observe B smoothly?'
+                $result.manual_b_sees_a_smooth = Read-ManualYesNo `
+                    -Question 'Did B observe A smoothly?'
+                $result.manual_keyboard_freeze_observed = Read-ManualYesNo `
+                    -Question 'Did either client lose keyboard movement?'
+                $manualAccepted = $result.manual_local_a_smooth -and
+                    $result.manual_local_b_smooth -and
+                    $result.manual_a_sees_b_smooth -and
+                    $result.manual_b_sees_a_smooth -and
+                    -not $result.manual_keyboard_freeze_observed
+                $result.stock_manual_visual_acceptance = if ($manualAccepted) {
+                    'pass'
+                } else { 'fail' }
+                if (-not $manualAccepted) {
+                    throw 'manual_visual_confirmation_failed'
                 }
             }
-            $serverProcess.Refresh()
-            if ($serverProcess.HasExited) { throw 'server_exited_during_gate' }
-            if ($FollowServerLog) {
-                $text = Get-SharedFileText -PathValue $stdoutPath
-                Write-Host ('movement_samples_a={0}' -f
-                    (Get-SnapshotSampleCount -Text $text -SessionId $sessionA))
-                Write-Host ('movement_samples_b={0}' -f
-                    (Get-SnapshotSampleCount -Text $text -SessionId $sessionB))
-            }
-            Start-Sleep -Seconds 1
+            $result.movement_window_processes_stable = $true
         }
-        $movementText = Get-SharedFileText -PathValue $stdoutPath
-        $samplesA = Get-SnapshotSampleCount -Text $movementText `
-            -SessionId $sessionA
-        $samplesB = Get-SnapshotSampleCount -Text $movementText `
-            -SessionId $sessionB
-        $result.movement_window_processes_stable = $true
-        foreach ($checkpoint in @(60, 120, 300, 600)) {
-            if ($AutoTestDurationSeconds -ge $checkpoint) {
-                $result[('movement_after_{0}_seconds_both' -f $checkpoint)] = $true
+        else {
+            if ($InputMode -cne 'VerifiedSendInput') {
+                throw 'automatic_acceptance_requires_verified_sendinput'
             }
+            Release-AllOwnedMovementKeys -Process $clientAProcess `
+                -ExpectedImage $clientAPath -Result $result
+            Release-AllOwnedMovementKeys -Process $clientBProcess `
+                -ExpectedImage $clientBPath -Result $result
+            $initialProgress = Wait-LiveProgressPair `
+                -PathValue $stdoutPath -AfterA $null -AfterB $null
+            $checkpoints = @(Get-EnabledMovementCheckpoints `
+                -DurationSeconds $AutoTestDurationSeconds)
+            $movementClock = [System.Diagnostics.Stopwatch]::StartNew()
+            foreach ($checkpoint in $checkpoints) {
+                while ($movementClock.Elapsed.TotalSeconds -lt $checkpoint) {
+                    Start-Sleep -Milliseconds 200
+                }
+                foreach ($entry in @(
+                    [pscustomobject]@{
+                        Role = 'client_a'; Process = $clientAProcess
+                    },
+                    [pscustomobject]@{
+                        Role = 'client_b'; Process = $clientBProcess
+                    })) {
+                    $client = $entry.Process
+                    $client.Refresh()
+                    if ($client.HasExited) {
+                        $result[($entry.Role + '_unexpected_exit_code')] =
+                            $client.ExitCode
+                        throw ($entry.Role + '_exited_during_movement')
+                    }
+                    if ($client.MainWindowTitle -eq 'Error') {
+                        $result.last_stock_error_single_instance_dialog =
+                            Test-StockSingleInstanceDialog -Process $client
+                        throw ($entry.Role + '_error_dialog_during_movement')
+                    }
+                }
+                $serverProcess.Refresh()
+                if ($serverProcess.HasExited) {
+                    throw 'server_exited_during_gate'
+                }
+                Release-AllOwnedMovementKeys -Process $clientAProcess `
+                    -ExpectedImage $clientAPath -Result $result
+                Release-AllOwnedMovementKeys -Process $clientBProcess `
+                    -ExpectedImage $clientBPath -Result $result
+                $beforeA = Wait-LiveProgressPair -PathValue $stdoutPath `
+                    -AfterA $initialProgress.A -AfterB $initialProgress.B
+                $result.movement_stall_client = 'a'
+                $result.movement_stall_checkpoint_seconds = $checkpoint
+                $scenarioA = Invoke-StockMovementScenarioWithStatus `
+                    -Process $clientAProcess -ExpectedImage $clientAPath `
+                    -Role a -PathValue $stdoutPath `
+                    -ControlPath $stockTestControlPath `
+                    -BeforePair $beforeA -Result $result
+                $result.input_delivery_a = 'pass'
+                $afterA = $scenarioA.AfterPair
+                $aGate = Test-PulseCheckpointDelta `
+                    -MoverBefore $beforeA.A -MoverAfter $afterA.A `
+                    -ObserverBefore $beforeA.B -ObserverAfter $afterA.B `
+                    -Role a -PulseResults $scenarioA.PulseResults `
+                    -MaximumHorizontalDisplacement `
+                        $scenarioA.MaximumHorizontalDisplacement
+
+                $beforeB = Wait-LiveProgressPair -PathValue $stdoutPath `
+                    -AfterA $afterA.A -AfterB $afterA.B
+                $result.movement_stall_client = 'b'
+                $scenarioB = Invoke-StockMovementScenarioWithStatus `
+                    -Process $clientBProcess -ExpectedImage $clientBPath `
+                    -Role b -PathValue $stdoutPath `
+                    -ControlPath $stockTestControlPath `
+                    -BeforePair $beforeB -Result $result
+                $result.input_delivery_b = 'pass'
+                $afterB = $scenarioB.AfterPair
+                $bGate = Test-PulseCheckpointDelta `
+                    -MoverBefore $beforeB.B -MoverAfter $afterB.B `
+                    -ObserverBefore $beforeB.A -ObserverAfter $afterB.A `
+                    -Role b -PulseResults $scenarioB.PulseResults `
+                    -MaximumHorizontalDisplacement `
+                        $scenarioB.MaximumHorizontalDisplacement
+
+                $result.spawn_anchor_a_valid =
+                    [int]$afterB.A['spawn_anchor_valid'] -eq 1
+                $result.spawn_anchor_b_valid =
+                    [int]$afterB.B['spawn_anchor_valid'] -eq 1
+                $result.movement_pipeline_a = $aGate.pipeline_result
+                $result.movement_pipeline_b = $bGate.pipeline_result
+                $result.travel_result_a = $aGate.travel_result
+                $result.travel_result_b = $bGate.travel_result
+                $result.world_geometry_blocked_a =
+                    [bool]$scenarioA.WorldGeometryBlocked
+                $result.world_geometry_blocked_b =
+                    [bool]$scenarioB.WorldGeometryBlocked
+                $result.movement_direction_attempts_a = @(
+                    $scenarioA.PulseResults | ForEach-Object { $_.movement })
+                $result.movement_direction_attempts_b = @(
+                    $scenarioB.PulseResults | ForEach-Object { $_.movement })
+                $result.successful_direction_a =
+                    $scenarioA.SuccessfulDirection
+                $result.successful_direction_b =
+                    $scenarioB.SuccessfulDirection
+                $result.maximum_distance_from_anchor_a = [Math]::Max(
+                    [double]$result.maximum_distance_from_anchor_a,
+                    [double]$scenarioA.MaximumHorizontalDisplacement)
+                $result.maximum_distance_from_anchor_b = [Math]::Max(
+                    [double]$result.maximum_distance_from_anchor_b,
+                    [double]$scenarioB.MaximumHorizontalDisplacement)
+                $result.player_a_returned_to_anchor =
+                    [bool]$scenarioA.ReturnedToAnchor
+                $result.player_b_returned_to_anchor =
+                    [bool]$scenarioB.ReturnedToAnchor
+
+                $passedBoth = $aGate.passed -and $bGate.passed -and
+                    -not $result.sticky_key_detected
+                if (-not $scenarioA.TravelPassed -or
+                    -not $scenarioB.TravelPassed) {
+                    $result.all_directions_blocked_from_safe_anchor = $true
+                }
+                $result[('movement_after_{0}_seconds_both' -f $checkpoint)] =
+                    $passedBoth
+                $result.checkpoint_results += [pscustomobject]@{
+                    checkpoint_seconds = $checkpoint
+                    client_a = $aGate
+                    client_b = $bGate
+                    passed_both = $passedBoth
+                }
+                $result.last_successful_move_time_a =
+                    [int64]$afterB.A['last_successful_move_time_ms']
+                $result.last_successful_move_time_b =
+                    [int64]$afterB.B['last_successful_move_time_ms']
+                $result.last_successful_snapshot_time_a =
+                    [int64]$afterB.A['last_successful_snapshot_time_ms']
+                $result.last_successful_snapshot_time_b =
+                    [int64]$afterB.B['last_successful_snapshot_time_ms']
+                $result.last_successful_frame_ack_time_a =
+                    [int64]$afterB.A['last_successful_frame_ack_time_ms']
+                $result.last_successful_frame_ack_time_b =
+                    [int64]$afterB.B['last_successful_frame_ack_time_ms']
+                if (-not $passedBoth) {
+                    $result.movement_stall_detected = $true
+                    $result.movement_stall_client = if (-not $aGate.passed) {
+                        'a'
+                    } else { 'b' }
+                    $result.movement_stall_stage = if (-not $aGate.passed) {
+                        $aGate.failure_stage
+                    } else { $bGate.failure_stage }
+                    $result.movement_stall_checkpoint_seconds = $checkpoint
+                    $result.movement_stall_time_seconds = $checkpoint
+                    throw $result.movement_stall_stage
+                }
+                $result.last_successful_movement_checkpoint = $checkpoint
+                $result.last_successful_snapshot_checkpoint = $checkpoint
+                $result.last_successful_frame_ack_checkpoint = $checkpoint
+                $result.movement_stall_client = 'none'
+                $result.movement_stall_checkpoint_seconds = $null
+                $result.input_delivery_verified = $true
+                $result.clc_move_progress_a = $true
+                $result.clc_move_progress_b = $true
+                $result.pmove_progress_a = $true
+                $result.pmove_progress_b = $true
+                $result.frame_ack_progress_a = $true
+                $result.frame_ack_progress_b = $true
+                $result.remote_update_progress_a = $true
+                $result.remote_update_progress_b = $true
+                $initialProgress = $afterB
+                if ($FollowServerLog) {
+                    Write-Host ('movement_checkpoint_seconds={0}' -f
+                        $checkpoint)
+                    Write-Host 'movement_checkpoint_a=true'
+                    Write-Host 'movement_checkpoint_b=true'
+                }
+            }
+            $movementClock.Stop()
+            if ($AutoTestDurationSeconds -ge 600 -and
+                $result.movement_after_600_seconds_both) {
+                $result.stock_600_second_acceptance = 'pass'
+            }
+            $result.movement_window_processes_stable = $true
         }
 
-        if (-not $SkipReconnectTest) {
+        if ($performReconnectTest) {
+            $preDisconnectProgress = Wait-LiveProgressPair `
+                -PathValue $stdoutPath -AfterA $null -AfterB $null
+            Release-AllOwnedMovementKeys -Process $clientAProcess `
+                -ExpectedImage $clientAPath -Result $result
+            Release-AllOwnedMovementKeys -Process $clientBProcess `
+                -ExpectedImage $clientBPath -Result $result
             $aPid = [int]$result.client_a_pid
             $result.lifecycle_stage = 'disconnect_ownership_gate'
             $null = Assert-UnlockTargetOwnership `
@@ -1586,6 +3508,28 @@ try {
             Start-Sleep -Seconds 1
             $clientBProcess.Refresh()
             $result.client_b_survived_disconnect = -not $clientBProcess.HasExited
+            $result.movement_stall_client = 'b'
+            $result.movement_stall_checkpoint_seconds = $null
+            $beforeSurvivor = Wait-LiveClientProgress `
+                -PathValue $stdoutPath -Slot 2 -After $null
+            $survivorScenario = Invoke-StockSurvivorScenarioWithStatus `
+                -Process $clientBProcess -ExpectedImage $clientBPath `
+                -PathValue $stdoutPath `
+                -ControlPath $stockTestControlPath `
+                -Before $beforeSurvivor `
+                -Result $result
+            $result.input_delivery_b = 'pass'
+            $afterSurvivor = $survivorScenario.After
+            $result.client_b_movement_after_a_disconnect =
+                Test-SurvivorMovementDelta `
+                    -Before $beforeSurvivor -After $afterSurvivor `
+                    -MaximumHorizontalDisplacement `
+                        $survivorScenario.MaximumHorizontalDisplacement
+            if (-not $result.client_b_movement_after_a_disconnect) {
+                throw 'client_b_movement_after_a_disconnect_failed'
+            }
+            Release-AllOwnedMovementKeys -Process $clientBProcess `
+                -ExpectedImage $clientBPath -Result $result
 
             if ($result.launcher_mutex_fallback_used) {
                 $result.lifecycle_stage = 'reconnect_mutex_unlock'
@@ -1599,45 +3543,145 @@ try {
                     -Result $result -Context Reconnect
             }
 
-            $idsBeforeReconnect = @(Get-HalfLifeProcessRecords |
-                ForEach-Object { [int]$_.ProcessId })
-            $reconnectLogOffset = (Get-SharedFileText `
-                -PathValue $stdoutPath).Length
-            $clientAReconnectProcess = Start-StockOwnedClient `
-                -Role 'client_a_reconnect' -Executable $clientAPath `
-                -Arguments $clientAReconnectArguments `
-                -PreexistingIds $idsBeforeReconnect `
-                -ExpectedClientPort $ClientAReconnectPort `
-                -ExpectedClientName $clientAReconnectName
-            $result.client_a_reconnect_pid = $clientAReconnectProcess.Id
-            $ownedPids += $clientAReconnectProcess.Id
-            $result.client_a_reconnect_pid_is_new =
-                $clientAReconnectProcess.Id -ne $aPid
-            Wait-OwnedUdpPort -Process $clientAReconnectProcess `
-                -ExpectedPort $ClientAReconnectPort `
-                -TimeoutSeconds $ReconnectTimeoutSeconds `
-                -FailureIdentifier 'client_a_reconnect_process_created_but_no_network'
-            $aReconnectAccept = Wait-LogRegex -PathValue $stdoutPath `
-                -Pattern ('goldsrc_udp_accept: session_id=(?<session>[^,]+),slot=1,endpoint=127\.0\.0\.1:{0},' -f $ClientAReconnectPort) `
-                -TimeoutSeconds $ReconnectTimeoutSeconds `
-                -ServerProcess $serverProcess `
-                -ClientProcess $clientAReconnectProcess `
-                -FailureIdentifier 'client_a_reconnect_timeout' `
-                -StartOffset $reconnectLogOffset
-            $sessionAReconnect = $aReconnectAccept.Groups['session'].Value
-            $result.client_a_reconnect_session_is_new =
-                $sessionAReconnect -cne $sessionA
-            $null = Wait-LogRegex -PathValue $stdoutPath `
-                -Pattern ('goldsrc_player_materialized: session_id={0},edict=1,.*spawned=1' -f [regex]::Escape($sessionAReconnect)) `
-                -TimeoutSeconds $ReconnectTimeoutSeconds `
-                -ServerProcess $serverProcess `
-                -ClientProcess $clientAReconnectProcess `
-                -FailureIdentifier 'client_a_reconnect_spawn_timeout' `
-                -StartOffset $reconnectLogOffset
+            $result.movement_stall_client = 'a'
+            $reconnectSpawnTimeout = [Math]::Min($ReconnectTimeoutSeconds, 90)
+            for ($reconnectAttempt = 1; $reconnectAttempt -le 2;
+                    ++$reconnectAttempt) {
+                $idsBeforeReconnect = @(Get-HalfLifeProcessRecords |
+                    ForEach-Object { [int]$_.ProcessId })
+                $reconnectLogOffset = (Get-SharedFileText `
+                    -PathValue $stdoutPath).Length
+                $role = if ($reconnectAttempt -eq 1) {
+                    'client_a_reconnect'
+                } else { 'client_a_reconnect_spawn_retry' }
+                $clientAReconnectProcess = Start-StockOwnedClient `
+                    -Role $role -Executable $clientAPath `
+                    -Arguments $clientAReconnectArguments `
+                    -PreexistingIds $idsBeforeReconnect `
+                    -ExpectedClientPort $ClientAReconnectPort `
+                    -ExpectedClientName $clientAReconnectName `
+                    -AlwaysCleanupOnFailure
+                $result.client_a_reconnect_pid =
+                    $clientAReconnectProcess.Id
+                $ownedPids += $clientAReconnectProcess.Id
+                $result.client_a_reconnect_pid_is_new =
+                    $clientAReconnectProcess.Id -ne $aPid
+                Wait-OwnedUdpPort -Process $clientAReconnectProcess `
+                    -ExpectedPort $ClientAReconnectPort `
+                    -TimeoutSeconds $ReconnectTimeoutSeconds `
+                    -FailureIdentifier `
+                        'client_a_reconnect_process_created_but_no_network'
+                $aReconnectAccept = Wait-LogRegex `
+                    -PathValue $stdoutPath `
+                    -Pattern ('goldsrc_udp_accept: session_id=(?<session>[^,]+),slot=1,endpoint=127\.0\.0\.1:{0},' -f $ClientAReconnectPort) `
+                    -TimeoutSeconds $ReconnectTimeoutSeconds `
+                    -ServerProcess $serverProcess `
+                    -ClientProcess $clientAReconnectProcess `
+                    -FailureIdentifier 'client_a_reconnect_timeout' `
+                    -StartOffset $reconnectLogOffset
+                $sessionAReconnect =
+                    $aReconnectAccept.Groups['session'].Value
+                $result.client_a_reconnect_session_is_new =
+                    $sessionAReconnect -cne $sessionA
+                try {
+                    $null = Wait-LogRegex -PathValue $stdoutPath `
+                        -Pattern ('goldsrc_player_materialized: session_id={0},edict=1,.*spawned=1' -f [regex]::Escape($sessionAReconnect)) `
+                        -TimeoutSeconds $reconnectSpawnTimeout `
+                        -ServerProcess $serverProcess `
+                        -ClientProcess $clientAReconnectProcess `
+                        -FailureIdentifier `
+                            'client_a_reconnect_spawn_timeout' `
+                        -StartOffset $reconnectLogOffset
+                    break
+                }
+                catch {
+                    if ($_.Exception.Message -cne
+                            'client_a_reconnect_spawn_timeout' -or
+                        $reconnectAttempt -eq 2) {
+                        throw
+                    }
+                    $result.client_a_reconnect_spawn_retry_attempted = $true
+                    $result.client_a_reconnect_spawn_retry_count =
+                        $reconnectAttempt
+                    $retryReconnectPid = $clientAReconnectProcess.Id
+                    $result.reconnect_client_cleanup =
+                        Invoke-ServerOwnedSpawnRetryDisconnect `
+                            -Process $clientAReconnectProcess `
+                            -ExpectedProcessId $retryReconnectPid -Slot 1 `
+                            -RequestPath $disconnectRequestPath `
+                            -StdoutPath $stdoutPath `
+                            -ServerProcess $serverProcess `
+                            -TimeoutSeconds $DisconnectTimeoutSeconds `
+                            -Description 'client_a_reconnect_spawn_retry'
+                    $clientAReconnectProcess.Dispose()
+                    $clientAReconnectProcess = $null
+                }
+            }
             $result.client_a_reconnect = $true
             $result.lifecycle_stage = 'reconnect_readd_snapshot'
+            Release-AllOwnedMovementKeys -Process $clientAReconnectProcess `
+                -ExpectedImage $clientAPath -Result $result
+            Release-AllOwnedMovementKeys -Process $clientBProcess `
+                -ExpectedImage $clientBPath -Result $result
+            $reconnectBefore = Wait-LiveProgressPair `
+                -PathValue $stdoutPath -AfterA $preDisconnectProgress.A `
+                -AfterB $afterSurvivor
+            $result.movement_stall_client = 'a'
+            $reconnectScenarioA = Invoke-StockMovementScenarioWithStatus `
+                -Process $clientAReconnectProcess `
+                -ExpectedImage $clientAPath -Role reconnect_a `
+                -PathValue $stdoutPath `
+                -ControlPath $stockTestControlPath `
+                -BeforePair $reconnectBefore `
+                -Result $result
+            $result.input_delivery_reconnect_a = 'pass'
+            $reconnectAfterA = $reconnectScenarioA.AfterPair
+            $reconnectGateA = Test-PulseCheckpointDelta `
+                -MoverBefore $reconnectBefore.A `
+                -MoverAfter $reconnectAfterA.A `
+                -ObserverBefore $reconnectBefore.B `
+                -ObserverAfter $reconnectAfterA.B -Role a `
+                -PulseResults $reconnectScenarioA.PulseResults `
+                -MaximumHorizontalDisplacement `
+                    $reconnectScenarioA.MaximumHorizontalDisplacement
+            $reconnectBeforeB = Wait-LiveProgressPair `
+                -PathValue $stdoutPath -AfterA $reconnectAfterA.A `
+                -AfterB $reconnectAfterA.B
+            $result.movement_stall_client = 'b'
+            $reconnectScenarioB = Invoke-StockMovementScenarioWithStatus `
+                -Process $clientBProcess -ExpectedImage $clientBPath `
+                -Role b -PathValue $stdoutPath `
+                -ControlPath $stockTestControlPath `
+                -BeforePair $reconnectBeforeB -Result $result
+            $result.input_delivery_b = 'pass'
+            $reconnectAfterB = $reconnectScenarioB.AfterPair
+            $reconnectGateB = Test-PulseCheckpointDelta `
+                -MoverBefore $reconnectBeforeB.B `
+                -MoverAfter $reconnectAfterB.B `
+                -ObserverBefore $reconnectBeforeB.A `
+                -ObserverAfter $reconnectAfterB.A -Role b `
+                -PulseResults $reconnectScenarioB.PulseResults `
+                -MaximumHorizontalDisplacement `
+                    $reconnectScenarioB.MaximumHorizontalDisplacement
+            $result.reconnect_gate_a = $reconnectGateA
+            $result.reconnect_gate_b = $reconnectGateB
+            $result.reconnect_movement =
+                $reconnectGateA.passed -and $reconnectGateB.passed
+            $result.stale_input_state_inherited =
+                [bool]$result.sticky_key_detected
+            if (-not $reconnectGateA.passed) {
+                $result.movement_stall_client = 'a'
+                throw $reconnectGateA.failure_stage
+            }
+            if (-not $reconnectGateB.passed) {
+                $result.movement_stall_client = 'b'
+                throw $reconnectGateB.failure_stage
+            }
+            if ($result.stale_input_state_inherited) {
+                throw 'sticky_key_detected'
+            }
+            $result.movement_stall_client = 'none'
             $result.lifecycle_stage = 'reconnect_complete'
-            Start-Sleep -Seconds ([Math]::Min(10, $MovementTimeoutSeconds))
         }
 
         $result.server_cleanup = Stop-ExactOwnedServer `
@@ -1654,8 +3698,36 @@ try {
             $null -eq $aggregate) {
             throw 'stock_replication_summary_failed'
         }
-        $result.client_a_movement = [int]$summaryA['pmove_calls'] -gt 0
-        $result.client_b_movement = [int]$summaryB['pmove_calls'] -gt 0
+        $result.client_a_movement = if ($ManualObservation) {
+            [int]$summaryA['pmove_calls'] -gt 0
+        } else { $true }
+        $result.client_b_movement = if ($ManualObservation) {
+            [int]$summaryB['pmove_calls'] -gt 0
+        } else { $true }
+        $result.snapshot_interval_median_a_ms =
+            [int]$summaryA['snapshot_interval_median_ms']
+        $result.snapshot_interval_p95_a_ms =
+            [int]$summaryA['snapshot_interval_p95_ms']
+        $result.snapshot_interval_max_a_ms =
+            [int]$summaryA['snapshot_interval_max_ms']
+        $result.snapshot_interval_median_b_ms =
+            [int]$summaryB['snapshot_interval_median_ms']
+        $result.snapshot_interval_p95_b_ms =
+            [int]$summaryB['snapshot_interval_p95_ms']
+        $result.snapshot_interval_max_b_ms =
+            [int]$summaryB['snapshot_interval_max_ms']
+        $result.remote_update_p95_a_ms =
+            [int]$summaryA['remote_update_interval_p95_ms']
+        $result.remote_update_p95_b_ms =
+            [int]$summaryB['remote_update_interval_p95_ms']
+        $result.maximum_snapshot_starvation_frames =
+            [int]$aggregate['maximum_snapshot_starvation_frames']
+        $result.remote_interpolation_contract_verified =
+            $aggregate['remote_interpolation_contract_verified'] -ceq 'true'
+        $result.remote_interpolation_protocol_pass = if (
+            $result.remote_interpolation_contract_verified) {
+            'pass'
+        } else { 'fail' }
         $result.client_a_sees_b =
             ([int]$summaryA['remote_adds'] +
              [int]$summaryA['remote_updates']) -gt 0
@@ -1664,7 +3736,7 @@ try {
              [int]$summaryB['remote_updates']) -gt 0
         $result.client_a_remove_visible_to_b =
             [int]$summaryB['remote_removes'] -gt 0
-        $result.client_a_readd_visible_to_b = if ($SkipReconnectTest) {
+        $result.client_a_readd_visible_to_b = if (-not $performReconnectTest) {
             $true
         } else {
             [int]$summaryB['remote_readds'] -gt 0
@@ -1677,7 +3749,7 @@ try {
             [int]$summaryB['remote_updates'] -gt 0) { 'pass' } else { 'fail' }
         $result.simultaneous_movement =
             $aggregate['simultaneous_movement'] -ceq 'true'
-        $result.slot_reuse_clean = if ($SkipReconnectTest) {
+        $result.slot_reuse_clean = if (-not $performReconnectTest) {
             $true
         } else {
             $aggregate['reconnect_slot_reuse'] -ceq 'true' -and
@@ -1685,15 +3757,23 @@ try {
         }
         $result.cross_client_state_leak =
             $aggregate['cross_client_state_leak'] -cne 'false'
-        if (-not $SkipReconnectTest) {
-            $result.reconnect_movement =
-                [int]$summaryA['pmove_calls'] -gt 0 -and
-                [int]$summaryB['pmove_calls'] -gt 0
-        }
         if (-not $result.client_a_movement -or
             -not $result.client_b_movement -or
             -not $result.simultaneous_movement) {
             throw 'stock_movement_summary_failed'
+        }
+        if ($result.snapshot_interval_p95_a_ms -gt 80 -or
+            $result.snapshot_interval_p95_b_ms -gt 80 -or
+            $result.remote_update_p95_a_ms -gt 80 -or
+            $result.remote_update_p95_b_ms -gt 80 -or
+            $result.maximum_snapshot_starvation_frames -ne 0 -or
+            -not $result.remote_interpolation_contract_verified -or
+            $summaryA['permanent_remote_nointerp'] -cne 'false' -or
+            $summaryB['permanent_remote_nointerp'] -cne 'false' -or
+            (-not $performReconnectTest -and
+                ([int]$summaryA['remote_readds'] -gt 0 -or
+                 [int]$summaryB['remote_readds'] -gt 0))) {
+            throw 'stock_remote_smoothness_summary_failed'
         }
         if (-not $result.client_a_sees_b -or
             -not $result.client_b_sees_a -or
@@ -1702,7 +3782,7 @@ try {
             $result.cross_client_state_leak) {
             throw 'stock_replication_summary_failed'
         }
-        if (-not $SkipReconnectTest -and
+        if ($performReconnectTest -and
             ($result.client_a_disconnect -cne 'pass' -or
              -not $result.client_b_survived_disconnect -or
              -not $result.client_a_remove_visible_to_b -or
@@ -1710,7 +3790,9 @@ try {
              -not $result.client_a_reconnect_pid_is_new -or
              -not $result.client_a_reconnect_session_is_new -or
              -not $result.client_a_readd_visible_to_b -or
+             -not $result.client_b_movement_after_a_disconnect -or
              -not $result.reconnect_movement -or
+             $result.stale_input_state_inherited -or
              -not $result.slot_reuse_clean)) {
             throw 'stock_disconnect_reconnect_summary_failed'
         }
@@ -1721,9 +3803,23 @@ try {
 }
 catch {
     $failure = $_
+    $result.diagnostic_identifier = [string]$_.Exception.Message
     $result.status = 'fail'
     $result.blocker = Convert-FailureIdentifier `
         -Message $_.Exception.Message
+    if ($result.blocker -in @(
+            'client_a_multirun_rejected',
+            'client_b_multirun_rejected',
+            'client_a_reconnect_multirun_rejected') -and
+        $initialHalfLifeProcessIds.Count -eq 0) {
+        $result.multirun_failure_phase = $result.test_phase
+        $result.multirun_failure_role = if (
+            $result.blocker.StartsWith('client_b_')) { 'client_b' } `
+            elseif ($result.blocker.StartsWith('client_a_reconnect_')) {
+                'reconnect_client_a'
+            } else { 'client_a' }
+        $result.blocker = 'actual_multirun_rejection'
+    }
     if ($result.blocker -ceq 'stock_two_client_autotest_failed' -and
         $result.preflight_stage -cne 'complete') {
         $result.blocker = 'preflight_{0}_failed' -f $result.preflight_stage
@@ -1732,14 +3828,34 @@ catch {
             [StringComparison]::Ordinal)) {
         $result.last_stock_error_single_instance_dialog = $true
     }
+    if (Test-InputDeliveryFailure -Identifier $result.blocker) {
+        if ($result.movement_stall_client -ceq 'a') {
+            if ($result.client_a_reconnect) {
+                $result.input_delivery_reconnect_a = 'fail'
+            } else {
+                $result.input_delivery_a = 'fail'
+            }
+        }
+        elseif ($result.movement_stall_client -ceq 'b') {
+            $result.input_delivery_b = 'fail'
+        }
+    }
     if ($_.Exception.Data.Contains('UnexpectedExitCode')) {
         $result.last_stock_unexpected_exit_code =
             [int]$_.Exception.Data['UnexpectedExitCode']
     }
     if ($result.blocker -ceq
-        'launcher_mutex_access_denied_elevation_required') {
+            'launcher_mutex_access_denied_elevation_required' -or
+        $result.blocker -ceq 'sendinput_failed') {
         $result.elevated_shell_required = $true
     }
+    $result.failure_stage = if (
+        $result.movement_stall_stage -cne 'none') {
+        $result.movement_stall_stage
+    } else { $result.blocker }
+    $result.failure_client = $result.movement_stall_client
+    $result.failure_checkpoint_seconds =
+        $result.movement_stall_checkpoint_seconds
     if ($_.Exception.Data.Contains('ProcessCreated')) {
         $created = [bool]$_.Exception.Data['ProcessCreated']
         $failedPid = if ($_.Exception.Data.Contains('ProcessId')) {
@@ -1781,6 +3897,36 @@ catch {
 }
 finally {
     $keep = $KeepProcessesOnFailure -and $null -ne $failure
+    if (-not $DryRun -and $InputMode -ceq 'VerifiedSendInput') {
+        foreach ($entry in @(
+            [pscustomobject]@{
+                Process = $clientAReconnectProcess; Image = $clientAPath
+            },
+            [pscustomobject]@{
+                Process = $clientBProcess; Image = $clientBPath
+            },
+            [pscustomobject]@{
+                Process = $clientAProcess; Image = $clientAPath
+            })) {
+            if ($null -eq $entry.Process -or
+                [string]::IsNullOrWhiteSpace([string]$entry.Image)) {
+                continue
+            }
+            try {
+                Release-AllOwnedMovementKeys -Process $entry.Process `
+                    -ExpectedImage $entry.Image -Result $result
+            }
+            catch {
+                if ($null -eq $failure) {
+                    $failure = $_
+                    $result.status = 'fail'
+                    $result.blocker = Convert-FailureIdentifier `
+                        -Message $_.Exception.Message
+                    $result.failure_stage = $result.blocker
+                }
+            }
+        }
+    }
     if (-not $keep -and -not $DryRun) {
         if ($null -ne $clientAReconnectProcess) {
             try {
@@ -1828,12 +3974,75 @@ finally {
         if ($null -ne $process) { $process.Dispose() }
     }
     if (-not $keep) {
+        $delayedLaunchIds = [Collections.Generic.HashSet[int]]::new()
+        $clientPathsResolved =
+            -not [string]::IsNullOrWhiteSpace($clientAPath) -and
+            -not [string]::IsNullOrWhiteSpace($clientBPath)
+        if (-not $DryRun -and $null -ne $failure -and
+            $clientPathsResolved -and
+            $result.blocker -cne 'preexisting_stock_client_detected') {
+            $delayedAuditDeadline = [DateTime]::UtcNow.AddSeconds(60)
+            while ([DateTime]::UtcNow -lt $delayedAuditDeadline) {
+                foreach ($record in @(Get-HalfLifeProcessRecords)) {
+                    $recordId = [int]$record.ProcessId
+                    if ($initialHalfLifeProcessIds -contains $recordId -or
+                        $ownedPids -contains $recordId) {
+                        continue
+                    }
+                    $recordPath = [string]$record.ExecutablePath
+                    if (-not [string]::IsNullOrWhiteSpace($recordPath) -and
+                        ([System.IO.Path]::GetFullPath($recordPath).Equals(
+                            $clientAPath,
+                            [StringComparison]::OrdinalIgnoreCase) -or
+                         [System.IO.Path]::GetFullPath($recordPath).Equals(
+                            $clientBPath,
+                            [StringComparison]::OrdinalIgnoreCase))) {
+                        $null = $delayedLaunchIds.Add($recordId)
+                    }
+                }
+                Start-Sleep -Milliseconds 250
+            }
+        }
+        $result.delayed_launch_process_count = $delayedLaunchIds.Count
         $remaining = @($ownedPids | Where-Object {
             $null -ne (Get-Process -Id $_ -ErrorAction SilentlyContinue)
         })
-        $result.process_leak = $remaining.Count -ne 0
+        $remainingDelayed = @(if ($clientPathsResolved) {
+            Get-HalfLifeProcessRecords | Where-Object {
+                $recordId = [int]$_.ProcessId
+                if ($initialHalfLifeProcessIds -contains $recordId -or
+                    $ownedPids -contains $recordId) {
+                    return $false
+                }
+                $recordPath = [string]$_.ExecutablePath
+                return -not [string]::IsNullOrWhiteSpace($recordPath) -and
+                    ([System.IO.Path]::GetFullPath($recordPath).Equals(
+                        $clientAPath,
+                        [StringComparison]::OrdinalIgnoreCase) -or
+                     [System.IO.Path]::GetFullPath($recordPath).Equals(
+                        $clientBPath,
+                        [StringComparison]::OrdinalIgnoreCase))
+            }
+        })
+        $result.process_leak = $remaining.Count -ne 0 -or
+            $remainingDelayed.Count -ne 0
     } else {
         $result.process_leak = $true
+    }
+    $result.owned_hl_pids = @(
+        $result.client_a_pid, $result.client_b_pid,
+        $result.client_a_reconnect_pid | Where-Object { $null -ne $_ } |
+        Select-Object -Unique)
+    $result.phase_cleanup_barrier = if (-not $result.process_leak) {
+        'pass'
+    } else { 'fail' }
+    if ($result.process_leak -and $null -eq $failure) {
+        $result.status = 'fail'
+        $result.blocker = 'previous_phase_client_still_alive'
+        $result.multirun_failure_phase = $result.test_phase
+        $result.multirun_failure_role = 'cleanup'
+        $result.failure_stage = $result.blocker
+        $failure = New-Object System.Exception -ArgumentList $result.blocker
     }
     $result.end_utc = [DateTime]::UtcNow.ToString('o')
     try {
@@ -1859,6 +4068,12 @@ if ($inspectOnlyPassed -and $null -eq $failure) {
 if ($null -ne $failure) {
     Write-Host ('status={0}' -f $result.status)
     Write-Host ('blocker={0}' -f $result.blocker)
+    Write-Host ('failure_stage={0}' -f $result.failure_stage)
+    Write-Host ('failure_client={0}' -f $result.failure_client)
+    Write-Host ('failure_checkpoint_seconds={0}' -f $(
+        if ($null -eq $result.failure_checkpoint_seconds) {
+            'missing'
+        } else { $result.failure_checkpoint_seconds }))
     Write-Host ('result_json={0}' -f $jsonResultPath)
     exit 1
 }

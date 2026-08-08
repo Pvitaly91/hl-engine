@@ -1640,6 +1640,42 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             continue;
         }
 
+        if (argument == L"--goldsrc-stock-test-control-file")
+        {
+            if (index + 1 >= argc)
+            {
+                result.error_message =
+                    L"Missing value for --goldsrc-stock-test-control-file.";
+                return result;
+            }
+            const std::filesystem::path control_path(argv[++index]);
+            if (control_path.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-stock-test-control-file.";
+                return result;
+            }
+            result.options.goldsrc_stock_test_control_file = control_path;
+            continue;
+        }
+
+        constexpr std::wstring_view goldsrc_stock_test_control_file_prefix =
+            L"--goldsrc-stock-test-control-file=";
+        if (StartsWith(argument, goldsrc_stock_test_control_file_prefix))
+        {
+            const std::wstring_view value = argument.substr(
+                goldsrc_stock_test_control_file_prefix.size());
+            if (value.empty())
+            {
+                result.error_message =
+                    L"Empty value for --goldsrc-stock-test-control-file.";
+                return result;
+            }
+            result.options.goldsrc_stock_test_control_file =
+                std::filesystem::path(value);
+            continue;
+        }
+
         constexpr std::wstring_view goldsrc_manual_disconnect_file_prefix =
             L"--goldsrc-manual-disconnect-file=";
         if (StartsWith(argument, goldsrc_manual_disconnect_file_prefix))
@@ -20307,6 +20343,13 @@ LaunchOptionsParseResult ParseLaunchOptions(int argc, wchar_t* argv[])
             L"--goldsrc-manual-disconnect-file requires --goldsrc-pmove-persistent.";
         return result;
     }
+    if (result.options.goldsrc_stock_test_control_file.has_value()
+        && !result.options.goldsrc_pmove_persistent)
+    {
+        result.error_message =
+            L"--goldsrc-stock-test-control-file requires --goldsrc-pmove-persistent.";
+        return result;
+    }
     if (result.options.goldsrc_pmove_persistent)
     {
         result.options.goldsrc_pmove_enabled = true;
@@ -20440,6 +20483,7 @@ std::wstring BuildUsageText(const std::filesystem::path& executable_path)
                L"  --goldsrc-pmove-observation-ms=<2000..60000> Set the bounded movement observation duration\n"
              L"  --goldsrc-manual-shutdown-file <path> Stop a persistent manual session when the file appears\n"
              L"  --goldsrc-manual-disconnect-file <path> Disconnect persistent slot 1 once when the file appears\n"
+             L"  --goldsrc-stock-test-control-file <path> Enable loopback-only generation-checked stock test resets\n"
              L"  --goldsrc-snapshot-rate-hz=<10..30> Set the bounded continuous snapshot rate (default 20)\n"
              L"  --ip, -ip <IPv4>              Exact dedicated UDP bind address (default: 0.0.0.0)\n"
              L"  --port, -port <1..65535>      Exact dedicated UDP bind port (default: 27015)\n"

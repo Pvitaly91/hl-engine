@@ -1,6 +1,6 @@
 # Stock two-client replication test
 
-This procedure validates Prompt 247 with two unmodified Half-Life 1.1.2.2
+This procedure validates Prompts 247 and 248 with two unmodified Half-Life 1.1.2.2
 Steam build 15961492 clients on `127.0.0.1` and `crossfire`. It does not
 modify either client, the installed `valve` directory, Steam credentials, or
 the Game DLL.
@@ -12,31 +12,42 @@ From `D:\DEV\CPP\HL-Engine`, run:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\run_stock_two_client_autotest.ps1 `
-  -MultiInstanceMode Auto `
+  -MultiInstanceMode MutexUnlock `
+  -InputMode VerifiedSendInput `
   -FollowServerLog
 ```
 
 The script discovers the stock `hl.exe` and launches it directly. It does not
 use `steam.exe -applaunch`. Both clients receive `-steam -multirun -insecure`,
 `-game valve`, console/window arguments, distinct names, and distinct
-`+clientport` values:
+`+clientport` values. No client launch line contains a persistent movement
+button:
 
-- Client A: `27005`, `HL_Engine_Client_A`, and `+forward`;
-- Client B: `27006`, `HL_Engine_Client_B`, and `+moveright`;
-- Client A reconnect: `27007`, `HL_Engine_Client_A_Reconnect`, and `+back`.
+- Client A: `27005` and `HL_Engine_Client_A`;
+- Client B: `27006` and `HL_Engine_Client_B`;
+- Client A reconnect: `27007` and `HL_Engine_Client_A_Reconnect`.
 
 The launch delay defaults to three seconds, but a delay is never treated as
 proof. The script requires two new owned `hl.exe` process identities, distinct
 UDP ports, two server challenge/connect flows, slots/edicts 1 and 2, and two
 materialized players. A pre-existing `hl.exe` is never adopted.
 
-Automatic movement is produced by launch-time stock client button commands.
-Success requires authoritative PM_Move counters and per-receiver remote-player
-Add/Update diagnostics, not just living processes. Blind `SendKeys` input is
-not used. If a future stock build reaches both clients but launch-time button
-commands fail, any input fallback must verify the foreground window belongs
-to the exact owned PID, use bounded `SendInput`, and release every key in a
-`finally` block.
+`InputMode VerifiedSendInput` is the default and only automatic input mode. It
+uses hardware scan-code `SendInput` events against one exact owned client
+window at a time. Before delivery it verifies the PID, executable path, visible
+top-level window, foreground window, and foreground owner. W/S and D/A are
+bounded reversible 1000 ms phases; jump and duck are 100 ms phases. The
+server-observed input counters must advance for every pulse. Every path sends
+key-up in `finally`, releases all six movement keys again, and verifies release
+with `GetAsyncKeyState`. Blind `SendKeys` and console movement aliases are not
+used.
+
+Success requires fresh per-client progress at every active checkpoint: move
+packets received, validated and executed; PM_Move calls; movement snapshots;
+horizontal authoritative movement during the reversible phases; outgoing
+snapshots; frame ACKs; and remote updates observed by the peer. Each pulse
+records its own start/end origin and counter deltas. Jump or duck displacement,
+cumulative activity, and process uptime are not accepted as proof.
 
 After mutual replication, the script writes a one-shot external request file
 that asks the localhost server to disconnect slot 1 through its normal
@@ -149,15 +160,63 @@ Run only after the basic two-client lifecycle passes:
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\run_stock_two_client_autotest.ps1 `
   -MultiInstanceMode MutexUnlock `
+  -InputMode VerifiedSendInput `
   -AutoTestDurationSeconds 600 `
-  -SkipReconnectTest
+  -SkipReconnectTest `
+  -FollowServerLog
 ```
 
-The long run requires both processes and snapshot streams through 60, 120,
-300, and 600 seconds. A fatal process, endpoint, or handshake failure ends the
-run immediately instead of waiting the full duration.
+The long run requires fresh movement, origin, snapshot, frame-ACK, and peer
+update progress for both clients at 10, 30, 60, 120, 300, and 600 seconds. It
+also enforces 80 ms snapshot/remote-update p95, 160 ms maximum ordinary remote
+gaps,
+zero starvation windows, no burst or continuous remove/re-add behavior,
+monotonic remote animtime, and no permanent `EF_NOINTERP`. A fatal process,
+endpoint, handshake, input-delivery, or progress failure ends the run instead
+of accepting elapsed time.
 
-## Confirmed stock-build behavior and results
+## Ten-minute manual smoothness observation
+
+Run this mode after the shorter lifecycle/reconnect test and the automatic
+600-second test:
+
+```powershell
+powershell.exe -NoProfile -ExecutionPolicy Bypass `
+  -File .\scripts\run_stock_two_client_autotest.ps1 `
+  -MultiInstanceMode MutexUnlock `
+  -InputMode None `
+  -ManualObservation `
+  -ManualObservationSeconds 600 `
+  -PromptForVisualConfirmation `
+  -FollowServerLog
+```
+
+The script prints the loopback endpoint and the exact owned A/B PIDs, arranges
+their windows side by side when possible, prints bounded semantic counters
+every five seconds, performs no automatic input or disconnect, and keeps the
+session active for the requested interval. In each client, verify local
+W/A/S/D, jump, duck and mouse.
+Observe each player from the other client while moving and confirm smooth
+remote motion without low-rate stepping. Continue for at least ten minutes
+and confirm that both clients remain keyboard-movable. Answer each final Y/N
+question from direct observation; the harness does not infer visual success
+from protocol counters.
+
+`InputMode None` deliberately sends no scripted movement and leaves every
+movement button released. Automatic failures distinguish missing/foreign
+windows, foreground activation or PID mismatch, `SendInput`/key-up/sticky-key
+failures, missing server-observed input, and later network/runtime movement
+stages. Rerun from an interactive PowerShell; use elevation only when the
+result explicitly identifies an access-denied mutex operation. Never count
+client uptime as a substitute for verified movement.
+
+## Historical Prompt 247 stock-build behavior and results
+
+The results in this section established multi-instance launch and replication,
+but Prompt 248 invalidated their movement-continuity acceptance logic. They
+used cumulative movement and uptime checkpoints, did not prove fresh live
+progress at every checkpoint, and had no manual interpolation gate. Do not use
+them as current smoothness or 600-second movement acceptance.
 
 On the tested Windows installation, Client A starts, owns UDP `27005`, reaches
 the server, and spawns. The initial Auto-mode B process presents the stock
@@ -177,9 +236,10 @@ After exact owned mutex close, retry B becomes a persistent independent
 `hl.exe`, owns UDP `27006`, connects as slot/edict 2, spawns, moves, and
 replicates mutually with A. The 120-second Auto lifecycle/reconnect run passed,
 including A Remove, exact B mutex close, fresh A reconnect/Re-Add and clean
-slot reuse. The 600-second MutexUnlock run passed at 60, 120, 300 and 600
-seconds with both clients moving, no cross-client state leak, and no process
-leak.
+slot reuse. The historical 600-second MutexUnlock run was reported as passing
+at 60, 120, 300 and 600 seconds. Under the corrected Prompt 248 criteria that
+result is a confirmed false positive and is retained only as launch/lifecycle
+evidence.
 
 Primary result:
 
@@ -195,6 +255,28 @@ Long-run result:
 
 Do not patch the client, automate Steam credentials, terminate Steam, or
 close arbitrary process handles.
+
+## Prompt 248B anchor-isolated checkpoints
+
+Automatic mode captures a generation-bound safe spawn anchor for each client
+and uses an external loopback-only control file to return the tested player
+before and after every bounded pulse. It waits for the exact reset request
+acknowledgment and at least two snapshots before sending input. Reset
+displacement never counts as movement, and the deliberate teleport sample is
+excluded from interpolation statistics.
+
+Pipeline health and travel are separate. A pulse into a wall may report
+`movement_pipeline=pass` and `travel_result=blocked_by_geometry`; the harness
+then resets and tries the next direction. Only missing clc_move/PM_Move
+progress, or failure of every direction from a verified anchor, is a movement
+failure. The local radius is 96 units and the current 150-ms pulse provides a
+safe margin on the tested stock client.
+
+Before any initial A launch, the harness enumerates `hl.exe`. An existing
+unowned client is never closed or modified and produces
+`preexisting_stock_client_detected`. Close that client yourself before
+starting the required manual observation. Manual mode sends no input and does
+not reset either player unless an explicit reset command is requested.
 
 Troubleshooting is intentionally classified by layer:
 

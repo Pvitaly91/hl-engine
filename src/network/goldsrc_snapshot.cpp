@@ -2570,6 +2570,125 @@ GoldSrcSnapshotScheduler::state() const noexcept
     return state_;
 }
 
+GoldSrcOutgoingScheduleResult BuildGoldSrcBoundedOutgoingSchedule(
+    const std::vector<GoldSrcOutgoingClientDemand>& clients,
+    std::size_t send_budget,
+    std::size_t fair_client_index) noexcept
+{
+    GoldSrcOutgoingScheduleResult result;
+    if (clients.empty())
+    {
+        return result;
+    }
+    const std::size_t count = clients.size();
+    const std::size_t start = fair_client_index % count;
+    std::vector<bool> acknowledgement_carrier(count, false);
+    const auto append_by_priority =
+        [&clients, &result, &acknowledgement_carrier, count, start,
+         send_budget](GoldSrcOutgoingActionKind kind)
+        {
+            for (std::size_t offset = 0u; offset < count; ++offset)
+            {
+                const std::size_t index = (start + offset) % count;
+                const GoldSrcOutgoingClientDemand& demand = clients[index];
+                const bool requested =
+                    kind == GoldSrcOutgoingActionKind::kReliable
+                        ? demand.reliable_pending
+                        : kind == GoldSrcOutgoingActionKind::kSnapshot
+                            ? demand.snapshot_due
+                            : demand.empty_acknowledgement_pending
+                                && !acknowledgement_carrier[index];
+                if (!demand.active || !requested
+                    || result.actions.size() >= send_budget)
+                {
+                    continue;
+                }
+                result.actions.push_back(
+                    {kind, index, demand.incoming_frontier});
+                acknowledgement_carrier[index] = true;
+            }
+        };
+    append_by_priority(GoldSrcOutgoingActionKind::kReliable);
+    append_by_priority(GoldSrcOutgoingActionKind::kSnapshot);
+    append_by_priority(GoldSrcOutgoingActionKind::kEmptyAcknowledgement);
+
+    for (std::size_t index = 0u; index < count; ++index)
+    {
+        if (clients[index].active && clients[index].snapshot_due
+            && std::none_of(
+                result.actions.begin(),
+                result.actions.end(),
+                [index](const GoldSrcOutgoingAction& action)
+                {
+                    return action.client_index == index
+                        && action.kind
+                            == GoldSrcOutgoingActionKind::kSnapshot;
+                }))
+        {
+            ++result.snapshots_deferred;
+        }
+        if (clients[index].active
+            && clients[index].empty_acknowledgement_pending
+            && acknowledgement_carrier[index])
+        {
+            ++result.empty_acknowledgements_coalesced;
+        }
+    }
+    result.next_fair_client_index = (start + 1u) % count;
+    return result;
+}
+
+GoldSrcRemoteInterpolationStatus ValidateGoldSrcRemoteInterpolationSamples(
+    const GoldSrcRemoteInterpolationSample& previous,
+    const GoldSrcRemoteInterpolationSample& current,
+    float position_tolerance) noexcept
+{
+    if (!previous.entity_present || !current.entity_present)
+    {
+        return GoldSrcRemoteInterpolationStatus::kMissingEntity;
+    }
+    if (!std::isfinite(previous.server_time)
+        || !std::isfinite(current.server_time)
+        || !std::isfinite(previous.animtime)
+        || !std::isfinite(current.animtime))
+    {
+        return GoldSrcRemoteInterpolationStatus::kInvalidTime;
+    }
+    if (current.server_time <= previous.server_time)
+    {
+        return GoldSrcRemoteInterpolationStatus::kNonMonotonicTime;
+    }
+    if (current.animtime < previous.animtime)
+    {
+        return GoldSrcRemoteInterpolationStatus::kNonMonotonicAnimtime;
+    }
+    if ((current.effects & kGoldSrcEffectNoInterpolation) != 0u)
+    {
+        return GoldSrcRemoteInterpolationStatus::kPermanentNoInterpolation;
+    }
+    const float elapsed = static_cast<float>(
+        current.server_time - previous.server_time);
+    const float bounded_tolerance = (std::max)(0.0f, position_tolerance);
+    for (std::size_t axis = 0u; axis < current.origin.size(); ++axis)
+    {
+        if (!std::isfinite(previous.origin[axis])
+            || !std::isfinite(current.origin[axis])
+            || !std::isfinite(previous.velocity[axis])
+            || !std::isfinite(current.velocity[axis]))
+        {
+            return GoldSrcRemoteInterpolationStatus::kIncoherentMotion;
+        }
+        const float expected = previous.origin[axis]
+            + previous.velocity[axis] * elapsed;
+        if (std::abs(current.origin[axis] - expected)
+            > bounded_tolerance)
+        {
+            return GoldSrcRemoteInterpolationStatus::kIncoherentMotion;
+        }
+    }
+    return GoldSrcRemoteInterpolationStatus::kEligible;
+}
+
 std::string_view NameFor(GoldSrcFirstSnapshotPhase phase) noexcept
 {
     switch (phase)

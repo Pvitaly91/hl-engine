@@ -64,6 +64,7 @@ struct LaunchOptions
     int goldsrc_pmove_observation_ms = 2000;
     std::optional<std::filesystem::path> goldsrc_manual_shutdown_file;
     std::optional<std::filesystem::path> goldsrc_manual_disconnect_file;
+    std::optional<std::filesystem::path> goldsrc_stock_test_control_file;
     float goldsrc_snapshot_rate_hz = 20.0f;
     std::string bind_address = "0.0.0.0";
     int server_port = 27015;

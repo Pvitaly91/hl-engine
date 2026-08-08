@@ -470,6 +470,217 @@ void TestCommandClockAndSchedulerIsolation()
     assert(scheduler_a.CheckDue(2.1) == GoldSrcSnapshotDueResult::kDisabled);
     assert(scheduler_b.CheckDue(2.051) == GoldSrcSnapshotDueResult::kDue);
 }
+
+void TestBoundedTwoClientOutgoingSaturation()
+{
+    std::size_t fair_index = 0u;
+    std::array<std::uint32_t, 2u> snapshots{};
+    std::array<std::uint32_t, 2u> reliable{};
+    std::array<std::uint32_t, 2u> last_acknowledged{};
+    std::uint64_t coalesced = 0u;
+    for (std::uint32_t frame = 1u; frame <= 12000u; ++frame)
+    {
+        std::vector<GoldSrcOutgoingClientDemand> demands(2u);
+        for (std::size_t client = 0u; client < demands.size(); ++client)
+        {
+            demands[client].active = true;
+            demands[client].snapshot_due = true;
+            demands[client].empty_acknowledgement_pending = true;
+            demands[client].incoming_frontier =
+                frame * 8u + static_cast<std::uint32_t>(client);
+            demands[client].reliable_pending =
+                frame % 97u == static_cast<std::uint32_t>(client);
+        }
+        const GoldSrcOutgoingScheduleResult schedule =
+            BuildGoldSrcBoundedOutgoingSchedule(demands, 8u, fair_index);
+        assert(schedule.actions.size() <= 8u);
+        assert(schedule.snapshots_deferred == 0u);
+        assert(schedule.empty_acknowledgements_coalesced == 2u);
+        fair_index = schedule.next_fair_client_index;
+        coalesced += schedule.empty_acknowledgements_coalesced;
+        for (const GoldSrcOutgoingAction& action : schedule.actions)
+        {
+            assert(action.acknowledged_frontier
+                == demands[action.client_index].incoming_frontier);
+            last_acknowledged[action.client_index] =
+                action.acknowledged_frontier;
+            if (action.kind == GoldSrcOutgoingActionKind::kSnapshot)
+            {
+                ++snapshots[action.client_index];
+            }
+            else if (action.kind == GoldSrcOutgoingActionKind::kReliable)
+            {
+                ++reliable[action.client_index];
+            }
+        }
+    }
+    assert(fair_index == 0u);
+    assert(snapshots[0] == 12000u && snapshots[1] == 12000u);
+    assert(reliable[0] > 0u && reliable[1] > 0u);
+    assert(last_acknowledged[0] > 0u && last_acknowledged[1] > 0u);
+    assert(coalesced == 24000u);
+
+    const std::vector<GoldSrcOutgoingClientDemand> constrained{
+        {true, false, true, true, 100u},
+        {true, false, true, true, 200u}};
+    const auto first = BuildGoldSrcBoundedOutgoingSchedule(
+        constrained, 1u, 0u);
+    const auto second = BuildGoldSrcBoundedOutgoingSchedule(
+        constrained, 1u, first.next_fair_client_index);
+    assert(first.actions.size() == 1u && second.actions.size() == 1u);
+    assert(first.actions[0].client_index != second.actions[0].client_index);
+    assert(first.snapshots_deferred == 1u);
+    assert(second.snapshots_deferred == 1u);
+}
+
+void TestRemoteInterpolationContract()
+{
+    GoldSrcRemoteInterpolationSample previous;
+    previous.server_time = 10.0;
+    previous.origin = {100.0f, 20.0f, 8.0f};
+    previous.velocity = {200.0f, -40.0f, 0.0f};
+    previous.animtime = 10.0f;
+    previous.effects = kGoldSrcEffectNoInterpolation;
+    previous.entity_present = true;
+    GoldSrcRemoteInterpolationSample current = previous;
+    current.server_time = 10.05;
+    current.origin = {110.0f, 18.0f, 8.0f};
+    current.animtime = 10.05f;
+    current.effects = 0u;
+    assert(ValidateGoldSrcRemoteInterpolationSamples(previous, current)
+        == GoldSrcRemoteInterpolationStatus::kEligible);
+
+    current.effects = kGoldSrcEffectNoInterpolation;
+    assert(ValidateGoldSrcRemoteInterpolationSamples(previous, current)
+        == GoldSrcRemoteInterpolationStatus::kPermanentNoInterpolation);
+    current.effects = 0u;
+    current.animtime = 9.0f;
+    assert(ValidateGoldSrcRemoteInterpolationSamples(previous, current)
+        == GoldSrcRemoteInterpolationStatus::kNonMonotonicAnimtime);
+    current.animtime = 10.05f;
+    current.origin[0] = 140.0f;
+    assert(ValidateGoldSrcRemoteInterpolationSamples(previous, current)
+        == GoldSrcRemoteInterpolationStatus::kIncoherentMotion);
+}
+
+void TestDeterministicTwoClientTenMinuteLongRun()
+{
+    struct Client final
+    {
+        GoldSrcCommandExecutionState commands;
+        std::uint32_t sequence = 0u;
+        std::uint64_t pmove_calls = 0u;
+        std::uint64_t snapshots = 0u;
+        std::uint64_t frame_acknowledgements = 0u;
+        std::uint64_t remote_updates = 0u;
+    };
+    std::array<Client, 2u> clients{};
+    std::array<std::uint64_t, 2u> checkpoint_pmove{};
+    std::array<std::uint64_t, 2u> checkpoint_snapshots{};
+    std::array<std::uint64_t, 2u> checkpoint_acks{};
+    std::array<std::uint64_t, 2u> checkpoint_remote{};
+    std::size_t fair_index = 0u;
+    const std::array<std::uint32_t, 4u> checkpoints{
+        60u, 120u, 300u, 600u};
+    std::size_t checkpoint_index = 0u;
+
+    for (std::uint32_t tick = 1u; tick <= 12000u; ++tick)
+    {
+        const std::uint32_t second = tick / 20u;
+        std::vector<GoldSrcOutgoingClientDemand> demands(2u);
+        for (std::size_t index = 0u; index < clients.size(); ++index)
+        {
+            Client& client = clients[index];
+            const bool idle = index == 0u
+                ? second % 90u >= 30u && second % 90u < 35u
+                : second % 75u >= 45u && second % 75u < 49u;
+            const bool packet_lost = index == 0u
+                ? tick % 37u == 0u
+                : tick % 43u == 0u;
+            if (!idle && !packet_lost
+                && tick % (index == 0u ? 2u : 3u) == 0u)
+            {
+                GoldSrcDecodedMoveCommand move = Move(
+                    index == 0u ? 120.0f : -90.0f,
+                    index == 0u ? 0.0f : 75.0f);
+                move.packet_loss = static_cast<std::uint8_t>(
+                    packet_lost ? 1u : 0u);
+                if (tick % 101u == 0u)
+                {
+                    move.backup_command_count = 1u;
+                    move.command_count = 2u;
+                    move.commands[1] = move.commands[0];
+                }
+                ++client.sequence;
+                const std::uint64_t host_time =
+                    static_cast<std::uint64_t>(tick) * 50u;
+                const GoldSrcCommandExecutionPlan plan =
+                    client.commands.Plan(move, client.sequence, host_time);
+                assert(plan.ok());
+                client.commands.CommitObservedMovePacket(
+                    client.sequence, true);
+                client.commands.CommitExecutedBatch(
+                    plan, client.sequence, host_time);
+                ++client.pmove_calls;
+            }
+            if (tick == (index == 0u ? 3601u : 4801u))
+            {
+                ++client.sequence;
+                client.commands.CommitObservedMovePacket(
+                    client.sequence, true, true);
+            }
+            demands[index].active = true;
+            demands[index].snapshot_due = true;
+            demands[index].empty_acknowledgement_pending = true;
+            demands[index].reliable_pending =
+                tick % (index == 0u ? 997u : 991u) == 0u;
+            demands[index].incoming_frontier = client.sequence;
+        }
+        const GoldSrcOutgoingScheduleResult schedule =
+            BuildGoldSrcBoundedOutgoingSchedule(demands, 8u, fair_index);
+        fair_index = schedule.next_fair_client_index;
+        assert(schedule.snapshots_deferred == 0u);
+        for (const GoldSrcOutgoingAction& action : schedule.actions)
+        {
+            if (action.kind != GoldSrcOutgoingActionKind::kSnapshot)
+            {
+                continue;
+            }
+            Client& receiver = clients[action.client_index];
+            ++receiver.snapshots;
+            ++receiver.remote_updates;
+            if (tick % (action.client_index == 0u ? 11u : 13u) != 0u)
+            {
+                ++receiver.frame_acknowledgements;
+            }
+        }
+
+        if (checkpoint_index < checkpoints.size()
+            && tick == checkpoints[checkpoint_index] * 20u)
+        {
+            for (std::size_t index = 0u; index < clients.size(); ++index)
+            {
+                assert(clients[index].pmove_calls > checkpoint_pmove[index]);
+                assert(clients[index].snapshots > checkpoint_snapshots[index]);
+                assert(clients[index].frame_acknowledgements
+                    > checkpoint_acks[index]);
+                assert(clients[index].remote_updates
+                    > checkpoint_remote[index]);
+                checkpoint_pmove[index] = clients[index].pmove_calls;
+                checkpoint_snapshots[index] = clients[index].snapshots;
+                checkpoint_acks[index] =
+                    clients[index].frame_acknowledgements;
+                checkpoint_remote[index] = clients[index].remote_updates;
+            }
+            ++checkpoint_index;
+        }
+    }
+    assert(checkpoint_index == checkpoints.size());
+    assert(clients[0].commands.last_executed_move_sequence()
+        != clients[1].commands.last_executed_move_sequence());
+    assert(clients[0].commands.diagnostics().move_packets_executed > 0u);
+    assert(clients[1].commands.diagnostics().move_packets_executed > 0u);
+}
 } // namespace
 
 int main()
@@ -478,5 +689,8 @@ int main()
     TestNetchanAndFrameAcknowledgementIsolation();
     TestReceiverOwnedSnapshotsAndPlayerOperations();
     TestCommandClockAndSchedulerIsolation();
+    TestBoundedTwoClientOutgoingSaturation();
+    TestRemoteInterpolationContract();
+    TestDeterministicTwoClientTenMinuteLongRun();
     return 0;
 }
