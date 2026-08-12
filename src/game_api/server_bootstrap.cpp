@@ -464,8 +464,11 @@ std::size_t PrecacheRegistry::SoundCount() const noexcept
 
 void EdictStore::Reset(std::size_t max_clients, std::size_t extra_entity_slots)
 {
+    retired_private_data_.clear();
     max_clients_ = max_clients;
     next_serial_ = 1;
+    reuse_epoch_ = 0;
+    frame_reuse_barrier_active_ = false;
     edicts_.assign(1 + max_clients_ + extra_entity_slots, {});
     states_ = std::vector<EntitySlotState>(edicts_.size());
 
@@ -490,12 +493,32 @@ const edict_t* EdictStore::World() const noexcept
     return EntityOfIndex(0);
 }
 
+void EdictStore::BeginFrameReuseBarrier() noexcept
+{
+    frame_reuse_barrier_active_ = true;
+    if (reuse_epoch_ == (std::numeric_limits<std::uint64_t>::max)())
+    {
+        reuse_epoch_ = 1;
+        for (EntitySlotState& state : states_)
+        {
+            state.removed_reuse_epoch = 0;
+        }
+        return;
+    }
+    ++reuse_epoch_;
+}
+
 edict_t* EdictStore::CreateEntity()
 {
     const std::size_t first_non_client_slot = 1 + max_clients_;
     for (std::size_t index = first_non_client_slot; index < edicts_.size(); ++index)
     {
         if (edicts_[index].free == FALSE)
+        {
+            continue;
+        }
+        if (frame_reuse_barrier_active_
+            && states_[index].removed_reuse_epoch == reuse_epoch_)
         {
             continue;
         }
@@ -521,7 +544,14 @@ void EdictStore::RemoveEntity(edict_t* entity)
     removed_state.removed = true;
     removed_state.spawned = false;
     removed_state.activation_candidate = false;
-    removed_state.private_data.reset();
+    removed_state.removed_reuse_epoch = frame_reuse_barrier_active_
+        ? reuse_epoch_
+        : 0;
+    if (removed_state.private_data != nullptr)
+    {
+        retired_private_data_.push_back(
+            std::move(removed_state.private_data));
+    }
     removed_state.private_data_bytes = 0;
 
     edict_t& edict = edicts_[slot];
@@ -537,6 +567,51 @@ void EdictStore::RemoveEntity(edict_t* entity)
     edict.v.pContainingEntity = &edict;
 
     states_[slot] = std::move(removed_state);
+}
+
+void EdictStore::PrepareClientForPutInServer(edict_t* entity)
+{
+    const int index = IndexOf(entity);
+    if (index <= 0 || static_cast<std::size_t>(index) > max_clients_)
+    {
+        return;
+    }
+
+    // GoldSrc keeps the client edict allocated across disconnect, then
+    // releases the prior DLL object immediately before ClientPutInServer.
+    // Retire the raw block for the rest of this map so weapon entities that
+    // still carry the old m_pPlayer pointer cannot write into reused heap
+    // storage while their deferred SUB_Remove thinks drain.
+    FreePrivateData(entity);
+
+    const std::size_t slot = static_cast<std::size_t>(index);
+    EntitySlotState& state = states_[slot];
+    std::memset(&entity->v, 0, sizeof(entity->v));
+    entity->v.pContainingEntity = entity;
+    entity->free = FALSE;
+
+    state.in_use = true;
+    state.removed = false;
+    state.classname.clear();
+    state.targetname.clear();
+    state.origin_string.clear();
+    state.origin = Vector(0.0f, 0.0f, 0.0f);
+    state.has_origin = false;
+    state.angles_string.clear();
+    state.angles = Vector(0.0f, 0.0f, 0.0f);
+    state.has_angles = false;
+    state.mins_string.clear();
+    state.mins = Vector(0.0f, 0.0f, 0.0f);
+    state.maxs_string.clear();
+    state.maxs = Vector(0.0f, 0.0f, 0.0f);
+    state.has_size = false;
+    state.model_string.clear();
+    state.model_index = 0;
+    state.spawned = false;
+    state.deferred = false;
+    state.activation_candidate = false;
+    state.parse_index = -1;
+    state.removed_reuse_epoch = 0;
 }
 
 void EdictStore::SetInUse(edict_t* entity, bool in_use)
@@ -753,7 +828,10 @@ void EdictStore::FreePrivateData(edict_t* entity)
     }
 
     EntitySlotState& state = states_[static_cast<std::size_t>(index)];
-    state.private_data.reset();
+    if (state.private_data != nullptr)
+    {
+        retired_private_data_.push_back(std::move(state.private_data));
+    }
     state.private_data_bytes = 0;
     entity->pvPrivateData = nullptr;
 }
@@ -869,6 +947,22 @@ int EdictStore::AllocatedCount() const noexcept
         {
             return edict.free == FALSE;
         }));
+}
+
+std::size_t EdictStore::ClearTransientMuzzleFlashEffects() noexcept
+{
+    std::size_t cleared = 0u;
+    const int entity_count = NumberOfEntities();
+    for (int index = 1; index < entity_count; ++index)
+    {
+        edict_t& entity = edicts_[static_cast<std::size_t>(index)];
+        if ((entity.v.effects & EF_MUZZLEFLASH) != 0)
+        {
+            entity.v.effects &= ~EF_MUZZLEFLASH;
+            ++cleared;
+        }
+    }
+    return cleared;
 }
 
 EntityStateSnapshot EdictStore::SnapshotOf(

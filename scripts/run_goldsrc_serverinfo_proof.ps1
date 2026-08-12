@@ -24,6 +24,10 @@ $ErrorActionPreference = "Stop"
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
+trap {
+    Write-Host "goldsrc_serverinfo_probe: result=fail reason=proof_gate_failed"
+    exit 1
+}
 
 $reliableToggleFlag = [uint32]2147483648
 $fragmentFlag = [uint32]1073741824
@@ -1131,10 +1135,18 @@ function Assert-ServerInfoRuntimeExpectations {
             $ServerInfo.Deathmatch)
     }
 
+    [string]$expectedMap = Get-Variable `
+        -Scope Script `
+        -Name goldsrcExpectedServerInfoMap `
+        -ValueOnly `
+        -ErrorAction SilentlyContinue
+    if ([string]::IsNullOrWhiteSpace($expectedMap)) {
+        $expectedMap = "maps/c0a0.bsp"
+    }
     $expectedStrings = [ordered]@{
         GameDir = "valve"
         Hostname = "HLengine Test Server"
-        Map = "maps/c0a0.bsp"
+        Map = $expectedMap
         Mapcycle = "mapcycle.txt"
         FallbackDir = ""
     }
@@ -2194,11 +2206,11 @@ finally {
                 [void]$serverProcess.WaitForExit(2000)
             }
             if (-not $serverProcess.HasExited) {
-                $cleanupFailure = "leaked directly owned hlhost process after forced termination"
+                $cleanupFailure = "cleanup_failed"
             }
         }
         catch {
-            $cleanupFailure = "failed to terminate leftover hlhost process: $($_.Exception.Message)"
+            $cleanupFailure = "cleanup_failed"
         }
     }
     if ($null -ne $outputCapture) {
@@ -2207,13 +2219,13 @@ finally {
         }
         catch {
             if ($null -eq $cleanupFailure) {
-                $cleanupFailure = "failed to drain hlhost output: $($_.Exception.Message)"
+                $cleanupFailure = "cleanup_failed"
             }
         }
     }
     if ($processStarted -and $serverProcessId -gt 0 -and
         (Test-ProcessIdAlive -ProcessId $serverProcessId)) {
-        $cleanupFailure = "hlhost process remained alive after cleanup"
+        $cleanupFailure = "cleanup_failed"
     }
     $latestStdout = Get-SharedFileText -Path $stdoutPath
     $latestStderr = Get-SharedFileText -Path $stderrPath
@@ -2223,20 +2235,12 @@ finally {
     if ($latestStderr.Length -gt 0) {
         $capturedStderr = $latestStderr
     }
-    if (-not $SkipServerOutput) {
-        if (-not [string]::IsNullOrWhiteSpace($capturedStdout)) {
-            Write-Host $capturedStdout.TrimEnd([char[]]@("`r", "`n"))
-        }
-        if (-not [string]::IsNullOrWhiteSpace($capturedStderr)) {
-            Write-Host $capturedStderr.TrimEnd([char[]]@("`r", "`n"))
-        }
-    }
     foreach ($tempPath in @($stdoutPath, $stderrPath)) {
         if (Test-Path -LiteralPath $tempPath -PathType Leaf) {
             Remove-Item -LiteralPath $tempPath -Force -ErrorAction SilentlyContinue
         }
         if (Test-Path -LiteralPath $tempPath -PathType Leaf) {
-            $cleanupFailure = "temporary proof output was not removed"
+            $cleanupFailure = "cleanup_failed"
         }
     }
 }
@@ -2250,9 +2254,14 @@ if ($null -ne $cleanupFailure -and $null -eq $failure) {
     )
 }
 if ($null -ne $failure) {
-    $failureMessage = $failure.Exception.Message -replace '[\r\n]+', ' '
-    Write-Host ("goldsrc_serverinfo_probe: result=fail reason={0}" -f $failureMessage)
-    throw $failure
+    $failureReason = if ($cleanupFailure -ceq "cleanup_failed") {
+        "cleanup_failed"
+    } else {
+        "proof_gate_failed"
+    }
+    Write-Host ("goldsrc_serverinfo_probe: result=fail reason={0}" -f
+        $failureReason)
+    exit 1
 }
 
 Write-Host ("goldsrc_serverinfo_probe: port={0},client_endpoint=127.0.0.1:{1}" -f

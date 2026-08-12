@@ -106,8 +106,9 @@ function New-TwoClientClientArguments {
         [string[]]$AdditionalArguments)
 
     return @(
-        '-steam', '-game', 'valve', '-console', '-novid',
+        '-steam', '-game', 'valve', '-console', '-novid', '-nojoy',
         '-windowed', '-w', '960', '-h', '540',
+        '+joystick', '0',
         '+connect', ('{0}:{1}' -f $Address, $SelectedPort)
     ) + @(Convert-AdditionalArguments $AdditionalArguments)
 }
@@ -180,8 +181,8 @@ Assert-SafeAdditionalArguments -Arguments $AdditionalServerArguments `
         '--goldsrc-manual-shutdown-file', '--goldsrc-snapshot-rate-hz',
         '--goldsrc-handshake-timeout-ms') -Kind 'server'
 $reservedClientPrefixes = @(
-    '-steam', '-game', '-console', '-novid', '-windowed', '-w', '-h',
-    '+connect')
+    '-steam', '-game', '-console', '-novid', '-nojoy', '-windowed',
+    '-w', '-h', '+joystick', '+connect')
 Assert-SafeAdditionalArguments -Arguments $AdditionalClientAArguments `
     -ReservedPrefixes $reservedClientPrefixes -Kind 'client A'
 Assert-SafeAdditionalArguments -Arguments $AdditionalClientBArguments `

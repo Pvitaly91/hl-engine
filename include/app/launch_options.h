@@ -61,6 +61,8 @@ struct LaunchOptions
     bool goldsrc_pmove_enabled = false;
     bool goldsrc_pmove_negative_proof = false;
     bool goldsrc_pmove_persistent = false;
+    bool goldsrc_combat_enabled = false;
+    bool goldsrc_fall_damage_proof = false;
     int goldsrc_pmove_observation_ms = 2000;
     std::optional<std::filesystem::path> goldsrc_manual_shutdown_file;
     std::optional<std::filesystem::path> goldsrc_manual_disconnect_file;

@@ -12,8 +12,10 @@ From `D:\DEV\CPP\HL-Engine`, run:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\run_stock_two_client_autotest.ps1 `
+  -AcceptancePhase Automatic `
   -MultiInstanceMode MutexUnlock `
   -InputMode VerifiedSendInput `
+  -AllowAutomatedPlayerInput `
   -FollowServerLog
 ```
 
@@ -32,9 +34,12 @@ proof. The script requires two new owned `hl.exe` process identities, distinct
 UDP ports, two server challenge/connect flows, slots/edicts 1 and 2, and two
 materialized players. A pre-existing `hl.exe` is never adopted.
 
-`InputMode VerifiedSendInput` is the default and only automatic input mode. It
-uses hardware scan-code `SendInput` events against one exact owned client
-window at a time. Before delivery it verifies the PID, executable path, visible
+`AcceptancePhase ManualObservation` and `InputMode None` are the safe defaults.
+Automatic input is disabled unless `-AcceptancePhase Automatic`,
+`-InputMode VerifiedSendInput`, and `-AllowAutomatedPlayerInput` are all
+supplied. The verified mode uses hardware scan-code `SendInput` events against
+one exact owned client window at a time. Before delivery it verifies the PID,
+executable path, visible
 top-level window, foreground window, and foreground owner. W/S and D/A are
 bounded reversible 1000 ms phases; jump and duck are 100 ms phases. The
 server-observed input counters must advance for every pulse. Every path sends
@@ -159,8 +164,10 @@ Run only after the basic two-client lifecycle passes:
 ```powershell
 powershell.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\scripts\run_stock_two_client_autotest.ps1 `
+  -AcceptancePhase Automatic `
   -MultiInstanceMode MutexUnlock `
   -InputMode VerifiedSendInput `
+  -AllowAutomatedPlayerInput `
   -AutoTestDurationSeconds 600 `
   -SkipReconnectTest `
   -FollowServerLog

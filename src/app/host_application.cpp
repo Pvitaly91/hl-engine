@@ -22506,6 +22506,10 @@ bool HostApplication::RunServerEngineShim(
         options.goldsrc_pmove_negative_proof;
     init_options.goldsrc_pmove_persistent =
         options.goldsrc_pmove_persistent;
+    init_options.goldsrc_combat_enabled =
+        options.goldsrc_combat_enabled;
+    init_options.goldsrc_fall_damage_proof =
+        options.goldsrc_fall_damage_proof;
     init_options.goldsrc_pmove_observation_ms =
         options.goldsrc_pmove_observation_ms;
     init_options.goldsrc_manual_shutdown_file =

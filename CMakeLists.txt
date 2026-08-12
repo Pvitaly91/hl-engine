@@ -37,6 +37,7 @@ add_library(goldsrc_network STATIC
     include/network/ipv4_endpoint.h
     include/network/goldsrc_bitstream.h
     include/network/goldsrc_client_move.h
+    include/network/goldsrc_combat.h
     include/network/goldsrc_connectionless.h
     include/network/goldsrc_delta_description.h
     include/network/goldsrc_fragmentation.h
@@ -51,6 +52,7 @@ add_library(goldsrc_network STATIC
     src/network/ipv4_endpoint.cpp
     src/network/goldsrc_bitstream.cpp
     src/network/goldsrc_client_move.cpp
+    src/network/goldsrc_combat.cpp
     src/network/goldsrc_connectionless.cpp
     src/network/goldsrc_delta_description.cpp
     src/network/goldsrc_fragmentation.cpp
@@ -148,6 +150,9 @@ target_include_directories(game_api
         "${HLSDK_ROOT_DIR}/pm_shared"
         "${HLSDK_ROOT_DIR}/public"
 )
+if(WIN32)
+    target_compile_definitions(game_api PRIVATE WIN32_LEAN_AND_MEAN NOMINMAX)
+endif()
 target_link_libraries(game_api PRIVATE common filesystem goldsrc_network)
 set_source_files_properties(
     src/game_api/hl_server_module.cpp
@@ -413,6 +418,28 @@ add_test(
     COMMAND goldsrc_two_client_replication_unit_tests
 )
 
+add_executable(goldsrc_combat_damage_unit_tests
+    src/tests/goldsrc_combat_damage_tests.cpp
+)
+target_include_directories(
+    goldsrc_combat_damage_unit_tests
+    PRIVATE "${HLHOST_INCLUDE_DIR}")
+target_link_libraries(
+    goldsrc_combat_damage_unit_tests
+    PRIVATE goldsrc_network)
+if(MSVC)
+    target_compile_options(goldsrc_combat_damage_unit_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(goldsrc_combat_damage_unit_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_combat_damage_unit_tests
+    PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_combat_damage_unit_tests
+    COMMAND goldsrc_combat_damage_unit_tests
+)
+
 # Keep the narrow Windows handle helper isolated from the 32-bit engine build.
 # It must be configured in a separate x64 build tree so it can reliably inspect
 # stock 32-bit GoldSrc processes on 64-bit Windows.
@@ -522,6 +549,34 @@ add_custom_target(goldsrc_pmove_unit_tests
 )
 set_target_properties(
     goldsrc_pmove_unit_tests PROPERTIES FOLDER "host/tests")
+
+add_executable(goldsrc_pmove_collision_unit_tests
+    src/tests/goldsrc_pmove_collision_unit_tests.cpp
+)
+target_include_directories(goldsrc_pmove_collision_unit_tests
+    PRIVATE
+        "${HLHOST_INCLUDE_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/src/game_api"
+        "${HLSDK_ROOT_DIR}/common"
+        "${HLSDK_ROOT_DIR}/dlls"
+        "${HLSDK_ROOT_DIR}/engine"
+        "${HLSDK_ROOT_DIR}/pm_shared"
+        "${HLSDK_ROOT_DIR}/public"
+)
+target_link_libraries(goldsrc_pmove_collision_unit_tests
+    PRIVATE game_api goldsrc_network)
+if(MSVC)
+    target_compile_options(
+        goldsrc_pmove_collision_unit_tests PRIVATE /UNDEBUG)
+else()
+    target_compile_options(
+        goldsrc_pmove_collision_unit_tests PRIVATE -UNDEBUG)
+endif()
+set_target_properties(
+    goldsrc_pmove_collision_unit_tests PROPERTIES FOLDER "host/tests")
+add_test(
+    NAME goldsrc_pmove_collision_unit_tests
+    COMMAND goldsrc_pmove_collision_unit_tests)
 
 add_custom_target(changelevel_policy_regressions
     COMMAND

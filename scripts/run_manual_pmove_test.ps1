@@ -456,7 +456,9 @@ function New-ServerArguments {
 function New-ClientArguments {
     param([string]$Address, [int]$SelectedPort)
 
-    $arguments = @('-steam', '-game', 'valve', '-console', '-novid')
+    $arguments = @(
+        '-steam', '-game', 'valve', '-console', '-novid', '-nojoy',
+        '+joystick', '0')
     if (-not $Fullscreen) {
         $arguments += @(
             '-windowed', '-w', [string]$WindowWidth,
@@ -673,8 +675,8 @@ Assert-SafeAdditionalArguments -Arguments $AdditionalServerArguments `
     -Kind 'server'
 Assert-SafeAdditionalArguments -Arguments $AdditionalClientArguments `
     -ReservedPrefixes @(
-        '-steam', '-game', '-console', '-novid', '-windowed', '-w', '-h',
-        '+connect') -Kind 'client'
+        '-steam', '-game', '-console', '-novid', '-nojoy', '-windowed',
+        '-w', '-h', '+joystick', '+connect') -Kind 'client'
 
 $cmake = Resolve-CMakeExecutable
 $ctest = if ($RunTests) { Resolve-CTestExecutable -CMakeExecutable $cmake } else { '' }

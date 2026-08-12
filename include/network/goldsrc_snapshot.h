@@ -57,7 +57,9 @@ struct GoldSrcServerFrame final
 struct GoldSrcPlayerSnapshotInput final
 {
     GoldSrcSnapshotEntityState entity;
+    bool include_local_entity = true;
     GoldSrcClientDataState clientdata;
+    std::vector<GoldSrcWeaponState> weapons;
     std::vector<GoldSrcSnapshotEntityState> remote_entities;
 };
 
@@ -70,6 +72,7 @@ enum class GoldSrcPlayerSnapshotApplyStatus
     kWrongEntityKind,
     kInvalidPlayerState,
     kInvalidClientData,
+    kInvalidWeaponData,
     kDuplicateEntity,
     kEntityCountExceeded,
 };
@@ -337,7 +340,9 @@ public:
         GoldSrcSnapshotKind kind = GoldSrcSnapshotKind::kFull,
         std::optional<std::uint32_t> base_frame_id = std::nullopt);
     GoldSrcFrameAcknowledgeResult Acknowledge(
-        std::uint8_t wire_frame_reference) noexcept;
+        std::uint8_t wire_frame_reference,
+        std::optional<std::uint32_t> client_server_acknowledgement =
+            std::nullopt) noexcept;
 
     bool valid() const noexcept;
     std::size_t capacity() const noexcept;
@@ -375,7 +380,9 @@ class GoldSrcFrameReferenceResolver final
 public:
     static GoldSrcFrameReferenceResolution Resolve(
         const GoldSrcClientFrameHistory& history,
-        std::uint8_t wire_frame_reference) noexcept;
+        std::uint8_t wire_frame_reference,
+        std::optional<std::uint32_t> client_server_acknowledgement =
+            std::nullopt) noexcept;
 };
 
 enum class GoldSrcSnapshotDueResult
@@ -540,7 +547,9 @@ public:
         GoldSrcFirstSnapshotBundle bundle);
     GoldSrcFirstSnapshotTransitionResult MarkSent();
     GoldSrcFrameAcknowledgeResult Acknowledge(
-        std::uint8_t wire_frame_reference) noexcept;
+        std::uint8_t wire_frame_reference,
+        std::optional<std::uint32_t> client_server_acknowledgement =
+            std::nullopt) noexcept;
     bool StartContinuous(
         double server_time,
         double snapshot_rate_hz =

@@ -1,0 +1,567 @@
+HL-ENGINE-20260808-250-GOLDSRC-GLOCK-DAMAGE-SLICE
+
+# Prompt 250 completion handoff — blocked
+
+status=blocked
+prompt_250_complete=no
+completion_claim=no
+branch=codex/goldsrc-glock-damage-slice
+baseline_short_commit=dba657e
+baseline_commit=dba657e6bd5cba280f50f217e48319e021d7fc5f
+baseline_remote_revalidation=pass
+baseline_binary_prepared=pass
+baseline_binary_smoke=pass
+baseline_manual_launcher_dry_run=pass
+manual_session_auto_close=disabled
+manual_session_completion=explicit_operator_enter
+manual_failure_cleanup=disabled
+manual_automatic_player_input=disabled
+manual_window_focus_automation=disabled
+manual_joystick_input=disabled
+automatic_player_input_default=disabled
+automatic_player_input_requires_explicit_opt_in=yes
+acceptance_phase_default=manual_observation
+baseline_stock_observation=pending
+source_backup_patch=%TEMP%\hl-engine-prompt250a-final-20260811-192627.patch
+source_untracked_backup=%TEMP%\hl-engine-prompt250a-final-20260811-192627-untracked
+sdk_head=b1b5cf5892918535619b2937bb927e46cb097ba1
+sdk_clean=yes
+
+## Prompt 250A preservation, audit, and isolated baseline
+
+current_prompt_250_changes_preserved=yes
+changed_files=39
+changed_files_scope=intended_task_content_only
+raw_worktree_generated_artifacts_excluded=yes
+combat_build_files=1
+combat_runtime_files=11
+combat_codec_files=4
+combat_test_files=16
+combat_launcher_files=4
+combat_documentation_files=3
+unrelated_changed_files=0
+custom_engine_damage_subtraction=no
+fake_engine_glock_inventory=no
+direct_private_data_patch=no
+real_game_dll_weapon_processing=yes
+
+baseline_observation_worktree=<isolated-baseline-worktree>
+baseline_observation_head=dba657e6bd5cba280f50f217e48319e021d7fc5f
+baseline_observation_tracked_clean=yes
+baseline_sdk_method=untracked_directory_junction
+baseline_build=pass
+baseline_headless_two_client_probe_a=pass
+baseline_headless_clients_connected=yes
+baseline_headless_clients_spawned=yes
+baseline_headless_clients_moved=yes
+baseline_stock_observation=pending
+baseline_attack_input_observed=pending
+baseline_attack_masked=pending
+baseline_shot_executed=pending
+baseline_ammo_changed=pending
+baseline_target_health_changed=pending
+
+ramp_gate_kind=manual
+ramp_gate_command=missing
+ramp_gate_executed=no
+ramp_gate_failure_reason=manual_confirmation_missing
+ramp_gate_previous_result_source=<ramp-fix-worktree>/docs/handoffs/prompt_249_completion.md
+ramp_gate_previous_classification=manual_confirmation_missing
+current_combat_build_ramp_tested=no
+central_ramp_up=not_run
+central_ramp_down=not_run
+ramp_transitions=not_run
+reverse_escape=not_run
+strafe_escape=not_run
+ledge_escape=not_run
+jump_duck_near_ramp=not_run
+two_client_ramp_isolation=not_run
+player_sticking_reproduced=not_tested
+
+## Recorded automated results
+
+build=pass
+build_configuration=Win32_Release
+ctest=15/15
+mandatory_autoaim_phase=pass
+mandatory_autoaim_buttons=0
+mandatory_autoaim_direct_ray=miss
+mandatory_autoaim_cone_target=hit
+mandatory_autoaim_vectortoangles_callback=called
+mandatory_autoaim_crosshairangle_callback=called
+mandatory_autoaim_health_unchanged=yes
+mandatory_autoaim_ammo_unchanged=yes
+mandatory_autoaim_both_clients_responsive=yes
+glock_proof_a=pass
+glock_proof_b=pass
+glock_proof_b_negative_gates=13/13
+lethal_death_proof=pass
+lethal_attack_commands_executed=9
+lethal_rounds_consumed=9
+lethal_player_hit_shots=9
+lethal_player_trace_callbacks=18
+lethal_target_health=nonpositive
+lethal_target_deadflag=nonzero
+lethal_target_glock=absent
+lethal_post_death_frames_a=at_least_32
+lethal_post_death_frames_b=at_least_32
+lethal_gameplay_callback_failures=0
+lethal_server_responsive=yes
+lethal_clean_shutdown=yes
+fall_damage_proof=pass
+fall_proof_gates=3/3
+feature_off_regression=pass
+old_two_client_probe_a=pass
+old_two_client_probe_b=pass
+old_pmove_proof_a=pass
+old_pmove_proof_b=pass
+latest_pmove_wrapper_rerun=pass
+latest_pmove_wrapper_proof_a=pass
+latest_pmove_wrapper_proof_b=pass
+latest_pmove_wrapper_clean_shutdown=yes
+old_player_lifecycle_proof_a=pass
+old_player_lifecycle_proof_b=pass
+old_continuous_snapshot_proof_a=pass
+old_continuous_snapshot_proof_b=pass
+old_handshake_proof_a=pass
+old_handshake_proof_b=pass
+old_netchan_proof_a=pass
+old_netchan_proof_b=pass
+old_serverinfo_proof_a=pass
+old_serverinfo_proof_b=pass
+old_resource_proof_a=pass
+old_resource_proof_b=pass
+old_fragment_proof_a=pass
+old_fragment_proof_b=pass
+old_signon_proof_a=pass
+old_signon_proof_b=pass
+old_delta_proof_a=pass
+old_delta_proof_b=pass
+old_post_resource_proof_a=pass
+old_post_resource_proof_b=pass
+old_world_proof_a=pass
+old_world_proof_b=pass
+old_first_snapshot_proof_a=pass
+old_first_snapshot_proof_b=pass
+old_external_ab_protocol_matrix=pass
+normal_host_behavior_changed=0
+mutex_unlocker=pass
+launcher_dry_run=pass
+launcher_smoke=pass
+old_single_client_longrun=pass
+longrun_duration_threshold_seconds=600
+longrun_snapshot_target=12000
+longrun_duration_observed_seconds=610.098
+longrun_server_snapshots_sent=12204
+longrun_snapshots_received=7789
+longrun_movement_commands_sent=7787
+longrun_movement_commands_executed=7783
+longrun_temporary_clock_rejections=7
+longrun_clock_recoveries=2
+longrun_snapshot_interval_max_ms=96
+longrun_snapshot_burst_count=0
+longrun_missed_snapshot_intervals=2
+longrun_movement_discontinuities=0
+longrun_command_execution_after_60_seconds=yes
+longrun_command_execution_after_120_seconds=yes
+longrun_command_execution_after_300_seconds=yes
+longrun_command_execution_after_600_seconds=yes
+longrun_wrapper_contract_margin=pass
+longrun_child_duration_target_seconds=610
+longrun_child_snapshot_target=12201
+longrun_snapshot_cadence=pass
+longrun_cadence_recovery_movement=pass
+longrun_clean_shutdown=pass
+
+continuous_snapshot_failure_root_cause=clientdata_callback_buffer_not_byte_zeroed
+stock_updateclientdata_zero_contract=restored
+clientdata_precallback_zeroing=yes
+clientdata_zeroing_regression_test=pass
+snapshot_codec_range_validation=unchanged_strict
+snapshot_value_clamping_added=no
+combat_snapshot_rerun=pass
+combat_proof_exact_base_marker_resolution=pass
+clc_delta_generation_alias_guard=yes
+frame_reference_exact_ack_ceiling=yes
+frame_reference_alias_regression_test=pass
+combat_proof_exact_ack_coverage=pass
+glock_wrapper_failure_exit_propagation=pass
+
+manual_pre_fix_aim_attempt=result_connection_problem
+manual_pre_fix_aim_trigger=aim_near_other_player
+manual_pre_fix_aim_failure=player_postthink_fail_stop
+manual_pre_fix_aim_launcher_auto_close=no
+autoaim_failure_path=weaponidle_getautoaimvector
+autoaim_missing_callbacks=pfnVecToAngles_then_pfnCrosshairAngle
+autoaim_vec_to_angles_semantics=stock_compatible
+autoaim_crosshair_angle_callback=bounded
+autoaim_callback_failure_fixed=yes
+svc_crosshairangle_visual_delivery=supported_no
+svc_crosshairangle_visual_delivery_scope=separate_pending_boundary
+
+manual_pre_fix_lethal_attempt=result_connection_problem
+manual_pre_fix_lethal_transition=health_4_to_minus_8
+manual_pre_fix_lethal_failure=controlled_snapshot_fail_stop
+manual_pre_fix_wall_decals=observed
+manual_pre_fix_viewmodel_fire_animation=observed
+manual_post_fix_death_observation=pass
+manual_post_fix_respawn_observation=pass
+manual_pre_fix_remote_muzzleflash=persistent_after_first_shot
+death_snapshot_weapon_transition=glock_present_to_absent
+death_snapshot_transition_mode=full_fallback
+addtofullpack_zero_result=entity_omitted
+addtofullpack_fault_result=fail_stop
+muzzleflash_effect=EF_MUZZLEFLASH
+muzzleflash_cleanup_timing=after_complete_per_client_snapshot_sweep
+muzzleflash_cleanup_scope=non_world_edicts_transient_bit_only
+muzzleflash_cleanup_preserves_nointerp=yes
+muzzleflash_cleanup_unit_regression=pass
+muzzleflash_post_fix_release_build=pass
+muzzleflash_post_fix_build_lane=equivalent_release_while_canonical_live_session_remained_open
+muzzleflash_post_fix_ctest=15/15
+muzzleflash_post_fix_glock_proof_a=pass
+muzzleflash_post_fix_glock_proof_b=pass
+muzzleflash_post_fix_manual_observation=pending
+
+## Manual autoaim failure and correction
+
+The latest pre-fix manual current-build run failed when the operator aimed near
+the other player. The visible connection warning was the consequence of the
+server's fixed `PlayerPostThink` gameplay fail-stop, not launcher auto-close.
+Stock Glock `WeaponIdle -> GetAutoaimVector` reached the first missing engine
+callback, `pfnVecToAngles`, and would next require the also-missing
+`pfnCrosshairAngle` callback after acquiring the player in the autoaim cone.
+
+The callback table now supplies stock-compatible vector-to-angle semantics and
+a bounded crosshair-angle callback. A mandatory zero-button headless aim phase
+passes with a direct-ray miss, an autoaim-cone target, both callbacks invoked,
+unchanged health and ammunition, and both clients responsive. Visual
+`svc_crosshairangle` delivery is not implemented or claimed by this fix; that
+wire-visible crosshair effect is a separate pending boundary. Manual local and
+remote fire feedback also remains pending.
+
+The fresh Win32 Release build, CTest 15/15, full Glock Proof A, all 13 Proof B
+gates, feature-off proof, stock fall proof, and old two-client A/B probes pass.
+Fresh frozen-tree PM_Move wrapper reruns pass for both Proof A and Proof B.
+They cover positive movement/landing/collision behavior and the negative,
+rollback, reconnect, and slot-reuse cases, with clean shutdown in both runs.
+
+## Manual lethal failure and death-aware correction
+
+The next pre-fix stock-client run confirmed wall decals and the local
+view-model firing animation, then produced a connection warning after repeated
+hits killed the other player. The authoritative target transition was health
+`4 -> -8`. Stock `GetWeaponData` correctly stopped reporting the dead target's
+Glock, while the snapshot verifier still required the alive-frame weapon set;
+the server therefore entered a controlled snapshot fail-stop. This was not
+launcher cleanup.
+
+The corrected path models alive and dead weapon sets as two phases, sends a
+full fallback when the Glock changes from present to absent, and distinguishes
+a normal stock `AddToFullPack` omission from a callback fault. Frame IDs,
+server time, snapshots, movement, PM_Move, and pre/post-think evidence remain
+monotonic after death. The dedicated lethal proof passes with nine executed
+player-hit attacks, nine consumed rounds, 18 player-trace callbacks,
+nonpositive target health, nonzero `deadflag`, an absent target Glock, at least
+32 further frames per client, zero gameplay callback failures, a responsive
+server, and clean shutdown. Fresh normal Glock Proof A and all 13 Proof B gates
+also pass. The operator subsequently confirmed normal stock death and respawn.
+
+The next manual observation found a separate visual defect: the remote player
+model retained its muzzle glow after the first shot. The host now keeps the
+one-frame `EF_MUZZLEFLASH` bit through the full per-client send sweep and then
+clears only that bit from non-world edicts. The focused cleanup regression,
+fresh Release build, CTest 15/15, a fresh normal Glock Proof A, and all 13
+Proof B gates pass. The post-fix stock-client visual check remains pending.
+
+## Glock Proof A evidence
+
+start_frame_call_count=1495
+player_prethink_calls_a=103
+player_postthink_calls_a=103
+player_prethink_calls_b=101
+player_postthink_calls_b=101
+attack_commands_received=1
+attack_commands_executed=1
+shooter_clip_before=17
+shooter_clip_after=16
+shooter_reserve_ammo_before=68
+shooter_reserve_ammo_after=68
+rounds_consumed=1
+target_health_before=100
+target_health_after=88
+damage_amount_observed=12
+target_alive=yes
+client_a_movement_after_shot=pass
+client_b_movement_after_shot=pass
+clean_shutdown=pass
+
+## Stock fall Proof evidence
+
+fall_damage_proof=pass
+fall_proof_gates=3/3
+fall_landing_velocity=400
+fall_landing_grounded=yes
+fall_landing_damage=0
+fall_damage_velocity=600
+fall_damage_grounded=yes
+fall_damage_amount=10
+fall_damage_target_alive=yes
+fall_gameplay_callback_failures=0
+fall_post_landing_authoritative_xy_movement=both_clients_pass
+fall_post_landing_wire_xy_movement=both_clients_pass
+fall_clean_shutdown=pass
+
+## Glock Proof B evidence
+
+miss_no_damage=pass
+wall_occlusion=pass
+shooter_exclusion=pass
+exact_duplicate_suppression=pass
+backup_replay_suppression=pass
+cooldown_enforcement=pass
+invalid_checksum_no_fire=pass
+malformed_movement_no_fire=pass
+attack2_masking=pass
+disconnected_target_safety=pass
+stale_attacker_rejection=pass
+slot_reuse_clean=pass
+cross_client_weapon_state_isolation=pass
+
+## Lethal death Proof evidence
+
+lethal_death_proof=pass
+attack_commands_received=9
+attack_commands_executed=9
+rounds_consumed=9
+player_hit_shots=9
+player_trace_callbacks=18
+target_health_nonpositive=yes
+target_deadflag_nonzero=yes
+target_glock_absent=yes
+post_death_frames_a=at_least_32
+post_death_frames_b=at_least_32
+post_death_client_a_progression=pass
+post_death_client_b_progression=pass
+gameplay_callback_failures=0
+server_still_responsive=yes
+clean_shutdown=pass
+
+## Exact Prompt 250 blocked-state record
+
+```text
+status=blocked
+workspace=<repository-root>
+baseline_short_commit=dba657e
+baseline_commit=dba657e6bd5cba280f50f217e48319e021d7fc5f
+branch=codex/goldsrc-glock-damage-slice
+commit=missing
+changed_files=39
+
+sdk_head=b1b5cf5892918535619b2937bb927e46cb097ba1
+stock_client_version=Half-Life 1.1.2.2 Steam build 15961492
+game_dll_api_version=140
+original_boundary=multiplayer_combat_gameplay_required
+
+combat_boundary_reproduced=no
+exact_first_missing_combat_boundary=validated_attack_input_and_player_postthink_weapon_processing_required
+
+combat_feature_option=--goldsrc-combat
+combat_feature_default=off
+combat_callback_order_verified=yes
+combat_callback_order=cmdstart_prethink_think_pmove_commit_postthink_cmdend
+combat_time_contract_verified=yes
+start_frame_call_count=1495
+player_prethink_calls_a=103
+player_prethink_calls_b=101
+player_postthink_calls_a=103
+player_postthink_calls_b=101
+
+mandatory_autoaim_phase=pass
+mandatory_autoaim_buttons=0
+mandatory_autoaim_direct_ray=miss
+mandatory_autoaim_cone_target=hit
+mandatory_autoaim_vectortoangles_callback=called
+mandatory_autoaim_crosshairangle_callback=called
+mandatory_autoaim_health_unchanged=yes
+mandatory_autoaim_ammo_unchanged=yes
+mandatory_autoaim_both_clients_responsive=yes
+
+attack_input_enabled=yes
+attack2_masked=yes
+attack_commands_received=1
+attack_commands_executed=1
+duplicate_attack_commands_suppressed=0
+
+game_dll_inventory_used=yes
+glock_available=yes
+glock_active=yes
+glock_weapon_id=2
+
+weapondata_implemented=yes
+weapondata_service_message=svc_clientdata
+per_client_weapondata=yes
+shooter_clip_before=17
+shooter_clip_after=16
+shooter_reserve_ammo_before=68
+shooter_reserve_ammo_after=68
+rounds_consumed=1
+
+player_aware_trace=yes
+combat_trace_policy=nearest_player_before_static_world
+shooter_ignored=yes
+target_player_hit=yes
+wall_occlusion=pass
+miss_no_hit=pass
+hitgroup=generic
+
+target_health_before=100
+target_health_after=88
+damage_amount_observed=12
+target_alive=yes
+target_deadflag=0
+shooter_health_unchanged=yes
+
+target_clientdata_health_changed=yes
+shooter_weapondata_updated=yes
+frame_history_weapondata=yes
+snapshot_damage_replication=yes
+
+lethal_death_proof=pass
+lethal_attack_commands_received=9
+lethal_attack_commands_executed=9
+lethal_rounds_consumed=9
+lethal_player_hit_shots=9
+lethal_player_trace_callbacks=18
+lethal_target_health_nonpositive=yes
+lethal_target_deadflag_nonzero=yes
+lethal_target_glock_absent=yes
+lethal_weapon_presence_transition=present_to_absent
+lethal_transition_snapshot=full_fallback
+lethal_post_death_frames_a=at_least_32
+lethal_post_death_frames_b=at_least_32
+lethal_gameplay_callback_failures=0
+lethal_server_responsive=yes
+lethal_clean_shutdown=yes
+
+baseline_stock_client_observation=pending
+current_stock_client_observation=pending
+manual_ramp_observation=pending
+manual_balcony_fall_observation=pending
+manual_aim_near_player_observation=pending
+manual_post_fix_death_observation=pass
+manual_post_fix_respawn_observation=pass
+manual_post_fix_muzzleflash_observation=pending
+local_fire_feedback=missing
+remote_fire_feedback=missing
+
+fall_damage_proof=pass
+fall_proof_gates=3/3
+fall_landing_400=pass_no_damage_grounded
+fall_landing_600=pass_exact_10_damage_alive_grounded
+fall_gameplay_callback_failures=0
+fall_post_landing_authoritative_xy_movement=both_clients_pass
+fall_post_landing_wire_xy_movement=both_clients_pass
+
+build=pass
+ctest=15/15
+glock_proof_a=pass
+glock_proof_b=pass
+old_single_client_movement=pass
+old_two_client_movement=pass
+old_ramp_collision=not_run
+latest_pmove_wrapper_rerun=pass
+latest_pmove_wrapper_proof_a=pass
+latest_pmove_wrapper_proof_b=pass
+feature_off_regression=pass
+normal_host_behavior_changed=0
+
+stock_two_clients_tested=no
+stock_two_client_full_acceptance_completed=no
+narrow_manual_death_respawn_observed=yes
+stock_glock_available=no
+stock_glock_primary_fired=no
+stock_shooter_ammo_decreased=no
+stock_target_health_decreased=no
+stock_target_remained_alive=no
+stock_wall_blocked_damage=no
+stock_miss_caused_no_damage=no
+stock_client_a_movement_stable=no
+stock_client_b_movement_stable=no
+stock_player_sticking_reproduced=missing
+stock_clients_remained_connected=no
+
+death_supported=yes
+respawn_supported=yes
+headshots_supported=no
+gameplay_active=yes
+
+previous_combat_boundary_resolved=yes
+next_observed_boundary=stock_one_frame_muzzleflash_manual_acceptance_required
+prompt_250_complete=no
+missing_artifact_count=3
+missing_artifact_units=baseline_stock_observation,current_stock_acceptance_including_aim_fall_muzzleflash_feedback,ramp_revalidation
+
+handoff_file=docs/handoffs/prompt_250_completion.md
+manual_test_documentation=docs/manual-testing/stock_two_client_glock_damage_test.md
+build_artifacts_staged=no
+sdk_staged=no
+game_dll_staged=no
+proprietary_files_staged=no
+
+push=not_attempted
+remote_head=missing
+heads_match=no
+pr_created=no
+blocker=pending_manual_ramp_baseline_stock_observation
+```
+
+## Bounded lifecycle and failure behavior
+
+fl_killme_cleanup=bounded_pre_dispatch_post_callback_and_final_sweep
+fl_killme_due_think_excluded=yes
+same_frame_removed_edict_reuse_prevented=yes
+interactive_process_error_dialogs=disabled
+combat_callback_exception_boundary=enabled
+combat_callback_failure_output=fixed_semantic_only
+combat_callback_failure_replay_prevented=yes
+combat_global_fail_stop=yes
+addtofullpack_omitted_is_fault=no
+addtofullpack_callback_fault_is_fatal=yes
+death_weapon_set_transition=two_phase_present_to_absent
+death_transition_full_fallback=yes
+post_death_progression_monotonic=yes
+
+## Outstanding completion gates
+
+stock_two_client_manual_confirmation=pending
+old_ramp_collision=not_run
+old_ramp_collision_evidence=manual_confirmation_missing
+baseline_stock_client_observation=pending
+current_stock_client_observation=pending
+manual_ramp_observation=pending
+manual_balcony_fall_observation=pending
+manual_aim_near_player_observation=pending
+manual_post_fix_death_observation=pass
+manual_post_fix_respawn_observation=pass
+manual_post_fix_muzzleflash_observation=pending
+local_fire_feedback=missing
+remote_fire_feedback=missing
+missing_artifact_count=3
+missing_artifact_units=baseline_stock_observation,current_stock_acceptance_including_aim_fall_muzzleflash_feedback,ramp_revalidation
+blocker=pending_manual_ramp_baseline_stock_observation
+
+The automated passes above must not be treated as manual stock-client visual
+confirmation. No stock client, Game DLL, SDK binary, build artifact, raw
+packet, raw process output, crash detail, or private installation path is
+embedded in this handoff.
+
+manual_test_documentation=docs/manual-testing/stock_two_client_glock_damage_test.md
+build_artifacts_staged=no
+sdk_staged=no
+game_dll_staged=no
+proprietary_files_staged=no
+push=not_attempted
+commit=missing
+
+HL-ENGINE-20260808-250-GOLDSRC-GLOCK-DAMAGE-SLICE

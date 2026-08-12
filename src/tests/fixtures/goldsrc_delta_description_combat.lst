@@ -1,0 +1,48 @@
+// Bounded stock-compatible combat proof fixture.  It keeps the established
+// minimal protocol surface while adding the two public HLSDK fields required
+// to observe authoritative Glock ammunition and player health on the wire.
+
+event_t none {
+    DEFINE_DELTA(entindex, DT_INTEGER | DT_SIGNED, 11, 1.2347)
+}
+
+weapon_data_t none {
+    DEFINE_DELTA(m_iId, DT_INTEGER, 5, 1.0)
+    DEFINE_DELTA(m_iClip, DT_INTEGER | DT_SIGNED, 10, 1.0)
+}
+
+usercmd_t none {
+    DEFINE_DELTA(lerp_msec, DT_SHORT, 9, 1.0)
+    DEFINE_DELTA(msec, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(viewangles[1], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(viewangles[0], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(buttons, DT_SHORT, 16, 1.0)
+    DEFINE_DELTA(forwardmove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(lightlevel, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(sidemove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(upmove, DT_FLOAT | DT_SIGNED, 12, 1.0)
+    DEFINE_DELTA(impulse, DT_BYTE, 8, 1.0)
+    DEFINE_DELTA(viewangles[2], DT_ANGLE, 16, 1.0)
+    DEFINE_DELTA(impact_index, DT_INTEGER, 6, 1.0)
+    DEFINE_DELTA(impact_position[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(impact_position[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(impact_position[2], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+custom_entity_state_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_player_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+entity_state_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+}
+
+clientdata_t none {
+    DEFINE_DELTA(origin[0], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(origin[1], DT_FLOAT | DT_SIGNED, 16, 8.0)
+    DEFINE_DELTA(health, DT_FLOAT | DT_SIGNED, 10, 1.0)
+}

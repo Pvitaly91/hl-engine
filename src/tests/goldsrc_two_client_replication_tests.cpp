@@ -414,6 +414,87 @@ void TestReceiverOwnedSnapshotsAndPlayerOperations()
         == GoldSrcPlayerSnapshotApplyStatus::kDuplicateEntity);
 }
 
+void TestPacketEntityOmissionAndReentry()
+{
+    const GoldSrcDeltaRegistry registry = Registry();
+    const GoldSrcBaselineBundle baselines = Baselines();
+
+    GoldSrcPlayerSnapshotInput both_present =
+        ReceiverSnapshot(1u, 100u, 91u, Player(2u, 200u));
+    both_present.weapons.push_back({2u, Record(17u)});
+    const auto initial = BuildGoldSrcFirstSnapshot(
+        60u, 3.0f, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &both_present);
+    assert(initial.ok());
+    assert(FindEntity(initial.bundle.frame, 1u) != nullptr);
+    assert(FindEntity(initial.bundle.frame, 2u) != nullptr);
+
+    GoldSrcPlayerSnapshotInput local_omitted = both_present;
+    local_omitted.include_local_entity = false;
+    local_omitted.entity = {};
+    local_omitted.clientdata.state = Record(80u);
+    local_omitted.weapons[0].state = Record(16u);
+    const auto remove_local = BuildGoldSrcContinuousSnapshot(
+        61u, 3.05f, &initial.bundle.frame, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &local_omitted);
+    assert(remove_local.ok());
+    assert(remove_local.bundle.kind == GoldSrcSnapshotKind::kDelta);
+    assert(remove_local.bundle.entity_diff.removes == 1u);
+    assert(FindEntity(remove_local.bundle.frame, 1u) == nullptr);
+    assert(FindEntity(remove_local.bundle.frame, 2u) != nullptr);
+    assert(remove_local.bundle.frame.clientdata.state.values[0].unsigned_value
+        == 80u);
+    assert(remove_local.bundle.frame.weapons.size() == 1u);
+    assert(remove_local.bundle.frame.weapons[0].state.values[0].unsigned_value
+        == 16u);
+
+    GoldSrcPlayerSnapshotInput remote_omitted =
+        ReceiverSnapshot(1u, 105u, 79u, std::nullopt);
+    remote_omitted.weapons.push_back({2u, Record(15u)});
+    const auto swap_visibility = BuildGoldSrcContinuousSnapshot(
+        62u, 3.10f, &remove_local.bundle.frame, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &remote_omitted);
+    assert(swap_visibility.ok());
+    assert(swap_visibility.bundle.kind == GoldSrcSnapshotKind::kDelta);
+    assert(swap_visibility.bundle.entity_diff.adds == 1u);
+    assert(swap_visibility.bundle.entity_diff.removes == 1u);
+    assert(FindEntity(swap_visibility.bundle.frame, 1u) != nullptr);
+    assert(FindEntity(swap_visibility.bundle.frame, 2u) == nullptr);
+
+    GoldSrcPlayerSnapshotInput neither_present = remote_omitted;
+    neither_present.include_local_entity = false;
+    neither_present.entity = {};
+    const auto remove_local_again = BuildGoldSrcContinuousSnapshot(
+        63u, 3.15f, &swap_visibility.bundle.frame, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &neither_present);
+    assert(remove_local_again.ok());
+    assert(remove_local_again.bundle.entity_diff.removes == 1u);
+    assert(FindEntity(remove_local_again.bundle.frame, 1u) == nullptr);
+    assert(FindEntity(remove_local_again.bundle.frame, 2u) == nullptr);
+
+    GoldSrcPlayerSnapshotInput both_reentered =
+        ReceiverSnapshot(1u, 110u, 78u, Player(2u, 210u));
+    both_reentered.weapons.push_back({2u, Record(14u)});
+    const auto readd_both = BuildGoldSrcContinuousSnapshot(
+        64u, 3.20f, &remove_local_again.bundle.frame, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &both_reentered);
+    assert(readd_both.ok());
+    assert(readd_both.bundle.kind == GoldSrcSnapshotKind::kDelta);
+    assert(readd_both.bundle.entity_diff.adds == 2u);
+    assert(FindEntity(readd_both.bundle.frame, 1u) != nullptr);
+    assert(FindEntity(readd_both.bundle.frame, 2u) != nullptr);
+
+    const auto full_omission = BuildGoldSrcFirstSnapshot(
+        70u, 4.0f, baselines, registry,
+        kGoldSrcMaximumSnapshotBytes, &neither_present);
+    assert(full_omission.ok());
+    assert(FindEntity(full_omission.bundle.frame, 1u) == nullptr);
+    assert(FindEntity(full_omission.bundle.frame, 2u) == nullptr);
+    assert(full_omission.bundle.frame.entities.size() == 1u);
+    assert(full_omission.bundle.frame.clientdata.state.field_count == 1u);
+    assert(full_omission.bundle.frame.weapons.size() == 1u);
+}
+
 void TestCommandClockAndSchedulerIsolation()
 {
     GoldSrcCommandExecutionState command_a;
@@ -688,6 +769,7 @@ int main()
     TestAdmissionEdictAndGenerationIsolation();
     TestNetchanAndFrameAcknowledgementIsolation();
     TestReceiverOwnedSnapshotsAndPlayerOperations();
+    TestPacketEntityOmissionAndReentry();
     TestCommandClockAndSchedulerIsolation();
     TestBoundedTwoClientOutgoingSaturation();
     TestRemoteInterpolationContract();

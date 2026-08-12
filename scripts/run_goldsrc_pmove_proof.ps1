@@ -24,6 +24,21 @@ $ErrorActionPreference = "Stop"
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
+$script:goldsrcPmoveProofStage = "input_validation"
+trap {
+    $safeStage = if (@(
+            "input_validation",
+            "unit_validation",
+            "external_proof") -ccontains $script:goldsrcPmoveProofStage) {
+        $script:goldsrcPmoveProofStage
+    } else {
+        "unknown"
+    }
+    Write-Host (
+        "goldsrc_pmove_probe: result=fail stage={0} reason=proof_gate_failed" -f
+            $safeStage)
+    exit 1
+}
 if ($BindAddress -cne "127.0.0.1") {
     throw "PM_Move proofs are restricted to 127.0.0.1"
 }
@@ -41,6 +56,7 @@ if (-not (Test-Path -LiteralPath $pmoveTests -PathType Leaf)) {
 
 # These deterministic tests cover replay ordering, duplicate suppression,
 # long-command splitting, static BSP collision, slot isolation, and rollback.
+$script:goldsrcPmoveProofStage = "unit_validation"
 & $pmoveTests
 if ($LASTEXITCODE -ne 0) {
     throw "PM_Move bounded unit validation failed"
@@ -80,7 +96,14 @@ $parameters = @{
     ExpectedCdTrack = 3
     SkipServerOutput = [bool]$SkipServerOutput
 }
+$script:goldsrcPmoveProofStage = "external_proof"
 & $driver @parameters
-if (-not $?) {
-    throw "PM_Move external proof driver failed"
+$driverExitCode = if ($null -eq $LASTEXITCODE) {
+    0
+} else {
+    [int]$LASTEXITCODE
 }
+if ($driverExitCode -ne 0) {
+    exit $driverExitCode
+}
+exit 0

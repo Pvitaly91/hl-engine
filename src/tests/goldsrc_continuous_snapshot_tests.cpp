@@ -173,6 +173,23 @@ void TestFrameReferenceResolutionAndWrap()
         == GoldSrcFrameStoreResult::kStored);
     assert(ambiguous.Acknowledge(1u)
         == GoldSrcFrameAcknowledgeResult::kAmbiguous);
+    assert(ambiguous.Acknowledge(1u, 1u)
+        == GoldSrcFrameAcknowledgeResult::kAcknowledged);
+    assert(ambiguous.last_acknowledged_frame() == 1u);
+
+    GoldSrcClientFrameHistory delayed_alias(2u);
+    assert(delayed_alias.Store(Frame(1u, 1.0f))
+        == GoldSrcFrameStoreResult::kStored);
+    assert(delayed_alias.Store(Frame(257u, 2.0f))
+        == GoldSrcFrameStoreResult::kStored);
+    assert(delayed_alias.Store(Frame(258u, 3.0f))
+        == GoldSrcFrameStoreResult::kStored);
+    assert(delayed_alias.Acknowledge(1u, 1u)
+        == GoldSrcFrameAcknowledgeResult::kFuture);
+    assert(!delayed_alias.last_acknowledged_frame().has_value());
+    assert(delayed_alias.Acknowledge(1u, 257u)
+        == GoldSrcFrameAcknowledgeResult::kAcknowledged);
+    assert(delayed_alias.last_acknowledged_frame() == 257u);
 
     GoldSrcClientFrameHistory evicted(2u);
     assert(evicted.Store(Frame(10u, 1.0f))

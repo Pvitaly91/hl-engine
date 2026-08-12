@@ -47,10 +47,19 @@ param(
     [ValidateRange(10, 30)]
     [single]$SnapshotRateHz = 20.0,
 
-    [single]$ExpectedZMaximum = 4096.0,
+    [single]$ExpectedZMaximum = 6300.0,
 
     [ValidateRange(0, 255)]
-    [int]$ExpectedCdTrack = 0,
+    [int]$ExpectedCdTrack = 3,
+
+    [ValidateRange(0, 255)]
+    [int]$ExpectedSkyColorRed = 0,
+
+    [ValidateRange(0, 255)]
+    [int]$ExpectedSkyColorGreen = 0,
+
+    [ValidateRange(0, 255)]
+    [int]$ExpectedSkyColorBlue = 0,
 
     [switch]$SkipServerOutput
 )
@@ -60,6 +69,96 @@ $ErrorActionPreference = "Stop"
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
+
+$script:goldsrcDeltaProofStage = "input_validation"
+
+function Get-GoldsrcDeltaSafeFailureLine {
+    param(
+        $Failure,
+        [string]$Stage
+    )
+
+    $allowedStages = @(
+        "input_validation",
+        "fixture_validation",
+        "missing_usercmd_fixture",
+        "malformed_fixture",
+        "positive_host_run",
+        "negative_host_run",
+        "repository_integrity",
+        "result_validation"
+    )
+    $safeStage = if ($allowedStages -ccontains $Stage) {
+        $Stage
+    } else {
+        "unknown"
+    }
+    $message = ""
+    if ($Failure -is [System.Management.Automation.ErrorRecord]) {
+        $message = [string]$Failure.Exception.Message
+    } elseif ($Failure -is [System.Exception]) {
+        $message = [string]$Failure.Message
+    } elseif ($null -ne $Failure) {
+        $message = [string]$Failure
+    }
+
+    $safeReason = if ($message -match
+            '(?i)cleanup|terminate|temporary .*output|drain .*output') {
+        "cleanup_failed"
+    } elseif ($message -match '(?i)timeout|timed out') {
+        "timeout"
+    } elseif ($message -match
+            '(?i)start .*host|host process|host exited|server readiness') {
+        "host_lifecycle_failed"
+    } elseif ($message -match
+            '(?i)input file|not found|missing|proof helper|game directory|client library') {
+        "required_input_unavailable"
+    } elseif ($message -match '(?i)repository|mutation') {
+        "repository_integrity_failed"
+    } elseif ($message -match '(?i)summary') {
+        "summary_gate_failed"
+    } elseif ($message -match
+            '(?i)resource|manifest') {
+        "resource_gate_failed"
+    } elseif ($message -match
+            '(?i)snapshot|clientdata|weapon.?data|entity|frame') {
+        "snapshot_gate_failed"
+    } elseif ($message -match
+            '(?i)pmove|movement|command|clock|collision') {
+        "movement_gate_failed"
+    } elseif ($message -match '(?i)bootstrap tail z_maximum mismatch') {
+        "bootstrap_zmax_mismatch"
+    } elseif ($message -match
+            '(?i)bootstrap tail sky_(?:color|vector).*mismatch|' +
+            'bootstrap tail sky name mismatch') {
+        "bootstrap_sky_mismatch"
+    } elseif ($message -match '(?i)bootstrap tail CD track mismatch') {
+        "bootstrap_cdtrack_mismatch"
+    } elseif ($message -match '(?i)bootstrap tail .*setview.*mismatch') {
+        "bootstrap_setview_mismatch"
+    } elseif ($message -match
+            '(?i)bootstrap|delta|serverinfo|movevars|cd track|setview') {
+        "bootstrap_gate_failed"
+    } elseif ($message -match
+            '(?i)handshake|challenge|connect|session|netchan|carrier|sequence|acknowledg|reliable|fragment|opcode|protocol') {
+        "transport_gate_failed"
+    } elseif ($message -match '(?i)shutdown|exit code') {
+        "shutdown_failed"
+    } else {
+        "proof_gate_failed"
+    }
+    return ("goldsrc_delta_description_probe: result=fail stage={0} reason={1}" -f
+        $safeStage,
+        $safeReason)
+}
+
+trap {
+    Write-Host (Get-GoldsrcDeltaSafeFailureLine `
+        -Failure $_ `
+        -Stage $script:goldsrcDeltaProofStage)
+    exit 1
+}
+
 if ($PostResourceNegativeProof -and
     (-not $NegativeProof -or -not $PostResourceCommandProof)) {
     throw "PostResourceNegativeProof requires NegativeProof and PostResourceCommandProof"
@@ -352,6 +451,7 @@ public static class GoldSrcMoveProofCodec
         short forward,
         short side,
         ushort buttons,
+        ushort yaw,
         byte backups,
         byte fresh)
     {
@@ -366,6 +466,8 @@ public static class GoldSrcMoveProofCodec
         {
             int bitPosition = cursor * 8;
             uint mask = 0x02u;
+            if (yaw != 0)
+                mask |= 0x04u;
             if (buttons != 0)
                 mask |= 0x10u;
             if (forward != 0)
@@ -375,6 +477,8 @@ public static class GoldSrcMoveProofCodec
             WriteBits(body, ref bitPosition, 1u, 3);
             WriteBits(body, ref bitPosition, mask, 8);
             WriteBits(body, ref bitPosition, msec, 8);
+            if (yaw != 0)
+                WriteBits(body, ref bitPosition, yaw, 16);
             if (buttons != 0)
                 WriteBits(body, ref bitPosition, buttons, 16);
             if (forward != 0)
@@ -482,6 +586,7 @@ function New-GoldSrcMovementPayload {
         [int]$Side = 0,
         [ValidateRange(0, 65535)]
         [int]$Buttons = 0,
+        [single]$Yaw = 0.0,
         [ValidateRange(0, 61)]
         [byte]$Backups = 0,
         [ValidateRange(1, 62)]
@@ -489,12 +594,19 @@ function New-GoldSrcMovementPayload {
     )
 
     Initialize-GoldSrcMoveProofCodec
+    [double]$normalizedYaw = [double]$Yaw % 360.0
+    if ($normalizedYaw -lt 0.0) {
+        $normalizedYaw += 360.0
+    }
+    [uint16]$yawBits = [uint16][Math]::Floor(
+        $normalizedYaw * 65536.0 / 360.0)
     return [GoldSrcMoveProofCodec]::BuildMovement(
         $Sequence,
         $Msec,
         [int16]$Forward,
         [int16]$Side,
         [uint16]$Buttons,
+        $yawBits,
         $Backups,
         $Fresh)
 }
@@ -881,6 +993,241 @@ function Skip-DeltaRecord {
     return $changedFieldCount
 }
 
+function Copy-DeltaValueMap {
+    param([System.Collections.IDictionary]$Values)
+
+    $copy = @{}
+    if ($null -ne $Values) {
+        foreach ($key in $Values.Keys) {
+            $copy[[string]$key] = $Values[$key]
+        }
+    }
+    return $copy
+}
+
+function ConvertFrom-DeltaSignMagnitude {
+    param([uint64]$Raw)
+
+    [int64]$magnitude = [int64]($Raw -shr 1)
+    if (($Raw -band [uint64]1) -ne 0) {
+        return -$magnitude
+    }
+    return $magnitude
+}
+
+function Read-DeltaFieldValue {
+    param(
+        $Reader,
+        $Field,
+        [double]$ServerTime,
+        [string]$Description
+    )
+
+    [uint64]$baseType =
+        [uint64]$Field.FieldType -band [uint64]0x7FFFFFFF
+    [bool]$signed =
+        ([uint64]$Field.FieldType -band $deltaTypeSigned) -ne 0
+    if ($baseType -eq [uint64]128) {
+        $builder = New-Object System.Text.StringBuilder
+        [int]$stringBytes = 0
+        do {
+            [byte]$character = Read-DeltaBits `
+                -Reader $Reader `
+                -Count 8 `
+                -Description "$Description string field"
+            $stringBytes++
+            if ($stringBytes -gt ([Math]::Max(1, $Field.FieldSize) + 1)) {
+                throw "$Description string field exceeds its declared bound"
+            }
+            if ($character -ne 0) {
+                [void]$builder.Append([char]$character)
+            }
+        } while ($character -ne 0)
+        return $builder.ToString()
+    }
+
+    [int]$wireBits = if ($baseType -eq [uint64]32) {
+        8
+    } else {
+        $Field.SignificantBits
+    }
+    [uint64]$raw = Read-DeltaBits `
+        -Reader $Reader `
+        -Count $wireBits `
+        -Description "$Description field value"
+    [int64]$signedRaw = if ($signed -or
+        $baseType -eq [uint64]32 -or
+        $baseType -eq [uint64]64) {
+        ConvertFrom-DeltaSignMagnitude -Raw $raw
+    } else {
+        [int64]$raw
+    }
+    [double]$premultiply =
+        [double]$Field.PremultiplyRaw / [double]$deltaMultiplierScale
+    [double]$postmultiply =
+        [double]$Field.PostmultiplyRaw / [double]$deltaMultiplierScale
+    if ($premultiply -le 0.0 -or $postmultiply -le 0.0) {
+        throw "$Description has an invalid multiplier"
+    }
+
+    if ($baseType -eq [uint64]16) {
+        [double]$angle = [double]$raw *
+            (360.0 / [Math]::Pow(2.0, $Field.SignificantBits))
+        if ($angle -lt -180.0) { $angle += 360.0 }
+        elseif ($angle -gt 180.0) { $angle -= 360.0 }
+        return $angle
+    }
+    if ($baseType -eq [uint64]4) {
+        [double]$numericValue = if ($signed) {
+            [double]$signedRaw
+        } else {
+            [double]$raw
+        }
+        return ($numericValue / $premultiply * $postmultiply)
+    }
+    if ($baseType -eq [uint64]32 -or $baseType -eq [uint64]64) {
+        [double]$scale = if ($baseType -eq [uint64]32) {
+            100.0
+        } else {
+            $premultiply
+        }
+        return $ServerTime - ([double]$signedRaw / $scale)
+    }
+    if ($signed) {
+        return [int64]([double]$signedRaw / $premultiply * $postmultiply)
+    }
+    return [uint64]([double]$raw / $premultiply * $postmultiply)
+}
+
+function Read-DeltaRecordValues {
+    param(
+        $Reader,
+        $Table,
+        [System.Collections.IDictionary]$BaseValues,
+        [double]$ServerTime,
+        [string]$Description
+    )
+
+    $values = Copy-DeltaValueMap -Values $BaseValues
+    foreach ($field in $Table.Fields) {
+        if (-not $values.Contains([string]$field.Name)) {
+            [uint64]$baseType =
+                [uint64]$field.FieldType -band [uint64]0x7FFFFFFF
+            $values[[string]$field.Name] = if ($baseType -eq [uint64]128) {
+                ''
+            } else {
+                [int64]0
+            }
+        }
+    }
+
+    [int]$maskByteCount = Read-DeltaBits `
+        -Reader $Reader `
+        -Count 3 `
+        -Description "$Description mask length"
+    if ($maskByteCount -gt 7) {
+        throw "$Description mask length exceeds the protocol bound"
+    }
+    [byte[]]$mask = New-Object byte[] $maskByteCount
+    for ($index = 0; $index -lt $maskByteCount; $index++) {
+        $mask[$index] = [byte](Read-DeltaBits `
+            -Reader $Reader `
+            -Count 8 `
+            -Description "$Description mask byte")
+    }
+
+    [int]$changedFieldCount = 0
+    $changedFields = New-Object 'System.Collections.Generic.List[string]'
+    for ($fieldIndex = 0;
+        $fieldIndex -lt ($maskByteCount * 8);
+        $fieldIndex++) {
+        if (([int]$mask[($fieldIndex -shr 3)] -band
+                (1 -shl ($fieldIndex % 8))) -eq 0) {
+            continue
+        }
+        if ($fieldIndex -ge $Table.Fields.Count) {
+            throw "$Description selects a field outside its delta table"
+        }
+        $field = $Table.Fields[$fieldIndex]
+        $values[[string]$field.Name] = Read-DeltaFieldValue `
+            -Reader $Reader `
+            -Field $field `
+            -ServerTime $ServerTime `
+            -Description ("$Description field {0}" -f $field.Name)
+        $changedFieldCount++
+        $changedFields.Add([string]$field.Name)
+    }
+    return [pscustomobject]@{
+        ChangedFieldCount = $changedFieldCount
+        ChangedFields = [string[]]$changedFields.ToArray()
+        Values = $values
+    }
+}
+
+function Read-OptionalWeaponDataRecords {
+    param(
+        $Reader,
+        [object[]]$DeltaTables,
+        [string]$Description,
+        [System.Collections.IDictionary]$BaseWeaponData,
+        [double]$ServerTime
+    )
+
+    $indices = New-Object 'System.Collections.Generic.List[int]'
+    $values = @{}
+    $changedFields = @{}
+    if ($null -ne $BaseWeaponData) {
+        foreach ($key in $BaseWeaponData.Keys) {
+            $values[[int]$key] = Copy-DeltaValueMap `
+                -Values $BaseWeaponData[$key]
+        }
+    }
+    [bool]$allowWeaponData = [bool](Get-Variable `
+        -Scope Script `
+        -Name goldsrcAllowWeaponData `
+        -ValueOnly `
+        -ErrorAction SilentlyContinue)
+    [int]$previousIndex = -1
+    while ((Read-DeltaBits `
+            -Reader $Reader `
+            -Count 1 `
+            -Description "$Description continuation") -ne 0) {
+        if (-not $allowWeaponData) {
+            throw "$Description unexpectedly contains weapon data"
+        }
+        [int]$weaponIndex = Read-DeltaBits `
+            -Reader $Reader `
+            -Count 6 `
+            -Description "$Description weapon index"
+        if ($weaponIndex -le $previousIndex -or $weaponIndex -ge 64) {
+            throw "$Description weapon indices are invalid or unordered"
+        }
+        $weaponTable = Get-RequiredDeltaTable `
+            -Tables $DeltaTables `
+            -Name "weapon_data_t"
+        $baseValues = if ($values.Contains([int]$weaponIndex)) {
+            $values[[int]$weaponIndex]
+        } else {
+            $null
+        }
+        $record = Read-DeltaRecordValues `
+            -Reader $Reader `
+            -Table $weaponTable `
+            -BaseValues $baseValues `
+            -ServerTime $ServerTime `
+            -Description ("$Description weapon {0}" -f $weaponIndex)
+        $values[[int]$weaponIndex] = $record.Values
+        $changedFields[[int]$weaponIndex] = $record.ChangedFields
+        $indices.Add($weaponIndex)
+        $previousIndex = $weaponIndex
+    }
+    return [pscustomobject]@{
+        Indices = [int[]]$indices.ToArray()
+        Values = $values
+        ChangedFields = $changedFields
+    }
+}
+
 function Read-PlayerLifecycleContinuousSnapshotPayload {
     param(
         [byte[]]$Payload,
@@ -940,14 +1287,26 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
         [byte]([uint32]$BaseSnapshot.FrameId -band 0xFF)) {
         throw "lifecycle clientdata selected the wrong acknowledged base"
     }
-    [int]$clientDataChangedFields = Skip-DeltaRecord `
+    $baseClientDataValues = $null
+    if ($null -ne $BaseSnapshot.PSObject.Properties['ClientDataValues']) {
+        $baseClientDataValues = $BaseSnapshot.ClientDataValues
+    }
+    $baseWeaponDataValues = $null
+    if ($null -ne $BaseSnapshot.PSObject.Properties['WeaponDataValues']) {
+        $baseWeaponDataValues = $BaseSnapshot.WeaponDataValues
+    }
+    $clientDataRecord = Read-DeltaRecordValues `
         -Reader $reader `
         -Table $clientDataTable `
+        -BaseValues $baseClientDataValues `
+        -ServerTime $serverTime `
         -Description "lifecycle clientdata"
-    if ((Read-DeltaBits -Reader $reader -Count 1 `
-            -Description "lifecycle weapon-data continuation") -ne 0) {
-        throw "lifecycle snapshot unexpectedly contains weapon data"
-    }
+    $weaponData = Read-OptionalWeaponDataRecords `
+        -Reader $reader `
+        -DeltaTables $DeltaTables `
+        -Description "lifecycle weapon-data" `
+        -BaseWeaponData $baseWeaponDataValues `
+        -ServerTime $serverTime
     Align-DeltaBitReaderToByte `
         -Reader $reader `
         -Description "lifecycle clientdata record"
@@ -1057,6 +1416,12 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
         throw "lifecycle snapshot contains trailing application data"
     }
     if ($entitySet.Count -ne $entityCount) {
+        Write-Host (
+            "goldsrc_lifecycle_decode_diagnostic: frame={0},base={1},header_entities={2},reconstructed_entities={3}" -f
+            $FrameId,
+            $BaseSnapshot.FrameId,
+            $entityCount,
+            $entitySet.Count)
         throw "lifecycle delta did not reconstruct its semantic entity count"
     }
     [int[]]$entityNumbers = @($entitySet | Sort-Object)
@@ -1066,8 +1431,13 @@ function Read-PlayerLifecycleContinuousSnapshotPayload {
         EntityCount = $entityCount
         EntityNumbers = $entityNumbers
         ClientDataReceived = $true
-        ClientDataChanged = ($clientDataChangedFields -gt 0)
-        WeaponDataRequired = $false
+        ClientDataChanged = ($clientDataRecord.ChangedFieldCount -gt 0)
+        ClientDataChangedFields = $clientDataRecord.ChangedFields
+        ClientDataValues = $clientDataRecord.Values
+        WeaponDataRequired = [bool]$weaponData.Indices.Count
+        WeaponIndices = $weaponData.Indices
+        WeaponDataValues = $weaponData.Values
+        WeaponDataChangedFields = $weaponData.ChangedFields
         PacketEntitiesReceived = $true
         DeltaPacketEntitiesReceived = $true
         BaseFrameId = [uint32]$BaseSnapshot.FrameId
@@ -1134,14 +1504,18 @@ function Read-PlayerLifecycleFullSnapshotPayload {
             -Description "lifecycle full clientdata previous marker") -ne 0) {
         throw "lifecycle full clientdata unexpectedly references a base"
     }
-    [int]$clientDataChangedFields = Skip-DeltaRecord `
+    $clientDataRecord = Read-DeltaRecordValues `
         -Reader $reader `
         -Table $clientDataTable `
+        -BaseValues $null `
+        -ServerTime $serverTime `
         -Description "lifecycle full clientdata"
-    if ((Read-DeltaBits -Reader $reader -Count 1 `
-            -Description "lifecycle full weapon-data continuation") -ne 0) {
-        throw "lifecycle full snapshot unexpectedly contains weapon data"
-    }
+    $weaponData = Read-OptionalWeaponDataRecords `
+        -Reader $reader `
+        -DeltaTables $DeltaTables `
+        -Description "lifecycle full weapon-data" `
+        -BaseWeaponData $null `
+        -ServerTime $serverTime
     Align-DeltaBitReaderToByte `
         -Reader $reader `
         -Description "lifecycle full clientdata record"
@@ -1265,8 +1639,13 @@ function Read-PlayerLifecycleFullSnapshotPayload {
         EntityCount = $entityCount
         EntityNumbers = $entityNumbers
         ClientDataReceived = $true
-        ClientDataChanged = ($clientDataChangedFields -gt 0)
-        WeaponDataRequired = $false
+        ClientDataChanged = ($clientDataRecord.ChangedFieldCount -gt 0)
+        ClientDataChangedFields = $clientDataRecord.ChangedFields
+        ClientDataValues = $clientDataRecord.Values
+        WeaponDataRequired = [bool]$weaponData.Indices.Count
+        WeaponIndices = $weaponData.Indices
+        WeaponDataValues = $weaponData.Values
+        WeaponDataChangedFields = $weaponData.ChangedFields
         PacketEntitiesReceived = $true
         DeltaPacketEntitiesReceived = $false
         BaseFrameId = $null
@@ -1631,9 +2010,9 @@ function Read-BootstrapTail {
         [single]0.0,
         [single]0.0,
         [single]0.0,
-        [single]0.0,
-        [single]0.0,
-        [single]0.0,
+        $ExpectedSkyColorRed,
+        $ExpectedSkyColorGreen,
+        $ExpectedSkyColorBlue,
         [single]0.0,
         [single]0.0,
         [single]0.0
@@ -1643,7 +2022,8 @@ function Read-BootstrapTail {
         $value = Read-BootstrapTailFloat `
             -Reader $reader `
             -FieldName $moveVariableNames[$index]
-        if ($value -ne $expectedMoveVariables[$index]) {
+        if (([single]::IsNaN($value) -or [single]::IsInfinity($value)) -or
+            $value -ne $expectedMoveVariables[$index]) {
             throw ("bootstrap tail {0} mismatch: expected {1}, received {2}" -f
                 $moveVariableNames[$index],
                 $expectedMoveVariables[$index],
@@ -1660,7 +2040,8 @@ function Read-BootstrapTail {
         $value = Read-BootstrapTailFloat `
             -Reader $reader `
             -FieldName $moveVariableNames[$index]
-        if ($value -ne $expectedMoveVariables[$index]) {
+        if (([single]::IsNaN($value) -or [single]::IsInfinity($value)) -or
+            $value -ne $expectedMoveVariables[$index]) {
             throw ("bootstrap tail {0} mismatch: expected {1}, received {2}" -f
                 $moveVariableNames[$index],
                 $expectedMoveVariables[$index],
@@ -1829,6 +2210,40 @@ function Get-ExpectedMinimalDeltaTables {
     )
 }
 
+function Get-ExpectedCombatDeltaTables {
+    $tables = @(Get-ExpectedMinimalDeltaTables)
+    $tables[1].Fields = @(
+        (New-ExpectedDeltaField "m_iId" ([uint64]8) 0 5 1.0),
+        (New-ExpectedDeltaField `
+            "m_iClip" `
+            ([uint64]8 -bor $deltaTypeSigned) `
+            4 `
+            10 `
+            1.0)
+    )
+    $tables[6].Fields = @(
+        (New-ExpectedDeltaField `
+            "origin[0]" `
+            ([uint64]4 -bor $deltaTypeSigned) `
+            0 `
+            16 `
+            8.0),
+        (New-ExpectedDeltaField `
+            "origin[1]" `
+            ([uint64]4 -bor $deltaTypeSigned) `
+            4 `
+            16 `
+            8.0),
+        (New-ExpectedDeltaField `
+            "health" `
+            ([uint64]4 -bor $deltaTypeSigned) `
+            64 `
+            10 `
+            1.0)
+    )
+    return $tables
+}
+
 function Assert-ExactDeltaFields {
     param(
         [object[]]$Actual,
@@ -1869,8 +2284,13 @@ function Assert-ExactDeltaFields {
 function Assert-DeltaBundleSemantics {
     param(
         $Bundle,
-        [switch]$ExactMinimal
+        [switch]$ExactMinimal,
+        [switch]$ExactCombat
     )
+
+    if ($ExactMinimal -and $ExactCombat) {
+        throw "delta bundle cannot use two exact fixture schemas"
+    }
 
     if ($Bundle.TableCount -ne $canonicalDeltaTableOrder.Count) {
         throw ("delta table count mismatch: expected {0}, received {1}" -f
@@ -1896,8 +2316,12 @@ function Assert-DeltaBundleSemantics {
         -Expected @(Get-ExpectedUsercmdFields) `
         -Description "usercmd_t"
 
-    if ($ExactMinimal) {
-        $expectedTables = @(Get-ExpectedMinimalDeltaTables)
+    if ($ExactMinimal -or $ExactCombat) {
+        $expectedTables = if ($ExactCombat) {
+            @(Get-ExpectedCombatDeltaTables)
+        } else {
+            @(Get-ExpectedMinimalDeltaTables)
+        }
         for ($tableIndex = 0; $tableIndex -lt $expectedTables.Count; $tableIndex++) {
             if ($Bundle.Tables[$tableIndex].Name -cne
                 $expectedTables[$tableIndex].Name) {
@@ -1921,6 +2345,7 @@ function Read-ServerInfoDeltaBootstrap {
         [int]$ExpectedPlayerIndex = 0,
         [ValidateRange(1, 2047)]
         [int]$ExpectedViewEntity = 1,
+        [switch]$ExactCombat,
         [switch]$ExactMinimal
     )
 
@@ -1999,7 +2424,10 @@ function Read-ServerInfoDeltaBootstrap {
         $postServerInfoBytes.Length
     )
     $bundle = Read-DeltaBundle -Bytes $postServerInfoBytes
-    Assert-DeltaBundleSemantics -Bundle $bundle -ExactMinimal:$ExactMinimal
+    Assert-DeltaBundleSemantics `
+        -Bundle $bundle `
+        -ExactMinimal:$ExactMinimal `
+        -ExactCombat:$ExactCombat
     if ($bundle.TrailingBytes.Length -eq 0) {
         throw "combined bootstrap contains no movevars/CD-track/setview tail"
     }
@@ -2195,7 +2623,8 @@ function Invoke-UnfragmentedDeltaBootstrap {
         [ValidateRange(0, 254)]
         [int]$ExpectedPlayerIndex = 0,
         [ValidateRange(1, 2047)]
-        [int]$ExpectedViewEntity = 1
+        [int]$ExpectedViewEntity = 1,
+        [switch]$ExactCombat
     )
 
     [void](Update-ProcessOutputCapture -State $OutputCapture)
@@ -2237,7 +2666,8 @@ function Invoke-UnfragmentedDeltaBootstrap {
         -ExpectedMaxClients $ExpectedMaxClients `
         -ExpectedPlayerIndex $ExpectedPlayerIndex `
         -ExpectedViewEntity $ExpectedViewEntity `
-        -ExactMinimal
+        -ExactMinimal:(-not $ExactCombat) `
+        -ExactCombat:$ExactCombat
 
     [void](Update-ProcessOutputCapture -State $OutputCapture)
     $beforeAck = Get-SharedFileText -Path $StdoutPath
@@ -2923,6 +3353,7 @@ function Invoke-ObservedResourceContinuation {
     $continuousFullSnapshots = 0
     $continuousDeltaSnapshots = 0
     $continuousReferencesSent = 0
+    $frameReferencesByClientSequence = @{}
     $continuousLossRecovery = $false
     $continuousMultipleLossRecovery = $false
     $continuousFullFallback = $false
@@ -3262,6 +3693,13 @@ function Invoke-ObservedResourceContinuation {
                         -Description (
                             "{0} frame-reference diagnostic" -f
                             $referenceCase.Result)
+                    if ($referenceCase.Result -in @(
+                            'acknowledged',
+                            'duplicate')) {
+                        $frameReferencesByClientSequence[
+                            [uint32]$clientSequence] =
+                                [uint32]$snapshot.FrameId
+                    }
                 }
                 $final = $lastReferenceResponse
             } else {
@@ -3284,6 +3722,8 @@ function Invoke-ObservedResourceContinuation {
                     -Deadline $Deadline `
                     -Token "result=acknowledged,source=clc_delta" `
                     -Description "first snapshot frame acknowledgement"
+                $frameReferencesByClientSequence[
+                    [uint32]$clientSequence] = [uint32]$snapshot.FrameId
                 $final = $snapshotPacket
             }
             if ($ReceiveContinuousSnapshots) {
@@ -3385,9 +3825,14 @@ function Invoke-ObservedResourceContinuation {
                         }
                         $isFullSnapshot = $true
                     } catch {
-                        [byte]$wireBase =
-                            Get-ContinuousSnapshotBaseLow8 `
-                                -Payload $streamPacket.Payload
+                        $fullSnapshotFailure = $_
+                        try {
+                            [byte]$wireBase =
+                                Get-ContinuousSnapshotBaseLow8 `
+                                    -Payload $streamPacket.Payload
+                        } catch {
+                            throw $fullSnapshotFailure
+                        }
                         if (-not $acknowledgedSnapshotsByLow8.ContainsKey(
                                 [int]$wireBase)) {
                             throw "continuous delta referred to a frame the probe never acknowledged"
@@ -3569,6 +4014,9 @@ function Invoke-ObservedResourceContinuation {
                             -ServerReliableAcknowledgementState $baselineAckState `
                             -Payload $continuousReference `
                             -Description "continuous snapshot frame reference"
+                        $frameReferencesByClientSequence[
+                            [uint32]$clientSequence] =
+                                [uint32]$currentSnapshot.FrameId
                         $continuousReferencesSent++
                         if ($ReceivePmove -and
                             $PmoveMinimumDurationSeconds -le 0.0) {
@@ -3731,6 +4179,7 @@ function Invoke-ObservedResourceContinuation {
             $null -ne $snapshot) { 1 } else { 0 })
         ContinuousDeltaSnapshots = $continuousDeltaSnapshots
         ContinuousReferencesSent = $continuousReferencesSent
+        FrameReferencesByClientSequence = $frameReferencesByClientSequence
         ContinuousLossRecovery = $continuousLossRecovery
         ContinuousMultipleLossRecovery =
             $continuousMultipleLossRecovery
@@ -4982,8 +5431,7 @@ function Invoke-DeltaHostRun {
                 }
             }
             catch {
-                $cleanupFailure =
-                    "failed to terminate delta-proof hlhost: $($_.Exception.Message)"
+                $cleanupFailure = "delta-proof host cleanup failed"
             }
         }
         if ($null -ne $outputCapture) {
@@ -4992,8 +5440,7 @@ function Invoke-DeltaHostRun {
             }
             catch {
                 if ($null -eq $cleanupFailure) {
-                    $cleanupFailure =
-                        "failed to drain delta-proof output: $($_.Exception.Message)"
+                    $cleanupFailure = "delta-proof output cleanup failed"
                 }
             }
         }
@@ -5004,18 +5451,6 @@ function Invoke-DeltaHostRun {
         }
         if ($latestStderr.Length -gt 0) {
             $capturedStderr = $latestStderr
-        }
-        if (-not $SuppressServerOutput) {
-            if (-not [string]::IsNullOrWhiteSpace($capturedStdout)) {
-                Write-Host $capturedStdout.TrimEnd(
-                    [char[]]@([char]13, [char]10)
-                )
-            }
-            if (-not [string]::IsNullOrWhiteSpace($capturedStderr)) {
-                Write-Host $capturedStderr.TrimEnd(
-                    [char[]]@([char]13, [char]10)
-                )
-            }
         }
         foreach ($tempPath in @(
             $stdoutPath,
@@ -5045,36 +5480,7 @@ function Invoke-DeltaHostRun {
         )
     }
     if ($null -ne $failure) {
-        if ($SuppressServerOutput -and
-            -not [string]::IsNullOrWhiteSpace($capturedStderr)) {
-            $lastServerError = @(
-                $capturedStderr -split '\r?\n' |
-                    Where-Object { -not [string]::IsNullOrWhiteSpace($_) }
-            ) | Select-Object -First 1
-            if (-not [string]::IsNullOrWhiteSpace($lastServerError)) {
-                $lastEngineCallbacks = @(
-                    @(
-                        $capturedStdout -split '\r?\n' |
-                            Where-Object {
-                                $_.IndexOf(
-                                    "hl.dll engine callback:",
-                                    [StringComparison]::Ordinal) -ge 0
-                            }
-                    ) | Select-Object -Last 12
-                )
-                throw ("{0}; server_error={1}; engine_callback_tail={2}" -f
-                    $failure.Exception.Message,
-                    $lastServerError.Trim(),
-                    $(if ($lastEngineCallbacks.Count -eq 0) {
-                        "<none>"
-                    } else {
-                        (($lastEngineCallbacks | ForEach-Object {
-                            $_.Trim()
-                        }) -join " || ")
-                    }))
-            }
-        }
-        throw $failure
+        throw ("goldsrc_delta_host_run_failed: mode={0}" -f $Mode)
     }
     return [pscustomobject]@{
         Mode = $Mode
@@ -5299,8 +5705,7 @@ function Invoke-RejectedDeltaFixtureHostRun {
                 }
             }
             catch {
-                $cleanupFailure =
-                    "failed to clean rejected-fixture hlhost: $($_.Exception.Message)"
+                $cleanupFailure = "rejected-fixture host cleanup failed"
             }
         }
         if ($null -ne $outputCapture) {
@@ -5309,8 +5714,7 @@ function Invoke-RejectedDeltaFixtureHostRun {
             }
             catch {
                 if ($null -eq $cleanupFailure) {
-                    $cleanupFailure =
-                        "failed to drain rejected-fixture output: $($_.Exception.Message)"
+                    $cleanupFailure = "rejected-fixture output cleanup failed"
                 }
             }
         }
@@ -5321,18 +5725,6 @@ function Invoke-RejectedDeltaFixtureHostRun {
         }
         if ($latestStderr.Length -gt 0) {
             $capturedStderr = $latestStderr
-        }
-        if (-not $SuppressServerOutput) {
-            if (-not [string]::IsNullOrWhiteSpace($capturedStdout)) {
-                Write-Host $capturedStdout.TrimEnd(
-                    [char[]]@([char]13, [char]10)
-                )
-            }
-            if (-not [string]::IsNullOrWhiteSpace($capturedStderr)) {
-                Write-Host $capturedStderr.TrimEnd(
-                    [char[]]@([char]13, [char]10)
-                )
-            }
         }
         foreach ($tempPath in @($stdoutPath, $stderrPath)) {
             if (Test-Path -LiteralPath $tempPath -PathType Leaf) {
@@ -5359,7 +5751,19 @@ function Invoke-RejectedDeltaFixtureHostRun {
         )
     }
     if ($null -ne $failure) {
-        throw $failure
+        $safeFailureLine = Get-GoldsrcDeltaSafeFailureLine `
+            -Failure $failure `
+            -Stage "fixture_validation"
+        $safeFailureMatch = [regex]::Match(
+            $safeFailureLine,
+            ' reason=(?<reason>[a-z_]+)$')
+        $safeFailureReason = if ($safeFailureMatch.Success) {
+            $safeFailureMatch.Groups['reason'].Value
+        } else {
+            'proof_gate_failed'
+        }
+        throw ("rejected fixture safe failure category {0}" -f
+            $safeFailureReason)
     }
     return [pscustomobject]@{
         Mode = $Mode
@@ -5368,6 +5772,7 @@ function Invoke-RejectedDeltaFixtureHostRun {
     }
 }
 
+$script:goldsrcDeltaProofStage = "input_validation"
 $repoRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot ".."))
 $resolvedExecutablePath = [System.IO.Path]::GetFullPath($ExecutablePath)
 $resolvedGameDir = [System.IO.Path]::GetFullPath($GameDir)
@@ -5433,6 +5838,7 @@ if (-not [System.Net.IPAddress]::TryParse(
         $BindAddress)
 }
 
+$script:goldsrcDeltaProofStage = "fixture_validation"
 $expectedEntries = @(
     Read-ResourceManifestFixture -Path $resolvedManifestFixture
 )
@@ -5452,6 +5858,7 @@ $postResourceMode = if ($WorldBaselineProof) {
     "Positive"
 }
 try {
+    $script:goldsrcDeltaProofStage = "missing_usercmd_fixture"
     $missingUsercmdResult = Invoke-RejectedDeltaFixtureHostRun `
         -Mode "MissingUsercmd" `
         -ResolvedExecutablePath $resolvedExecutablePath `
@@ -5462,6 +5869,7 @@ try {
         -RunTimeoutSeconds $TimeoutSeconds `
         -SuppressServerOutput:$SkipServerOutput
     if ($NegativeProof) {
+        $script:goldsrcDeltaProofStage = "malformed_fixture"
         $malformedResult = Invoke-RejectedDeltaFixtureHostRun `
             -Mode "Malformed" `
             -ResolvedExecutablePath $resolvedExecutablePath `
@@ -5471,6 +5879,7 @@ try {
             -Address $BindAddress `
             -RunTimeoutSeconds $TimeoutSeconds `
             -SuppressServerOutput:$SkipServerOutput
+        $script:goldsrcDeltaProofStage = "negative_host_run"
         $mainResult = Invoke-DeltaHostRun `
             -Mode "Negative" `
             -ResolvedExecutablePath $resolvedExecutablePath `
@@ -5502,6 +5911,7 @@ try {
             -Expected $true `
             -Description "negative delta serverinfo summary"
     } else {
+        $script:goldsrcDeltaProofStage = "positive_host_run"
         $mainResult = Invoke-DeltaHostRun `
             -Mode "Positive" `
             -ResolvedExecutablePath $resolvedExecutablePath `
@@ -5525,6 +5935,7 @@ try {
             -ConfiguredSnapshotRateHz $SnapshotRateHz `
             -SuppressServerOutput:$SkipServerOutput
     }
+    $script:goldsrcDeltaProofStage = "repository_integrity"
     Assert-NoDeltaProofRepositoryMutation `
         -RepositoryRoot $repoRoot `
         -Before $repositorySnapshotBefore
@@ -5534,16 +5945,13 @@ catch {
 }
 
 if ($null -ne $failure) {
-    $failureMessage = $failure.Exception.Message -replace '[\r\n]+', ' '
-    if (-not [string]::IsNullOrWhiteSpace($failure.ScriptStackTrace)) {
-        $failureMessage += "; stack=" + (
-            $failure.ScriptStackTrace -replace '[\r\n]+', ' ')
-    }
-    Write-Host ("goldsrc_delta_description_probe: result=fail reason={0}" -f
-        $failureMessage)
-    throw $failureMessage
+    Write-Host (Get-GoldsrcDeltaSafeFailureLine `
+        -Failure $failure `
+        -Stage $script:goldsrcDeltaProofStage)
+    exit 1
 }
 
+$script:goldsrcDeltaProofStage = "result_validation"
 if ($NegativeProof) {
     Write-Host "goldsrc_delta_description_proof_b: ack_withheld_kept_bundle_pending=true,retransmission_observed=true,retransmitted_bundle_identical=true,duplicate_trigger_suppressed=true,missing_usercmd_table_rejected=true,malformed_definition_rejected=true,fragmented_delta_bundle=pass,wrong_ack_rejected=true,valid_ack_accepted=true,slot_reset_cleared_state=true,fresh_session_after_reset=pass,session_count=1,put_in_server=0,spawned=0,active=0,server_still_responsive=true,clean_shutdown=1,proof_b=pass"
 } else {

@@ -2,24 +2,180 @@
 #include "network/goldsrc_netchan.h"
 #include "network/goldsrc_pmove.h"
 #include "network/goldsrc_snapshot.h"
+#include "server_bootstrap.h"
 #include "world_bootstrap.h"
 
+#include <array>
 #include <cassert>
+#include <cmath>
+#include <cstring>
 #include <cstdint>
 
 #pragma warning(push, 0)
 #include "extdll.h"
+#include "entity_state.h"
 #include "in_buttons.h"
 #include "pm_defs.h"
 #pragma warning(pop)
 
 namespace
 {
+void TestClientDataCallbackBufferContract()
+{
+    clientdata_t clientdata;
+    std::memset(&clientdata, 0x5a, sizeof(clientdata));
+
+    hl::game_api::detail::PrepareGoldSrcClientDataForGameDll(&clientdata);
+    const auto* const callback_bytes =
+        reinterpret_cast<const unsigned char*>(&clientdata);
+    for (std::size_t index = 0u; index < sizeof(clientdata); ++index)
+    {
+        assert(callback_bytes[index] == 0u);
+    }
+
+    // Model the stock Glock UpdateClientData path: the Game DLL owns these
+    // weapon fields, while RPG-only extension components remain untouched.
+    clientdata.m_iId = 2;
+    clientdata.vuser1.x = 68.0f;
+    clientdata.vuser2.x = 0.0f;
+    clientdata.vuser4.x = 17.0f;
+
+    assert(clientdata.m_iId == 2);
+    assert(clientdata.vuser1.x == 68.0f);
+    assert(clientdata.vuser2.y == 0.0f);
+    assert(clientdata.vuser2.z == 0.0f);
+    assert(clientdata.vuser3.x == 0.0f);
+    assert(clientdata.vuser3.y == 0.0f);
+    assert(clientdata.vuser4.x == 17.0f);
+}
+
 int g_pm_init_calls = 0;
 int g_pm_move_calls = 0;
 int g_cmd_start_calls = 0;
 int g_cmd_end_calls = 0;
 bool g_emit_invalid_output = false;
+
+enum class CombatCallbackEvent
+{
+    kCmdStart,
+    kPlayerPreThink,
+    kPmMove,
+    kPlayerPostThink,
+    kCmdEnd,
+};
+
+struct CombatCallbackObservation final
+{
+    CombatCallbackEvent event = CombatCallbackEvent::kCmdStart;
+    float global_time = 0.0f;
+    float global_frametime = 0.0f;
+    int active_attack_slot = 0;
+    std::uint16_t buttons = 0u;
+    float pmove_time_msec = 0.0f;
+};
+
+std::array<CombatCallbackObservation, 128> g_combat_observations{};
+std::size_t g_combat_observation_count = 0u;
+float* g_combat_global_time = nullptr;
+float* g_combat_global_frametime = nullptr;
+int* g_combat_active_attack_slot = nullptr;
+bool g_combat_emit_invalid_output = false;
+bool g_combat_fail_cmd_end = false;
+edict_t* g_combat_side_effect_target = nullptr;
+int* g_combat_private_weapon_state = nullptr;
+
+void ObserveCombatCallback(
+    CombatCallbackEvent event,
+    std::uint16_t buttons) noexcept
+{
+    assert(g_combat_observation_count < g_combat_observations.size());
+    CombatCallbackObservation& observation =
+        g_combat_observations[g_combat_observation_count++];
+    observation.event = event;
+    observation.global_time = g_combat_global_time != nullptr
+        ? *g_combat_global_time
+        : 0.0f;
+    observation.global_frametime = g_combat_global_frametime != nullptr
+        ? *g_combat_global_frametime
+        : 0.0f;
+    observation.active_attack_slot = g_combat_active_attack_slot != nullptr
+        ? *g_combat_active_attack_slot
+        : 0;
+    observation.buttons = buttons;
+}
+
+void MockCombatPmInit(playermove_t*)
+{
+}
+
+void MockCombatPmMove(playermove_t* context, int server)
+{
+    assert(context != nullptr);
+    assert(server == TRUE);
+    ObserveCombatCallback(
+        CombatCallbackEvent::kPmMove,
+        context->cmd.buttons);
+    g_combat_observations[g_combat_observation_count - 1u]
+        .pmove_time_msec = context->time;
+    if (g_combat_emit_invalid_output)
+    {
+        context->velocity[0] = 1000000.0f;
+    }
+}
+
+void MockCombatCmdStart(
+    const edict_t*,
+    const usercmd_t* command,
+    unsigned int)
+{
+    assert(command != nullptr);
+    ObserveCombatCallback(
+        CombatCallbackEvent::kCmdStart,
+        command->buttons);
+}
+
+void MockCombatPlayerPreThink(edict_t* player)
+{
+    assert(player != nullptr);
+    ObserveCombatCallback(
+        CombatCallbackEvent::kPlayerPreThink,
+        static_cast<std::uint16_t>(player->v.button));
+}
+
+void MockCombatPlayerPostThink(edict_t* player)
+{
+    assert(player != nullptr);
+    ObserveCombatCallback(
+        CombatCallbackEvent::kPlayerPostThink,
+        static_cast<std::uint16_t>(player->v.button));
+    if (g_combat_side_effect_target != nullptr)
+    {
+        g_combat_side_effect_target->v.health -= 10.0f;
+        player->v.iuser4 += 1;
+    }
+    if (g_combat_private_weapon_state != nullptr)
+    {
+        --*g_combat_private_weapon_state;
+    }
+}
+
+void MockCombatCmdEnd(const edict_t* player)
+{
+    assert(player != nullptr);
+    ObserveCombatCallback(
+        CombatCallbackEvent::kCmdEnd,
+        static_cast<std::uint16_t>(player->v.button));
+#if defined(_MSC_VER)
+    if (g_combat_fail_cmd_end)
+    {
+        RaiseException(
+            EXCEPTION_NONCONTINUABLE_EXCEPTION,
+            0u,
+            0u,
+            nullptr);
+    }
+#endif
+}
 
 void MockPmInit(playermove_t*)
 {
@@ -72,6 +228,12 @@ void MockCmdEnd(const edict_t*)
     ++g_cmd_end_calls;
 }
 
+void MockDueEntityThinkSetsKillMe(edict_t* entity)
+{
+    assert(entity != nullptr);
+    entity->v.flags |= FL_KILLME;
+}
+
 hl::game_api::detail::WorldModelContext CollisionFixture()
 {
     using namespace hl::game_api::detail;
@@ -81,13 +243,13 @@ hl::game_api::detail::WorldModelContext CollisionFixture()
     world.prepared = true;
     world.collision_loaded = true;
     BspCollisionPlane plane;
-    plane.normal = Vector(-1.0f, 0.0f, 0.0f);
-    plane.distance = -64.0f;
+    plane.normal = Vector(1.0f, 0.0f, 0.0f);
+    plane.distance = 64.0f;
     plane.type = 0;
     world.collision_planes.push_back(plane);
     BspCollisionClipnode node;
     node.plane_index = 0;
-    node.children = {CONTENTS_EMPTY, CONTENTS_SOLID};
+    node.children = {CONTENTS_SOLID, CONTENTS_EMPTY};
     world.collision_clipnodes.push_back(node);
     world.point_hull_nodes.push_back(node);
     BspInlineModelBounds model;
@@ -123,11 +285,539 @@ hl::network::GoldSrcDecodedMoveCommand Move(
     move.command_count = static_cast<std::size_t>(backups + fresh);
     return move;
 }
+
+void TestEdictPrivateDataRetirementAndReuseBarrier()
+{
+    using hl::game_api::detail::EdictStore;
+
+    EdictStore feature_off_store;
+    feature_off_store.Reset(1u, 1u);
+    edict_t* const immediately_removed = feature_off_store.CreateEntity();
+    assert(immediately_removed != nullptr);
+    feature_off_store.RemoveEntity(immediately_removed);
+    assert(feature_off_store.CreateEntity() == immediately_removed);
+
+    EdictStore store;
+    store.Reset(1u, 3u);
+    edict_t* const world = store.World();
+    assert(world != nullptr);
+    assert(store.EntityOfOffset(0) == world);
+    assert(store.OffsetOf(world) == 0);
+    assert(world->v.pContainingEntity == world);
+    edict_t* const client = store.EntityOfIndex(1);
+    assert(client != nullptr);
+    store.SetInUse(client, true);
+    auto* const retired_player = static_cast<unsigned char*>(
+        store.AllocatePrivateData(client, 64u));
+    assert(retired_player != nullptr);
+    retired_player[0] = 0x5au;
+    client->v.health = 37.0f;
+
+    store.PrepareClientForPutInServer(client);
+    assert(store.EntityOfIndex(1) == client);
+    assert(client->pvPrivateData == nullptr);
+    assert(client->v.health == 0.0f);
+    assert(client->v.pContainingEntity == client);
+
+    auto* const fresh_player = static_cast<unsigned char*>(
+        store.AllocatePrivateData(client, 64u));
+    assert(fresh_player != nullptr);
+    assert(fresh_player != retired_player);
+    assert(retired_player[0] == 0x5au);
+
+    store.BeginFrameReuseBarrier();
+    edict_t* const removed = store.CreateEntity();
+    assert(removed != nullptr);
+    const int removed_index = store.IndexOf(removed);
+    auto* const retired_entity_data = static_cast<unsigned char*>(
+        store.AllocatePrivateData(removed, 32u));
+    assert(retired_entity_data != nullptr);
+    retired_entity_data[0] = 0xa5u;
+    removed->v.nextthink = 1.0f;
+    const float frame_time = 1.0f;
+    assert(removed->v.nextthink <= frame_time);
+    removed->v.nextthink = 0.0f;
+    MockDueEntityThinkSetsKillMe(removed);
+    assert((removed->v.flags & FL_KILLME) != 0);
+    store.RemoveEntity(removed);
+    assert(removed->free == TRUE);
+    assert(removed->pvPrivateData == nullptr);
+    assert(retired_entity_data[0] == 0xa5u);
+
+    edict_t* const same_frame = store.CreateEntity();
+    assert(same_frame != nullptr);
+    assert(store.IndexOf(same_frame) != removed_index);
+
+    store.BeginFrameReuseBarrier();
+    edict_t* const next_frame = store.CreateEntity();
+    assert(next_frame == removed);
+    assert(store.IndexOf(next_frame) == removed_index);
+    auto* const next_frame_entity_data = static_cast<unsigned char*>(
+        store.AllocatePrivateData(next_frame, 32u));
+    assert(next_frame_entity_data != nullptr);
+    assert(next_frame_entity_data != retired_entity_data);
+    assert(retired_entity_data[0] == 0xa5u);
+}
+
+void TestTransientMuzzleFlashCleanup()
+{
+    using hl::game_api::detail::EdictStore;
+
+    EdictStore store;
+    store.Reset(2u, 1u);
+    edict_t* const world = store.World();
+    edict_t* const player_a = store.EntityOfIndex(1);
+    edict_t* const player_b = store.EntityOfIndex(2);
+    edict_t* const non_player = store.CreateEntity();
+    assert(world != nullptr);
+    assert(player_a != nullptr);
+    assert(player_b != nullptr);
+    assert(non_player != nullptr);
+
+    store.SetInUse(player_a, true);
+    store.SetInUse(player_b, true);
+    world->v.effects = EF_MUZZLEFLASH;
+    player_a->v.effects = EF_MUZZLEFLASH | EF_BRIGHTLIGHT | EF_NOINTERP;
+    player_b->v.effects = EF_MUZZLEFLASH;
+    non_player->v.effects = EF_MUZZLEFLASH | EF_DIMLIGHT;
+
+    const int receiver_a_shot_frame_effects = player_a->v.effects;
+    const int receiver_b_shot_frame_effects = player_a->v.effects;
+    assert((receiver_a_shot_frame_effects & EF_MUZZLEFLASH) != 0);
+    assert((receiver_b_shot_frame_effects & EF_MUZZLEFLASH) != 0);
+    assert(store.ClearTransientMuzzleFlashEffects() == 3u);
+    assert((world->v.effects & EF_MUZZLEFLASH) != 0);
+    assert((player_a->v.effects & EF_MUZZLEFLASH) == 0);
+    assert((player_a->v.effects & EF_BRIGHTLIGHT) != 0);
+    assert((player_a->v.effects & EF_NOINTERP) != 0);
+    assert((player_b->v.effects & EF_MUZZLEFLASH) == 0);
+    assert((non_player->v.effects & EF_MUZZLEFLASH) == 0);
+    assert((non_player->v.effects & EF_DIMLIGHT) != 0);
+    assert(store.ClearTransientMuzzleFlashEffects() == 0u);
+
+    player_a->v.effects |= EF_MUZZLEFLASH;
+    assert((player_a->v.effects & EF_MUZZLEFLASH) != 0);
+    assert(store.ClearTransientMuzzleFlashEffects() == 1u);
+    assert((player_a->v.effects & EF_MUZZLEFLASH) == 0);
+    assert((player_a->v.effects & EF_BRIGHTLIGHT) != 0);
+    assert((player_a->v.effects & EF_NOINTERP) != 0);
+}
+
+void TestCombatCallbackOrderReadinessAndSplitTime()
+{
+    using namespace hl::game_api::detail;
+    using namespace hl::network;
+
+    GoldSrcPmoveRuntime runtime;
+    assert(runtime.InitializeWorld(CollisionFixture()));
+
+    float global_time = 0.0f;
+    float global_frametime = 0.0f;
+    int active_attack_slot = 0;
+    g_combat_global_time = &global_time;
+    g_combat_global_frametime = &global_frametime;
+    g_combat_active_attack_slot = &active_attack_slot;
+    g_combat_observation_count = 0u;
+
+    GoldSrcPmoveGameDllCallbacks callbacks;
+    callbacks.pm_init = &MockCombatPmInit;
+    callbacks.pm_move = &MockCombatPmMove;
+    callbacks.cmd_start = &MockCombatCmdStart;
+    callbacks.cmd_end = &MockCombatCmdEnd;
+    callbacks.player_pre_think = &MockCombatPlayerPreThink;
+    callbacks.player_post_think = &MockCombatPlayerPostThink;
+    callbacks.global_time = &global_time;
+    callbacks.global_frametime = &global_frametime;
+    callbacks.active_attack_postthink_slot = &active_attack_slot;
+    callbacks.combat_enabled = true;
+    GoldSrcMovevarsConfig movevars;
+    movevars.maximum_velocity = 2000.0f;
+    assert(runtime.InitializeGameDll(callbacks, ".", movevars));
+
+    edict_t world{};
+    world.free = FALSE;
+    edict_t player{};
+    player.free = FALSE;
+    player.v.movetype = MOVETYPE_WALK;
+    player.v.health = 100.0f;
+    player.v.gravity = 1.0f;
+    player.v.friction = 1.0f;
+    player.v.maxspeed = 320.0f;
+    player.v.flags = FL_ONGROUND;
+    player.v.origin = Vector(0.0f, 0.0f, 0.0f);
+    player.v.view_ofs = Vector(0.0f, 0.0f, 28.0f);
+
+    runtime.SetCombatPlayerReady(
+        1u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    assert(runtime.CombatDiagnostics(1u)->phase
+        == GoldSrcCombatPhase::kCombatReady);
+
+    auto attack = Move(0u, 1u);
+    attack.commands[0] = Command(100u, 0.0f, 0.0f, IN_ATTACK);
+    const GoldSrcPmoveSplitResult split =
+        SplitGoldSrcPmoveCommand(attack.commands[0].msec);
+    assert(split.valid);
+    const GoldSrcPmoveExecutionResult attack_result =
+        runtime.Execute(1u, attack, 1u, 1000u, &player, &world);
+    assert(attack_result.ok());
+    assert(!attack_result.gameplay_callback_failure);
+    assert(attack_result.subcommands_executed == split.count);
+    assert(g_combat_observation_count == split.count * 5u);
+
+    std::uint64_t expected_time_msec = 1000u;
+    float previous_prethink_time = 0.0f;
+    for (std::size_t piece = 0u; piece < split.count; ++piece)
+    {
+        const std::size_t base = piece * 5u;
+        assert(g_combat_observations[base].event
+            == CombatCallbackEvent::kCmdStart);
+        assert(g_combat_observations[base + 1u].event
+            == CombatCallbackEvent::kPlayerPreThink);
+        assert(g_combat_observations[base + 2u].event
+            == CombatCallbackEvent::kPmMove);
+        assert(g_combat_observations[base + 3u].event
+            == CombatCallbackEvent::kPlayerPostThink);
+        assert(g_combat_observations[base + 4u].event
+            == CombatCallbackEvent::kCmdEnd);
+
+        expected_time_msec += split.msec[piece];
+        const float expected_time =
+            static_cast<float>(expected_time_msec) / 1000.0f;
+        const float expected_frametime =
+            static_cast<float>(split.msec[piece]) / 1000.0f;
+        const CombatCallbackObservation& prethink =
+            g_combat_observations[base + 1u];
+        const CombatCallbackObservation& pmove =
+            g_combat_observations[base + 2u];
+        const CombatCallbackObservation& postthink =
+            g_combat_observations[base + 3u];
+        assert(prethink.global_time > previous_prethink_time);
+        assert(std::fabs(prethink.global_time - expected_time) < 0.0001f);
+        assert(std::fabs(prethink.global_frametime - expected_frametime)
+            < 0.0001f);
+        assert(pmove.global_time == prethink.global_time);
+        assert(std::fabs(
+            pmove.pmove_time_msec
+                - static_cast<float>(expected_time_msec)) < 0.0001f);
+        assert(postthink.global_time == prethink.global_time);
+        assert(postthink.active_attack_slot == 1);
+        assert((g_combat_observations[base].buttons & IN_ATTACK) != 0u);
+        previous_prethink_time = prethink.global_time;
+    }
+    const GoldSrcCombatClientDiagnostics attack_diagnostics =
+        *runtime.CombatDiagnostics(1u);
+    assert(attack_diagnostics.gameplay_time_msec == 1100u);
+    assert(attack_diagnostics.player_prethink_calls == split.count);
+    assert(attack_diagnostics.player_postthink_calls == split.count);
+    assert(attack_diagnostics.attack_commands_executed == split.count);
+    assert(attack_diagnostics.phase == GoldSrcCombatPhase::kCombatStable);
+    assert(active_attack_slot == 0);
+
+    const std::size_t callbacks_before_rejection =
+        g_combat_observation_count;
+    const float time_before_rejection = global_time;
+    const GoldSrcPmoveExecutionResult duplicate =
+        runtime.Execute(1u, attack, 1u, 1300u, &player, &world);
+    assert(!duplicate.ok());
+    assert(!duplicate.gameplay_callback_failure);
+    assert(duplicate.status
+        == GoldSrcPmoveExecutionStatus::kCommandPlanRejected);
+    assert(g_combat_observation_count == callbacks_before_rejection);
+    assert(global_time == time_before_rejection);
+    assert(runtime.CombatDiagnostics(1u)->gameplay_time_msec == 1100u);
+
+    edict_t player_two = player;
+    runtime.SetCombatPlayerReady(
+        2u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    g_combat_observation_count = 0u;
+    auto second_client_move = Move(0u, 1u);
+    second_client_move.commands[0] = Command(10u, 0.0f);
+    const GoldSrcPmoveExecutionResult second_client_result =
+        runtime.Execute(
+            2u,
+            second_client_move,
+            1u,
+            1000u,
+            &player_two,
+            &world);
+    assert(second_client_result.ok());
+    assert(g_combat_observation_count == 5u);
+    assert(std::fabs(g_combat_observations[1].global_time - 1.010f)
+        < 0.0001f);
+    assert(runtime.CombatDiagnostics(2u)->gameplay_time_msec == 1010u);
+
+    runtime.ResetClient(1u);
+    runtime.SetCombatPlayerReady(1u, true, 1, true);
+    assert(runtime.CombatDiagnostics(1u)->phase
+        == GoldSrcCombatPhase::kAwaitingWeaponState);
+    g_combat_observation_count = 0u;
+    auto masked_attack = Move(0u, 1u);
+    masked_attack.commands[0] = Command(10u, 0.0f, 0.0f, IN_ATTACK);
+    const GoldSrcPmoveExecutionResult masked_result =
+        runtime.Execute(1u, masked_attack, 2u, 2000u, &player, &world);
+    assert(masked_result.ok());
+    assert(g_combat_observation_count == 5u);
+    assert((g_combat_observations[0].buttons & IN_ATTACK) == 0u);
+    assert(g_combat_observations[3].active_attack_slot == 0);
+    const GoldSrcCombatClientDiagnostics* masked_diagnostics =
+        runtime.CombatDiagnostics(1u);
+    assert(masked_diagnostics->attack_commands_received == 1u);
+    assert(masked_diagnostics->attack_commands_executed == 0u);
+    assert(masked_diagnostics->phase
+        == GoldSrcCombatPhase::kAwaitingWeaponState);
+
+    edict_t untouched_target{};
+    untouched_target.v.health = 77.0f;
+    int untouched_private_weapon_state = 9;
+    g_combat_side_effect_target = &untouched_target;
+    g_combat_private_weapon_state = &untouched_private_weapon_state;
+    g_combat_observation_count = 0u;
+    g_combat_emit_invalid_output = true;
+    const GoldSrcPmoveExecutionResult callback_failure =
+        runtime.Execute(1u, masked_attack, 3u, 2020u, &player, &world);
+    g_combat_emit_invalid_output = false;
+    g_combat_side_effect_target = nullptr;
+    g_combat_private_weapon_state = nullptr;
+    assert(!callback_failure.ok());
+    assert(callback_failure.status
+        == GoldSrcPmoveExecutionStatus::kOutputInvalid);
+    assert(callback_failure.gameplay_failure_stage
+        == "output_validation");
+    assert(callback_failure.gameplay_callback_failure);
+    assert(callback_failure.gameplay_fail_stop);
+    assert(!callback_failure.recoverable_rollback);
+    assert(g_combat_observation_count == 4u);
+    assert(g_combat_observations[0].event
+        == CombatCallbackEvent::kCmdStart);
+    assert(g_combat_observations[1].event
+        == CombatCallbackEvent::kPlayerPreThink);
+    assert(g_combat_observations[2].event
+        == CombatCallbackEvent::kPmMove);
+    assert(g_combat_observations[3].event
+        == CombatCallbackEvent::kCmdEnd);
+    assert(untouched_target.v.health == 77.0f);
+    assert(untouched_private_weapon_state == 9);
+    assert(runtime.CombatDiagnostics(1u)->gameplay_time_msec == 2030u);
+    const GoldSrcCommandExecutionState* failed_state =
+        runtime.CommandState(1u);
+    assert(failed_state != nullptr);
+    assert(failed_state->last_observed_packet_sequence() == 3u);
+    assert(failed_state->last_validated_move_sequence() == 3u);
+    assert(failed_state->last_executed_move_sequence() == 2u);
+
+    const std::size_t callbacks_at_fail_stop =
+        g_combat_observation_count;
+    const GoldSrcPmoveExecutionResult retry_after_fail_stop =
+        runtime.Execute(1u, masked_attack, 3u, 2030u, &player, &world);
+    assert(!retry_after_fail_stop.ok());
+    assert(retry_after_fail_stop.gameplay_failure_stage
+        == "fail_stop_latched");
+    assert(retry_after_fail_stop.gameplay_callback_failure);
+    assert(retry_after_fail_stop.gameplay_fail_stop);
+    assert(!retry_after_fail_stop.recoverable_rollback);
+    const GoldSrcPmoveExecutionResult other_client_after_fail_stop =
+        runtime.Execute(
+            2u,
+            second_client_move,
+            2u,
+            2030u,
+            &player_two,
+            &world);
+    assert(!other_client_after_fail_stop.ok());
+    assert(other_client_after_fail_stop.gameplay_callback_failure);
+    assert(other_client_after_fail_stop.gameplay_fail_stop);
+    assert(g_combat_observation_count == callbacks_at_fail_stop);
+
+    runtime.SetCombatPlayerReady(
+        1u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        false);
+    assert(runtime.CombatDiagnostics(1u)->phase
+        == GoldSrcCombatPhase::kAwaitingWeaponState);
+    runtime.SetCombatPlayerReady(
+        1u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    assert(runtime.CombatDiagnostics(1u)->phase
+        == GoldSrcCombatPhase::kCombatReady);
+
+    g_combat_global_time = nullptr;
+    g_combat_global_frametime = nullptr;
+    g_combat_active_attack_slot = nullptr;
+}
+
+#if defined(_MSC_VER)
+void TestCombatCmdEndFailureFailStopsRuntime()
+{
+    using namespace hl::game_api::detail;
+    using namespace hl::network;
+
+    GoldSrcPmoveRuntime runtime;
+    assert(runtime.InitializeWorld(CollisionFixture()));
+
+    float global_time = 0.0f;
+    float global_frametime = 0.0f;
+    int active_attack_slot = 0;
+    g_combat_global_time = &global_time;
+    g_combat_global_frametime = &global_frametime;
+    g_combat_active_attack_slot = &active_attack_slot;
+    g_combat_observation_count = 0u;
+
+    GoldSrcPmoveGameDllCallbacks callbacks;
+    callbacks.pm_init = &MockCombatPmInit;
+    callbacks.pm_move = &MockCombatPmMove;
+    callbacks.cmd_start = &MockCombatCmdStart;
+    callbacks.cmd_end = &MockCombatCmdEnd;
+    callbacks.player_pre_think = &MockCombatPlayerPreThink;
+    callbacks.player_post_think = &MockCombatPlayerPostThink;
+    callbacks.global_time = &global_time;
+    callbacks.global_frametime = &global_frametime;
+    callbacks.active_attack_postthink_slot = &active_attack_slot;
+    callbacks.combat_enabled = true;
+    GoldSrcMovevarsConfig movevars;
+    movevars.maximum_velocity = 2000.0f;
+    assert(runtime.InitializeGameDll(callbacks, ".", movevars));
+
+    edict_t world{};
+    world.free = FALSE;
+    edict_t shooter{};
+    shooter.free = FALSE;
+    shooter.v.movetype = MOVETYPE_WALK;
+    shooter.v.health = 100.0f;
+    shooter.v.gravity = 1.0f;
+    shooter.v.friction = 1.0f;
+    shooter.v.maxspeed = 320.0f;
+    shooter.v.flags = FL_ONGROUND;
+    shooter.v.view_ofs = Vector(0.0f, 0.0f, 28.0f);
+    edict_t other_player = shooter;
+    edict_t target{};
+    target.free = FALSE;
+    target.v.health = 100.0f;
+    int private_weapon_state = 12;
+
+    runtime.SetCombatPlayerReady(
+        1u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    runtime.SetCombatPlayerReady(
+        2u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    g_combat_side_effect_target = &target;
+    g_combat_private_weapon_state = &private_weapon_state;
+    g_combat_fail_cmd_end = true;
+
+    auto attack = Move(0u, 1u);
+    attack.commands[0] = Command(10u, 0.0f, 0.0f, IN_ATTACK);
+    const GoldSrcPmoveExecutionResult failed =
+        runtime.Execute(1u, attack, 7u, 1000u, &shooter, &world);
+    g_combat_fail_cmd_end = false;
+
+    assert(!failed.ok());
+    assert(failed.status == GoldSrcPmoveExecutionStatus::kPmMoveFailed);
+    assert(failed.gameplay_failure_stage == "cmd_end");
+    assert(failed.gameplay_callback_failure);
+    assert(failed.gameplay_fail_stop);
+    assert(!failed.recoverable_rollback);
+    assert(g_combat_observation_count == 5u);
+    assert(g_combat_observations[0].event
+        == CombatCallbackEvent::kCmdStart);
+    assert(g_combat_observations[1].event
+        == CombatCallbackEvent::kPlayerPreThink);
+    assert(g_combat_observations[2].event
+        == CombatCallbackEvent::kPmMove);
+    assert(g_combat_observations[3].event
+        == CombatCallbackEvent::kPlayerPostThink);
+    assert(g_combat_observations[4].event
+        == CombatCallbackEvent::kCmdEnd);
+    assert(target.v.health == 90.0f);
+    assert(private_weapon_state == 11);
+    assert(shooter.v.iuser4 == 1);
+    const GoldSrcCombatClientDiagnostics* combat =
+        runtime.CombatDiagnostics(1u);
+    assert(combat != nullptr);
+    assert(combat->player_postthink_calls == 1u);
+    assert(combat->attack_commands_executed == 1u);
+    assert(combat->callback_failures == 1u);
+    assert(combat->phase == GoldSrcCombatPhase::kCombatStable);
+    const GoldSrcCommandExecutionState* failed_state =
+        runtime.CommandState(1u);
+    assert(failed_state != nullptr);
+    assert(failed_state->last_observed_packet_sequence() == 7u);
+    assert(failed_state->last_validated_move_sequence() == 7u);
+    assert(failed_state->last_executed_move_sequence() == 0u);
+    assert(failed_state->diagnostics().move_packets_observed == 1u);
+
+    const std::size_t callbacks_after_failure =
+        g_combat_observation_count;
+    const GoldSrcPmoveExecutionResult retry =
+        runtime.Execute(1u, attack, 7u, 1010u, &shooter, &world);
+    assert(!retry.ok());
+    assert(retry.gameplay_failure_stage == "fail_stop_latched");
+    assert(retry.gameplay_callback_failure);
+    assert(retry.gameplay_fail_stop);
+    const GoldSrcPmoveExecutionResult other_client =
+        runtime.Execute(2u, attack, 1u, 1010u, &other_player, &world);
+    assert(!other_client.ok());
+    assert(other_client.gameplay_failure_stage == "fail_stop_latched");
+    assert(other_client.gameplay_callback_failure);
+    assert(other_client.gameplay_fail_stop);
+    assert(g_combat_observation_count == callbacks_after_failure);
+    assert(target.v.health == 90.0f);
+    assert(private_weapon_state == 11);
+    assert(shooter.v.iuser4 == 1);
+    assert(other_player.v.iuser4 == 0);
+    assert(!runtime.CommandState(2u)->initialized());
+
+    runtime.ResetClient(1u);
+    const GoldSrcPmoveExecutionResult after_client_reset =
+        runtime.Execute(2u, attack, 1u, 1020u, &other_player, &world);
+    assert(!after_client_reset.ok());
+    assert(after_client_reset.gameplay_fail_stop);
+    assert(g_combat_observation_count == callbacks_after_failure);
+
+    runtime.ResetGameDll();
+    const GoldSrcPmoveExecutionResult after_runtime_reset =
+        runtime.Execute(2u, attack, 1u, 1030u, &other_player, &world);
+    assert(!after_runtime_reset.ok());
+    assert(after_runtime_reset.gameplay_fail_stop);
+    assert(g_combat_observation_count == callbacks_after_failure);
+
+    g_combat_side_effect_target = nullptr;
+    g_combat_private_weapon_state = nullptr;
+    assert(runtime.InitializeGameDll(callbacks, ".", movevars));
+    runtime.SetCombatPlayerReady(
+        2u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    const GoldSrcPmoveExecutionResult after_reinitialize =
+        runtime.Execute(2u, attack, 1u, 1040u, &other_player, &world);
+    assert(after_reinitialize.ok());
+    assert(g_combat_observation_count == callbacks_after_failure + 5u);
+
+    g_combat_global_time = nullptr;
+    g_combat_global_frametime = nullptr;
+    g_combat_active_attack_slot = nullptr;
+}
+#endif
 } // namespace
 
 int main()
 {
+    TestClientDataCallbackBufferContract();
     using namespace hl::network;
+    TestEdictPrivateDataRetirementAndReuseBarrier();
     using namespace hl::game_api::detail;
 
     {
@@ -506,6 +1196,16 @@ int main()
     GoldSrcPmoveRuntime runtime;
     const auto fixture = CollisionFixture();
     assert(runtime.InitializeWorld(fixture));
+    {
+        const float start[3] = {0.0f, 0.0f, 0.0f};
+        const float end[3] = {128.0f, 0.0f, 0.0f};
+        GoldSrcWorldLineTrace trace{};
+        assert(runtime.TraceWorldLine(start, end, &trace));
+        assert(!trace.start_solid);
+        assert(!trace.all_solid);
+        assert(trace.hit_world);
+        assert(trace.fraction > 0.0f && trace.fraction < 1.0f);
+    }
     GoldSrcPmoveGameDllCallbacks callbacks;
     callbacks.pm_init = &MockPmInit;
     callbacks.pm_move = &MockPmMove;
@@ -588,6 +1288,9 @@ int main()
         runtime.Execute(1u, invalid_output, 4u, 1200u, &player, &world);
     g_emit_invalid_output = false;
     assert(!rejected.ok());
+    assert(!rejected.gameplay_callback_failure);
+    assert(!rejected.gameplay_fail_stop);
+    assert(rejected.recoverable_rollback);
     assert(rejected.status == GoldSrcPmoveExecutionStatus::kOutputInvalid);
     assert(player.v.origin == before_invalid);
     assert(player_b.v.origin == player_b_before_invalid);
@@ -643,5 +1346,10 @@ int main()
     assert(runtime.diagnostics().pm_init_calls == 1u);
     assert(runtime.diagnostics().movement_rollbacks == 1u);
     assert(runtime.implemented_service_callback_count() == 25u);
+    TestCombatCallbackOrderReadinessAndSplitTime();
+#if defined(_MSC_VER)
+    TestCombatCmdEndFailureFailStopsRuntime();
+#endif
+    TestTransientMuzzleFlashCleanup();
     return 0;
 }

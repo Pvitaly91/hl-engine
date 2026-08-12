@@ -8,6 +8,8 @@ public:
     static constexpr auto kChallengeLifetime = std::chrono::seconds(30);
     static constexpr int kMaximumDatagramsPerHostFrame = 8;
     static constexpr int kMaximumDatagramsSentPerHostFrame = 8;
+    static constexpr std::size_t kMaximumCombatEntityThinksPerHostFrame = 64;
+    static constexpr std::size_t kMaximumCombatEntityRemovalsPerHostFrame = 64;
 
     GoldSrcUdpHandshakeRuntime(
         EngineShimState& state,
@@ -54,6 +56,8 @@ public:
           pmove_enabled_(options.goldsrc_pmove_enabled),
           pmove_negative_proof_(options.goldsrc_pmove_negative_proof),
           pmove_persistent_(options.goldsrc_pmove_persistent),
+          combat_enabled_(options.goldsrc_combat_enabled),
+          fall_damage_proof_(options.goldsrc_fall_damage_proof),
           pmove_observation_seconds_(
               static_cast<double>(options.goldsrc_pmove_observation_ms)
               / 1000.0),
@@ -132,6 +136,14 @@ public:
         summary_.pmove_enabled = pmove_enabled_;
         summary_.pmove_negative_proof = pmove_negative_proof_;
         summary_.pmove_persistent = pmove_persistent_;
+        summary_.combat_enabled = combat_enabled_;
+        summary_.combat_callback_order_verified = false;
+        summary_.combat_time_contract_verified = false;
+        summary_.weapon_postframe_contract_verified = false;
+        summary_.weapon_replication_contract_verified = false;
+        summary_.player_aware_trace = false;
+        summary_.per_client_weapondata = false;
+        summary_.frame_history_weapondata = false;
         summary_.manual_session_phase =
             pmove_persistent_ ? "waiting_for_client" : "disabled";
         summary_.gameplay_active = false;
@@ -277,6 +289,26 @@ public:
         {
             return FailBind("pmove-persistent-requires-pmove");
         }
+        if (combat_enabled_
+            && (!pmove_enabled_ || !player_lifecycle_enabled_
+                || !continuous_snapshots_enabled_))
+        {
+            return FailBind("combat-requires-pmove-lifecycle-snapshots");
+        }
+        if (combat_enabled_ && bind_address_ != "127.0.0.1")
+        {
+            return FailBind("combat-loopback-required");
+        }
+        if (combat_enabled_
+            && (state_.dll_functions.pfnPlayerPreThink == nullptr
+                || state_.dll_functions.pfnPlayerPostThink == nullptr
+                || state_.dll_functions.pfnStartFrame == nullptr
+                || state_.dll_functions.pfnThink == nullptr
+                || state_.dll_functions.pfnGetWeaponData == nullptr
+                || state_.dll_functions.pfnUpdateClientData == nullptr))
+        {
+            return FailBind("combat-game-dll-callback-contract-unavailable");
+        }
         if (pmove_persistent_ && pmove_negative_proof_)
         {
             return FailBind("pmove-persistent-conflicts-with-negative-proof");
@@ -320,13 +352,20 @@ public:
         if (stock_test_control_file_.has_value())
         {
             std::error_code control_file_error;
-            if (!IsExternalStockTestControlPath(*stock_test_control_file_)
-                || std::filesystem::exists(
-                    *stock_test_control_file_,
-                    control_file_error)
-                || control_file_error)
+            if (!IsExternalStockTestControlPath(*stock_test_control_file_))
             {
-                return FailBind("stock-test-control-file-not-ready");
+                return FailBind("stock-test-control-path-not-external");
+            }
+            const bool control_file_exists = std::filesystem::exists(
+                *stock_test_control_file_,
+                control_file_error);
+            if (control_file_error)
+            {
+                return FailBind("stock-test-control-file-probe-failed");
+            }
+            if (control_file_exists)
+            {
+                return FailBind("stock-test-control-file-already-exists");
             }
         }
         lifecycle_edict_registry_.Reset(
@@ -367,13 +406,21 @@ public:
             movevars.roll_speed = move_variable("sv_rollspeed", 0.0f);
             movevars.multiplayer = state_.server_state.maxclients > 1;
 
-            const hl::game_api::detail::GoldSrcPmoveGameDllCallbacks
-                callbacks{
-                    state_.dll_functions.pfnPM_Init,
-                    state_.dll_functions.pfnPM_Move,
-                    state_.dll_functions.pfnCmdStart,
-                    state_.dll_functions.pfnCmdEnd,
-                };
+            hl::game_api::detail::GoldSrcPmoveGameDllCallbacks callbacks{};
+            callbacks.pm_init = state_.dll_functions.pfnPM_Init;
+            callbacks.pm_move = state_.dll_functions.pfnPM_Move;
+            callbacks.cmd_start = state_.dll_functions.pfnCmdStart;
+            callbacks.cmd_end = state_.dll_functions.pfnCmdEnd;
+            callbacks.player_pre_think =
+                state_.dll_functions.pfnPlayerPreThink;
+            callbacks.player_post_think =
+                state_.dll_functions.pfnPlayerPostThink;
+            callbacks.entity_think = state_.dll_functions.pfnThink;
+            callbacks.global_time = &state_.globalvars.time;
+            callbacks.global_frametime = &state_.globalvars.frametime;
+            callbacks.active_attack_postthink_slot =
+                &state_.goldsrc_combat_active_attack_postthink_slot;
+            callbacks.combat_enabled = combat_enabled_;
             if (!pmove_runtime_.InitializeWorld(state_.world_context))
             {
                 return FailBind("pmove-world-collision-unavailable");
@@ -384,6 +431,26 @@ public:
                     movevars))
             {
                 return FailBind("pmove-game-dll-contract-unavailable");
+            }
+            if (combat_enabled_)
+            {
+                state_.goldsrc_combat_trace_calls = 0u;
+                state_.goldsrc_combat_player_hits = 0u;
+                state_.goldsrc_combat_world_occlusions = 0u;
+                state_.goldsrc_combat_trace_hits_by_slot.fill(0u);
+                state_.goldsrc_combat_world_occlusions_by_slot.fill(0u);
+                state_.goldsrc_combat_weapon_range_traces_by_slot.fill(0u);
+                state_.goldsrc_combat_shooter_ignored_by_slot.fill(0u);
+                state_.goldsrc_combat_weapon_range_player_hits_by_slot.fill(
+                    0u);
+                state_.goldsrc_combat_weapon_range_world_hits_by_slot.fill(
+                    0u);
+                state_.goldsrc_combat_playback_events_by_slot.fill(0u);
+                state_.goldsrc_combat_last_trace_target_by_slot.fill(0);
+                state_.goldsrc_combat_lifecycle_registry =
+                    &lifecycle_edict_registry_;
+                state_.goldsrc_combat_pmove_runtime = &pmove_runtime_;
+                state_.goldsrc_combat_trace_enabled = true;
             }
         }
 
@@ -452,6 +519,11 @@ public:
             return !transport_failed_;
         }
 
+        if (combat_enabled_)
+        {
+            state_.edict_store.BeginFrameReuseBarrier();
+        }
+
         const auto frame_time = std::chrono::steady_clock::now();
         if (CheckManualShutdownRequest(frame_time))
         {
@@ -462,6 +534,7 @@ public:
             return !transport_failed_;
         }
         CheckStockTestControlRequest(frame_time);
+        double host_frame_elapsed = 0.0;
         if (!network_server_clock_started_)
         {
             network_server_clock_started_ = true;
@@ -475,6 +548,7 @@ public:
             if (std::isfinite(elapsed) && elapsed >= 0.0)
             {
                 network_server_time_ += elapsed;
+                host_frame_elapsed = elapsed;
             }
             last_network_host_frame_time_ = frame_time;
         }
@@ -569,6 +643,18 @@ public:
         }
 
         ++summary_.host_frames_pumped;
+        if (!CallCombatStartFrame(host_frame_elapsed))
+        {
+            return FailTransport(
+                "combat-start-frame-failed",
+                "goldsrc_combat_failed: reason=start-frame-callback");
+        }
+        if (!DispatchCombatEntityThinks())
+        {
+            return FailTransport(
+                "combat-entity-think-failed",
+                "goldsrc_combat_failed: reason=entity-think-callback");
+        }
         datagrams_sent_this_frame_ = 0;
         if (!SendPendingOrdinaryAdvances())
         {
@@ -649,6 +735,11 @@ public:
             {
                 return false;
             }
+            // Stock GoldSrc keeps EF_MUZZLEFLASH visible for the complete
+            // per-client send sweep, then clears it once before the next host
+            // frame. Clearing here lets every receiver observe the shot while
+            // preventing the one-frame effect from becoming a permanent glow.
+            state_.edict_store.ClearTransientMuzzleFlashEffects();
             LogClientProgressSamples();
             for (DedicatedPlayerRuntimeSlot& slot_state :
                  state_.dedicated_multiplayer_foundation.slots)
@@ -772,11 +863,27 @@ public:
 
     bool Succeeded() const noexcept
     {
+        const bool ordinary_combat_evidence_satisfied =
+            summary_.combat_callback_order_verified
+                && summary_.combat_time_contract_verified
+                && summary_.weapon_postframe_contract_verified
+                && summary_.weapon_replication_contract_verified
+                && summary_.player_aware_trace
+                && summary_.per_client_weapondata
+                && summary_.frame_history_weapondata
+                && summary_.gameplay_active;
+        const bool combat_evidence_satisfied = !combat_enabled_
+            ? true
+            : fall_damage_proof_
+                ? stock_test_fall_acceptance_.phase
+                    == StockTestFallAcceptancePhase::kComplete
+                : ordinary_combat_evidence_satisfied;
         if (pmove_persistent_
             && manual_session_lifecycle_.shutdown_requested())
         {
             return complete_ && !transport_failed_
-                && summary_.ready && summary_.clean_shutdown;
+                && summary_.ready && summary_.clean_shutdown
+                && combat_evidence_satisfied;
         }
         const int expected_accept_count =
             summary_.delta_slot_resets > 0 ? 2 : 1;
@@ -794,7 +901,11 @@ public:
             && !summary_.active;
         if (!handshake_succeeded || !netchan_enabled_)
         {
-            return handshake_succeeded;
+            return handshake_succeeded && combat_evidence_satisfied;
+        }
+        if (!combat_evidence_satisfied)
+        {
+            return false;
         }
 
         const bool legacy_fragmentation_rejection_succeeded =
@@ -1114,6 +1225,17 @@ public:
             return;
         }
         shutdown_ = true;
+        if (state_.goldsrc_combat_lifecycle_registry
+            == &lifecycle_edict_registry_)
+        {
+            state_.goldsrc_combat_trace_enabled = false;
+            state_.goldsrc_combat_lifecycle_registry = nullptr;
+        }
+        if (state_.goldsrc_combat_pmove_runtime == &pmove_runtime_)
+        {
+            state_.goldsrc_combat_trace_enabled = false;
+            state_.goldsrc_combat_pmove_runtime = nullptr;
+        }
         RefreshTwoClientReplicationSummary();
 
         if (player_lifecycle_enabled_)
@@ -2074,7 +2196,182 @@ public:
                             .snapshots_after_milestone())
                     + ",next_boundary="
                     + summary_.next_observed_boundary
-                    + ",gameplay_active=false,clean_shutdown=1");
+                    + ",gameplay_active="
+                    + (summary_.gameplay_active ? "true" : "false")
+                    + ",clean_shutdown=1");
+        }
+        if (combat_enabled_)
+        {
+            for (std::size_t client_slot = 1u;
+                 client_slot <= summary_.client_replication.size();
+                 ++client_slot)
+            {
+                SyncPmoveSummary(client_slot);
+            }
+            const hl::game_api::GoldSrcClientReplicationSummary empty{};
+            const auto& client_a = summary_.client_replication.size() >= 1u
+                ? summary_.client_replication[0]
+                : empty;
+            const auto& client_b = summary_.client_replication.size() >= 2u
+                ? summary_.client_replication[1]
+                : empty;
+            const auto* const combat_a =
+                pmove_runtime_.CombatDiagnostics(1u);
+            const auto* const combat_b =
+                pmove_runtime_.CombatDiagnostics(2u);
+            const auto engine_callback_count =
+                [this](std::string_view callback_name) noexcept
+                {
+                    const auto it = state_.callback_counts.find(
+                        std::string(callback_name));
+                    return it != state_.callback_counts.end()
+                        ? it->second
+                        : 0u;
+                };
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Summary,
+                std::string("goldsrc_combat_summary: enabled=1")
+                    + ",callback_order=cmdstart_prethink_think_pmove_commit_postthink_cmdend"
+                    + ",callback_order_verified="
+                    + (summary_.combat_callback_order_verified
+                        ? "true" : "false")
+                    + ",time_contract_verified="
+                    + (summary_.combat_time_contract_verified
+                        ? "true" : "false")
+                    + ",weapon_postframe_verified="
+                    + (summary_.weapon_postframe_contract_verified
+                        ? "true" : "false")
+                    + ",weapon_replication_verified="
+                    + (summary_.weapon_replication_contract_verified
+                        ? "true" : "false")
+                    + ",player_aware_trace="
+                    + (summary_.player_aware_trace ? "true" : "false")
+                    + ",per_client_weapondata="
+                    + (summary_.per_client_weapondata ? "true" : "false")
+                    + ",frame_history_weapondata="
+                    + (summary_.frame_history_weapondata
+                        ? "true" : "false")
+                    + ",trace_policy=nearest_player_before_static_world"
+                    ",start_frame_calls="
+                    + std::to_string(summary_.start_frame_call_count)
+                    + ",scheduled_entity_think_calls="
+                    + std::to_string(combat_entity_think_calls_)
+                    + ",attack_received="
+                    + std::to_string(summary_.attack_commands_received)
+                    + ",attack_executed="
+                    + std::to_string(summary_.attack_commands_executed)
+                    + ",duplicate_attack_suppressed="
+                    + std::to_string(
+                        summary_.duplicate_attack_commands_suppressed)
+                    + ",trace_calls="
+                    + std::to_string(summary_.combat_trace_calls)
+                    + ",player_hits="
+                    + std::to_string(summary_.combat_player_hits)
+                    + ",world_occlusions="
+                    + std::to_string(summary_.combat_world_occlusions)
+                    + ",playback_events="
+                    + std::to_string(summary_.playback_event_calls)
+                    + ",vec_to_angles_calls="
+                    + std::to_string(
+                        engine_callback_count("pfnVecToAngles"))
+                    + ",crosshair_angle_calls="
+                    + std::to_string(
+                        engine_callback_count("pfnCrosshairAngle"))
+                    + ",a_phase=" + client_a.combat_phase
+                    + ",a_prethink="
+                    + std::to_string(client_a.player_prethink_calls)
+                    + ",a_postthink="
+                    + std::to_string(client_a.player_postthink_calls)
+                    + ",a_callback_failures="
+                    + std::to_string(
+                        combat_a != nullptr
+                            ? combat_a->callback_failures
+                            : 0u)
+                    + ",a_active_weapon="
+                    + std::to_string(client_a.active_weapon_id)
+                    + ",a_glock_present="
+                    + (client_a.glock_entity_present ? "true" : "false")
+                    + ",a_clip_before="
+                    + std::to_string(client_a.initial_glock_clip)
+                    + ",a_clip_after="
+                    + std::to_string(client_a.glock_clip)
+                    + ",a_clip_min="
+                    + std::to_string(client_a.minimum_glock_clip)
+                    + ",a_reserve_before="
+                    + std::to_string(client_a.initial_glock_reserve_ammo)
+                    + ",a_reserve_after="
+                    + std::to_string(client_a.glock_reserve_ammo)
+                    + ",a_health_before="
+                    + std::to_string(client_a.initial_authoritative_health)
+                    + ",a_health_after="
+                    + std::to_string(client_a.authoritative_health)
+                    + ",a_clientdata_health_after="
+                    + std::to_string(client_a.clientdata_health)
+                    + ",a_playback_events="
+                    + std::to_string(client_a.playback_event_calls)
+                    + ",a_player_hits="
+                    + std::to_string(client_a.player_trace_hits)
+                    + ",a_world_occlusions="
+                    + std::to_string(client_a.world_trace_occlusions)
+                    + ",a_shot_traces="
+                    + std::to_string(client_a.weapon_range_trace_calls)
+                    + ",a_shooter_ignored="
+                    + std::to_string(
+                        client_a.weapon_range_shooter_ignored)
+                    + ",a_shot_player_hits="
+                    + std::to_string(client_a.weapon_range_player_hits)
+                    + ",a_shot_world_hits="
+                    + std::to_string(client_a.weapon_range_world_hits)
+                    + ",a_last_target="
+                    + std::to_string(client_a.last_trace_target_slot)
+                    + ",a_weapondata_frames="
+                    + std::to_string(client_a.weapondata_frames)
+                    + ",b_phase=" + client_b.combat_phase
+                    + ",b_prethink="
+                    + std::to_string(client_b.player_prethink_calls)
+                    + ",b_postthink="
+                    + std::to_string(client_b.player_postthink_calls)
+                    + ",b_callback_failures="
+                    + std::to_string(
+                        combat_b != nullptr
+                            ? combat_b->callback_failures
+                            : 0u)
+                    + ",b_active_weapon="
+                    + std::to_string(client_b.active_weapon_id)
+                    + ",b_glock_present="
+                    + (client_b.glock_entity_present ? "true" : "false")
+                    + ",b_clip_before="
+                    + std::to_string(client_b.initial_glock_clip)
+                    + ",b_clip_after="
+                    + std::to_string(client_b.glock_clip)
+                    + ",b_clip_min="
+                    + std::to_string(client_b.minimum_glock_clip)
+                    + ",b_health_before="
+                    + std::to_string(client_b.initial_authoritative_health)
+                    + ",b_health_after="
+                    + std::to_string(client_b.authoritative_health)
+                    + ",b_health_min="
+                    + std::to_string(client_b.minimum_authoritative_health)
+                    + ",b_clientdata_health_after="
+                    + std::to_string(client_b.clientdata_health)
+                    + ",b_world_occlusions="
+                    + std::to_string(client_b.world_trace_occlusions)
+                    + ",b_shot_traces="
+                    + std::to_string(client_b.weapon_range_trace_calls)
+                    + ",b_shooter_ignored="
+                    + std::to_string(
+                        client_b.weapon_range_shooter_ignored)
+                    + ",b_shot_player_hits="
+                    + std::to_string(client_b.weapon_range_player_hits)
+                    + ",b_shot_world_hits="
+                    + std::to_string(client_b.weapon_range_world_hits)
+                    + ",b_deadflag="
+                    + std::to_string(client_b.authoritative_deadflag)
+                    + ",b_weapondata_frames="
+                    + std::to_string(client_b.weapondata_frames)
+                    + ",gameplay_active="
+                    + (summary_.gameplay_active ? "true" : "false")
+                    + ",clean_shutdown=1");
         }
         if (delta_descriptions_enabled_)
         {
@@ -2349,11 +2646,40 @@ public:
                     + (summary_.reconnect_slot_reuse ? "true" : "false")
                     + ",cross_client_state_leak="
                     + (summary_.cross_client_state_leak ? "true" : "false")
-                    + ",gameplay_active=false,clean_shutdown=1");
+                    + ",gameplay_active="
+                    + (summary_.gameplay_active ? "true" : "false")
+                    + ",clean_shutdown=1");
         }
     }
 
 private:
+    enum class StockTestFallAcceptancePhase : std::uint8_t
+    {
+        kInactive,
+        kLandingArranged,
+        kLandingObserved,
+        kResetObserved,
+        kDamageArranged,
+        kDamageObserved,
+        kComplete,
+        kFailed,
+    };
+
+    struct StockTestFallAcceptance final
+    {
+        StockTestFallAcceptancePhase phase =
+            StockTestFallAcceptancePhase::kInactive;
+        int slot = 0;
+        std::uint64_t session_generation = 0u;
+        float health_before = 0.0f;
+        Vector responsiveness_origin_a = Vector(0.0f, 0.0f, 0.0f);
+        Vector responsiveness_origin_b = Vector(0.0f, 0.0f, 0.0f);
+        std::uint64_t responsiveness_generation_a = 0u;
+        std::uint64_t responsiveness_generation_b = 0u;
+        bool responsiveness_a = false;
+        bool responsiveness_b = false;
+    };
+
     struct StockTestSpawnAnchor final
     {
         bool valid = false;
@@ -2377,6 +2703,193 @@ private:
         const auto count = std::chrono::duration_cast<std::chrono::milliseconds>(
             value.time_since_epoch()).count();
         return count > 0 ? static_cast<std::uint64_t>(count) : 0u;
+    }
+
+    bool CallCombatStartFrame(double elapsed_seconds) noexcept
+    {
+        if (!combat_enabled_)
+        {
+            return true;
+        }
+
+        // GoldSrc calls StartFrame for an active server even when there are no
+        // signed-on clients; client lifecycle must not gate host-frame work.
+        if (!combat_frame_cadence_.BeginFrame(
+                true,
+                summary_.host_frames_pumped))
+        {
+            return true;
+        }
+        if (state_.dll_functions.pfnStartFrame == nullptr)
+        {
+            return false;
+        }
+        const double fallback =
+            std::isfinite(state_.globalvars.frametime)
+                && state_.globalvars.frametime > 0.0f
+            ? state_.globalvars.frametime
+            : 0.01;
+        const double requested_frametime =
+            std::isfinite(elapsed_seconds) && elapsed_seconds > 0.0
+            ? elapsed_seconds
+            : fallback;
+        double bounded_frametime_value = requested_frametime;
+        if (bounded_frametime_value < 0.0001)
+        {
+            bounded_frametime_value = 0.0001;
+        }
+        if (bounded_frametime_value > 0.25)
+        {
+            bounded_frametime_value = 0.25;
+        }
+        const float bounded_frametime =
+            static_cast<float>(bounded_frametime_value);
+        state_.globalvars.time = static_cast<float>(network_server_time_);
+        state_.globalvars.frametime = bounded_frametime;
+        const std::uint64_t callback_count_before =
+            state_.total_engine_callback_calls;
+        const std::size_t message_count_before =
+            state_.frame_message_buffer.CompletedCount();
+        if (!SafeCallStartFrameSeh(
+                state_.dll_functions.pfnStartFrame,
+                nullptr))
+        {
+            const bool callback_observed =
+                state_.total_engine_callback_calls > callback_count_before;
+            hl::game_api::detail::FrameCompletedMessageObservation message;
+            const bool message_observed =
+                state_.frame_message_buffer.LastCompletedSince(
+                    message_count_before,
+                    &message);
+            hl::common::Logger::Error(
+                hl::common::LogCategory::Server,
+                std::string(
+                    "goldsrc_combat_failed: reason=start-frame-callback")
+                    + ",exception_caught=true"
+                    + ",engine_callback_observed="
+                    + std::string(callback_observed ? "true" : "false")
+                    + ",last_engine_callback="
+                    + (callback_observed
+                        ? state_.last_engine_callback_name
+                        : std::string("none"))
+                    + ",message_observed="
+                    + std::string(message_observed ? "true" : "false")
+                    + ",message_destination="
+                    + std::to_string(
+                        message_observed ? message.destination : -1)
+                    + ",message_type="
+                    + std::to_string(
+                        message_observed ? message.message_type : -1));
+            return false;
+        }
+        ++combat_start_frame_calls_;
+        return true;
+    }
+
+    bool DispatchCombatEntityThinks() noexcept
+    {
+        if (!combat_enabled_)
+        {
+            return true;
+        }
+        if (state_.dll_functions.pfnThink == nullptr)
+        {
+            return false;
+        }
+
+        std::array<int, kMaximumCombatEntityThinksPerHostFrame> due_indices{};
+        std::size_t due_count = 0;
+        const float current_time = static_cast<float>(network_server_time_);
+        state_.globalvars.time = current_time;
+        const int first_non_client = state_.server_state.maxclients + 1;
+        const int max_entities = state_.edict_store.MaxEntities();
+        std::size_t removal_count = 0u;
+        const auto remove_marked_entities = [&]() noexcept {
+            for (int entity_index = first_non_client;
+                 entity_index < max_entities
+                     && removal_count
+                         < kMaximumCombatEntityRemovalsPerHostFrame;
+                 ++entity_index)
+            {
+                edict_t* const entity =
+                    state_.edict_store.EntityOfIndex(entity_index);
+                if (entity == nullptr
+                    || entity->free != FALSE
+                    || (entity->v.flags & FL_KILLME) == 0)
+                {
+                    continue;
+                }
+                state_.edict_store.RemoveEntity(entity);
+                ++removal_count;
+            }
+        };
+
+        // Stock UTIL_Remove is deferred: it marks FL_KILLME and expects the
+        // engine to retire the edict after callbacks have unwound. Drain marks
+        // left by StartFrame or an earlier bounded frame before dispatching
+        // more entity callbacks.
+        remove_marked_entities();
+        for (int entity_index = first_non_client;
+             entity_index < max_entities
+                 && due_count < due_indices.size();
+             ++entity_index)
+        {
+            edict_t* const entity =
+                state_.edict_store.EntityOfIndex(entity_index);
+            if (entity == nullptr
+                || entity->free != FALSE
+                || entity->pvPrivateData == nullptr
+                || (entity->v.flags & (FL_DORMANT | FL_KILLME)) != 0
+                || entity->v.nextthink <= 0.0f
+                || entity->v.nextthink > current_time)
+            {
+                continue;
+            }
+            due_indices[due_count++] = entity_index;
+        }
+
+        for (std::size_t due_index = 0; due_index < due_count; ++due_index)
+        {
+            edict_t* const entity = state_.edict_store.EntityOfIndex(
+                due_indices[due_index]);
+            if (entity == nullptr
+                || entity->free != FALSE
+                || entity->pvPrivateData == nullptr
+                || (entity->v.flags & (FL_DORMANT | FL_KILLME)) != 0
+                || entity->v.nextthink <= 0.0f
+                || entity->v.nextthink > current_time)
+            {
+                continue;
+            }
+
+            entity->v.ltime = current_time;
+            entity->v.nextthink = 0.0f;
+            if (!SafeCallThinkSeh(
+                    state_.dll_functions.pfnThink,
+                    entity,
+                    nullptr))
+            {
+                hl::common::Logger::Error(
+                    hl::common::LogCategory::Server,
+                    "goldsrc_combat_failed: reason=entity-think-callback"
+                        ",entity="
+                        + std::to_string(due_indices[due_index]));
+                return false;
+            }
+            ++combat_entity_think_calls_;
+            if (entity->free == FALSE
+                && (entity->v.flags & FL_KILLME) != 0
+                && removal_count
+                    < kMaximumCombatEntityRemovalsPerHostFrame)
+            {
+                state_.edict_store.RemoveEntity(entity);
+                ++removal_count;
+            }
+        }
+        // A Think callback may mark a different entity. A final bounded pass
+        // retires it while the current frame's reuse barrier is still active.
+        remove_marked_entities();
+        return true;
     }
 
     template <std::size_t Size>
@@ -2445,18 +2958,24 @@ private:
     static bool IsExternalStockTestControlPath(
         const std::filesystem::path& path)
     {
-        std::error_code path_error;
-        std::filesystem::path repository = std::filesystem::weakly_canonical(
-            std::filesystem::current_path(path_error),
-            path_error);
-        if (path_error)
+        if (path.empty() || !path.is_absolute() || !path.has_root_name()
+            || !path.has_filename() || path.parent_path().empty())
         {
             return false;
         }
-        std::filesystem::path candidate = std::filesystem::weakly_canonical(
-            std::filesystem::absolute(path, path_error),
-            path_error);
-        if (path_error || candidate.empty() || repository.empty())
+        std::error_code repository_error;
+        std::filesystem::path repository = std::filesystem::weakly_canonical(
+            std::filesystem::current_path(repository_error),
+            repository_error);
+        std::error_code parent_error;
+        const std::filesystem::path candidate_parent =
+            std::filesystem::weakly_canonical(
+                path.parent_path(),
+                parent_error);
+        const std::filesystem::path candidate =
+            (candidate_parent / path.filename()).lexically_normal();
+        if (repository_error || parent_error || candidate.empty()
+            || repository.empty())
         {
             return false;
         }
@@ -2617,6 +3136,1243 @@ private:
                 + ",reason=" + std::string(reason));
     }
 
+    static void ApplyStockTestCombatPose(
+        edict_t* player,
+        const Vector& origin,
+        float yaw,
+        int ground_flags,
+        edict_t* ground_entity)
+    {
+        if (player == nullptr)
+        {
+            return;
+        }
+        player->v.origin = origin;
+        player->v.angles = Vector(0.0f, yaw, 0.0f);
+        player->v.v_angle = Vector(0.0f, yaw, 0.0f);
+        player->v.punchangle = Vector(0.0f, 0.0f, 0.0f);
+        player->v.fixangle = TRUE;
+        player->v.velocity = Vector(0.0f, 0.0f, 0.0f);
+        player->v.basevelocity = Vector(0.0f, 0.0f, 0.0f);
+        player->v.button = 0;
+        player->v.oldbuttons = 0;
+        player->v.flags = (player->v.flags & ~(FL_ONGROUND | FL_DUCKING))
+            | (ground_flags & (FL_ONGROUND | FL_DUCKING));
+        player->v.groundentity = ground_entity;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            player->v.size[axis] = player->v.maxs[axis] - player->v.mins[axis];
+            player->v.absmin[axis] =
+                player->v.origin[axis] + player->v.mins[axis] - 1.0f;
+            player->v.absmax[axis] =
+                player->v.origin[axis] + player->v.maxs[axis] + 1.0f;
+        }
+    }
+
+    bool ArrangeStockTestCombatPair(
+        DedicatedPlayerRuntimeSlot& shooter_slot,
+        DedicatedPlayerRuntimeSlot& target_slot,
+        std::string_view mode,
+        float* aim_yaw,
+        float* world_fraction,
+        std::string* failure_reason)
+    {
+        if (aim_yaw == nullptr || world_fraction == nullptr
+            || failure_reason == nullptr)
+        {
+            return false;
+        }
+        const auto& shooter_binding =
+            shooter_slot.goldsrc_player_lifecycle.binding();
+        const auto& target_binding =
+            target_slot.goldsrc_player_lifecycle.binding();
+        edict_t* const shooter = state_.edict_store.EntityOfIndex(
+            shooter_binding.edict_index);
+        edict_t* const target = state_.edict_store.EntityOfIndex(
+            target_binding.edict_index);
+        if (shooter == nullptr || target == nullptr)
+        {
+            *failure_reason = "edict_unavailable";
+            return false;
+        }
+        const StockTestSpawnAnchor& anchor = stock_test_spawn_anchors_[
+            static_cast<std::size_t>(shooter_slot.slot - 1)];
+        const StockTestSpawnAnchor& target_anchor = stock_test_spawn_anchors_[
+            static_cast<std::size_t>(target_slot.slot - 1)];
+        if (!anchor.valid
+            || anchor.session_generation
+                != shooter_binding.network_session_generation)
+        {
+            *failure_reason = "shooter_anchor_not_ready";
+            return false;
+        }
+        if (!target_anchor.valid
+            || target_anchor.session_generation
+                != target_binding.network_session_generation)
+        {
+            *failure_reason = "target_anchor_not_ready";
+            return false;
+        }
+        const bool want_blocked = mode == "blocked";
+        const bool want_miss = mode == "miss";
+        const bool want_aim = mode == "aim";
+        if (mode != "clear" && !want_blocked && !want_miss
+            && !want_aim)
+        {
+            *failure_reason = "invalid_mode";
+            return false;
+        }
+
+        constexpr std::array<float, 2> height_offsets = {{
+            0.0f, 36.0f,
+        }};
+        constexpr std::array<float, 10> clear_distances = {{
+            40.0f, 48.0f, 64.0f, 80.0f,
+            96.0f, 128.0f, 192.0f, 256.0f,
+            384.0f, 512.0f,
+        }};
+        constexpr std::array<float, 10> wall_beyond_distances = {{
+            40.0f, 48.0f, 64.0f, 80.0f, 96.0f,
+            128.0f, 192.0f, 256.0f, 384.0f, 512.0f,
+        }};
+        constexpr std::array<float, 8> yaws = {{
+            0.0f, 45.0f, 90.0f, 135.0f,
+            180.0f, 225.0f, 270.0f, 315.0f,
+        }};
+        bool found = false;
+        std::size_t shooter_position_count = 0u;
+        std::uint64_t fixture_trace_count = 0u;
+        Vector selected_shooter;
+        Vector selected_target;
+        float selected_yaw = 0.0f;
+        float selected_command_yaw = 0.0f;
+        float selected_world_fraction = 1.0f;
+        constexpr float kDegreesToRadians = 0.01745329251994329577f;
+        constexpr float kStockPrimaryGlockRange = 8192.0f;
+        constexpr float kFixtureSpreadSafetyScale = 1.25f;
+        const float stock_primary_glock_spread =
+            (anchor.flags & FL_ONGROUND) != 0 ? 0.01f : 0.1f;
+        // Stock autoaim samples BodyTarget from view_ofs * [0.5, 1.1].
+        // Include the no-autoaim ray, bracket that interval, and test a
+        // conservative square around the circular primary-fire spread.
+        constexpr std::size_t kBodyTargetIntervalSamples = 15u;
+        constexpr float kBodyTargetScaleMinimum = 0.45f;
+        constexpr float kBodyTargetScaleMaximum = 1.15f;
+        constexpr std::array<float, 9> spread_axis_samples = {{
+            -1.0f, -0.75f, -0.5f, -0.25f, 0.0f,
+            0.25f, 0.5f, 0.75f, 1.0f,
+        }};
+        std::vector<Vector> shooter_positions;
+        shooter_positions.reserve(2u);
+        const auto append_shooter_position =
+            [&](const Vector& candidate)
+            {
+                if (shooter_positions.size() >= 2u
+                    || !pmove_runtime_.IsPlayerPositionValid(candidate, 0))
+                {
+                    return;
+                }
+                shooter_positions.push_back(candidate);
+            };
+        append_shooter_position(shooter->v.origin);
+        append_shooter_position(anchor.origin);
+        shooter_position_count = shooter_positions.size();
+        const auto blocked_envelope_is_world_occluded =
+            [&](const Vector& shooter_origin,
+                const Vector& target_candidate)
+            {
+                const Vector shot_source(
+                    shooter_origin.x + shooter->v.view_ofs.x,
+                    shooter_origin.y + shooter->v.view_ofs.y,
+                    shooter_origin.z + shooter->v.view_ofs.z);
+                const Vector target_center(
+                    target_candidate.x
+                        + (target->v.mins.x + target->v.maxs.x) * 0.5f,
+                    target_candidate.y
+                        + (target->v.mins.y + target->v.maxs.y) * 0.5f,
+                    target_candidate.z
+                        + (target->v.mins.z + target->v.maxs.z) * 0.5f);
+                hl::network::GoldSrcCombatTraceCandidate trace_candidate;
+                trace_candidate.slot = target_slot.slot;
+                trace_candidate.generation =
+                    target_binding.network_session_generation;
+                trace_candidate.authoritative_generation =
+                    target_binding.network_session_generation;
+                trace_candidate.connected = true;
+                trace_candidate.spawned = true;
+                trace_candidate.damageable = true;
+                for (std::size_t axis = 0u; axis < 3u; ++axis)
+                {
+                    trace_candidate.minimum[axis] =
+                        target_candidate[axis] + target->v.mins[axis];
+                    trace_candidate.maximum[axis] =
+                        target_candidate[axis] + target->v.maxs[axis];
+                }
+                const std::vector<hl::network::GoldSrcCombatTraceCandidate>
+                    trace_candidates = {trace_candidate};
+                const float spread = stock_primary_glock_spread
+                    * kFixtureSpreadSafetyScale;
+
+                for (std::size_t body_index = 0u;
+                     body_index <= kBodyTargetIntervalSamples;
+                     ++body_index)
+                {
+                    const float body_scale = body_index == 0u
+                        ? 0.0f
+                        : kBodyTargetScaleMinimum
+                            + (kBodyTargetScaleMaximum
+                               - kBodyTargetScaleMinimum)
+                                * static_cast<float>(body_index - 1u)
+                                / static_cast<float>(
+                                    kBodyTargetIntervalSamples - 1u);
+                    const Vector body_target(
+                        target_center.x + target->v.view_ofs.x * body_scale,
+                        target_center.y + target->v.view_ofs.y * body_scale,
+                        target_center.z + target->v.view_ofs.z * body_scale);
+                    const float delta_x = body_target.x - shot_source.x;
+                    const float delta_y = body_target.y - shot_source.y;
+                    const float delta_z = body_target.z - shot_source.z;
+                    const float distance = std::sqrt(
+                        delta_x * delta_x + delta_y * delta_y
+                        + delta_z * delta_z);
+                    const float horizontal_distance = std::sqrt(
+                        delta_x * delta_x + delta_y * delta_y);
+                    if (!std::isfinite(distance)
+                        || !std::isfinite(horizontal_distance)
+                        || distance < 1.0f || horizontal_distance < 1.0f)
+                    {
+                        return false;
+                    }
+                    const float forward_x = delta_x / distance;
+                    const float forward_y = delta_y / distance;
+                    const float forward_z = delta_z / distance;
+                    const float right_x = -delta_y / horizontal_distance;
+                    const float right_y = delta_x / horizontal_distance;
+                    const float up_x =
+                        -forward_z * delta_x / horizontal_distance;
+                    const float up_y =
+                        -forward_z * delta_y / horizontal_distance;
+                    const float up_z = horizontal_distance / distance;
+
+                    for (float spread_x : spread_axis_samples)
+                    {
+                        for (float spread_y : spread_axis_samples)
+                        {
+                            const float direction_x = forward_x
+                                + right_x * spread_x * spread
+                                + up_x * spread_y * spread;
+                            const float direction_y = forward_y
+                                + right_y * spread_x * spread
+                                + up_y * spread_y * spread;
+                            const float direction_z = forward_z
+                                + up_z * spread_y * spread;
+                            const float trace_end[3] = {
+                                shot_source.x
+                                    + direction_x * kStockPrimaryGlockRange,
+                                shot_source.y
+                                    + direction_y * kStockPrimaryGlockRange,
+                                shot_source.z
+                                    + direction_z * kStockPrimaryGlockRange,
+                            };
+                            hl::game_api::detail::GoldSrcWorldLineTrace
+                                world_trace{};
+                            if (!pmove_runtime_.TraceWorldLine(
+                                    shot_source,
+                                    trace_end,
+                                    &world_trace)
+                                || world_trace.start_solid
+                                || world_trace.all_solid)
+                            {
+                                return false;
+                            }
+                            ++fixture_trace_count;
+                            const auto selection =
+                                hl::network::SelectGoldSrcCombatLineHit(
+                                    {{shot_source.x,
+                                      shot_source.y,
+                                      shot_source.z}},
+                                    {{trace_end[0],
+                                      trace_end[1],
+                                      trace_end[2]}},
+                                    world_trace.fraction,
+                                    trace_candidates,
+                                    shooter_slot.slot,
+                                    shooter_binding
+                                        .network_session_generation);
+                            const bool center_ray = spread_x == 0.0f
+                                && spread_y == 0.0f;
+                            if (selection.hit_type
+                                    == hl::network::GoldSrcCombatTraceHitType::kPlayer
+                                || (center_ray
+                                    && selection.hit_type
+                                        != hl::network::GoldSrcCombatTraceHitType::kWorld))
+                            {
+                                return false;
+                            }
+                        }
+                    }
+                }
+                return true;
+            };
+        const auto try_fixture_candidate =
+            [&](const Vector& shooter_origin,
+                const Vector& target_candidate,
+                float yaw)
+            {
+                const float start[3] = {
+                    shooter_origin.x + shooter->v.view_ofs.x,
+                    shooter_origin.y + shooter->v.view_ofs.y,
+                    shooter_origin.z + shooter->v.view_ofs.z,
+                };
+                const float end[3] = {
+                    target_candidate.x,
+                    target_candidate.y,
+                    start[2],
+                };
+                const float support_end[3] = {
+                    target_candidate.x,
+                    target_candidate.y,
+                    target_candidate.z - 8.0f,
+                };
+                if (!pmove_runtime_.IsPlayerPositionValid(
+                        target_candidate,
+                        0)
+                    || !pmove_runtime_.IsWorldPointOpen(end))
+                {
+                    return false;
+                }
+                if (want_blocked)
+                {
+                    hl::game_api::detail::GoldSrcWorldLineTrace support{};
+                    if (!pmove_runtime_.TraceWorldHull(
+                            target_candidate,
+                            support_end,
+                            0,
+                            &support)
+                        || support.start_solid || support.all_solid
+                        || support.fraction >= 0.999f
+                        || support.plane_normal[2] < 0.7f)
+                    {
+                        return false;
+                    }
+                }
+                hl::game_api::detail::GoldSrcWorldLineTrace trace{};
+                if (!pmove_runtime_.TraceWorldLine(start, end, &trace)
+                    || trace.start_solid || trace.all_solid)
+                {
+                    return false;
+                }
+                ++fixture_trace_count;
+                const bool blocked = trace.fraction > 0.01f
+                    && trace.fraction < 0.999f;
+                if (blocked != want_blocked)
+                {
+                    return false;
+                }
+                if (want_blocked
+                    && !blocked_envelope_is_world_occluded(
+                        shooter_origin,
+                        target_candidate))
+                {
+                    return false;
+                }
+                float command_yaw = want_miss
+                    ? std::fmod(yaw + 90.0f, 360.0f)
+                    : yaw;
+                if (want_aim)
+                {
+                    constexpr float kAutoaimThreshold =
+                        0.1736481776669f;
+                    constexpr float kAutoaimRayLength = 8192.0f;
+                    constexpr std::array<float, 7> body_scales = {{
+                        0.5f, 0.6f, 0.7f, 0.8f,
+                        0.9f, 1.0f, 1.1f,
+                    }};
+                    const float delta_x = target_candidate.x - start[0];
+                    const float delta_y = target_candidate.y - start[1];
+                    const float horizontal_distance = std::sqrt(
+                        delta_x * delta_x + delta_y * delta_y);
+                    const float half_x = std::max(
+                        std::abs(target->v.mins.x),
+                        std::abs(target->v.maxs.x));
+                    const float half_y = std::max(
+                        std::abs(target->v.mins.y),
+                        std::abs(target->v.maxs.y));
+                    const float horizontal_radius = std::sqrt(
+                        half_x * half_x + half_y * half_y);
+                    if (!std::isfinite(horizontal_distance)
+                        || horizontal_distance < 192.0f
+                        || !std::isfinite(horizontal_radius))
+                    {
+                        return false;
+                    }
+                    const float offset_degrees =
+                        std::atan2(
+                            horizontal_radius + 0.5f,
+                            horizontal_distance)
+                            / kDegreesToRadians
+                        + 0.25f;
+                    if (!std::isfinite(offset_degrees)
+                        || offset_degrees <= 0.0f
+                        || offset_degrees >= 9.0f)
+                    {
+                        return false;
+                    }
+                    command_yaw = std::fmod(yaw + offset_degrees, 360.0f);
+                    const float command_radians =
+                        command_yaw * kDegreesToRadians;
+                    const float command_forward_x =
+                        std::cos(command_radians);
+                    const float command_forward_y =
+                        std::sin(command_radians);
+                    const float command_right_x = -command_forward_y;
+                    const float command_right_y = command_forward_x;
+                    const float direct_end[3] = {
+                        start[0] + command_forward_x * kAutoaimRayLength,
+                        start[1] + command_forward_y * kAutoaimRayLength,
+                        start[2],
+                    };
+                    hl::network::GoldSrcCombatTraceCandidate target_trace;
+                    target_trace.slot = target_slot.slot;
+                    target_trace.generation =
+                        target_binding.network_session_generation;
+                    target_trace.authoritative_generation =
+                        target_binding.network_session_generation;
+                    target_trace.connected = true;
+                    target_trace.spawned = true;
+                    target_trace.damageable = true;
+                    for (std::size_t axis = 0u; axis < 3u; ++axis)
+                    {
+                        target_trace.minimum[axis] =
+                            target_candidate[axis] + target->v.mins[axis];
+                        target_trace.maximum[axis] =
+                            target_candidate[axis] + target->v.maxs[axis];
+                    }
+                    const std::vector<
+                        hl::network::GoldSrcCombatTraceCandidate>
+                        target_traces = {target_trace};
+                    hl::game_api::detail::GoldSrcWorldLineTrace direct_world{};
+                    if (!pmove_runtime_.TraceWorldLine(
+                            start,
+                            direct_end,
+                            &direct_world)
+                        || direct_world.start_solid
+                        || direct_world.all_solid)
+                    {
+                        return false;
+                    }
+                    ++fixture_trace_count;
+                    const auto direct_selection =
+                        hl::network::SelectGoldSrcCombatLineHit(
+                            {{start[0], start[1], start[2]}},
+                            {{direct_end[0], direct_end[1], direct_end[2]}},
+                            direct_world.fraction,
+                            target_traces,
+                            shooter_slot.slot,
+                            shooter_binding.network_session_generation);
+                    if (direct_selection.hit_type
+                        == hl::network::GoldSrcCombatTraceHitType::kPlayer)
+                    {
+                        return false;
+                    }
+
+                    for (float body_scale : body_scales)
+                    {
+                        const float body_target[3] = {
+                            target_candidate.x
+                                + (target->v.mins.x + target->v.maxs.x)
+                                    * 0.5f
+                                + target->v.view_ofs.x * body_scale,
+                            target_candidate.y
+                                + (target->v.mins.y + target->v.maxs.y)
+                                    * 0.5f
+                                + target->v.view_ofs.y * body_scale,
+                            target_candidate.z
+                                + (target->v.mins.z + target->v.maxs.z)
+                                    * 0.5f
+                                + target->v.view_ofs.z * body_scale,
+                        };
+                        const float body_delta_x = body_target[0] - start[0];
+                        const float body_delta_y = body_target[1] - start[1];
+                        const float body_delta_z = body_target[2] - start[2];
+                        const float body_distance = std::sqrt(
+                            body_delta_x * body_delta_x
+                            + body_delta_y * body_delta_y
+                            + body_delta_z * body_delta_z);
+                        if (!std::isfinite(body_distance)
+                            || body_distance < 1.0f)
+                        {
+                            return false;
+                        }
+                        const float direction_x =
+                            body_delta_x / body_distance;
+                        const float direction_y =
+                            body_delta_y / body_distance;
+                        const float direction_z =
+                            body_delta_z / body_distance;
+                        const float autoaim_metric =
+                            (std::abs(
+                                 direction_x * command_right_x
+                                 + direction_y * command_right_y)
+                             + std::abs(direction_z) * 0.5f)
+                            * (1.0f
+                               + 0.2f
+                                   * (body_distance / kAutoaimRayLength));
+                        if (!std::isfinite(autoaim_metric)
+                            || autoaim_metric >= kAutoaimThreshold)
+                        {
+                            return false;
+                        }
+                        hl::game_api::detail::GoldSrcWorldLineTrace
+                            visibility_world{};
+                        if (!pmove_runtime_.TraceWorldLine(
+                                start,
+                                body_target,
+                                &visibility_world)
+                            || visibility_world.start_solid
+                            || visibility_world.all_solid)
+                        {
+                            return false;
+                        }
+                        ++fixture_trace_count;
+                        const auto visibility_selection =
+                            hl::network::SelectGoldSrcCombatLineHit(
+                                {{start[0], start[1], start[2]}},
+                                {{body_target[0],
+                                  body_target[1],
+                                  body_target[2]}},
+                                visibility_world.fraction,
+                                target_traces,
+                                shooter_slot.slot,
+                                shooter_binding.network_session_generation);
+                        if (visibility_selection.hit_type
+                                != hl::network::
+                                    GoldSrcCombatTraceHitType::kPlayer
+                            || visibility_selection.player_slot
+                                != target_slot.slot)
+                        {
+                            return false;
+                        }
+                    }
+                }
+                selected_shooter = shooter_origin;
+                selected_target = target_candidate;
+                selected_yaw = yaw;
+                selected_command_yaw = command_yaw;
+                selected_world_fraction = trace.fraction;
+                return true;
+            };
+        constexpr std::array<float, 2> direct_target_height_offsets = {{
+            0.0f, 1.0f,
+        }};
+        for (const Vector& shooter_origin : shooter_positions)
+        {
+            for (const Vector& base_target :
+                 {target->v.origin, target_anchor.origin})
+            {
+                const float delta_x = base_target.x - shooter_origin.x;
+                const float delta_y = base_target.y - shooter_origin.y;
+                const float minimum_direct_distance =
+                    want_aim ? 192.0f : 96.0f;
+                if (delta_x * delta_x + delta_y * delta_y
+                    < minimum_direct_distance * minimum_direct_distance)
+                {
+                    continue;
+                }
+                float yaw = std::atan2(delta_y, delta_x)
+                    / kDegreesToRadians;
+                if (yaw < 0.0f)
+                {
+                    yaw += 360.0f;
+                }
+                if (want_blocked)
+                {
+                    found = try_fixture_candidate(
+                        shooter_origin,
+                        base_target,
+                        yaw);
+                }
+                else
+                {
+                    for (float height_offset : direct_target_height_offsets)
+                    {
+                        const Vector target_candidate(
+                            base_target.x,
+                            base_target.y,
+                            base_target.z + height_offset);
+                        const float target_relative_height =
+                            shooter_origin.z + shooter->v.view_ofs.z
+                            - target_candidate.z;
+                        if (target_relative_height < target->v.mins.z
+                            || target_relative_height > target->v.maxs.z)
+                        {
+                            continue;
+                        }
+                        if (try_fixture_candidate(
+                                shooter_origin,
+                                target_candidate,
+                                yaw))
+                        {
+                            found = true;
+                            break;
+                        }
+                    }
+                }
+                if (found)
+                {
+                    break;
+                }
+            }
+            if (found)
+            {
+                break;
+            }
+        }
+        constexpr std::array<float, 6> support_probe_height_offsets = {{
+            1.0f, 18.0f, 36.0f, 54.0f, 72.0f, 96.0f,
+        }};
+        constexpr float kSupportProbeDrop = 384.0f;
+        const auto find_supported_target_origin =
+            [&](float x,
+                float y,
+                float reference_z,
+                Vector* supported_origin)
+            {
+                if (supported_origin == nullptr
+                    || !std::isfinite(x) || !std::isfinite(y)
+                    || !std::isfinite(reference_z))
+                {
+                    return false;
+                }
+                for (float height_offset : support_probe_height_offsets)
+                {
+                    const Vector probe_start(
+                        x,
+                        y,
+                        reference_z + height_offset);
+                    const Vector probe_end(
+                        x,
+                        y,
+                        probe_start.z - kSupportProbeDrop);
+                    if (!pmove_runtime_.IsPlayerPositionValid(
+                            probe_start,
+                            0))
+                    {
+                        continue;
+                    }
+                    hl::game_api::detail::GoldSrcWorldLineTrace support{};
+                    if (!pmove_runtime_.TraceWorldHull(
+                            probe_start,
+                            probe_end,
+                            0,
+                            &support))
+                    {
+                        continue;
+                    }
+                    ++fixture_trace_count;
+                    if (support.start_solid || support.all_solid
+                        || support.fraction >= 0.999f
+                        || support.plane_normal[2] < 0.7f)
+                    {
+                        continue;
+                    }
+                    const Vector candidate(
+                        support.end_position[0],
+                        support.end_position[1],
+                        support.end_position[2]);
+                    if (!pmove_runtime_.IsPlayerPositionValid(candidate, 0))
+                    {
+                        continue;
+                    }
+                    *supported_origin = candidate;
+                    return true;
+                }
+                return false;
+            };
+        for (const Vector& shooter_origin : shooter_positions)
+        {
+            if (found)
+            {
+                break;
+            }
+            for (float yaw : yaws)
+            {
+                const float radians = yaw * kDegreesToRadians;
+                const float direction_x = std::cos(radians);
+                const float direction_y = std::sin(radians);
+                if (want_blocked)
+                {
+                    const float start[3] = {
+                        shooter_origin.x + shooter->v.view_ofs.x,
+                        shooter_origin.y + shooter->v.view_ofs.y,
+                        shooter_origin.z + shooter->v.view_ofs.z,
+                    };
+                    const float far_end[3] = {
+                        start[0] + direction_x * 2048.0f,
+                        start[1] + direction_y * 2048.0f,
+                        start[2],
+                    };
+                    hl::game_api::detail::GoldSrcWorldLineTrace wall{};
+                    if (!pmove_runtime_.TraceWorldLine(
+                            start,
+                            far_end,
+                            &wall)
+                        || wall.start_solid || wall.all_solid
+                        || wall.fraction <= 0.01f
+                        || wall.fraction >= 0.999f)
+                    {
+                        continue;
+                    }
+                    ++fixture_trace_count;
+                    for (float beyond_wall : wall_beyond_distances)
+                    {
+                        const float target_x = wall.end_position[0]
+                            + direction_x * beyond_wall;
+                        const float target_y = wall.end_position[1]
+                            + direction_y * beyond_wall;
+                        const std::array<float, 3> support_reference_zs = {{
+                            shooter_origin.z,
+                            target->v.origin.z,
+                            target_anchor.origin.z,
+                        }};
+                        for (float reference_z : support_reference_zs)
+                        {
+                            Vector target_candidate;
+                            if (!find_supported_target_origin(
+                                    target_x,
+                                    target_y,
+                                    reference_z,
+                                    &target_candidate))
+                            {
+                                continue;
+                            }
+                            if (try_fixture_candidate(
+                                    shooter_origin,
+                                    target_candidate,
+                                    yaw))
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found)
+                        {
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    for (float distance : clear_distances)
+                    {
+                        for (float height_offset : height_offsets)
+                        {
+                            const Vector target_candidate(
+                                shooter_origin.x + direction_x * distance,
+                                shooter_origin.y + direction_y * distance,
+                                shooter_origin.z + height_offset);
+                            if (try_fixture_candidate(
+                                    shooter_origin,
+                                    target_candidate,
+                                    yaw))
+                            {
+                                found = true;
+                                break;
+                            }
+                        }
+                        if (found)
+                        {
+                            break;
+                        }
+                    }
+                }
+                if (found)
+                {
+                    break;
+                }
+            }
+                if (found)
+                {
+                    break;
+                }
+            }
+        if (!found)
+        {
+            *failure_reason = want_blocked
+                ? "blocked_fixture_not_found_s"
+                    + std::to_string(shooter_position_count)
+                    + "_n" + std::to_string(fixture_trace_count)
+                : "clear_fixture_not_found";
+            return false;
+        }
+
+        edict_t* const world = state_.edict_store.World();
+        ApplyStockTestCombatPose(
+            shooter,
+            selected_shooter,
+            want_miss ? std::fmod(selected_yaw + 90.0f, 360.0f)
+                      : selected_yaw,
+            anchor.flags,
+            world);
+        ApplyStockTestCombatPose(
+            target,
+            selected_target,
+            std::fmod(selected_yaw + 180.0f, 360.0f),
+            target_anchor.flags,
+            world);
+        for (const auto& [slot_state, player] :
+             {std::pair<DedicatedPlayerRuntimeSlot*, edict_t*>{
+                  &shooter_slot,
+                  shooter},
+              std::pair<DedicatedPlayerRuntimeSlot*, edict_t*>{
+                  &target_slot,
+                  target}})
+        {
+            auto* const client =
+                FindClientReplicationSummary(slot_state->slot);
+            if (client == nullptr || client->combat_fixture_baseline_captured)
+            {
+                continue;
+            }
+            client->combat_fixture_baseline_captured = true;
+            client->initial_authoritative_health = player->v.health;
+            client->minimum_authoritative_health = player->v.health;
+            client->initial_clientdata_health = client->clientdata_health;
+            client->minimum_clientdata_health = client->clientdata_health;
+            client->initial_glock_clip = client->glock_clip;
+            client->minimum_glock_clip = client->glock_clip;
+            client->initial_glock_reserve_ammo =
+                client->glock_reserve_ammo;
+        }
+        for (std::size_t receiver = 0u;
+             receiver < stock_test_reset_transitions_.size(); ++receiver)
+        {
+            for (int changed_slot : {shooter_slot.slot, target_slot.slot})
+            {
+                if (receiver != static_cast<std::size_t>(changed_slot - 1))
+                {
+                    stock_test_reset_transitions_[receiver][
+                        static_cast<std::size_t>(changed_slot - 1)] = true;
+                    stock_test_nointerp_clear_pending_[receiver][
+                        static_cast<std::size_t>(changed_slot - 1)] = true;
+                }
+            }
+        }
+        *aim_yaw = selected_command_yaw;
+        *world_fraction = selected_world_fraction;
+        *failure_reason = "none";
+        return true;
+    }
+
+    void AcknowledgeStockTestCombatFixture(
+        std::string request_id,
+        int shooter_slot,
+        int target_slot,
+        std::string_view mode,
+        std::string_view status,
+        std::string_view reason,
+        float aim_yaw,
+        float world_fraction)
+    {
+        request_id = SanitizeLogField(std::move(request_id));
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_stock_test_combat_ack: request_id=" + request_id
+                + ",shooter_slot=" + std::to_string(shooter_slot)
+                + ",target_slot=" + std::to_string(target_slot)
+                + ",mode=" + std::string(mode)
+                + ",status=" + std::string(status)
+                + ",reason=" + std::string(reason)
+                + ",aim_yaw=" + std::to_string(aim_yaw)
+                + ",world_fraction=" + std::to_string(world_fraction));
+    }
+
+    void AcknowledgeStockTestFallFixture(
+        std::string request_id,
+        int slot,
+        std::string_view mode,
+        std::string_view status,
+        std::string_view reason)
+    {
+        request_id = SanitizeLogField(std::move(request_id));
+        const std::string_view reported_mode = mode == "landing"
+            ? "landing"
+            : mode == "damage" ? "damage" : "invalid";
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_stock_test_fall_ack: request_id=" + request_id
+                + ",slot=" + std::to_string(slot)
+                + ",mode=" + std::string(reported_mode)
+                + ",status=" + std::string(status)
+                + ",reason=" + std::string(reason));
+    }
+
+    void ReportStockTestFallObservation(
+        int slot,
+        std::uint64_t session_generation,
+        std::string_view mode,
+        std::string_view status,
+        std::string_view reason)
+    {
+        const std::string_view reported_mode = mode == "landing"
+            ? "landing"
+            : mode == "damage" ? "damage" : "invalid";
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_stock_test_fall_observation: slot="
+                + std::to_string(slot)
+                + ",session_generation="
+                + std::to_string(session_generation)
+                + ",mode=" + std::string(reported_mode)
+                + ",status=" + std::string(status)
+                + ",reason=" + std::string(reason));
+    }
+
+    void ReportStockTestFallResponsiveness(
+        std::string_view status,
+        std::string_view reason)
+    {
+        hl::common::Logger::Info(
+            hl::common::LogCategory::Server,
+            "goldsrc_stock_test_fall_responsiveness: status="
+                + std::string(status)
+                + ",reason=" + std::string(reason));
+    }
+
+    bool ArrangeStockTestFallLanding(
+        DedicatedPlayerRuntimeSlot& slot_state,
+        std::string_view mode,
+        std::string* failure_reason)
+    {
+        if (failure_reason == nullptr || slot_state.slot < 1
+            || static_cast<std::size_t>(slot_state.slot)
+                > stock_test_spawn_anchors_.size())
+        {
+            return false;
+        }
+        const bool damage_mode = mode == "damage";
+        if (mode != "landing" && !damage_mode)
+        {
+            *failure_reason = "invalid_mode";
+            return false;
+        }
+        const auto& binding =
+            slot_state.goldsrc_player_lifecycle.binding();
+        const StockTestFallAcceptancePhase required_phase = damage_mode
+            ? StockTestFallAcceptancePhase::kResetObserved
+            : StockTestFallAcceptancePhase::kInactive;
+        if (stock_test_fall_acceptance_.phase != required_phase
+            || (damage_mode
+                && (stock_test_fall_acceptance_.slot != slot_state.slot
+                    || stock_test_fall_acceptance_.session_generation
+                        != binding.network_session_generation)))
+        {
+            *failure_reason = "invalid_sequence";
+            return false;
+        }
+        const StockTestSpawnAnchor& anchor = stock_test_spawn_anchors_[
+            static_cast<std::size_t>(slot_state.slot - 1)];
+        if (!anchor.valid
+            || anchor.session_generation
+                != binding.network_session_generation)
+        {
+            *failure_reason = "anchor_not_ready";
+            return false;
+        }
+        if ((anchor.flags & FL_ONGROUND) == 0
+            || (anchor.flags & FL_DUCKING) != 0
+            || anchor.ground_edict != 0)
+        {
+            *failure_reason = "world_support_required";
+            return false;
+        }
+        edict_t* const player = state_.edict_store.EntityOfIndex(
+            binding.edict_index);
+        if (player == nullptr)
+        {
+            *failure_reason = "edict_unavailable";
+            return false;
+        }
+        constexpr float kFixedFallDamage = 10.0f;
+        if (!std::isfinite(player->v.health)
+            || player->v.health <= kFixedFallDamage
+            || player->v.deadflag != 0
+            || player->v.takedamage == 0.0f
+            || player->v.waterlevel != 0
+            || player->v.movetype != MOVETYPE_WALK
+            || (player->v.flags & FL_GODMODE) != 0)
+        {
+            *failure_reason = "player_not_nonlethal_ready";
+            return false;
+        }
+
+        // PM_PlayerMove probes two units down while categorizing position.
+        // Start above that probe, but within one 10 ms fall step, so the proof
+        // exercises the swept landing trace instead of beginning grounded.
+        constexpr float kAirborneOffset = 3.0f;
+        constexpr float kSupportProbeDepth = 8.0f;
+        constexpr float kLandingVelocity = 400.0f;
+        constexpr float kDamageVelocity = 600.0f;
+        const float fall_velocity = damage_mode
+            ? kDamageVelocity
+            : kLandingVelocity;
+        const Vector airborne_origin(
+            anchor.origin.x,
+            anchor.origin.y,
+            anchor.origin.z + kAirborneOffset);
+        const Vector support_end(
+            anchor.origin.x,
+            anchor.origin.y,
+            anchor.origin.z - kSupportProbeDepth);
+        if (!pmove_runtime_.IsPlayerPositionValid(airborne_origin, 0))
+        {
+            *failure_reason = "airborne_position_invalid";
+            return false;
+        }
+        hl::game_api::detail::GoldSrcWorldLineTrace support{};
+        if (!pmove_runtime_.TraceWorldHull(
+                airborne_origin,
+                support_end,
+                0,
+                &support)
+            || support.start_solid || support.all_solid
+            || !support.hit_world || support.fraction <= 0.0f
+            || support.fraction >= 0.999f
+            || support.plane_normal[2] < 0.7f)
+        {
+            *failure_reason = "landing_support_invalid";
+            return false;
+        }
+
+        // Keep the proof independent of an installed server.cfg while still
+        // exercising the stock multiplayer fixed-damage Game DLL path.
+        if (!state_.cvar_registry.SetValue("mp_falldamage", "0"))
+        {
+            *failure_reason = "fall_damage_cvar_unavailable";
+            return false;
+        }
+        const std::optional<hl::game_api::CvarSnapshot> fall_damage_cvar =
+            state_.cvar_registry.SnapshotOf("mp_falldamage");
+        if (!fall_damage_cvar.has_value()
+            || !std::isfinite(fall_damage_cvar->value)
+            || std::abs(fall_damage_cvar->value) > 0.0001f)
+        {
+            *failure_reason = "fall_damage_cvar_not_fixed";
+            return false;
+        }
+
+        player->v.origin = airborne_origin;
+        player->v.angles = anchor.angles;
+        player->v.v_angle = anchor.v_angle;
+        player->v.mins = anchor.mins;
+        player->v.maxs = anchor.maxs;
+        player->v.punchangle = Vector(0.0f, 0.0f, 0.0f);
+        player->v.fixangle = TRUE;
+        player->v.velocity = Vector(0.0f, 0.0f, -fall_velocity);
+        player->v.basevelocity = Vector(0.0f, 0.0f, 0.0f);
+        player->v.flFallVelocity = fall_velocity;
+        player->v.button = 0;
+        player->v.oldbuttons = 0;
+        player->v.flags &= ~(FL_ONGROUND | FL_DUCKING);
+        player->v.groundentity = nullptr;
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            player->v.size[axis] =
+                player->v.maxs[axis] - player->v.mins[axis];
+            player->v.absmin[axis] =
+                player->v.origin[axis] + player->v.mins[axis] - 1.0f;
+            player->v.absmax[axis] =
+                player->v.origin[axis] + player->v.maxs[axis] + 1.0f;
+        }
+        for (std::size_t receiver = 0u;
+             receiver < stock_test_reset_transitions_.size();
+             ++receiver)
+        {
+            if (receiver != static_cast<std::size_t>(slot_state.slot - 1))
+            {
+                stock_test_reset_transitions_[receiver][
+                    static_cast<std::size_t>(slot_state.slot - 1)] = true;
+                stock_test_nointerp_clear_pending_[receiver][
+                    static_cast<std::size_t>(slot_state.slot - 1)] = true;
+            }
+        }
+        *failure_reason = "none";
+        stock_test_fall_acceptance_.phase = damage_mode
+            ? StockTestFallAcceptancePhase::kDamageArranged
+            : StockTestFallAcceptancePhase::kLandingArranged;
+        stock_test_fall_acceptance_.slot = slot_state.slot;
+        stock_test_fall_acceptance_.session_generation =
+            binding.network_session_generation;
+        stock_test_fall_acceptance_.health_before = player->v.health;
+        return true;
+    }
+
+    void FailStockTestFallObservation(
+        std::string_view mode,
+        std::string_view reason)
+    {
+        stock_test_fall_acceptance_.phase =
+            StockTestFallAcceptancePhase::kFailed;
+        ReportStockTestFallObservation(
+            stock_test_fall_acceptance_.slot,
+            stock_test_fall_acceptance_.session_generation,
+            mode,
+            "failed",
+            reason);
+    }
+
+    bool CaptureStockTestFallResponsivenessOrigins()
+    {
+        DedicatedPlayerRuntimeSlot* slots[2] = {nullptr, nullptr};
+        for (DedicatedPlayerRuntimeSlot& candidate :
+             state_.dedicated_multiplayer_foundation.slots)
+        {
+            if (candidate.slot >= 1 && candidate.slot <= 2
+                && IsDedicatedSlotConnectedOccupant(candidate)
+                && candidate.goldsrc_player_lifecycle.put_in_server())
+            {
+                slots[candidate.slot - 1] = &candidate;
+            }
+        }
+        if (slots[0] == nullptr || slots[1] == nullptr)
+        {
+            return false;
+        }
+        const auto& binding_a = slots[0]->goldsrc_player_lifecycle.binding();
+        const auto& binding_b = slots[1]->goldsrc_player_lifecycle.binding();
+        if (lifecycle_edict_registry_.Validate(binding_a)
+                != hl::network::GoldSrcClientEdictBindingResult::kBound
+            || lifecycle_edict_registry_.Validate(binding_b)
+                != hl::network::GoldSrcClientEdictBindingResult::kBound)
+        {
+            return false;
+        }
+        edict_t* const player_a =
+            state_.edict_store.EntityOfIndex(binding_a.edict_index);
+        edict_t* const player_b =
+            state_.edict_store.EntityOfIndex(binding_b.edict_index);
+        if (player_a == nullptr || player_b == nullptr)
+        {
+            return false;
+        }
+        stock_test_fall_acceptance_.responsiveness_origin_a =
+            player_a->v.origin;
+        stock_test_fall_acceptance_.responsiveness_origin_b =
+            player_b->v.origin;
+        stock_test_fall_acceptance_.responsiveness_generation_a =
+            binding_a.network_session_generation;
+        stock_test_fall_acceptance_.responsiveness_generation_b =
+            binding_b.network_session_generation;
+        stock_test_fall_acceptance_.responsiveness_a = false;
+        stock_test_fall_acceptance_.responsiveness_b = false;
+        return true;
+    }
+
+    void ObserveStockTestFallLanding(
+        const DedicatedPlayerRuntimeSlot& slot_state,
+        const hl::network::GoldSrcClientEdictBinding& binding,
+        edict_t* player,
+        const hl::game_api::detail::GoldSrcPmoveExecutionResult& executed)
+    {
+        const bool landing_mode = stock_test_fall_acceptance_.phase
+            == StockTestFallAcceptancePhase::kLandingArranged;
+        const bool damage_mode = stock_test_fall_acceptance_.phase
+            == StockTestFallAcceptancePhase::kDamageArranged;
+        if ((!landing_mode && !damage_mode)
+            || slot_state.slot != stock_test_fall_acceptance_.slot
+            || binding.network_session_generation
+                != stock_test_fall_acceptance_.session_generation
+            || executed.commands_executed == 0u)
+        {
+            return;
+        }
+        if (!executed.grounded)
+        {
+            return;
+        }
+
+        const std::string_view mode = damage_mode ? "damage" : "landing";
+        edict_t* const world = state_.edict_store.World();
+        if (player == nullptr || world == nullptr
+            || (player->v.flags & FL_ONGROUND) == 0
+            || player->v.groundentity != world)
+        {
+            FailStockTestFallObservation(mode, "world_ground_required");
+            return;
+        }
+        constexpr float kFixedFallDamage = 10.0f;
+        const float expected_health = stock_test_fall_acceptance_.health_before
+            - (damage_mode ? kFixedFallDamage : 0.0f);
+        if (!std::isfinite(player->v.health)
+            || std::abs(player->v.health - expected_health) > 0.01f
+            || player->v.health <= 0.0f || player->v.deadflag != 0)
+        {
+            FailStockTestFallObservation(mode, "health_transition_invalid");
+            return;
+        }
+
+        if (damage_mode && !CaptureStockTestFallResponsivenessOrigins())
+        {
+            FailStockTestFallObservation(mode, "peer_not_ready");
+            return;
+        }
+        stock_test_fall_acceptance_.phase = damage_mode
+            ? StockTestFallAcceptancePhase::kDamageObserved
+            : StockTestFallAcceptancePhase::kLandingObserved;
+        ReportStockTestFallObservation(
+            stock_test_fall_acceptance_.slot,
+            stock_test_fall_acceptance_.session_generation,
+            mode,
+            "pass",
+            "none");
+    }
+
+    void ObserveStockTestFallResponsiveness(
+        const DedicatedPlayerRuntimeSlot& slot_state,
+        const hl::network::GoldSrcClientEdictBinding& binding,
+        const edict_t* player,
+        const hl::game_api::detail::GoldSrcPmoveExecutionResult& executed,
+        bool movement_requested)
+    {
+        if (stock_test_fall_acceptance_.phase
+                != StockTestFallAcceptancePhase::kDamageObserved
+            || player == nullptr || executed.commands_executed == 0u
+            || !movement_requested || !executed.authoritative_state_changed)
+        {
+            return;
+        }
+        const auto moved_from = [&](const Vector& origin)
+        {
+            const float dx = player->v.origin.x - origin.x;
+            const float dy = player->v.origin.y - origin.y;
+            return std::isfinite(dx) && std::isfinite(dy)
+                && (dx * dx + dy * dy) > 1.0f;
+        };
+        if (slot_state.slot == 1
+            && binding.network_session_generation
+                == stock_test_fall_acceptance_.responsiveness_generation_a
+            && moved_from(
+                stock_test_fall_acceptance_.responsiveness_origin_a))
+        {
+            stock_test_fall_acceptance_.responsiveness_a = true;
+        }
+        else if (slot_state.slot == 2
+            && binding.network_session_generation
+                == stock_test_fall_acceptance_.responsiveness_generation_b
+            && moved_from(
+                stock_test_fall_acceptance_.responsiveness_origin_b))
+        {
+            stock_test_fall_acceptance_.responsiveness_b = true;
+        }
+        if (stock_test_fall_acceptance_.responsiveness_a
+            && stock_test_fall_acceptance_.responsiveness_b)
+        {
+            stock_test_fall_acceptance_.phase =
+                StockTestFallAcceptancePhase::kComplete;
+            ReportStockTestFallResponsiveness("pass", "none");
+        }
+    }
+
     void CheckStockTestControlRequest(
         std::chrono::steady_clock::time_point frame_time)
     {
@@ -2651,8 +4407,11 @@ private:
         std::ifstream stream(*stock_test_control_file_);
         std::string command;
         int slot = 0;
+        int target_slot_number = 0;
         std::uint64_t generation = 0u;
+        std::uint64_t target_generation = 0u;
         std::string request_id = "invalid";
+        std::string mode = "clear";
         std::string token;
         if (stream)
         {
@@ -2676,9 +4435,21 @@ private:
                     {
                         generation = std::stoull(value);
                     }
+                    else if (key == "target_slot")
+                    {
+                        target_slot_number = std::stoi(value);
+                    }
+                    else if (key == "expected_target_session_generation")
+                    {
+                        target_generation = std::stoull(value);
+                    }
                     else if (key == "request_id")
                     {
                         request_id = value;
+                    }
+                    else if (key == "mode")
+                    {
+                        mode = value;
                     }
                 }
                 catch (...)
@@ -2686,6 +4457,153 @@ private:
                     command.clear();
                 }
             }
+        }
+        if (command == "arrange_combat_pair")
+        {
+            if (!combat_enabled_ || slot < 1 || target_slot_number < 1
+                || slot == target_slot_number || generation == 0u
+                || target_generation == 0u || request_id.empty())
+            {
+                AcknowledgeStockTestCombatFixture(
+                    request_id,
+                    slot,
+                    target_slot_number,
+                    mode,
+                    "rejected",
+                    "invalid_request",
+                    0.0f,
+                    1.0f);
+                return;
+            }
+            DedicatedPlayerRuntimeSlot* shooter = nullptr;
+            DedicatedPlayerRuntimeSlot* target = nullptr;
+            for (DedicatedPlayerRuntimeSlot& candidate :
+                 state_.dedicated_multiplayer_foundation.slots)
+            {
+                if (!IsDedicatedSlotConnectedOccupant(candidate)
+                    || !candidate.goldsrc_player_lifecycle.put_in_server())
+                {
+                    continue;
+                }
+                if (candidate.slot == slot)
+                {
+                    shooter = &candidate;
+                }
+                else if (candidate.slot == target_slot_number)
+                {
+                    target = &candidate;
+                }
+            }
+            if (shooter == nullptr || target == nullptr)
+            {
+                AcknowledgeStockTestCombatFixture(
+                    request_id,
+                    slot,
+                    target_slot_number,
+                    mode,
+                    "rejected",
+                    "slot_not_active",
+                    0.0f,
+                    1.0f);
+                return;
+            }
+            if (shooter->goldsrc_player_lifecycle.binding()
+                        .network_session_generation != generation
+                || target->goldsrc_player_lifecycle.binding()
+                        .network_session_generation != target_generation)
+            {
+                AcknowledgeStockTestCombatFixture(
+                    request_id,
+                    slot,
+                    target_slot_number,
+                    mode,
+                    "rejected",
+                    "stale_generation",
+                    0.0f,
+                    1.0f);
+                return;
+            }
+            float aim_yaw = 0.0f;
+            float world_fraction = 1.0f;
+            std::string failure_reason;
+            const bool arranged = ArrangeStockTestCombatPair(
+                *shooter,
+                *target,
+                mode,
+                &aim_yaw,
+                &world_fraction,
+                &failure_reason);
+            AcknowledgeStockTestCombatFixture(
+                request_id,
+                slot,
+                target_slot_number,
+                mode,
+                arranged ? "applied" : "rejected",
+                failure_reason,
+                aim_yaw,
+                world_fraction);
+            return;
+        }
+        if (command == "arrange_fall_landing")
+        {
+            if (!combat_enabled_ || !fall_damage_proof_ || slot < 1
+                || static_cast<std::size_t>(slot)
+                    > stock_test_spawn_anchors_.size()
+                || generation == 0u || request_id.empty())
+            {
+                AcknowledgeStockTestFallFixture(
+                    request_id,
+                    slot,
+                    mode,
+                    "rejected",
+                    "invalid_request");
+                return;
+            }
+            DedicatedPlayerRuntimeSlot* target = nullptr;
+            for (DedicatedPlayerRuntimeSlot& candidate :
+                 state_.dedicated_multiplayer_foundation.slots)
+            {
+                if (candidate.slot == slot
+                    && IsDedicatedSlotConnectedOccupant(candidate)
+                    && candidate.goldsrc_player_lifecycle.put_in_server())
+                {
+                    target = &candidate;
+                    break;
+                }
+            }
+            if (target == nullptr)
+            {
+                AcknowledgeStockTestFallFixture(
+                    request_id,
+                    slot,
+                    mode,
+                    "rejected",
+                    "slot_not_active");
+                return;
+            }
+            if (target->goldsrc_player_lifecycle.binding()
+                    .network_session_generation != generation)
+            {
+                AcknowledgeStockTestFallFixture(
+                    request_id,
+                    slot,
+                    mode,
+                    "rejected",
+                    "stale_generation");
+                return;
+            }
+            std::string failure_reason;
+            const bool arranged = ArrangeStockTestFallLanding(
+                *target,
+                mode,
+                &failure_reason);
+            AcknowledgeStockTestFallFixture(
+                request_id,
+                slot,
+                mode,
+                arranged ? "applied" : "rejected",
+                failure_reason);
+            return;
         }
         if (command != "reset_player_to_spawn_anchor"
             || slot < 1
@@ -2770,6 +4688,14 @@ private:
                 stock_test_nointerp_clear_pending_[receiver][
                     static_cast<std::size_t>(slot - 1)] = true;
             }
+        }
+        if (stock_test_fall_acceptance_.phase
+                == StockTestFallAcceptancePhase::kLandingObserved
+            && stock_test_fall_acceptance_.slot == slot
+            && stock_test_fall_acceptance_.session_generation == generation)
+        {
+            stock_test_fall_acceptance_.phase =
+                StockTestFallAcceptancePhase::kResetObserved;
         }
         AcknowledgeStockTestReset(
             request_id, slot, "applied", "none");
@@ -3059,16 +4985,22 @@ private:
             state_.dll_functions.pfnClientDisconnect(client);
             return true;
         }
-        __except (HandleSehException(
-            "pfnClientDisconnect",
-            GetExceptionCode(),
-            GetExceptionInformation()))
+        // The lifecycle caller already records a bounded semantic failure.
+        // Keep shutdown diagnostics free of exception codes and addresses.
+        __except (EXCEPTION_EXECUTE_HANDLER)
         {
             return false;
         }
     }
 
-    bool CallAddToFullPack(
+    enum class AddToFullPackResult
+    {
+        kIncluded,
+        kOmitted,
+        kFault,
+    };
+
+    AddToFullPackResult CallAddToFullPack(
         entity_state_t* output,
         int entity_index,
         edict_t* entity,
@@ -3077,42 +5009,75 @@ private:
         if (output == nullptr || entity == nullptr || host == nullptr
             || state_.dll_functions.pfnAddToFullPack == nullptr)
         {
-            return false;
+            return AddToFullPackResult::kFault;
         }
         __try
         {
-            return state_.dll_functions.pfnAddToFullPack(
+            const int included = state_.dll_functions.pfnAddToFullPack(
                 output,
                 entity_index,
                 entity,
                 host,
                 0,
                 1,
-                nullptr) != 0;
+                nullptr);
+            return included != 0
+                ? AddToFullPackResult::kIncluded
+                : AddToFullPackResult::kOmitted;
         }
-        __except (HandleSehException("pfnAddToFullPack", GetExceptionCode()))
+        // A callback fault is distinct from the stock omission return.  The
+        // caller still fails closed, without exposing exception details.
+        __except (EXCEPTION_EXECUTE_HANDLER)
         {
-            return false;
+            return AddToFullPackResult::kFault;
         }
     }
 
     bool CallUpdateClientData(
         const edict_t* client,
-        clientdata_t* output) noexcept
+        clientdata_t* output,
+        bool send_weapons) noexcept
     {
         if (client == nullptr || output == nullptr
             || state_.dll_functions.pfnUpdateClientData == nullptr)
         {
             return false;
         }
+        hl::game_api::detail::PrepareGoldSrcClientDataForGameDll(output);
         __try
         {
-            state_.dll_functions.pfnUpdateClientData(client, 0, output);
+            state_.dll_functions.pfnUpdateClientData(
+                client,
+                send_weapons ? 1 : 0,
+                output);
             return true;
         }
-        __except (HandleSehException(
-            "pfnUpdateClientData",
-            GetExceptionCode()))
+        __except (send_weapons
+            ? EXCEPTION_EXECUTE_HANDLER
+            : HandleSehException(
+                "pfnUpdateClientData",
+                GetExceptionCode()))
+        {
+            return false;
+        }
+    }
+
+    bool CallGetWeaponData(
+        edict_t* client,
+        weapon_data_t* output) noexcept
+    {
+        if (client == nullptr || output == nullptr
+            || state_.dll_functions.pfnGetWeaponData == nullptr)
+        {
+            return false;
+        }
+        __try
+        {
+            return state_.dll_functions.pfnGetWeaponData(
+                client,
+                output) != 0;
+        }
+        __except (EXCEPTION_EXECUTE_HANDLER)
         {
             return false;
         }
@@ -3160,7 +5125,8 @@ private:
         summary_.first_player_snapshot_frame_id =
             lifecycle.first_player_snapshot_frame_id().value_or(0u);
         summary_.player_signon_complete = lifecycle.signon_complete();
-        summary_.gameplay_active = lifecycle.gameplay_active();
+        summary_.gameplay_active = summary_.gameplay_active
+            || lifecycle.gameplay_active();
     }
 
     bool BindPlayerLifecycleAtAdmission(
@@ -3340,6 +5306,9 @@ private:
                         {
                             return player;
                         }
+                        state_.edict_store.PrepareClientForPutInServer(
+                            state_.edict_store.EntityOfIndex(
+                                binding.edict_index));
                         PrimeDedicatedClientEdict(state_, slot_state);
                         edict_t* const client =
                             state_.edict_store.EntityOfIndex(
@@ -3467,8 +5436,16 @@ private:
                 == hl::network::GoldSrcPlayerLifecycleResult::kAdvanced
             && binding.valid)
         {
-            state_.edict_store.RemoveEntity(
-                state_.edict_store.EntityOfIndex(binding.edict_index));
+            edict_t* const client = state_.edict_store.EntityOfIndex(
+                binding.edict_index);
+            if (client != nullptr)
+            {
+                state_.edict_store.SetSpawned(client, false);
+                state_.edict_store.SetActivationCandidate(client, false);
+                client->v.flags &= FL_DORMANT;
+                client->v.takedamage = DAMAGE_NO;
+                client->v.solid = SOLID_NOT;
+            }
         }
         if (binding.valid)
         {
@@ -4075,6 +6052,7 @@ private:
             summary_.reconnect_slot_reuse =
                 a.reconnect_count > 0 && a.slot_reuse_clean;
         }
+        RefreshCombatEvidenceSummary();
     }
 
     void LogClientProgressSamples()
@@ -4115,6 +6093,8 @@ private:
             emitted_progress = true;
             const edict_t* const player = state_.edict_store.EntityOfIndex(
                 slot_state.goldsrc_player_lifecycle.binding().edict_index);
+            const auto* const combat = pmove_runtime_.CombatDiagnostics(
+                static_cast<std::size_t>(slot_state.slot));
             const bool movement_stalled = client->move_packets_received > 0u
                 && slot_state.goldsrc_last_successful_move_time_ms > 0u
                 && server_time_ms
@@ -4171,6 +6151,45 @@ private:
                     + std::to_string(
                         slot_state.netchan.remote_endpoint().port)
                     + ",server_time_ms=" + std::to_string(server_time_ms)
+                    + ",combat_phase=" + client->combat_phase
+                    + ",combat_attack_received="
+                    + std::to_string(client->attack_commands_received)
+                    + ",combat_attack_executed="
+                    + std::to_string(client->attack_commands_executed)
+                    + ",combat_prethink="
+                    + std::to_string(
+                        combat != nullptr
+                            ? combat->player_prethink_calls
+                            : 0u)
+                    + ",combat_postthink="
+                    + std::to_string(
+                        combat != nullptr
+                            ? combat->player_postthink_calls
+                            : 0u)
+                    + ",combat_callback_failures="
+                    + std::to_string(
+                        combat != nullptr
+                            ? combat->callback_failures
+                            : 0u)
+                    + ",combat_active_weapon="
+                    + std::to_string(client->active_weapon_id)
+                    + ",combat_glock_present="
+                    + (client->glock_entity_present ? "1" : "0")
+                    + ",combat_glock_clip="
+                    + std::to_string(client->glock_clip)
+                    + ",combat_clientdata_health="
+                    + std::to_string(client->clientdata_health)
+                    + ",combat_shot_traces="
+                    + std::to_string(client->weapon_range_trace_calls)
+                    + ",combat_shooter_ignored="
+                    + std::to_string(
+                        client->weapon_range_shooter_ignored)
+                    + ",combat_shot_player_hits="
+                    + std::to_string(client->weapon_range_player_hits)
+                    + ",combat_shot_world_hits="
+                    + std::to_string(client->weapon_range_world_hits)
+                    + ",combat_last_target="
+                    + std::to_string(client->last_trace_target_slot)
                     + ",incoming_sequence="
                     + std::to_string(slot_state.netchan.incoming_sequence())
                     + ",outgoing_sequence="
@@ -6246,6 +8265,44 @@ private:
             failure_detail);
     }
 
+    static bool CapturedDeltaNumericMatches(
+        const hl::network::GoldSrcDeltaTable& table,
+        const hl::network::GoldSrcDecodedDeltaRecord& record,
+        std::string_view field_name,
+        double expected) noexcept
+    {
+        for (std::size_t index = 0u; index < table.fields.size(); ++index)
+        {
+            if (table.fields[index].name != field_name
+                || index >= record.field_count)
+            {
+                continue;
+            }
+            const hl::network::GoldSrcDecodedDeltaValue& value =
+                record.values[index];
+            double observed = 0.0;
+            switch (value.kind)
+            {
+            case hl::network::GoldSrcDeltaValueKind::kUnsignedInteger:
+                observed = static_cast<double>(value.unsigned_value);
+                break;
+            case hl::network::GoldSrcDeltaValueKind::kSignedInteger:
+                observed = static_cast<double>(value.signed_value);
+                break;
+            case hl::network::GoldSrcDeltaValueKind::kFloatingPoint:
+                observed = value.floating_value;
+                break;
+            case hl::network::GoldSrcDeltaValueKind::kString:
+            default:
+                return false;
+            }
+            return std::isfinite(observed)
+                && std::isfinite(expected)
+                && std::abs(observed - expected) <= 0.0001;
+        }
+        return false;
+    }
+
     bool BuildPlayerSnapshotInput(
         DedicatedPlayerRuntimeSlot& slot_state,
         hl::network::GoldSrcPlayerSnapshotInput* output,
@@ -6291,7 +8348,14 @@ private:
             FindBaselineDeltaTable(
                 *slot_state.goldsrc_delta_registry,
                 "clientdata_t");
-        if (player_table == nullptr || clientdata_table == nullptr)
+        const hl::network::GoldSrcDeltaTable* const weapon_table =
+            combat_enabled_
+            ? FindBaselineDeltaTable(
+                *slot_state.goldsrc_delta_registry,
+                "weapon_data_t")
+            : nullptr;
+        if (player_table == nullptr || clientdata_table == nullptr
+            || (combat_enabled_ && weapon_table == nullptr))
         {
             if (failure_detail != nullptr)
             {
@@ -6307,7 +8371,7 @@ private:
              failure_detail](
                 DedicatedPlayerRuntimeSlot& candidate,
                 hl::network::GoldSrcSnapshotEntityState* captured,
-                entity_state_t* raw_state) -> bool
+                entity_state_t* raw_state) -> AddToFullPackResult
         {
             if (captured == nullptr
                 || !candidate.goldsrc_player_lifecycle.put_in_server())
@@ -6316,7 +8380,7 @@ private:
                 {
                     *failure_detail = "missing-visible-player-context";
                 }
-                return false;
+                return AddToFullPackResult::kFault;
             }
             const auto& binding =
                 candidate.goldsrc_player_lifecycle.binding();
@@ -6327,7 +8391,7 @@ private:
                 {
                     *failure_detail = "stale-visible-player-edict-binding";
                 }
-                return false;
+                return AddToFullPackResult::kFault;
             }
             edict_t* const entity =
                 state_.edict_store.EntityOfIndex(binding.edict_index);
@@ -6338,20 +8402,22 @@ private:
                 {
                     *failure_detail = "missing-visible-player-private-data";
                 }
-                return false;
+                return AddToFullPackResult::kFault;
             }
             entity_state_t state{};
-            if (!CallAddToFullPack(
-                    &state,
-                    binding.edict_index,
-                    entity,
-                    receiver))
+            const AddToFullPackResult pack_result = CallAddToFullPack(
+                &state,
+                binding.edict_index,
+                entity,
+                receiver);
+            if (pack_result != AddToFullPackResult::kIncluded)
             {
-                if (failure_detail != nullptr)
+                if (pack_result == AddToFullPackResult::kFault
+                    && failure_detail != nullptr)
                 {
-                    *failure_detail = "add-to-full-pack-rejected";
+                    *failure_detail = "add-to-full-pack-fault";
                 }
-                return false;
+                return pack_result;
             }
             for (int axis = 0; axis < 3; ++axis)
             {
@@ -6408,24 +8474,27 @@ private:
                     &captured->state,
                     failure_detail))
             {
-                return false;
+                return AddToFullPackResult::kFault;
             }
             if (raw_state != nullptr)
             {
                 *raw_state = state;
             }
-            return true;
+            return AddToFullPackResult::kIncluded;
         };
 
         hl::network::GoldSrcPlayerSnapshotInput captured;
         entity_state_t entity_state{};
-        if (!capture_entity(
-                slot_state,
-                &captured.entity,
-                &entity_state))
+        const AddToFullPackResult local_capture = capture_entity(
+            slot_state,
+            &captured.entity,
+            &entity_state);
+        if (local_capture == AddToFullPackResult::kFault)
         {
             return false;
         }
+        captured.include_local_entity =
+            local_capture == AddToFullPackResult::kIncluded;
         for (DedicatedPlayerRuntimeSlot& candidate :
              state_.dedicated_multiplayer_foundation.slots)
         {
@@ -6436,14 +8505,24 @@ private:
                 continue;
             }
             hl::network::GoldSrcSnapshotEntityState remote;
-            if (!capture_entity(candidate, &remote, nullptr))
+            const AddToFullPackResult remote_capture = capture_entity(
+                candidate,
+                &remote,
+                nullptr);
+            if (remote_capture == AddToFullPackResult::kFault)
             {
                 return false;
             }
-            captured.remote_entities.push_back(std::move(remote));
+            if (remote_capture == AddToFullPackResult::kIncluded)
+            {
+                captured.remote_entities.push_back(std::move(remote));
+            }
         }
         clientdata_t clientdata{};
-        if (!CallUpdateClientData(receiver, &clientdata))
+        if (!CallUpdateClientData(
+                receiver,
+                &clientdata,
+                combat_enabled_))
         {
             if (failure_detail != nullptr)
             {
@@ -6473,24 +8552,40 @@ private:
         clientdata.maxspeed = receiver->v.maxspeed;
 
         bool prediction_state_consistent =
-            entity_state.usehull
-                == ((clientdata.flags & FL_DUCKING) != 0 ? 1 : 0)
-            && clientdata.bInDuck == receiver->v.bInDuck
+            clientdata.bInDuck == receiver->v.bInDuck
             && clientdata.waterlevel == receiver->v.waterlevel
             && clientdata.watertype == receiver->v.watertype;
         for (int axis = 0; axis < 3; ++axis)
         {
             prediction_state_consistent = prediction_state_consistent
-                && std::isfinite(entity_state.origin[axis])
-                && std::isfinite(entity_state.velocity[axis])
+                && std::isfinite(receiver->v.origin[axis])
+                && std::isfinite(receiver->v.velocity[axis])
                 && std::isfinite(clientdata.origin[axis])
                 && std::isfinite(clientdata.velocity[axis])
                 && std::fabs(
-                    entity_state.origin[axis]
+                    receiver->v.origin[axis]
                         - clientdata.origin[axis]) <= 0.0001f
                 && std::fabs(
-                    entity_state.velocity[axis]
+                    receiver->v.velocity[axis]
                         - clientdata.velocity[axis]) <= 0.0001f;
+            if (captured.include_local_entity)
+            {
+                prediction_state_consistent = prediction_state_consistent
+                    && std::isfinite(entity_state.origin[axis])
+                    && std::isfinite(entity_state.velocity[axis])
+                    && std::fabs(
+                        entity_state.origin[axis]
+                            - clientdata.origin[axis]) <= 0.0001f
+                    && std::fabs(
+                        entity_state.velocity[axis]
+                            - clientdata.velocity[axis]) <= 0.0001f;
+            }
+        }
+        if (captured.include_local_entity)
+        {
+            prediction_state_consistent = prediction_state_consistent
+                && entity_state.usehull
+                    == ((clientdata.flags & FL_DUCKING) != 0 ? 1 : 0);
         }
         if (!prediction_state_consistent)
         {
@@ -6510,24 +8605,24 @@ private:
             return false;
         }
         summary_.clientdata_playerstate_consistent = true;
-        // The lifecycle slice requests clientdata with sendweapons=0 and does
-        // not run PlayerPreThink/PM_Move. Keep the corresponding prediction
-        // and ammo extension channels at their neutral stock values instead
-        // of exposing Game DLL storage that is initialized only by gameplay.
-        clientdata.m_flNextAttack = 0.0f;
-        clientdata.ammo_nails = 0;
-        clientdata.ammo_shells = 0;
-        clientdata.ammo_cells = 0;
-        clientdata.ammo_rockets = 0;
-        clientdata.m_iId = 0;
-        clientdata.fuser1 = 0.0f;
-        clientdata.fuser2 = 0.0f;
-        clientdata.fuser3 = 0.0f;
-        clientdata.fuser4 = 0.0f;
-        clientdata.vuser1 = Vector(0.0f, 0.0f, 0.0f);
-        clientdata.vuser2 = Vector(0.0f, 0.0f, 0.0f);
-        clientdata.vuser3 = Vector(0.0f, 0.0f, 0.0f);
-        clientdata.vuser4 = Vector(0.0f, 0.0f, 0.0f);
+        if (!combat_enabled_)
+        {
+            // Preserve the established movement-only snapshot contract.
+            clientdata.m_flNextAttack = 0.0f;
+            clientdata.ammo_nails = 0;
+            clientdata.ammo_shells = 0;
+            clientdata.ammo_cells = 0;
+            clientdata.ammo_rockets = 0;
+            clientdata.m_iId = 0;
+            clientdata.fuser1 = 0.0f;
+            clientdata.fuser2 = 0.0f;
+            clientdata.fuser3 = 0.0f;
+            clientdata.fuser4 = 0.0f;
+            clientdata.vuser1 = Vector(0.0f, 0.0f, 0.0f);
+            clientdata.vuser2 = Vector(0.0f, 0.0f, 0.0f);
+            clientdata.vuser3 = Vector(0.0f, 0.0f, 0.0f);
+            clientdata.vuser4 = Vector(0.0f, 0.0f, 0.0f);
+        }
         if (!CaptureDeltaState(
                 &clientdata,
                 sizeof(clientdata),
@@ -6538,7 +8633,183 @@ private:
         {
             return false;
         }
+        if (combat_enabled_
+            && !CapturedDeltaNumericMatches(
+                *clientdata_table,
+                captured.clientdata.state,
+                "health",
+                clientdata.health))
+        {
+            if (failure_detail != nullptr)
+            {
+                *failure_detail = "clientdata-health-capture-mismatch";
+            }
+            return false;
+        }
+        if (combat_enabled_)
+        {
+            std::array<weapon_data_t, 32> weapon_data{};
+            if (!CallGetWeaponData(receiver, weapon_data.data()))
+            {
+                if (failure_detail != nullptr)
+                {
+                    *failure_detail = "get-weapon-data-failed";
+                }
+                pmove_runtime_.SetCombatPlayerReady(
+                    static_cast<std::size_t>(slot_state.slot),
+                    true,
+                    clientdata.m_iId,
+                    false);
+                return false;
+            }
+            bool active_weapon_present = false;
+            bool glock_present = false;
+            int glock_clip = -1;
+            for (std::size_t index = 0u; index < weapon_data.size(); ++index)
+            {
+                const weapon_data_t& raw = weapon_data[index];
+                if (raw.m_iId == 0)
+                {
+                    continue;
+                }
+                if (raw.m_iId < 0
+                    || raw.m_iId >= static_cast<int>(weapon_data.size())
+                    || raw.m_iId != static_cast<int>(index))
+                {
+                    if (failure_detail != nullptr)
+                    {
+                        *failure_detail = "invalid-weapon-index";
+                    }
+                    return false;
+                }
+                hl::network::GoldSrcWeaponState weapon;
+                weapon.weapon_index = static_cast<std::uint8_t>(raw.m_iId);
+                if (!CaptureDeltaState(
+                        &raw,
+                        sizeof(raw),
+                        *weapon_table,
+                        &weapon.state,
+                        failure_detail,
+                        true))
+                {
+                    return false;
+                }
+                if (raw.m_iId
+                        == hl::network::kGoldSrcStockGlockWeaponId
+                    && !CapturedDeltaNumericMatches(
+                        *weapon_table,
+                        weapon.state,
+                        "m_iClip",
+                        raw.m_iClip))
+                {
+                    if (failure_detail != nullptr)
+                    {
+                        *failure_detail = "glock-clip-capture-mismatch";
+                    }
+                    return false;
+                }
+                active_weapon_present = active_weapon_present
+                    || raw.m_iId == clientdata.m_iId;
+                if (raw.m_iId == hl::network::kGoldSrcStockGlockWeaponId)
+                {
+                    glock_present = true;
+                    glock_clip = raw.m_iClip;
+                }
+                captured.weapons.push_back(std::move(weapon));
+            }
+            pmove_runtime_.SetCombatPlayerReady(
+                static_cast<std::size_t>(slot_state.slot),
+                true,
+                clientdata.m_iId,
+                glock_present);
+            if (hl::game_api::GoldSrcClientReplicationSummary* const client =
+                    FindClientReplicationSummary(slot_state.slot);
+                client != nullptr)
+            {
+                const bool first_combat_observation =
+                    !client->combat_observation_started;
+                const int previous_glock_clip = client->glock_clip;
+                const float previous_health = client->authoritative_health;
+                client->active_weapon_id = clientdata.m_iId;
+                client->active_weapon_present = active_weapon_present;
+                client->glock_entity_present = glock_present;
+                client->glock_clip = glock_clip;
+                client->glock_reserve_ammo = static_cast<int>(
+                    clientdata.vuser1.x);
+                client->authoritative_health = receiver->v.health;
+                client->clientdata_health = clientdata.health;
+                client->authoritative_deadflag = receiver->v.deadflag;
+                if (!client->combat_observation_started)
+                {
+                    client->combat_observation_started = true;
+                    client->initial_authoritative_health = receiver->v.health;
+                    client->minimum_authoritative_health = receiver->v.health;
+                    client->initial_clientdata_health = clientdata.health;
+                    client->minimum_clientdata_health = clientdata.health;
+                    client->initial_glock_reserve_ammo =
+                        client->glock_reserve_ammo;
+                }
+                else
+                {
+                    if (receiver->v.health
+                        < client->minimum_authoritative_health)
+                    {
+                        client->minimum_authoritative_health =
+                            receiver->v.health;
+                    }
+                    if (clientdata.health < client->minimum_clientdata_health)
+                    {
+                        client->minimum_clientdata_health = clientdata.health;
+                    }
+                }
+                if (glock_clip >= 0 && client->initial_glock_clip < 0)
+                {
+                    client->initial_glock_clip = glock_clip;
+                    client->minimum_glock_clip = glock_clip;
+                }
+                else if (glock_clip >= 0
+                    && (client->minimum_glock_clip < 0
+                        || glock_clip < client->minimum_glock_clip))
+                {
+                    client->minimum_glock_clip = glock_clip;
+                }
+                ++client->weapondata_frames;
+                if (first_combat_observation
+                    || previous_glock_clip != client->glock_clip
+                    || std::fabs(
+                        previous_health - client->authoritative_health)
+                        > 0.0001f)
+                {
+                    hl::common::Logger::Info(
+                        hl::common::LogCategory::Server,
+                        "goldsrc_combat_observation: slot="
+                            + std::to_string(slot_state.slot)
+                            + ",session_generation="
+                            + std::to_string(
+                                slot_state.goldsrc_player_lifecycle.binding()
+                                    .network_session_generation)
+                            + ",active_weapon="
+                            + std::to_string(client->active_weapon_id)
+                            + ",glock_present="
+                            + (client->glock_entity_present
+                                ? "true" : "false")
+                            + ",clip="
+                            + std::to_string(client->glock_clip)
+                            + ",reserve="
+                            + std::to_string(client->glock_reserve_ammo)
+                            + ",health="
+                            + std::to_string(
+                                client->authoritative_health)
+                            + ",clientdata_health="
+                            + std::to_string(client->clientdata_health)
+                            + ",deadflag="
+                            + std::to_string(
+                                client->authoritative_deadflag));
+                }
+            }
+        }
         *output = std::move(captured);
+        RefreshCombatEvidenceSummary();
         return true;
     }
 
@@ -6594,6 +8865,104 @@ private:
         }
     }
 
+    void RefreshCombatEvidenceSummary()
+    {
+        if (!combat_enabled_)
+        {
+            return;
+        }
+
+        const auto& runtime = pmove_runtime_.diagnostics();
+        bool callback_sequence_observed = false;
+        bool gameplay_time_observed = false;
+        bool glock_round_observed = false;
+        std::size_t combat_participants = 0u;
+        std::size_t weapondata_clients = 0u;
+        std::size_t weapondata_history_clients = 0u;
+        std::size_t weapondata_ack_clients = 0u;
+        for (std::size_t index = 0u;
+             index < summary_.client_replication.size();
+             ++index)
+        {
+            hl::game_api::GoldSrcClientReplicationSummary& client =
+                summary_.client_replication[index];
+            const auto* combat = pmove_runtime_.CombatDiagnostics(index + 1u);
+            if (combat != nullptr && combat->attack_commands_executed > 0u)
+            {
+                callback_sequence_observed = callback_sequence_observed
+                    || (combat->player_prethink_calls
+                            >= combat->attack_commands_executed
+                        && combat->player_postthink_calls
+                            >= combat->attack_commands_executed
+                        && combat->callback_failures == 0u);
+                gameplay_time_observed = gameplay_time_observed
+                    || combat->gameplay_time_msec > 0u;
+            }
+            const bool participant = client.admission_count > 0
+                && client.put_in_server;
+            const bool weapondata_observed = client.weapondata_frames > 0u
+                && client.glock_entity_present
+                && client.glock_clip >= 0;
+            if (participant)
+            {
+                ++combat_participants;
+                weapondata_clients += weapondata_observed ? 1u : 0u;
+                const bool history_observed = weapondata_observed
+                    && client.frame_history_independent
+                    && client.snapshots_sent > 0u;
+                weapondata_history_clients += history_observed ? 1u : 0u;
+                weapondata_ack_clients += history_observed
+                        && client.frames_acknowledged > 0u
+                    ? 1u
+                    : 0u;
+            }
+            const bool shot_observed = client.initial_glock_clip >= 0
+                && client.minimum_glock_clip >= 0
+                && client.minimum_glock_clip < client.initial_glock_clip;
+            glock_round_observed = glock_round_observed || shot_observed;
+            const bool damage_observed = client.combat_observation_started
+                && (client.minimum_authoritative_health + 0.0001f
+                        < client.initial_authoritative_health
+                    || client.minimum_clientdata_health + 0.0001f
+                        < client.initial_clientdata_health);
+            if (damage_observed)
+            {
+                client.combat_phase = std::string(hl::network::NameFor(
+                    hl::network::GoldSrcCombatPhase::kDamageObserved));
+            }
+        }
+
+        const bool paired_command_callbacks = runtime.cmd_start_calls > 0u
+            && runtime.cmd_start_calls == runtime.cmd_end_calls;
+        summary_.combat_callback_order_verified =
+            summary_.combat_callback_order_verified
+            || (combat_start_frame_calls_ > 0u
+                && paired_command_callbacks
+                && callback_sequence_observed);
+        summary_.combat_time_contract_verified =
+            summary_.combat_time_contract_verified
+            || (callback_sequence_observed && gameplay_time_observed);
+        summary_.weapon_postframe_contract_verified =
+            summary_.weapon_postframe_contract_verified
+            || (summary_.attack_commands_executed > 0u
+                && glock_round_observed);
+        summary_.weapon_replication_contract_verified =
+            summary_.weapon_replication_contract_verified
+            || (combat_participants > 0u
+                && weapondata_ack_clients == combat_participants);
+        summary_.player_aware_trace = summary_.player_aware_trace
+            || state_.goldsrc_combat_player_hits > 0u;
+        summary_.per_client_weapondata = summary_.per_client_weapondata
+            || (combat_participants > 0u
+                && weapondata_clients == combat_participants);
+        summary_.frame_history_weapondata = summary_.frame_history_weapondata
+            || (combat_participants > 0u
+                && weapondata_history_clients == combat_participants);
+        summary_.gameplay_active = summary_.gameplay_active
+            || (summary_.attack_commands_executed > 0u
+                && callback_sequence_observed);
+    }
+
     void SyncPmoveSummary(std::size_t client_slot)
     {
         const auto& runtime = pmove_runtime_.diagnostics();
@@ -6610,6 +8979,86 @@ private:
             pmove_runtime_.movement_ready(client_slot);
         summary_.movement_executed =
             pmove_runtime_.movement_executed(client_slot);
+        if (const auto* combat = pmove_runtime_.CombatDiagnostics(client_slot);
+            combat != nullptr)
+        {
+            if (hl::game_api::GoldSrcClientReplicationSummary* const client =
+                    FindClientReplicationSummary(
+                        static_cast<int>(client_slot));
+                client != nullptr)
+            {
+                client->combat_phase = std::string(
+                    hl::network::NameFor(combat->phase));
+                client->attack_commands_received = (std::max)(
+                    client->attack_commands_received,
+                    combat->attack_commands_received);
+                client->attack_commands_executed = (std::max)(
+                    client->attack_commands_executed,
+                    combat->attack_commands_executed);
+                client->duplicate_attack_commands_suppressed = (std::max)(
+                    client->duplicate_attack_commands_suppressed,
+                    combat->duplicate_attack_commands_suppressed);
+                client->unsupported_gameplay_inputs_masked = (std::max)(
+                    client->unsupported_gameplay_inputs_masked,
+                    combat->unsupported_gameplay_inputs_masked);
+                client->player_prethink_calls = (std::max)(
+                    client->player_prethink_calls,
+                    combat->player_prethink_calls);
+                client->player_postthink_calls = (std::max)(
+                    client->player_postthink_calls,
+                    combat->player_postthink_calls);
+                if (client_slot >= 1u
+                    && client_slot
+                        <= state_.goldsrc_combat_trace_hits_by_slot.size())
+                {
+                    const std::size_t index = client_slot - 1u;
+                    client->player_trace_hits =
+                        state_.goldsrc_combat_trace_hits_by_slot[index];
+                    client->world_trace_occlusions =
+                        state_.goldsrc_combat_world_occlusions_by_slot[index];
+                    client->weapon_range_trace_calls =
+                        state_.goldsrc_combat_weapon_range_traces_by_slot[
+                            index];
+                    client->weapon_range_shooter_ignored =
+                        state_.goldsrc_combat_shooter_ignored_by_slot[index];
+                    client->weapon_range_player_hits =
+                        state_.goldsrc_combat_weapon_range_player_hits_by_slot[
+                            index];
+                    client->weapon_range_world_hits =
+                        state_.goldsrc_combat_weapon_range_world_hits_by_slot[
+                            index];
+                    client->playback_event_calls =
+                        state_.goldsrc_combat_playback_events_by_slot[index];
+                    client->last_trace_target_slot =
+                        state_.goldsrc_combat_last_trace_target_by_slot[index];
+                }
+            }
+        }
+        summary_.start_frame_call_count = combat_start_frame_calls_;
+        summary_.combat_trace_calls = state_.goldsrc_combat_trace_calls;
+        summary_.combat_player_hits = state_.goldsrc_combat_player_hits;
+        summary_.combat_world_occlusions =
+            state_.goldsrc_combat_world_occlusions;
+        const auto playback = state_.callback_counts.find("pfnPlaybackEvent");
+        summary_.playback_event_calls = playback == state_.callback_counts.end()
+            ? 0u
+            : playback->second;
+        summary_.attack_commands_received = 0u;
+        summary_.attack_commands_executed = 0u;
+        summary_.duplicate_attack_commands_suppressed = 0u;
+        summary_.unsupported_gameplay_inputs_masked = 0u;
+        for (const hl::game_api::GoldSrcClientReplicationSummary& client :
+             summary_.client_replication)
+        {
+            summary_.attack_commands_received +=
+                client.attack_commands_received;
+            summary_.attack_commands_executed +=
+                client.attack_commands_executed;
+            summary_.duplicate_attack_commands_suppressed +=
+                client.duplicate_attack_commands_suppressed;
+            summary_.unsupported_gameplay_inputs_masked +=
+                client.unsupported_gameplay_inputs_masked;
+        }
         if (const auto* state = pmove_runtime_.CommandState(client_slot);
             state != nullptr)
         {
@@ -6645,6 +9094,7 @@ private:
             summary_.maximum_move_execution_gap_ms =
                 static_cast<int>(commands.maximum_move_execution_gap_msec);
         }
+        RefreshCombatEvidenceSummary();
     }
 
     bool HandleClientDisconnect(DedicatedPlayerRuntimeSlot& slot_state)
@@ -6873,6 +9323,35 @@ private:
                             summary_.command_clock_resynchronizations));
             }
         }
+        if (!executed.ok() && executed.gameplay_callback_failure)
+        {
+            const std::string_view reported_stage =
+                executed.gameplay_failure_stage == "fail_stop_latched"
+                    ? "fail_stop_latched"
+                : executed.gameplay_failure_stage == "cmd_start"
+                    ? "cmd_start"
+                : executed.gameplay_failure_stage == "player_prethink"
+                    ? "player_prethink"
+                : executed.gameplay_failure_stage == "entity_think"
+                    ? "entity_think"
+                : executed.gameplay_failure_stage == "context_build"
+                    ? "context_build"
+                : executed.gameplay_failure_stage == "pm_move"
+                    ? "pm_move"
+                : executed.gameplay_failure_stage == "output_validation"
+                    ? "output_validation"
+                : executed.gameplay_failure_stage == "player_postthink"
+                    ? "player_postthink"
+                : executed.gameplay_failure_stage == "cmd_end"
+                    ? "cmd_end"
+                    : "unknown";
+            ++summary_.clc_move_rejected;
+            return FailTransport(
+                "combat-gameplay-callback-failed-"
+                    + std::string(reported_stage),
+                "goldsrc_combat_failed: reason=gameplay-callback,stage="
+                    + std::string(reported_stage));
+        }
         if (!executed.ok())
         {
             ++summary_.clc_move_rejected;
@@ -7046,6 +9525,17 @@ private:
                 || (duck_requested && executed.ducked);
             summary_.stock_grounding =
                 summary_.stock_grounding || executed.grounded;
+            ObserveStockTestFallLanding(
+                slot_state,
+                binding,
+                player,
+                executed);
+            ObserveStockTestFallResponsiveness(
+                slot_state,
+                binding,
+                player,
+                executed,
+                forward_requested || backward_requested || strafe_requested);
             summary_.previous_player_lifecycle_boundary_resolved = true;
             summary_.stock_advanced_past_previous_boundary = true;
             summary_.next_observed_boundary =
@@ -7137,6 +9627,7 @@ private:
             }
 
             entity_state_t captured{};
+            std::memset(&captured, 0, sizeof(captured));
             captured.number = entity_index;
             captured.entityType =
                 (entity->v.flags & FL_CUSTOMENTITY) != 0
@@ -7619,7 +10110,8 @@ private:
                 const hl::network::GoldSrcFrameAcknowledgeResult
                     acknowledgement =
                         slot_state.goldsrc_first_snapshot.Acknowledge(
-                            application.frame_reference);
+                            application.frame_reference,
+                            packet.acknowledgement);
                 switch (acknowledgement)
                 {
                 case hl::network::GoldSrcFrameAcknowledgeResult::
@@ -8831,6 +11323,42 @@ private:
                 std::move(failure));
         }
         ++summary_.continuous_snapshots_generated;
+        if (combat_enabled_)
+        {
+            const hl::game_api::GoldSrcClientReplicationSummary* const
+                combat_client =
+                    FindClientReplicationSummary(slot_state.slot);
+            hl::common::Logger::Info(
+                hl::common::LogCategory::Server,
+                "goldsrc_combat_snapshot_frame: slot="
+                    + std::to_string(slot_state.slot)
+                    + ",frame_id="
+                    + std::to_string(built.bundle.frame.frame_id)
+                    + ",base_frame="
+                    + (built.bundle.base_frame_id.has_value()
+                        ? std::to_string(*built.bundle.base_frame_id)
+                        : "none")
+                    + ",health="
+                    + std::to_string(
+                        combat_client != nullptr
+                            ? combat_client->clientdata_health
+                            : 0.0f)
+                    + ",clip="
+                    + std::to_string(
+                        combat_client != nullptr
+                            ? combat_client->glock_clip
+                            : -1)
+                    + ",origin_x="
+                    + std::to_string(
+                        combat_client != nullptr
+                            ? combat_client->authoritative_origin_x
+                            : 0.0f)
+                    + ",origin_y="
+                    + std::to_string(
+                        combat_client != nullptr
+                            ? combat_client->authoritative_origin_y
+                            : 0.0f));
+        }
 
         hl::network::GoldSrcNetchanDatagram datagram;
         if (!slot_state.netchan.BuildOutgoingUnreliableDatagram(
@@ -8922,6 +11450,135 @@ private:
                 "continuous-snapshot-payload-self-check-failed",
                 "goldsrc_continuous_snapshot_failed: reason=payload-self-check");
         }
+        if (combat_enabled_ && player_snapshot.has_value())
+        {
+            const auto field_index =
+                [&slot_state](std::string_view table_name,
+                              std::string_view field_name)
+                    -> std::optional<std::size_t>
+                {
+                    const hl::network::GoldSrcDeltaTable* const table =
+                        FindBaselineDeltaTable(
+                            *slot_state.goldsrc_delta_registry,
+                            table_name);
+                    if (table == nullptr)
+                    {
+                        return std::nullopt;
+                    }
+                    for (std::size_t index = 0u;
+                         index < table->fields.size();
+                         ++index)
+                    {
+                        if (table->fields[index].name == field_name)
+                        {
+                            return index;
+                        }
+                    }
+                    return std::nullopt;
+                };
+            const auto numeric_value = [](
+                const hl::network::GoldSrcDecodedDeltaValue& value,
+                double* output) noexcept
+            {
+                if (output == nullptr)
+                {
+                    return false;
+                }
+                switch (value.kind)
+                {
+                case hl::network::GoldSrcDeltaValueKind::kUnsignedInteger:
+                    *output = static_cast<double>(value.unsigned_value);
+                    return true;
+                case hl::network::GoldSrcDeltaValueKind::kSignedInteger:
+                    *output = static_cast<double>(value.signed_value);
+                    return true;
+                case hl::network::GoldSrcDeltaValueKind::kFloatingPoint:
+                    *output = value.floating_value;
+                    return std::isfinite(*output);
+                case hl::network::GoldSrcDeltaValueKind::kString:
+                default:
+                    return false;
+                }
+            };
+            const auto records_match =
+                [&numeric_value](
+                    const hl::network::GoldSrcDecodedDeltaRecord& expected,
+                    const hl::network::GoldSrcDecodedDeltaRecord& observed,
+                    std::size_t index) noexcept
+                {
+                    if (index >= expected.field_count
+                        || index >= observed.field_count)
+                    {
+                        return false;
+                    }
+                    double expected_value = 0.0;
+                    double observed_value = 0.0;
+                    return numeric_value(
+                               expected.values[index],
+                               &expected_value)
+                        && numeric_value(
+                               observed.values[index],
+                               &observed_value)
+                        && std::abs(expected_value - observed_value)
+                            <= 0.0001;
+                };
+            const auto find_weapon = [](
+                const hl::network::GoldSrcServerFrame& frame,
+                std::uint8_t weapon_index)
+                -> const hl::network::GoldSrcWeaponState*
+            {
+                const auto found = std::find_if(
+                    frame.weapons.begin(),
+                    frame.weapons.end(),
+                    [weapon_index](
+                        const hl::network::GoldSrcWeaponState& weapon)
+                    {
+                        return weapon.weapon_index == weapon_index;
+                    });
+                return found == frame.weapons.end() ? nullptr : &*found;
+            };
+            const std::optional<std::size_t> health_index =
+                field_index("clientdata_t", "health");
+            const std::optional<std::size_t> clip_index =
+                field_index("weapon_data_t", "m_iClip");
+            const hl::network::GoldSrcWeaponState* const expected_glock =
+                find_weapon(
+                    built.bundle.frame,
+                    hl::network::kGoldSrcStockGlockWeaponId);
+            const hl::network::GoldSrcWeaponState* const observed_glock =
+                find_weapon(
+                    decoded.frame,
+                    hl::network::kGoldSrcStockGlockWeaponId);
+            double expected_health = 0.0;
+            const bool health_matches = health_index.has_value()
+                && numeric_value(
+                    built.bundle.frame.clientdata.state.values[*health_index],
+                    &expected_health)
+                && records_match(
+                    built.bundle.frame.clientdata.state,
+                    decoded.frame.clientdata.state,
+                    *health_index);
+            const bool weapon_presence_matches =
+                hl::network::GoldSrcCombatWeaponPresenceMatches(
+                    expected_health,
+                    expected_glock != nullptr,
+                    observed_glock != nullptr);
+            const bool weapon_clip_matches = expected_glock == nullptr
+                || (clip_index.has_value()
+                    && expected_glock != nullptr
+                    && observed_glock != nullptr
+                    && records_match(
+                        expected_glock->state,
+                        observed_glock->state,
+                        *clip_index));
+            if (!health_matches || !weapon_presence_matches
+                || !weapon_clip_matches)
+            {
+                return FailTransport(
+                    "continuous-snapshot-combat-semantic-self-check-failed",
+                    "goldsrc_continuous_snapshot_failed: reason=combat-semantic-self-check");
+            }
+        }
         if (!SendBoundedDatagram(
                 datagram.bytes.data(),
                 datagram.size,
@@ -9000,7 +11657,7 @@ private:
         {
             RecordRemotePlayerSnapshot(slot_state, *player_snapshot);
             const std::uint16_t player_index =
-                player_snapshot->entity.entity_index;
+                slot_state.goldsrc_player_lifecycle.binding().edict_index;
             bool player_operation_counted = false;
             for (const auto& operation : built.bundle.entity_diff.operations)
             {
@@ -9029,6 +11686,7 @@ private:
                 }
             }
             if (!player_operation_counted
+                && player_snapshot->include_local_entity
                 && !slot_state.goldsrc_player_lifecycle
                     .first_player_snapshot_frame_id().has_value())
             {
@@ -10355,12 +13013,17 @@ private:
     bool pmove_enabled_ = false;
     bool pmove_negative_proof_ = false;
     bool pmove_persistent_ = false;
+    bool combat_enabled_ = false;
+    bool fall_damage_proof_ = false;
     double pmove_observation_seconds_ = 2.0;
     std::optional<std::filesystem::path> manual_shutdown_file_;
     std::optional<std::filesystem::path> manual_disconnect_file_;
     std::optional<std::filesystem::path> stock_test_control_file_;
     hl::network::GoldSrcManualSessionLifecycle manual_session_lifecycle_;
     hl::game_api::detail::GoldSrcPmoveRuntime pmove_runtime_;
+    hl::network::GoldSrcCombatFrameCadence combat_frame_cadence_;
+    std::uint64_t combat_start_frame_calls_ = 0u;
+    std::uint64_t combat_entity_think_calls_ = 0u;
     hl::network::GoldSrcClientEdictRegistry lifecycle_edict_registry_;
     double snapshot_rate_hz_ =
         hl::network::kGoldSrcDefaultSnapshotRateHz;
@@ -10381,6 +13044,7 @@ private:
     bool network_server_clock_started_ = false;
     bool manual_disconnect_consumed_ = false;
     bool stock_test_control_consumed_ = false;
+    StockTestFallAcceptance stock_test_fall_acceptance_{};
     double network_server_time_ = 0.0;
     std::uint64_t challenge_diagnostics_seen_ = 0;
     std::uint64_t rejection_diagnostics_seen_ = 0;

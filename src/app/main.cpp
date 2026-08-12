@@ -14,8 +14,33 @@
 #include "common/text_encoding.h"
 #include "platform/environment.h"
 
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+#endif
+
 namespace
 {
+#if defined(_WIN32)
+void DisableInteractiveProcessErrorDialogs() noexcept
+{
+    SetErrorMode(
+        GetErrorMode()
+        | SEM_FAILCRITICALERRORS
+        | SEM_NOGPFAULTERRORBOX
+        | SEM_NOOPENFILEERRORBOX);
+}
+#else
+void DisableInteractiveProcessErrorDialogs() noexcept
+{
+}
+#endif
+
 struct GitRevisionIdentity
 {
     std::string branch = "<unknown>";
@@ -454,6 +479,7 @@ hl::common::LoggerOptions BuildLoggerOptions(const hl::app::LaunchOptions& optio
 
 int wmain(int argc, wchar_t* argv[])
 {
+    DisableInteractiveProcessErrorDialogs();
     hl::platform::ConfigureConsoleForUtf8();
 
     const std::filesystem::path executable_name =

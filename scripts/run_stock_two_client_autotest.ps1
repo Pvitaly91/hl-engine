@@ -17,6 +17,8 @@ param(
     [ValidatePattern('^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$')]
     [string]$Map = 'crossfire',
 
+    [switch]$GoldSrcCombat,
+
     [string]$BindAddress = '127.0.0.1',
 
     [ValidateRange(0, 65535)]
@@ -59,10 +61,12 @@ param(
     [int]$AutoTestDurationSeconds = 120,
 
     [ValidateSet('None', 'VerifiedSendInput')]
-    [string]$InputMode = 'VerifiedSendInput',
+    [string]$InputMode = 'None',
+
+    [switch]$AllowAutomatedPlayerInput,
 
     [ValidateSet('All', 'Automatic', 'Reconnect', 'ManualObservation')]
-    [string]$AcceptancePhase = 'All',
+    [string]$AcceptancePhase = 'ManualObservation',
 
     [switch]$ManualObservation,
 
@@ -108,8 +112,23 @@ switch ($AcceptancePhase) {
 if ($ManualObservation -and $InputMode -cne 'None') {
     throw 'manual_observation_requires_input_mode_none'
 }
+if ($ManualObservation -and $AllowAutomatedPlayerInput) {
+    throw 'manual_observation_forbids_automated_player_input'
+}
+if ($InputMode -cne 'None' -and -not $AllowAutomatedPlayerInput) {
+    throw 'automated_player_input_requires_explicit_opt_in'
+}
+if (-not $ManualObservation -and
+    ($InputMode -cne 'VerifiedSendInput' -or
+        -not $AllowAutomatedPlayerInput)) {
+    throw 'automatic_acceptance_requires_verified_sendinput'
+}
 if ($PromptForVisualConfirmation -and -not $ManualObservation) {
     throw 'visual_confirmation_requires_manual_observation'
+}
+if ($GoldSrcCombat -and $ManualObservation -and
+    $ManualObservationSeconds -lt 120) {
+    throw 'goldsrc_combat_manual_observation_requires_120_seconds'
 }
 
 function Get-ImportedLauncherFunctionDefinitions {
@@ -177,7 +196,7 @@ function New-StockServerArguments {
         [string]$DisconnectRequestPath,
         [string]$StockTestControlPath)
 
-    return @(
+    $arguments = @(
         '--gamedir', (Quote-ProcessArgument $GameDirectory),
         '--dedicated',
         '--deathmatch', '1',
@@ -200,6 +219,10 @@ function New-StockServerArguments {
         '--goldsrc-stock-test-control-file',
         (Quote-ProcessArgument $StockTestControlPath)
     )
+    if ($GoldSrcCombat) {
+        $arguments += '--goldsrc-combat'
+    }
+    return $arguments
 }
 
 function New-StockClientArguments {
@@ -216,10 +239,12 @@ function New-StockClientArguments {
         '-game', 'valve',
         '-console',
         '-novid',
+        '-nojoy',
         '-windowed',
         '-w', '960',
         '-h', '540',
         '+clientport', [string]$LocalClientPort,
+        '+joystick', '0',
         '+name', $ClientName,
         '+connect', ('{0}:{1}' -f $Address, $ServerPort)
     )
@@ -2215,7 +2240,11 @@ function Invoke-LauncherSelfTests {
         'movement_after_300_seconds_both',
         'movement_after_600_seconds_both', 'checkpoint_results',
         'movement_stall_stage', 'stock_manual_visual_acceptance',
-        'stock_600_second_acceptance', 'delayed_launch_process_count')
+        'stock_600_second_acceptance', 'delayed_launch_process_count',
+        'manual_session_auto_close', 'manual_completion_confirmed',
+        'manual_failure_cleanup_suppressed',
+        'automated_player_input_authorized',
+        'manual_window_focus_automation')
     foreach ($field in $requiredSchema) {
         if (-not $Result.Contains($field)) {
             throw 'result_schema_test_failed'
@@ -2227,6 +2256,22 @@ function Invoke-LauncherSelfTests {
         -not $source.Contains('FindVisibleTopLevelWindow') -or
         -not $source.Contains('GetAsyncKeyState')) {
         throw 'input_helper_contract_test_failed'
+    }
+    if (-not $source.Contains(
+            'manual_session_state=awaiting_operator_completion') -or
+        -not $source.Contains(
+            'Finish all movement and shooting checks, then press Enter')) {
+        throw 'manual_session_completion_contract_test_failed'
+    }
+    if (-not $source.Contains(
+            'manual_automatic_player_input=disabled') -or
+        -not $source.Contains(
+            'manual_window_focus_automation=disabled') -or
+        -not $source.Contains(
+            'manual_observation_forbids_automated_player_input') -or
+        -not $source.Contains(
+            'automated_player_input_requires_explicit_opt_in')) {
+        throw 'manual_input_isolation_contract_test_failed'
     }
     $runtimeSource = Get-Content -LiteralPath (Join-Path `
         (Split-Path -Parent $PSScriptRoot) `
@@ -2267,6 +2312,8 @@ function Invoke-LauncherSelfTests {
         checkpoint_schedule_test = 'pass'
         blocker_conversion_test = 'pass'
         result_schema_test = 'pass'
+        manual_session_completion_test = 'pass'
+        manual_input_isolation_test = 'pass'
         blocked_direction_test = 'pass'
         adaptive_direction_test = 'pass'
         anchor_reset_test = 'pass'
@@ -2473,6 +2520,13 @@ $result = [ordered]@{
     input_mode = $InputMode
     manual_observation = [bool]$ManualObservation
     manual_observation_seconds = $ManualObservationSeconds
+    automated_player_input_authorized = [bool]$AllowAutomatedPlayerInput
+    manual_window_focus_automation = if ($ManualObservation) {
+        'disabled'
+    } else { 'not_applicable' }
+    manual_session_auto_close = $false
+    manual_completion_confirmed = $false
+    manual_failure_cleanup_suppressed = $false
     manual_visual_confirmation_requested =
         [bool]$PromptForVisualConfirmation
     manual_local_a_smooth = $null
@@ -2480,12 +2534,26 @@ $result = [ordered]@{
     manual_a_sees_b_smooth = $null
     manual_b_sees_a_smooth = $null
     manual_keyboard_freeze_observed = $null
+    stock_two_clients_tested = $null
+    stock_glock_available = $null
+    stock_glock_primary_fired = $null
+    stock_shooter_ammo_decreased = $null
+    stock_target_health_decreased = $null
+    stock_target_remained_alive = $null
+    stock_wall_blocked_damage = $null
+    stock_miss_caused_no_damage = $null
+    stock_client_a_movement_stable = $null
+    stock_client_b_movement_stable = $null
+    stock_remote_replication_stable = $null
+    stock_player_sticking_reproduced = $null
+    stock_clients_remained_connected = $null
     manual_windows_arranged = $false
     stock_manual_visual_acceptance = 'not_confirmed'
     stock_600_second_acceptance = 'not_run'
     persistent_launch_commands_removed = $true
     persistent_movement_launch_argument_count = 0
-    controlled_input_pulses = $InputMode -cne 'None'
+    controlled_input_pulses = $InputMode -cne 'None' -and
+        [bool]$AllowAutomatedPlayerInput
     input_target_pid = $null
     input_target_window = $null
     foreground_verified = $false
@@ -2795,9 +2863,16 @@ try {
         Write-Host 'process_ownership_policy=exact_new_pid_only'
         Write-Host ('multi_instance_mode={0}' -f $MultiInstanceMode)
         Write-Host ('input_mode={0}' -f $InputMode)
+        Write-Host ('automated_player_input_authorized={0}' -f
+            ([bool]$AllowAutomatedPlayerInput).ToString().ToLowerInvariant())
+        Write-Host ('manual_window_focus_automation={0}' -f
+            $result.manual_window_focus_automation)
+        Write-Host 'joystick_input=disabled'
         Write-Host 'persistent_movement_launch_argument_count=0'
         Write-Host ('manual_observation={0}' -f
             ([bool]$ManualObservation).ToString().ToLowerInvariant())
+        Write-Host ('goldsrc_combat={0}' -f
+            ([bool]$GoldSrcCombat).ToString().ToLowerInvariant())
         Write-Host 'persistent_launch_commands_removed=true'
         Write-Host 'primary_method=direct_multirun'
         Write-Host 'fallback_method=exact_owned_launcher_mutex_unlock'
@@ -3235,10 +3310,14 @@ try {
         }
 
         if ($ManualObservation) {
-            $result.manual_windows_arranged =
-                Arrange-OwnedClientWindowsSideBySide `
-                    -ClientA $clientAProcess -ClientB $clientBProcess `
-                    -ExpectedImage $clientAPath
+            # Do not activate, focus, resize, move, or inject input into either
+            # stock client during manual observation. GoldSrc mouse-look is
+            # foreground-sensitive, so even window-management automation can
+            # become an unintended view-angle input for the second client.
+            $result.manual_windows_arranged = $false
+            $result.manual_window_focus_automation = 'disabled'
+            Write-Host 'manual_automatic_player_input=disabled'
+            Write-Host 'manual_window_focus_automation=disabled'
             Write-Host ('manual_endpoint={0}:{1}' -f $BindAddress, $selectedPort)
             Write-Host ('manual_client_a_pid={0}' -f $clientAProcess.Id)
             Write-Host ('manual_client_b_pid={0}' -f $clientBProcess.Id)
@@ -3267,6 +3346,22 @@ try {
                 Start-Sleep -Milliseconds 250
             }
             $manualClock.Stop()
+            Write-Host 'manual_session_auto_close=disabled'
+            Write-Host 'manual_session_state=awaiting_operator_completion'
+            $null = Read-Host (
+                'Finish all movement and shooting checks, then press Enter')
+            foreach ($client in @($clientAProcess, $clientBProcess)) {
+                $client.Refresh()
+                if ($client.HasExited) {
+                    throw 'client_disconnected'
+                }
+            }
+            $serverProcess.Refresh()
+            if ($serverProcess.HasExited) {
+                throw 'server_exited_during_gate'
+            }
+            $result.manual_completion_confirmed = $true
+            Write-Host 'manual_session_state=operator_completed'
             if ($PromptForVisualConfirmation) {
                 $result.manual_local_a_smooth = Read-ManualYesNo `
                     -Question 'Did Client A movement remain smooth?'
@@ -3278,11 +3373,56 @@ try {
                     -Question 'Did B observe A smoothly?'
                 $result.manual_keyboard_freeze_observed = Read-ManualYesNo `
                     -Question 'Did either client lose keyboard movement?'
+                if ($GoldSrcCombat) {
+                    $result.stock_two_clients_tested = Read-ManualYesNo `
+                        -Question 'Did you directly observe both stock clients?'
+                    $result.stock_glock_available = Read-ManualYesNo `
+                        -Question 'Did Client A have the stock Glock?'
+                    $result.stock_glock_primary_fired = Read-ManualYesNo `
+                        -Question 'Did Client A fire exactly one primary shot?'
+                    $result.stock_shooter_ammo_decreased = Read-ManualYesNo `
+                        -Question 'Did Client A ammunition decrease?'
+                    $result.stock_target_health_decreased = Read-ManualYesNo `
+                        -Question 'Did Client B health decrease after the clear shot?'
+                    $result.stock_target_remained_alive = Read-ManualYesNo `
+                        -Question 'Did Client B remain alive after that shot?'
+                    $result.stock_wall_blocked_damage = Read-ManualYesNo `
+                        -Question 'Did a solid wall prevent Client B health loss?'
+                    $result.stock_miss_caused_no_damage = Read-ManualYesNo `
+                        -Question 'Did a deliberate miss leave Client B health unchanged?'
+                    $result.stock_player_sticking_reproduced = Read-ManualYesNo `
+                        -Question 'Did either player become stuck?'
+                    $result.stock_clients_remained_connected = Read-ManualYesNo `
+                        -Question 'Did both clients remain connected for the full observation?'
+                    $result.stock_client_a_movement_stable =
+                        $result.manual_local_a_smooth
+                    $result.stock_client_b_movement_stable =
+                        $result.manual_local_b_smooth
+                    $result.stock_remote_replication_stable =
+                        $result.manual_a_sees_b_smooth -and
+                        $result.manual_b_sees_a_smooth
+                }
                 $manualAccepted = $result.manual_local_a_smooth -and
                     $result.manual_local_b_smooth -and
                     $result.manual_a_sees_b_smooth -and
                     $result.manual_b_sees_a_smooth -and
                     -not $result.manual_keyboard_freeze_observed
+                if ($GoldSrcCombat) {
+                    $manualAccepted = $manualAccepted -and
+                        $result.stock_two_clients_tested -and
+                        $result.stock_glock_available -and
+                        $result.stock_glock_primary_fired -and
+                        $result.stock_shooter_ammo_decreased -and
+                        $result.stock_target_health_decreased -and
+                        $result.stock_target_remained_alive -and
+                        $result.stock_wall_blocked_damage -and
+                        $result.stock_miss_caused_no_damage -and
+                        $result.stock_client_a_movement_stable -and
+                        $result.stock_client_b_movement_stable -and
+                        $result.stock_remote_replication_stable -and
+                        -not $result.stock_player_sticking_reproduced -and
+                        $result.stock_clients_remained_connected
+                }
                 $result.stock_manual_visual_acceptance = if ($manualAccepted) {
                     'pass'
                 } else { 'fail' }
@@ -3293,7 +3433,8 @@ try {
             $result.movement_window_processes_stable = $true
         }
         else {
-            if ($InputMode -cne 'VerifiedSendInput') {
+            if ($InputMode -cne 'VerifiedSendInput' -or
+                -not $AllowAutomatedPlayerInput) {
                 throw 'automatic_acceptance_requires_verified_sendinput'
             }
             Release-AllOwnedMovementKeys -Process $clientAProcess `
@@ -3803,10 +3944,10 @@ try {
 }
 catch {
     $failure = $_
-    $result.diagnostic_identifier = [string]$_.Exception.Message
     $result.status = 'fail'
     $result.blocker = Convert-FailureIdentifier `
         -Message $_.Exception.Message
+    $result.diagnostic_identifier = $result.blocker
     if ($result.blocker -in @(
             'client_a_multirun_rejected',
             'client_b_multirun_rejected',
@@ -3896,7 +4037,11 @@ catch {
     }
 }
 finally {
-    $keep = $KeepProcessesOnFailure -and $null -ne $failure
+    $keep = ($KeepProcessesOnFailure -or $ManualObservation) -and
+        $null -ne $failure
+    if ($keep -and $ManualObservation) {
+        $result.manual_failure_cleanup_suppressed = $true
+    }
     if (-not $DryRun -and $InputMode -ceq 'VerifiedSendInput') {
         foreach ($entry in @(
             [pscustomobject]@{
@@ -4045,6 +4190,11 @@ finally {
         $failure = New-Object System.Exception -ArgumentList $result.blocker
     }
     $result.end_utc = [DateTime]::UtcNow.ToString('o')
+    $result.diagnostic_identifier = if ($result.status -ceq 'pass') {
+        'none'
+    } else {
+        Convert-FailureIdentifier -Message $result.blocker
+    }
     try {
         Write-AutotestResults -Result $result `
             -JsonPath $jsonResultPath -TextPath $textResultPath

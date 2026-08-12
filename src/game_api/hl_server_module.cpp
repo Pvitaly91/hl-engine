@@ -3954,6 +3954,8 @@ struct EngineShimState
     bool command_execute_in_progress = false;
     std::unordered_map<std::string, std::size_t> callback_counts;
     std::vector<std::string> callback_order;
+    std::string last_engine_callback_name;
+    std::uint64_t total_engine_callback_calls = 0u;
     std::filesystem::path game_directory;
     hl::game_api::DllModule* module = nullptr;
     hl::game_api::detail::ServerState server_state;
@@ -3963,6 +3965,28 @@ struct EngineShimState
     hl::game_api::detail::EdictStore edict_store;
     hl::filesystem::FileSystem file_system;
     hl::game_api::detail::WorldModelContext world_context;
+    const hl::network::GoldSrcClientEdictRegistry*
+        goldsrc_combat_lifecycle_registry = nullptr;
+    hl::game_api::detail::GoldSrcPmoveRuntime* goldsrc_combat_pmove_runtime = nullptr;
+    bool goldsrc_combat_trace_enabled = false;
+    std::uint64_t goldsrc_combat_trace_calls = 0u;
+    std::uint64_t goldsrc_combat_player_hits = 0u;
+    std::uint64_t goldsrc_combat_world_occlusions = 0u;
+    int goldsrc_combat_active_attack_postthink_slot = 0;
+    std::array<std::uint64_t, 32> goldsrc_combat_trace_hits_by_slot{};
+    std::array<std::uint64_t, 32>
+        goldsrc_combat_world_occlusions_by_slot{};
+    std::array<std::uint64_t, 32>
+        goldsrc_combat_weapon_range_traces_by_slot{};
+    std::array<std::uint64_t, 32>
+        goldsrc_combat_shooter_ignored_by_slot{};
+    std::array<std::uint64_t, 32>
+        goldsrc_combat_weapon_range_player_hits_by_slot{};
+    std::array<std::uint64_t, 32>
+        goldsrc_combat_weapon_range_world_hits_by_slot{};
+    std::array<std::uint64_t, 32> goldsrc_combat_playback_events_by_slot{};
+    std::array<int, 32> goldsrc_combat_last_trace_target_by_slot{};
+    std::array<std::array<qboolean, 32>, 32> voice_listening{};
     EntityBootstrapContext entity_bootstrap;
     hl::game_api::detail::WorldspawnSpawnDiagnostics worldspawn_spawn_diagnostics;
     hl::game_api::detail::ServerActivationDiagnostics server_activation_diagnostics;
@@ -23431,6 +23455,8 @@ void RecordCallback(
 {
     EngineShimState& state = CurrentShimState();
     const std::string callback_name(name);
+    state.last_engine_callback_name = callback_name;
+    ++state.total_engine_callback_calls;
     auto [it, inserted] = state.callback_counts.try_emplace(callback_name, 0);
     if (inserted)
     {
@@ -257327,6 +257353,240 @@ void ResetTraceResult(TraceResult* trace, const Vector& end_position, edict_t* h
     trace->pHit = hit_entity;
 }
 
+void ApplyGoldSrcCombatTrace(
+    EngineShimState& state,
+    const float* start,
+    const float* end,
+    int no_monsters,
+    edict_t* entity_to_skip,
+    TraceResult* trace)
+{
+    if (trace == nullptr || !state.goldsrc_combat_trace_enabled
+        || state.goldsrc_combat_lifecycle_registry == nullptr
+        || state.goldsrc_combat_pmove_runtime == nullptr
+        || start == nullptr || end == nullptr)
+    {
+        return;
+    }
+    hl::game_api::detail::GoldSrcWorldLineTrace world_trace{};
+    if (!state.goldsrc_combat_pmove_runtime->TraceWorldLine(
+            start,
+            end,
+            &world_trace))
+    {
+        return;
+    }
+
+    const auto validated_player = [&state](
+        const DedicatedPlayerRuntimeSlot& slot_state) -> edict_t*
+    {
+        const hl::network::GoldSrcClientEdictBinding& binding =
+            slot_state.goldsrc_player_lifecycle.binding();
+        if (slot_state.slot < 1
+            || binding.client_slot
+                != static_cast<std::uint16_t>(slot_state.slot)
+            || state.goldsrc_combat_lifecycle_registry->Validate(binding)
+                != hl::network::GoldSrcClientEdictBindingResult::kBound)
+        {
+            return nullptr;
+        }
+        edict_t* const player = state.edict_store.EntityOfIndex(
+            binding.edict_index);
+        if (player == nullptr
+            || state.edict_store.IndexOf(player) != binding.edict_index)
+        {
+            return nullptr;
+        }
+        return player;
+    };
+
+    std::vector<hl::network::GoldSrcCombatTraceCandidate> candidates;
+    candidates.reserve(state.dedicated_multiplayer_foundation.slots.size());
+    int ignored_slot = 0;
+    std::uint64_t ignored_generation = 0u;
+    for (const DedicatedPlayerRuntimeSlot& slot_state :
+         state.dedicated_multiplayer_foundation.slots)
+    {
+        const auto& binding = slot_state.goldsrc_player_lifecycle.binding();
+        edict_t* const player = validated_player(slot_state);
+        if (player == nullptr)
+        {
+            continue;
+        }
+        if (player == entity_to_skip)
+        {
+            ignored_slot = slot_state.slot;
+            ignored_generation = binding.network_session_generation;
+        }
+        if (no_monsters != 0 || player == nullptr)
+        {
+            continue;
+        }
+        hl::network::GoldSrcCombatTraceCandidate candidate;
+        candidate.slot = slot_state.slot;
+        candidate.generation = binding.network_session_generation;
+        candidate.authoritative_generation =
+            binding.network_session_generation;
+        candidate.connected = IsDedicatedSlotConnectedOccupant(slot_state);
+        candidate.spawned = slot_state.goldsrc_player_lifecycle.put_in_server()
+            && !player->free
+            && state.edict_store.PrivateDataOf(player) != nullptr;
+        candidate.damageable = player->v.takedamage != DAMAGE_NO
+            && player->v.health > 0.0f
+            && player->v.deadflag == DEAD_NO;
+        for (std::size_t axis = 0u; axis < 3u; ++axis)
+        {
+            candidate.minimum[axis] =
+                player->v.origin[axis] + player->v.mins[axis];
+            candidate.maximum[axis] =
+                player->v.origin[axis] + player->v.maxs[axis];
+        }
+        candidates.push_back(candidate);
+    }
+
+    hl::network::GoldSrcCombatTraceSelection selected =
+        hl::network::SelectGoldSrcCombatLineHit(
+            {{start[0], start[1], start[2]}},
+            {{end[0], end[1], end[2]}},
+            world_trace.fraction,
+            candidates,
+            ignored_slot,
+            ignored_generation);
+    edict_t* selected_player = nullptr;
+    if (selected.hit_type == hl::network::GoldSrcCombatTraceHitType::kPlayer)
+    {
+        for (const DedicatedPlayerRuntimeSlot& slot_state :
+             state.dedicated_multiplayer_foundation.slots)
+        {
+            const auto& binding =
+                slot_state.goldsrc_player_lifecycle.binding();
+            if (slot_state.slot != selected.player_slot
+                || binding.network_session_generation
+                    != selected.player_generation)
+            {
+                continue;
+            }
+            selected_player = validated_player(slot_state);
+            if (selected_player != nullptr
+                && IsDedicatedSlotConnectedOccupant(slot_state)
+                && slot_state.goldsrc_player_lifecycle.put_in_server()
+                && !selected_player->free
+                && state.edict_store.PrivateDataOf(selected_player) != nullptr)
+            {
+                break;
+            }
+            selected_player = nullptr;
+        }
+        if (selected_player == nullptr)
+        {
+            const bool world_hit = world_trace.hit_world
+                || world_trace.all_solid
+                || world_trace.start_solid
+                || world_trace.fraction < 1.0f;
+            selected.hit_type = world_hit
+                ? hl::network::GoldSrcCombatTraceHitType::kWorld
+                : hl::network::GoldSrcCombatTraceHitType::kNone;
+            selected.player_slot = 0;
+            selected.player_generation = 0u;
+            selected.player_fraction = 1.0f;
+            selected.selected_fraction = world_hit
+                ? world_trace.fraction
+                : 1.0f;
+            selected.world_occluded = false;
+        }
+    }
+    const Vector start_vector(start[0], start[1], start[2]);
+    const Vector end_vector(end[0], end[1], end[2]);
+    const Vector trace_delta = end_vector - start_vector;
+    const bool weapon_range_trace = ignored_slot >= 1
+        && state.goldsrc_combat_active_attack_postthink_slot == ignored_slot
+        && trace_delta.Length() >= 4096.0f;
+    const std::size_t ignored_index = ignored_slot >= 1
+        ? static_cast<std::size_t>(ignored_slot - 1)
+        : 0u;
+    if (weapon_range_trace
+        && ignored_index
+            < state.goldsrc_combat_weapon_range_traces_by_slot.size())
+    {
+        ++state.goldsrc_combat_weapon_range_traces_by_slot[ignored_index];
+        if (selected.shooter_ignored)
+        {
+            ++state.goldsrc_combat_shooter_ignored_by_slot[ignored_index];
+        }
+    }
+    trace->flFraction = selected.selected_fraction;
+    trace->vecEndPos = start_vector
+        + (end_vector - start_vector) * selected.selected_fraction;
+    trace->fAllSolid = world_trace.all_solid ? TRUE : FALSE;
+    trace->fStartSolid = world_trace.start_solid ? TRUE : FALSE;
+    trace->iHitgroup = 0;
+
+    if (selected.hit_type == hl::network::GoldSrcCombatTraceHitType::kPlayer)
+    {
+        trace->pHit = selected_player;
+        Vector direction = end_vector - start_vector;
+        const float length = direction.Length();
+        if (length > 0.0f)
+        {
+            direction = direction * (-1.0f / length);
+        }
+        trace->vecPlaneNormal = direction;
+        trace->flPlaneDist =
+            trace->vecPlaneNormal.x * trace->vecEndPos.x
+            + trace->vecPlaneNormal.y * trace->vecEndPos.y
+            + trace->vecPlaneNormal.z * trace->vecEndPos.z;
+        ++state.goldsrc_combat_player_hits;
+        if (weapon_range_trace
+            && ignored_index
+                < state.goldsrc_combat_weapon_range_player_hits_by_slot.size())
+        {
+            ++state.goldsrc_combat_weapon_range_player_hits_by_slot[
+                ignored_index];
+        }
+        if (ignored_slot >= 1
+            && static_cast<std::size_t>(ignored_slot)
+                <= state.goldsrc_combat_trace_hits_by_slot.size())
+        {
+            const std::size_t shooter_index =
+                static_cast<std::size_t>(ignored_slot - 1);
+            ++state.goldsrc_combat_trace_hits_by_slot[shooter_index];
+            state.goldsrc_combat_last_trace_target_by_slot[shooter_index] =
+                selected.player_slot;
+        }
+    }
+    else if (selected.hit_type
+        == hl::network::GoldSrcCombatTraceHitType::kWorld)
+    {
+        if (weapon_range_trace
+            && ignored_index
+                < state.goldsrc_combat_weapon_range_world_hits_by_slot.size())
+        {
+            ++state.goldsrc_combat_weapon_range_world_hits_by_slot[
+                ignored_index];
+        }
+        trace->pHit = state.edict_store.World();
+        trace->vecPlaneNormal = Vector(
+            world_trace.plane_normal[0],
+            world_trace.plane_normal[1],
+            world_trace.plane_normal[2]);
+        trace->flPlaneDist = world_trace.plane_distance;
+    }
+    else
+    {
+        trace->pHit = nullptr;
+    }
+    ++state.goldsrc_combat_trace_calls;
+    state.goldsrc_combat_world_occlusions +=
+        selected.world_occluded ? 1u : 0u;
+    if (selected.world_occluded && ignored_slot >= 1
+        && static_cast<std::size_t>(ignored_slot)
+            <= state.goldsrc_combat_world_occlusions_by_slot.size())
+    {
+        ++state.goldsrc_combat_world_occlusions_by_slot[
+            static_cast<std::size_t>(ignored_slot - 1)];
+    }
+}
+
 void StubTraceLine(
     const float* start,
     const float* end,
@@ -257338,13 +257598,21 @@ void StubTraceLine(
     const Vector start_vec = VectorFromFloatPointer(start);
     const Vector end_vec = VectorFromFloatPointer(end);
     ResetTraceResult(trace, end_vec, state.edict_store.World());
+    ApplyGoldSrcCombatTrace(
+        state,
+        start,
+        end,
+        no_monsters,
+        entity_to_skip,
+        trace);
     RecordCallback(
         "pfnTraceLine",
         "start=" + FormatVector(start_vec)
             + ", end=" + FormatVector(end_vec)
             + ", noMonsters=" + std::to_string(no_monsters)
             + ", skip=" + DescribeEdict(state, entity_to_skip)
-            + ", fraction=1.0",
+            + ", fraction=" + std::to_string(
+                trace != nullptr ? trace->flFraction : 1.0f),
         entity_to_skip);
 }
 
@@ -257369,6 +257637,53 @@ void StubTraceHull(
             + ", skip=" + DescribeEdict(state, entity_to_skip)
             + ", fraction=1.0",
         entity_to_skip);
+}
+
+void StubPlaybackEvent(
+    int flags,
+    const edict_t* invoker,
+    unsigned short event_index,
+    float delay,
+    float* /*origin*/,
+    float* /*angles*/,
+    float parameter1,
+    float parameter2,
+    int integer1,
+    int integer2,
+    int boolean1,
+    int boolean2)
+{
+    EngineShimState& state = CurrentShimState();
+    for (const DedicatedPlayerRuntimeSlot& slot_state :
+         state.dedicated_multiplayer_foundation.slots)
+    {
+        const auto& binding = slot_state.goldsrc_player_lifecycle.binding();
+        if (invoker != nullptr
+            && invoker == state.edict_store.EntityOfIndex(binding.edict_index)
+            && slot_state.slot >= 1
+            && static_cast<std::size_t>(slot_state.slot)
+                <= state.goldsrc_combat_playback_events_by_slot.size())
+        {
+            ++state.goldsrc_combat_playback_events_by_slot[
+                static_cast<std::size_t>(slot_state.slot - 1)];
+            break;
+        }
+    }
+    RecordCallback(
+        "pfnPlaybackEvent",
+        "flags=" + std::to_string(flags)
+            + ", event=" + std::to_string(event_index)
+            + ", delay=" + std::to_string(delay)
+            + ", invoker=" + DescribeEdict(
+                state,
+                const_cast<edict_t*>(invoker))
+            + ", f1=" + std::to_string(parameter1)
+            + ", f2=" + std::to_string(parameter2)
+            + ", i1=" + std::to_string(integer1)
+            + ", i2=" + std::to_string(integer2)
+            + ", b1=" + std::to_string(boolean1)
+            + ", b2=" + std::to_string(boolean2),
+        const_cast<edict_t*>(invoker));
 }
 
 int StubPointContents(const float* vector)
@@ -257494,6 +257809,100 @@ void ComputeAngleVectors(
             (cr * sp * sy) + (-sr * cy),
             cr * cp);
     }
+}
+
+void StubVecToAngles(const float* vector_in, float* vector_out)
+{
+    if (vector_out == nullptr)
+    {
+        RecordCallback("pfnVecToAngles", "missing-output");
+        return;
+    }
+
+    constexpr double kRadiansToDegrees =
+        180.0 / 3.14159265358979323846;
+    const Vector forward = vector_in != nullptr
+        ? Vector(vector_in[0], vector_in[1], vector_in[2])
+        : Vector(0.0f, 0.0f, 0.0f);
+    float pitch = 0.0f;
+    float yaw = 0.0f;
+
+    if (std::isfinite(forward.x)
+        && std::isfinite(forward.y)
+        && std::isfinite(forward.z))
+    {
+        if (forward.y == 0.0f && forward.x == 0.0f)
+        {
+            pitch = forward.z > 0.0f ? 90.0f : 270.0f;
+        }
+        else
+        {
+            yaw = static_cast<float>(
+                std::atan2(
+                    static_cast<double>(forward.y),
+                    static_cast<double>(forward.x))
+                * kRadiansToDegrees);
+            if (yaw < 0.0f)
+            {
+                yaw += 360.0f;
+            }
+
+            const double length = std::sqrt(
+                static_cast<double>(forward.x)
+                    * static_cast<double>(forward.x)
+                + static_cast<double>(forward.y)
+                    * static_cast<double>(forward.y));
+            pitch = static_cast<float>(
+                std::atan2(static_cast<double>(forward.z), length)
+                * kRadiansToDegrees);
+            if (pitch < 0.0f)
+            {
+                pitch += 360.0f;
+            }
+        }
+    }
+
+    vector_out[0] = pitch;
+    vector_out[1] = yaw;
+    vector_out[2] = 0.0f;
+    RecordCallback("pfnVecToAngles", "completed");
+}
+
+void StubCrosshairAngle(const edict_t* client, float pitch, float yaw)
+{
+    EngineShimState& state = CurrentShimState();
+    const int client_index = state.edict_store.IndexOf(client);
+    if (client_index < 1
+        || client_index > state.server_state.maxclients
+        || !std::isfinite(pitch)
+        || !std::isfinite(yaw))
+    {
+        RecordCallback("pfnCrosshairAngle", "ignored-invalid-client-or-angle");
+        return;
+    }
+
+    if (pitch > 180.0f)
+    {
+        pitch -= 360.0f;
+    }
+    if (pitch < -180.0f)
+    {
+        pitch += 360.0f;
+    }
+    if (yaw > 180.0f)
+    {
+        yaw -= 360.0f;
+    }
+    if (yaw < -180.0f)
+    {
+        yaw += 360.0f;
+    }
+
+    // The authoritative Game DLL auto-aim state is updated before this
+    // callback.  The current snapshot slice has no reliable
+    // svc_crosshairangle queue yet, so retain the stock callback boundary
+    // without fabricating an unrelated user message or terminating gameplay.
+    RecordCallback("pfnCrosshairAngle", "accepted", client);
 }
 
 void StubMakeVectors(const float* vector)
@@ -257990,6 +258399,49 @@ int StubCanSkipPlayer(const edict_t* player)
     return FALSE;
 }
 
+qboolean StubVoiceGetClientListening(int receiver, int sender)
+{
+    EngineShimState& state = CurrentShimState();
+    const bool valid = receiver >= 1 && receiver <= state.server_state.maxclients
+        && sender >= 1 && sender <= state.server_state.maxclients
+        && receiver <= static_cast<int>(state.voice_listening.size())
+        && sender <= static_cast<int>(state.voice_listening[0].size());
+    const qboolean listening = valid
+        ? state.voice_listening[static_cast<std::size_t>(receiver - 1)][
+            static_cast<std::size_t>(sender - 1)]
+        : FALSE;
+    RecordCallback(
+        "pfnVoice_GetClientListening",
+        "receiver=" + std::to_string(receiver)
+            + ", sender=" + std::to_string(sender)
+            + ", result=" + std::to_string(listening));
+    return listening;
+}
+
+qboolean StubVoiceSetClientListening(
+    int receiver,
+    int sender,
+    qboolean listen)
+{
+    EngineShimState& state = CurrentShimState();
+    const bool valid = receiver >= 1 && receiver <= state.server_state.maxclients
+        && sender >= 1 && sender <= state.server_state.maxclients
+        && receiver <= static_cast<int>(state.voice_listening.size())
+        && sender <= static_cast<int>(state.voice_listening[0].size());
+    if (valid)
+    {
+        state.voice_listening[static_cast<std::size_t>(receiver - 1)][
+            static_cast<std::size_t>(sender - 1)] = listen != FALSE ? TRUE : FALSE;
+    }
+    RecordCallback(
+        "pfnVoice_SetClientListening",
+        "receiver=" + std::to_string(receiver)
+            + ", sender=" + std::to_string(sender)
+            + ", listen=" + std::to_string(listen)
+            + ", accepted=" + (valid ? std::string("true") : std::string("false")));
+    return valid ? TRUE : FALSE;
+}
+
 unsigned char* StubSetFatPVS(float* /*origin*/)
 {
     RecordCallback("pfnSetFatPVS");
@@ -258033,6 +258485,7 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnFindEntityByString = &StubFindEntityByString;
     engine_functions.pfnFindEntityInSphere = &StubFindEntityInSphere;
     engine_functions.pfnEntitiesInPVS = &StubEntitiesInPVS;
+    engine_functions.pfnVecToAngles = &StubVecToAngles;
     engine_functions.pfnMakeVectors = &StubMakeVectors;
     engine_functions.pfnAngleVectors = &StubAngleVectors;
     engine_functions.pfnChangeYaw = &StubChangeYaw;
@@ -258094,6 +258547,8 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnIsDedicatedServer = &StubIsDedicatedServer;
     engine_functions.pfnPrecacheGeneric = &StubPrecacheGeneric;
     engine_functions.pfnPrecacheEvent = &StubPrecacheEvent;
+    engine_functions.pfnPlaybackEvent = &StubPlaybackEvent;
+    engine_functions.pfnCrosshairAngle = &StubCrosshairAngle;
     engine_functions.pfnCmd_Args = &StubCmdArgs;
     engine_functions.pfnCmd_Argv = &StubCmdArgv;
     engine_functions.pfnCmd_Argc = &StubCmdArgc;
@@ -258110,6 +258565,10 @@ void PopulateEngineFunctions(enginefuncs_t& engine_functions)
     engine_functions.pfnGetPlayerUserId = &StubGetPlayerUserId;
     engine_functions.pfnGetPlayerAuthId = &StubGetPlayerAuthId;
     engine_functions.pfnCanSkipPlayer = &StubCanSkipPlayer;
+    engine_functions.pfnVoice_GetClientListening =
+        &StubVoiceGetClientListening;
+    engine_functions.pfnVoice_SetClientListening =
+        &StubVoiceSetClientListening;
     engine_functions.pfnSetFatPVS = &StubSetFatPVS;
     engine_functions.pfnSetFatPAS = &StubSetFatPAS;
     engine_functions.pfnCheckVisibility = &StubCheckVisibility;
@@ -263127,7 +263586,10 @@ bool SafeCallServerDeactivate(void (*function)())
         function();
         return true;
     }
-    __except (HandleSehException("pfnServerDeactivate", GetExceptionCode()))
+    // Shutdown is an externally observed acceptance boundary. Keep this
+    // callback fail-closed, but do not surface an exception code, address, or
+    // stack-derived detail through the normal logger.
+    __except (EXCEPTION_EXECUTE_HANDLER)
     {
         return false;
     }
@@ -279537,7 +279999,17 @@ bool HlServerModule::FinishGoldSrcUdpHandshake()
     }
 
     impl_->goldsrc_udp_handshake_runtime->Shutdown();
-    bool succeeded = impl_->goldsrc_udp_handshake_runtime->Succeeded();
+    // Keep the runtime and Game-DLL teardown results separate so automated
+    // fall acceptance can report only a bounded semantic failure stage.
+    const bool runtime_succeeded =
+        impl_->goldsrc_udp_handshake_runtime->Succeeded();
+    bool succeeded = runtime_succeeded;
+    if (!runtime_succeeded)
+    {
+        common::Logger::Error(
+            common::LogCategory::Server,
+            "goldsrc_shutdown_failed: stage=runtime_success_contract");
+    }
     if (!impl_->goldsrc_server_deactivated
         && impl_->summary.server_activation.succeeded
         && impl_->shim_state.dll_functions.pfnServerDeactivate != nullptr)
@@ -279551,6 +280023,12 @@ bool HlServerModule::FinishGoldSrcUdpHandshake()
             common::Logger::Info(
                 common::LogCategory::Dll,
                 "GoldSrc runtime ServerDeactivate completed before module unload");
+        }
+        else
+        {
+            common::Logger::Error(
+                common::LogCategory::Server,
+                "goldsrc_shutdown_failed: stage=server_deactivate");
         }
     }
     RefreshExecutionSummary(

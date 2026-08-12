@@ -144,8 +144,13 @@ public:
 
     edict_t* World() noexcept;
     const edict_t* World() const noexcept;
+    // Advance the authoritative host-frame token. Entity slots removed after
+    // this call cannot be reused until the next token, which prevents a Game
+    // DLL callback from observing the same edict storage as a new entity.
+    void BeginFrameReuseBarrier() noexcept;
     edict_t* CreateEntity();
     void RemoveEntity(edict_t* entity);
+    void PrepareClientForPutInServer(edict_t* entity);
     void SetInUse(edict_t* entity, bool in_use);
     void SetClassname(edict_t* entity, string_t class_name, std::string_view class_name_text);
     void SetTargetname(edict_t* entity, string_t target_name, std::string_view target_name_text);
@@ -182,6 +187,7 @@ public:
     int MaxEntities() const noexcept;
     int NumberOfEntities() const noexcept;
     int AllocatedCount() const noexcept;
+    std::size_t ClearTransientMuzzleFlashEffects() noexcept;
     EntityStateSnapshot SnapshotOf(
         const edict_t* entity,
         const EngineStringPool& string_pool) const;
@@ -213,14 +219,18 @@ private:
         int parse_index = -1;
         std::unique_ptr<unsigned char[]> private_data;
         std::size_t private_data_bytes = 0;
+        std::uint64_t removed_reuse_epoch = 0;
     };
 
     void ClearEdict(std::size_t index, bool free_slot);
 
     std::vector<edict_t> edicts_;
     std::vector<EntitySlotState> states_;
+    std::vector<std::unique_ptr<unsigned char[]>> retired_private_data_;
     std::size_t max_clients_ = 0;
     int next_serial_ = 1;
+    std::uint64_t reuse_epoch_ = 0;
+    bool frame_reuse_barrier_active_ = false;
 };
 
 std::string NormalizeModName(std::string_view value);

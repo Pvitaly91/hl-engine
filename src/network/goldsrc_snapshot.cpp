@@ -605,6 +605,8 @@ std::string_view ReasonFor(GoldSrcPlayerSnapshotApplyStatus status) noexcept
         return "invalid_player_state";
     case GoldSrcPlayerSnapshotApplyStatus::kInvalidClientData:
         return "invalid_clientdata";
+    case GoldSrcPlayerSnapshotApplyStatus::kInvalidWeaponData:
+        return "invalid_weapondata";
     case GoldSrcPlayerSnapshotApplyStatus::kDuplicateEntity:
         return "duplicate_entity";
     case GoldSrcPlayerSnapshotApplyStatus::kEntityCountExceeded:
@@ -626,17 +628,20 @@ GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
     {
         return GoldSrcPlayerSnapshotApplyStatus::kInvalidMaximumClients;
     }
-    if (player.entity.entity_index == 0u
-        || player.entity.entity_index > maximum_clients)
+    if (player.include_local_entity
+        && (player.entity.entity_index == 0u
+            || player.entity.entity_index > maximum_clients))
     {
         return GoldSrcPlayerSnapshotApplyStatus::kInvalidEntityIndex;
     }
-    if (player.entity.kind != GoldSrcBaselineKind::kPlayer)
+    if (player.include_local_entity
+        && player.entity.kind != GoldSrcBaselineKind::kPlayer)
     {
         return GoldSrcPlayerSnapshotApplyStatus::kWrongEntityKind;
     }
-    if (player.entity.state.field_count == 0u
-        || !DeltaRecordFinite(player.entity.state))
+    if (player.include_local_entity
+        && (player.entity.state.field_count == 0u
+            || !DeltaRecordFinite(player.entity.state)))
     {
         return GoldSrcPlayerSnapshotApplyStatus::kInvalidPlayerState;
     }
@@ -644,6 +649,24 @@ GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
         || !DeltaRecordFinite(player.clientdata.state))
     {
         return GoldSrcPlayerSnapshotApplyStatus::kInvalidClientData;
+    }
+    std::uint8_t prior_weapon = 0u;
+    bool first_weapon = true;
+    if (player.weapons.size() > kGoldSrcMaximumSnapshotWeapons)
+    {
+        return GoldSrcPlayerSnapshotApplyStatus::kInvalidWeaponData;
+    }
+    for (const GoldSrcWeaponState& weapon : player.weapons)
+    {
+        if (weapon.weapon_index >= kGoldSrcMaximumSnapshotWeapons
+            || (!first_weapon && weapon.weapon_index <= prior_weapon)
+            || weapon.state.field_count == 0u
+            || !DeltaRecordFinite(weapon.state))
+        {
+            return GoldSrcPlayerSnapshotApplyStatus::kInvalidWeaponData;
+        }
+        prior_weapon = weapon.weapon_index;
+        first_weapon = false;
     }
     const auto insert_player =
         [frame, maximum_clients](
@@ -686,11 +709,14 @@ GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
             frame->entities.insert(insertion, candidate);
             return GoldSrcPlayerSnapshotApplyStatus::kApplied;
         };
-    const GoldSrcPlayerSnapshotApplyStatus local_applied =
-        insert_player(player.entity);
-    if (local_applied != GoldSrcPlayerSnapshotApplyStatus::kApplied)
+    if (player.include_local_entity)
     {
-        return local_applied;
+        const GoldSrcPlayerSnapshotApplyStatus local_applied =
+            insert_player(player.entity);
+        if (local_applied != GoldSrcPlayerSnapshotApplyStatus::kApplied)
+        {
+            return local_applied;
+        }
     }
     for (const GoldSrcSnapshotEntityState& remote : player.remote_entities)
     {
@@ -702,6 +728,7 @@ GoldSrcPlayerSnapshotApplyStatus ApplyGoldSrcPlayerSnapshot(
         }
     }
     frame->clientdata = player.clientdata;
+    frame->weapons = player.weapons;
     return GoldSrcPlayerSnapshotApplyStatus::kApplied;
 }
 
@@ -1340,12 +1367,16 @@ GoldSrcSnapshotBuildResult BuildGoldSrcFirstSnapshot(
                 applied == GoldSrcPlayerSnapshotApplyStatus::kInvalidClientData
                 ? GoldSrcSnapshotCodecStatus::kInvalidClientData
                 : applied
+                    == GoldSrcPlayerSnapshotApplyStatus::kInvalidWeaponData
+                ? GoldSrcSnapshotCodecStatus::kInvalidWeaponData
+                : applied
                     == GoldSrcPlayerSnapshotApplyStatus::kEntityCountExceeded
                 ? GoldSrcSnapshotCodecStatus::kEntityCountExceeded
                 : GoldSrcSnapshotCodecStatus::kInvalidFrame;
             return result;
         }
-        if (!ApplyLocalPlayerConditionalEncoder(
+        if (player->include_local_entity
+            && !ApplyLocalPlayerConditionalEncoder(
                 &result.bundle.frame,
                 player->entity.entity_index,
                 baselines,
@@ -1530,10 +1561,19 @@ GoldSrcSnapshotEncodeResult EncodeGoldSrcDeltaSnapshot(
             GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
         return result;
     }
-    if (!frame.weapons.empty() || !base.weapons.empty())
+    if (frame.weapons.size() != base.weapons.size())
     {
         result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
         return result;
+    }
+    for (std::size_t index = 0u; index < frame.weapons.size(); ++index)
+    {
+        if (frame.weapons[index].weapon_index
+            != base.weapons[index].weapon_index)
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
     }
 
     bool duplicate = false;
@@ -1580,6 +1620,42 @@ GoldSrcSnapshotEncodeResult EncodeGoldSrcDeltaSnapshot(
     if (result.status != GoldSrcSnapshotCodecStatus::kOk)
     {
         return result;
+    }
+    const GoldSrcDeltaTable* weapon_table = nullptr;
+    if (!frame.weapons.empty())
+    {
+        weapon_table = FindTable(registry, "weapon_data_t", &duplicate);
+        if (duplicate || weapon_table == nullptr)
+        {
+            result.status = duplicate
+                ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+                : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+            return result;
+        }
+    }
+    for (std::size_t index = 0u; index < frame.weapons.size(); ++index)
+    {
+        const GoldSrcWeaponState& weapon = frame.weapons[index];
+        if (!writer.WriteBits(1u, 1u)
+            || !writer.WriteBits(weapon.weapon_index, 6u))
+        {
+            result.status =
+                GoldSrcSnapshotCodecStatus::kOutputCapacityExceeded;
+            return result;
+        }
+        result.status = EncodeDeltaRecord(
+            &writer,
+            *weapon_table,
+            base.weapons[index].state,
+            weapon.state,
+            frame.server_time,
+            &result.failure_table,
+            &result.failure_field);
+        if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
     }
     if (!writer.WriteBits(0u, 1u)
         || !writer.PadToByte()
@@ -1788,8 +1864,76 @@ GoldSrcSnapshotDecodeResult DecodeGoldSrcDeltaSnapshot(
         result.status = GoldSrcSnapshotCodecStatus::kInvalidClientData;
         return result;
     }
-    if (!reader.ReadBits(1u, &value) || value != 0u
-        || !reader.AlignToByte(true)
+    result.frame.weapons = base.weapons;
+    const GoldSrcDeltaTable* weapon_table = nullptr;
+    std::uint8_t prior_weapon = 0u;
+    bool first_weapon = true;
+    while (true)
+    {
+        if (!reader.ReadBits(1u, &value))
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
+        if (value == 0u)
+        {
+            break;
+        }
+        if (!reader.ReadBits(6u, &value))
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
+        const std::uint8_t weapon_index =
+            static_cast<std::uint8_t>(value);
+        if ((!first_weapon && weapon_index <= prior_weapon)
+            || weapon_index >= kGoldSrcMaximumSnapshotWeapons)
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kWeaponOrderInvalid;
+            return result;
+        }
+        if (weapon_table == nullptr)
+        {
+            weapon_table = FindTable(registry, "weapon_data_t", &duplicate);
+            if (duplicate || weapon_table == nullptr)
+            {
+                result.status = duplicate
+                    ? GoldSrcSnapshotCodecStatus::kDuplicateDeltaTable
+                    : GoldSrcSnapshotCodecStatus::kMissingDeltaTable;
+                return result;
+            }
+        }
+        const auto weapon = std::lower_bound(
+            result.frame.weapons.begin(),
+            result.frame.weapons.end(),
+            weapon_index,
+            [](const GoldSrcWeaponState& candidate, std::uint8_t index)
+            {
+                return candidate.weapon_index < index;
+            });
+        if (weapon == result.frame.weapons.end()
+            || weapon->weapon_index != weapon_index)
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
+        GoldSrcDecodedDeltaRecord decoded;
+        result.status = DecodeDeltaRecord(
+            &reader,
+            *weapon_table,
+            weapon->state,
+            result.frame.server_time,
+            &decoded);
+        if (result.status != GoldSrcSnapshotCodecStatus::kOk)
+        {
+            result.status = GoldSrcSnapshotCodecStatus::kInvalidWeaponData;
+            return result;
+        }
+        weapon->state = std::move(decoded);
+        prior_weapon = weapon_index;
+        first_weapon = false;
+    }
+    if (!reader.AlignToByte(true)
         || !reader.ReadBits(8u, &value)
         || value != kGoldSrcDeltaPacketEntitiesOpcode)
     {
@@ -2230,12 +2374,14 @@ GoldSrcFrameStoreResult GoldSrcClientFrameHistory::Store(
 }
 
 GoldSrcFrameAcknowledgeResult GoldSrcClientFrameHistory::Acknowledge(
-    std::uint8_t wire_frame_reference) noexcept
+    std::uint8_t wire_frame_reference,
+    std::optional<std::uint32_t> client_server_acknowledgement) noexcept
 {
     const GoldSrcFrameReferenceResolution resolution =
         GoldSrcFrameReferenceResolver::Resolve(
             *this,
-            wire_frame_reference);
+            wire_frame_reference,
+            client_server_acknowledgement);
     if (resolution.result
         == GoldSrcFrameAcknowledgeResult::kAcknowledged)
     {
@@ -2302,7 +2448,8 @@ GoldSrcClientFrameHistory::last_acknowledged_frame() const noexcept
 GoldSrcFrameReferenceResolution
 GoldSrcFrameReferenceResolver::Resolve(
     const GoldSrcClientFrameHistory& history,
-    std::uint8_t wire_frame_reference) noexcept
+    std::uint8_t wire_frame_reference,
+    std::optional<std::uint32_t> client_server_acknowledgement) noexcept
 {
     GoldSrcFrameReferenceResolution resolution;
     if (history.frames_.empty())
@@ -2311,6 +2458,7 @@ GoldSrcFrameReferenceResolver::Resolve(
     }
 
     const GoldSrcClientFrameHistory::Entry* matched = nullptr;
+    bool matching_frame_newer_than_client_acknowledgement = false;
     for (auto iterator = history.frames_.rbegin();
          iterator != history.frames_.rend();
          ++iterator)
@@ -2319,6 +2467,16 @@ GoldSrcFrameReferenceResolver::Resolve(
                 iterator->frame.frame_id & 0xFFu)
             != wire_frame_reference)
         {
+            continue;
+        }
+        if (client_server_acknowledgement.has_value()
+            && iterator->frame.frame_id
+                != *client_server_acknowledgement
+            && !IsGoldSrcServerFrameNewer(
+                *client_server_acknowledgement,
+                iterator->frame.frame_id))
+        {
+            matching_frame_newer_than_client_acknowledgement = true;
             continue;
         }
         if (matched != nullptr)
@@ -2352,6 +2510,11 @@ GoldSrcFrameReferenceResolver::Resolve(
         }
         resolution.result =
             GoldSrcFrameAcknowledgeResult::kAcknowledged;
+        return resolution;
+    }
+    if (matching_frame_newer_than_client_acknowledgement)
+    {
+        resolution.result = GoldSrcFrameAcknowledgeResult::kFuture;
         return resolution;
     }
 
@@ -2809,7 +2972,8 @@ GoldSrcFirstSnapshotSessionState::MarkSent()
 
 GoldSrcFrameAcknowledgeResult
 GoldSrcFirstSnapshotSessionState::Acknowledge(
-    std::uint8_t wire_frame_reference) noexcept
+    std::uint8_t wire_frame_reference,
+    std::optional<std::uint32_t> client_server_acknowledgement) noexcept
 {
     if (phase_
             != GoldSrcFirstSnapshotPhase::
@@ -2824,7 +2988,9 @@ GoldSrcFirstSnapshotSessionState::Acknowledge(
         return GoldSrcFrameAcknowledgeResult::kInvalidPhase;
     }
     const GoldSrcFrameAcknowledgeResult result =
-        history_.Acknowledge(wire_frame_reference);
+        history_.Acknowledge(
+            wire_frame_reference,
+            client_server_acknowledgement);
     if (result == GoldSrcFrameAcknowledgeResult::kAcknowledged)
     {
         const std::optional<std::uint32_t>& acknowledged =

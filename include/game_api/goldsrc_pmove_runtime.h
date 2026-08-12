@@ -1,6 +1,7 @@
 #pragma once
 
 #include "network/goldsrc_pmove.h"
+#include "network/goldsrc_combat.h"
 
 #include <cstddef>
 #include <cstdint>
@@ -9,12 +10,18 @@
 #include <string_view>
 
 struct edict_s;
+struct clientdata_s;
 struct playermove_s;
 struct usercmd_s;
 
 namespace hl::game_api::detail
 {
 struct WorldModelContext;
+
+// GoldSrc clears this engine-owned callback buffer before handing it to the
+// Game DLL. This must be an explicit byte reset: the HLSDK Vector default
+// constructor intentionally leaves its components uninitialized.
+void PrepareGoldSrcClientDataForGameDll(clientdata_s* output) noexcept;
 
 using GoldSrcPmInitCallback = void (*)(playermove_s*);
 using GoldSrcPmMoveCallback = void (*)(playermove_s*, int);
@@ -23,6 +30,7 @@ using GoldSrcCmdStartCallback = void (*)(
     const usercmd_s*,
     unsigned int);
 using GoldSrcCmdEndCallback = void (*)(const edict_s*);
+using GoldSrcPlayerThinkCallback = void (*)(edict_s*);
 
 struct GoldSrcPmoveGameDllCallbacks final
 {
@@ -30,6 +38,39 @@ struct GoldSrcPmoveGameDllCallbacks final
     GoldSrcPmMoveCallback pm_move = nullptr;
     GoldSrcCmdStartCallback cmd_start = nullptr;
     GoldSrcCmdEndCallback cmd_end = nullptr;
+    GoldSrcPlayerThinkCallback player_pre_think = nullptr;
+    GoldSrcPlayerThinkCallback player_post_think = nullptr;
+    GoldSrcPlayerThinkCallback entity_think = nullptr;
+    float* global_time = nullptr;
+    float* global_frametime = nullptr;
+    int* active_attack_postthink_slot = nullptr;
+    bool combat_enabled = false;
+};
+
+struct GoldSrcWorldLineTrace final
+{
+    float fraction = 1.0f;
+    float end_position[3]{};
+    float plane_normal[3]{};
+    float plane_distance = 0.0f;
+    bool all_solid = false;
+    bool start_solid = false;
+    bool hit_world = false;
+};
+
+struct GoldSrcCombatClientDiagnostics final
+{
+    network::GoldSrcCombatPhase phase =
+        network::GoldSrcCombatPhase::kDisabled;
+    std::uint64_t attack_commands_received = 0u;
+    std::uint64_t attack_commands_executed = 0u;
+    std::uint64_t duplicate_attack_commands_suppressed = 0u;
+    std::uint64_t unsupported_gameplay_inputs_masked = 0u;
+    std::uint64_t player_prethink_calls = 0u;
+    std::uint64_t player_postthink_calls = 0u;
+    std::uint64_t entity_think_calls = 0u;
+    std::uint64_t callback_failures = 0u;
+    std::uint64_t gameplay_time_msec = 0u;
 };
 
 struct GoldSrcMovevarsConfig final
@@ -95,10 +136,21 @@ struct GoldSrcPmoveExecutionResult final
     std::uint32_t last_validated_move_sequence = 0u;
     std::uint32_t last_executed_move_sequence = 0u;
     std::string_view output_validation_reason = "not_checked";
+    // Fixed semantic identifier for the first failing execution stage. This
+    // is safe to surface in automation without exposing exception details.
+    std::string_view gameplay_failure_stage = "none";
     bool authoritative_state_changed = false;
     bool grounded = false;
     bool ducked = false;
     bool clock_recovered = false;
+    // A gameplay callback may have changed opaque Game-DLL state that the
+    // engine cannot safely roll back. The runtime is fail-stopped until the
+    // Game DLL callback surface is successfully reinitialized.
+    bool gameplay_callback_failure = false;
+    bool gameplay_fail_stop = false;
+    // Pre-gameplay failures retain the legacy transactional rollback and may
+    // be retried without reinitializing the Game DLL.
+    bool recoverable_rollback = false;
 
     bool ok() const noexcept
     {
@@ -168,6 +220,23 @@ public:
     bool IsPlayerPositionValid(
         const float* origin,
         int use_hull) const noexcept;
+    bool IsWorldPointOpen(const float* point) const noexcept;
+    bool TraceWorldLine(
+        const float* start,
+        const float* end,
+        GoldSrcWorldLineTrace* output) const noexcept;
+    bool TraceWorldHull(
+        const float* start,
+        const float* end,
+        int use_hull,
+        GoldSrcWorldLineTrace* output) const noexcept;
+    void SetCombatPlayerReady(
+        std::size_t client_slot,
+        bool player_ready,
+        int active_weapon_id,
+        bool glock_state_ready) noexcept;
+    const GoldSrcCombatClientDiagnostics* CombatDiagnostics(
+        std::size_t client_slot) const noexcept;
     void RecordMovementSnapshot(std::size_t client_slot) noexcept;
 
 private:

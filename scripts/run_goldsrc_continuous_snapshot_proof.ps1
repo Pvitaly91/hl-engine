@@ -20,10 +20,10 @@ param(
     [ValidateRange(10, 30)]
     [single]$SnapshotRateHz = 20.0,
 
-    [single]$ExpectedZMaximum = 4096.0,
+    [single]$ExpectedZMaximum = 6300.0,
 
     [ValidateRange(0, 255)]
-    [int]$ExpectedCdTrack = 0,
+    [int]$ExpectedCdTrack = 3,
 
     [switch]$NegativeProof,
 

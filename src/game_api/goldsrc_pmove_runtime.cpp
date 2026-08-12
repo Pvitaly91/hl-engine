@@ -1,5 +1,6 @@
 #include "game_api/goldsrc_pmove_runtime.h"
 
+#include "goldsrc_pmove_collision_test_api.h"
 #include "world_bootstrap.h"
 
 #include <algorithm>
@@ -11,6 +12,7 @@
 #include <cstring>
 #include <fstream>
 #include <limits>
+#include <optional>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -25,6 +27,7 @@
 #pragma warning(push, 0)
 #include "extdll.h"
 #include "com_model.h"
+#include "entity_state.h"
 #include "in_buttons.h"
 #include "pm_defs.h"
 #include "pm_movevars.h"
@@ -36,12 +39,11 @@ namespace
 {
 constexpr std::size_t kMaximumClients = 32u;
 constexpr int kMaximumTraceDepth = 4096;
+constexpr std::size_t kMaximumTraceWork = 65536u;
+constexpr int kMaximumTraceBackoffSteps = 12;
 constexpr float kTraceEpsilon = 0.03125f;
+constexpr float kTraceBackoffFraction = 0.1f;
 constexpr float kMaximumCoordinate = 32768.0f;
-constexpr std::uint16_t kMovementButtonMask =
-    IN_JUMP | IN_DUCK | IN_FORWARD | IN_BACK | IN_LEFT | IN_RIGHT
-    | IN_MOVELEFT | IN_MOVERIGHT | IN_RUN;
-
 constexpr std::array<std::array<float, 3>, 4> kPlayerMins = {{
     {{-16.0f, -16.0f, -36.0f}},
     {{-16.0f, -16.0f, -18.0f}},
@@ -89,6 +91,13 @@ void SetVector(float* destination, float x, float y, float z) noexcept
     destination[2] = z;
 }
 
+enum class RecursiveTraceResult
+{
+    kClear,
+    kHit,
+    kInvalid,
+};
+
 class BspCollisionWorld final
 {
 public:
@@ -112,6 +121,16 @@ public:
         for (std::size_t index = 0; index < planes_.size(); ++index)
         {
             const BspCollisionPlane& source = world.collision_planes[index];
+            const float normal_length_squared =
+                source.normal.x * source.normal.x
+                + source.normal.y * source.normal.y
+                + source.normal.z * source.normal.z;
+            if (!std::isfinite(normal_length_squared)
+                || std::fabs(normal_length_squared - 1.0f) > 0.02f
+                || source.type < 0 || source.type > 5)
+            {
+                return false;
+            }
             mplane_t& output = planes_[index];
             SetVector(
                 output.normal,
@@ -260,7 +279,8 @@ public:
     int HullPointContents(
         const hull_t* hull,
         int node,
-        const float* point) const noexcept
+        const float* point,
+        std::size_t* trace_work = nullptr) const noexcept
     {
         if (!ready_ || hull == nullptr || point == nullptr
             || hull->clipnodes == nullptr || hull->planes != planes_.data())
@@ -271,6 +291,8 @@ public:
         while (node >= 0)
         {
             if (++steps > kMaximumTraceDepth
+                || (trace_work != nullptr
+                    && ++(*trace_work) > kMaximumTraceWork)
                 || node < hull->firstclipnode
                 || node > hull->lastclipnode)
             {
@@ -296,7 +318,12 @@ public:
             return CONTENTS_SOLID;
         }
         const hull_t& hull = model_.hulls[0];
-        return HullPointContents(&hull, hull.firstclipnode, point);
+        std::size_t trace_work = 0u;
+        return HullPointContents(
+            &hull,
+            hull.firstclipnode,
+            point,
+            &trace_work);
     }
 
     pmtrace_t Trace(
@@ -304,6 +331,7 @@ public:
         const float* end,
         int usehull) noexcept
     {
+        last_trace_backoff_steps_ = 0;
         pmtrace_t trace{};
         trace.allsolid = TRUE;
         trace.fraction = 1.0f;
@@ -332,15 +360,18 @@ public:
             local_end[axis] = end[axis] - offset[axis];
             trace.endpos[axis] = end[axis];
         }
-        if (!RecursiveTrace(
-                *hull,
-                hull->firstclipnode,
-                0.0f,
-                1.0f,
-                local_start,
-                local_end,
-                &trace,
-                0))
+        std::size_t trace_work = 0u;
+        const RecursiveTraceResult trace_result = RecursiveTrace(
+            *hull,
+            hull->firstclipnode,
+            0.0f,
+            1.0f,
+            local_start,
+            local_end,
+            &trace,
+            0,
+            &trace_work);
+        if (trace_result == RecursiveTraceResult::kInvalid)
         {
             trace.fraction = 0.0f;
         }
@@ -360,7 +391,134 @@ public:
         return trace;
     }
 
+    int last_trace_backoff_steps() const noexcept
+    {
+        return last_trace_backoff_steps_;
+    }
+
+    bool BackoffCandidateForTesting(
+        const float* start,
+        const float* end,
+        int usehull,
+        float* fraction,
+        float* middle_fraction,
+        float* middle) noexcept
+    {
+        float offset[3]{};
+        hull_t* hull = HullForUseHull(usehull, offset);
+        if (hull == nullptr || !FiniteVector(start) || !FiniteVector(end)
+            || fraction == nullptr || !std::isfinite(*fraction)
+            || *fraction < 0.0f || *fraction > 1.0f
+            || middle_fraction == nullptr || middle == nullptr)
+        {
+            return false;
+        }
+        float local_start[3]{};
+        float local_end[3]{};
+        for (int axis = 0; axis < 3; ++axis)
+        {
+            local_start[axis] = start[axis] - offset[axis];
+            local_end[axis] = end[axis] - offset[axis];
+            middle[axis] = local_start[axis]
+                + *fraction * (local_end[axis] - local_start[axis]);
+        }
+        *middle_fraction = *fraction;
+        last_trace_backoff_steps_ = 0;
+        std::size_t trace_work = 0u;
+        const bool corrected = BackoffImpactPoint(
+            *hull,
+            0.0f,
+            1.0f,
+            local_start,
+            local_end,
+            fraction,
+            middle_fraction,
+            middle,
+            &trace_work);
+        if (corrected)
+        {
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                middle[axis] += offset[axis];
+            }
+        }
+        return corrected;
+    }
+
 private:
+    bool BackoffImpactPoint(
+        const hull_t& hull,
+        float start_fraction,
+        float end_fraction,
+        const float* start,
+        const float* end,
+        float* fraction,
+        float* middle_fraction,
+        float* middle,
+        std::size_t* trace_work) const noexcept
+    {
+        if (fraction == nullptr || middle_fraction == nullptr
+            || middle == nullptr || trace_work == nullptr)
+        {
+            return false;
+        }
+
+        int backoff_steps = 0;
+        while (true)
+        {
+            if (*trace_work >= kMaximumTraceWork)
+            {
+                return false;
+            }
+            const int contents = HullPointContents(
+                &hull,
+                hull.firstclipnode,
+                middle,
+                trace_work);
+            if (*trace_work > kMaximumTraceWork)
+            {
+                return false;
+            }
+            if (contents != CONTENTS_SOLID)
+            {
+                return true;
+            }
+            if (++backoff_steps > kMaximumTraceBackoffSteps)
+            {
+                return false;
+            }
+
+            ++last_trace_backoff_steps_;
+            *fraction -= kTraceBackoffFraction;
+            if (*fraction < 0.0f)
+            {
+                *fraction = 0.0f;
+            }
+            *middle_fraction =
+                start_fraction
+                + (end_fraction - start_fraction) * *fraction;
+            for (int axis = 0; axis < 3; ++axis)
+            {
+                middle[axis] =
+                    start[axis] + *fraction * (end[axis] - start[axis]);
+            }
+            if (*fraction == 0.0f)
+            {
+                if (*trace_work >= kMaximumTraceWork)
+                {
+                    return false;
+                }
+                const int start_contents = HullPointContents(
+                    &hull,
+                    hull.firstclipnode,
+                    middle,
+                    trace_work);
+                return *trace_work <= kMaximumTraceWork
+                    && start_contents != CONTENTS_SOLID;
+            }
+        }
+    }
+
     static void ConfigureHull(
         hull_t* hull,
         dclipnode_t* nodes,
@@ -381,7 +539,7 @@ private:
         }
     }
 
-    bool RecursiveTrace(
+    RecursiveTraceResult RecursiveTrace(
         const hull_t& hull,
         int node,
         float start_fraction,
@@ -389,11 +547,14 @@ private:
         const float* start,
         const float* end,
         pmtrace_t* trace,
-        int depth) const noexcept
+        int depth,
+        std::size_t* trace_work) const noexcept
     {
-        if (trace == nullptr || depth > kMaximumTraceDepth)
+        if (trace == nullptr || trace_work == nullptr
+            || depth > kMaximumTraceDepth
+            || ++(*trace_work) > kMaximumTraceWork)
         {
-            return false;
+            return RecursiveTraceResult::kInvalid;
         }
         if (node < 0)
         {
@@ -413,17 +574,17 @@ private:
             {
                 trace->startsolid = TRUE;
             }
-            return true;
+            return RecursiveTraceResult::kClear;
         }
         if (node < hull.firstclipnode || node > hull.lastclipnode)
         {
-            return false;
+            return RecursiveTraceResult::kInvalid;
         }
         const dclipnode_t& clipnode = hull.clipnodes[node];
         if (clipnode.planenum < 0
             || clipnode.planenum >= static_cast<int>(planes_.size()))
         {
-            return false;
+            return RecursiveTraceResult::kInvalid;
         }
         const mplane_t& plane = planes_[clipnode.planenum];
         const float start_distance = PlaneDistance(plane, start);
@@ -438,7 +599,8 @@ private:
                 start,
                 end,
                 trace,
-                depth + 1);
+                depth + 1,
+                trace_work);
         }
         if (start_distance < 0.0f && end_distance < 0.0f)
         {
@@ -450,7 +612,8 @@ private:
                 start,
                 end,
                 trace,
-                depth + 1);
+                depth + 1,
+                trace_work);
         }
 
         int side = 0;
@@ -470,7 +633,7 @@ private:
                 / (start_distance - end_distance);
         }
         fraction = (std::max)(0.0f, (std::min)(fraction, 1.0f));
-        const float middle_fraction =
+        float middle_fraction =
             start_fraction
             + (end_fraction - start_fraction) * fraction;
         float middle[3]{};
@@ -478,23 +641,30 @@ private:
         {
             middle[axis] = start[axis] + fraction * (end[axis] - start[axis]);
         }
-        if (!RecursiveTrace(
-                hull,
-                clipnode.children[side],
-                start_fraction,
-                middle_fraction,
-                start,
-                middle,
-                trace,
-                depth + 1))
+        const RecursiveTraceResult near_result = RecursiveTrace(
+            hull,
+            clipnode.children[side],
+            start_fraction,
+            middle_fraction,
+            start,
+            middle,
+            trace,
+            depth + 1,
+            trace_work);
+        if (near_result != RecursiveTraceResult::kClear)
         {
-            return false;
+            return near_result;
         }
-        if (HullPointContents(
-                &hull,
-                clipnode.children[side ^ 1],
-                middle)
-            != CONTENTS_SOLID)
+        const int far_contents = HullPointContents(
+            &hull,
+            clipnode.children[side ^ 1],
+            middle,
+            trace_work);
+        if (*trace_work > kMaximumTraceWork)
+        {
+            return RecursiveTraceResult::kInvalid;
+        }
+        if (far_contents != CONTENTS_SOLID)
         {
             return RecursiveTrace(
                 hull,
@@ -504,11 +674,13 @@ private:
                 middle,
                 end,
                 trace,
-                depth + 1);
+                depth + 1,
+                trace_work);
         }
         if (trace->allsolid)
         {
-            return false;
+            trace->fraction = 0.0f;
+            return RecursiveTraceResult::kHit;
         }
 
         if (side == 0)
@@ -525,8 +697,22 @@ private:
                 -plane.normal[2]);
             trace->plane.dist = -plane.dist;
         }
+
+        if (!BackoffImpactPoint(
+                hull,
+                start_fraction,
+                end_fraction,
+                start,
+                end,
+                &fraction,
+                &middle_fraction,
+                middle,
+                trace_work))
+        {
+            return RecursiveTraceResult::kInvalid;
+        }
         trace->fraction = middle_fraction;
-        return true;
+        return RecursiveTraceResult::kHit;
     }
 
     bool ready_ = false;
@@ -534,6 +720,7 @@ private:
     std::vector<dclipnode_t> clipnodes_;
     std::vector<dclipnode_t> point_nodes_;
     model_t model_{};
+    mutable int last_trace_backoff_steps_ = 0;
 };
 
 bool SafePmInit(
@@ -618,9 +805,34 @@ bool SafeCmdEnd(
 #endif
 }
 
+bool SafePlayerThink(
+    GoldSrcPlayerThinkCallback callback,
+    edict_t* player) noexcept
+{
+    if (callback == nullptr || player == nullptr)
+    {
+        return false;
+    }
+#if defined(_MSC_VER)
+    __try
+    {
+        callback(player);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+#else
+    callback(player);
+    return true;
+#endif
+}
+
 usercmd_t ConvertCommand(
     const network::GoldSrcDecodedUserCommand& input,
-    std::uint8_t msec) noexcept
+    std::uint8_t msec,
+    std::uint16_t filtered_buttons) noexcept
 {
     usercmd_t output{};
     output.lerp_msec = static_cast<short>(input.lerp_msec);
@@ -634,8 +846,7 @@ usercmd_t ConvertCommand(
     output.sidemove = input.sidemove;
     output.upmove = input.upmove;
     output.lightlevel = input.lightlevel;
-    output.buttons =
-        static_cast<unsigned short>(input.buttons & kMovementButtonMask);
+    output.buttons = static_cast<unsigned short>(filtered_buttons);
     output.impulse = 0;
     output.weaponselect = 0;
     output.impact_index = 0;
@@ -710,6 +921,114 @@ void FillMovevars(
 }
 } // namespace
 
+void PrepareGoldSrcClientDataForGameDll(clientdata_s* output) noexcept
+{
+    if (output != nullptr)
+    {
+        std::memset(output, 0, sizeof(*output));
+    }
+}
+
+GoldSrcBspCollisionTraceResult GoldSrcBspCollisionTraceForTesting(
+    const WorldModelContext& world,
+    const std::array<float, 3>& start,
+    const std::array<float, 3>& end,
+    int usehull) noexcept
+{
+    GoldSrcBspCollisionTraceResult result;
+    BspCollisionWorld collision;
+    result.initialized = collision.Initialize(world);
+    if (!result.initialized)
+    {
+        return result;
+    }
+
+    const pmtrace_t trace = collision.Trace(
+        start.data(),
+        end.data(),
+        usehull);
+    result.allsolid = trace.allsolid != FALSE;
+    result.startsolid = trace.startsolid != FALSE;
+    result.inopen = trace.inopen != FALSE;
+    result.inwater = trace.inwater != FALSE;
+    result.fraction = trace.fraction;
+    result.entity = trace.ent;
+    result.end_position = {
+        trace.endpos[0], trace.endpos[1], trace.endpos[2]};
+    result.plane_normal = {
+        trace.plane.normal[0],
+        trace.plane.normal[1],
+        trace.plane.normal[2]};
+    result.plane_distance = trace.plane.dist;
+    result.backoff_steps = collision.last_trace_backoff_steps();
+    hull_t* hull = collision.HullForUseHull(usehull, nullptr);
+    result.end_contents = hull == nullptr
+        ? CONTENTS_SOLID
+        : collision.HullPointContents(
+            hull,
+            hull->firstclipnode,
+            result.end_position.data());
+    return result;
+}
+
+GoldSrcBspCollisionContentsResult GoldSrcBspCollisionContentsForTesting(
+    const WorldModelContext& world,
+    const std::array<float, 3>& point,
+    int usehull,
+    int node) noexcept
+{
+    GoldSrcBspCollisionContentsResult result;
+    BspCollisionWorld collision;
+    result.initialized = collision.Initialize(world);
+    if (!result.initialized)
+    {
+        return result;
+    }
+    hull_t* hull = collision.HullForUseHull(usehull, nullptr);
+    result.hull_available = hull != nullptr;
+    result.contents = hull == nullptr
+        ? CONTENTS_SOLID
+        : collision.HullPointContents(hull, node, point.data());
+    return result;
+}
+
+GoldSrcBspCollisionTraceResult GoldSrcBspCollisionBackoffForTesting(
+    const WorldModelContext& world,
+    const std::array<float, 3>& start,
+    const std::array<float, 3>& end,
+    float candidate_fraction,
+    int usehull) noexcept
+{
+    GoldSrcBspCollisionTraceResult result;
+    BspCollisionWorld collision;
+    result.initialized = collision.Initialize(world);
+    if (!result.initialized)
+    {
+        return result;
+    }
+    float middle_fraction = candidate_fraction;
+    std::array<float, 3> middle{};
+    const bool corrected = collision.BackoffCandidateForTesting(
+        start.data(),
+        end.data(),
+        usehull,
+        &candidate_fraction,
+        &middle_fraction,
+        middle.data());
+    result.fraction = middle_fraction;
+    result.end_position = middle;
+    result.backoff_steps = collision.last_trace_backoff_steps();
+    hull_t* hull = collision.HullForUseHull(usehull, nullptr);
+    result.end_contents = corrected && hull != nullptr
+        ? collision.HullPointContents(
+            hull,
+            hull->firstclipnode,
+            middle.data())
+        : CONTENTS_SOLID;
+    result.entity = corrected ? 0 : -1;
+    return result;
+}
+
 struct GoldSrcPmoveRuntime::Impl
 {
     class ActiveScope final
@@ -750,7 +1069,28 @@ struct GoldSrcPmoveRuntime::Impl
             && callbacks.pm_move != nullptr
             && callbacks.cmd_start != nullptr
             && callbacks.cmd_end != nullptr
+            && (!callbacks.combat_enabled
+                || (callbacks.player_pre_think != nullptr
+                    && callbacks.player_post_think != nullptr
+                    && callbacks.global_time != nullptr
+                    && callbacks.global_frametime != nullptr
+                    && callbacks.active_attack_postthink_slot != nullptr))
             && ValidMovevars(config);
+        if (callbacks.active_attack_postthink_slot != nullptr)
+        {
+            *callbacks.active_attack_postthink_slot = 0;
+        }
+        for (GoldSrcCombatClientDiagnostics& client : combat_clients)
+        {
+            client = {};
+            client.phase = callbacks.combat_enabled
+                ? network::GoldSrcCombatPhase::kAwaitingPlayer
+                : network::GoldSrcCombatPhase::kDisabled;
+        }
+        if (diagnostics.callback_table_complete)
+        {
+            gameplay_fail_stop_latched = false;
+        }
         return diagnostics.callback_table_complete;
     }
 
@@ -1532,6 +1872,11 @@ struct GoldSrcPmoveRuntime::Impl
     std::filesystem::path game_directory;
     std::array<network::GoldSrcCommandExecutionState, kMaximumClients>
         command_states{};
+    std::array<GoldSrcCombatClientDiagnostics, kMaximumClients>
+        combat_clients{};
+    std::array<std::optional<std::uint64_t>, kMaximumClients>
+        combat_time_bases_msec{};
+    bool gameplay_fail_stop_latched = false;
     GoldSrcPmoveDiagnostics diagnostics{};
     std::unordered_map<void*, std::unique_ptr<byte[]>> files;
     std::uint32_t random_state = 0x504D4F56u;
@@ -1627,22 +1972,119 @@ bool GoldSrcPmoveRuntime::IsPlayerPositionValid(
         && raised_trace.allsolid == FALSE;
 }
 
+bool GoldSrcPmoveRuntime::IsWorldPointOpen(const float* point) const noexcept
+{
+    return point != nullptr && FiniteVector(point) && impl_->world.ready()
+        && impl_->world.PointContents(point) != CONTENTS_SOLID;
+}
+
+bool GoldSrcPmoveRuntime::TraceWorldLine(
+    const float* start,
+    const float* end,
+    GoldSrcWorldLineTrace* output) const noexcept
+{
+    return TraceWorldHull(start, end, 2, output);
+}
+
+bool GoldSrcPmoveRuntime::TraceWorldHull(
+    const float* start,
+    const float* end,
+    int use_hull,
+    GoldSrcWorldLineTrace* output) const noexcept
+{
+    if (start == nullptr || end == nullptr || output == nullptr
+        || !FiniteVector(start) || !FiniteVector(end)
+        || use_hull < 0 || use_hull > 2 || !impl_->world.ready())
+    {
+        return false;
+    }
+    const pmtrace_t trace = impl_->world.Trace(start, end, use_hull);
+    *output = {};
+    output->fraction = (std::max)(
+        0.0f,
+        (std::min)(trace.fraction, 1.0f));
+    CopyVector(trace.endpos, output->end_position);
+    CopyVector(trace.plane.normal, output->plane_normal);
+    output->plane_distance = trace.plane.dist;
+    output->all_solid = trace.allsolid != FALSE;
+    output->start_solid = trace.startsolid != FALSE;
+    output->hit_world = output->fraction < 1.0f
+        || output->all_solid || output->start_solid;
+    return true;
+}
+
+void GoldSrcPmoveRuntime::SetCombatPlayerReady(
+    std::size_t client_slot,
+    bool player_ready,
+    int active_weapon_id,
+    bool glock_state_ready) noexcept
+{
+    if (client_slot < 1u || client_slot > impl_->combat_clients.size())
+    {
+        return;
+    }
+    GoldSrcCombatClientDiagnostics& client =
+        impl_->combat_clients[client_slot - 1u];
+    if (!impl_->callbacks.combat_enabled)
+    {
+        client.phase = network::GoldSrcCombatPhase::kDisabled;
+    }
+    else if (!player_ready)
+    {
+        client.phase = network::GoldSrcCombatPhase::kAwaitingPlayer;
+    }
+    else if (active_weapon_id != network::kGoldSrcStockGlockWeaponId
+        || !glock_state_ready)
+    {
+        client.phase = network::GoldSrcCombatPhase::kAwaitingWeaponState;
+    }
+    else if (client.phase != network::GoldSrcCombatPhase::kDamageObserved)
+    {
+        client.phase = network::GoldSrcCombatPhase::kCombatReady;
+    }
+}
+
+const GoldSrcCombatClientDiagnostics*
+GoldSrcPmoveRuntime::CombatDiagnostics(
+    std::size_t client_slot) const noexcept
+{
+    return client_slot >= 1u && client_slot <= impl_->combat_clients.size()
+        ? &impl_->combat_clients[client_slot - 1u]
+        : nullptr;
+}
+
 void GoldSrcPmoveRuntime::ResetClient(
     std::size_t client_slot) noexcept
 {
     if (client_slot >= 1u && client_slot <= impl_->command_states.size())
     {
         impl_->command_states[client_slot - 1u].Reset();
+        impl_->combat_clients[client_slot - 1u] = {};
+        impl_->combat_clients[client_slot - 1u].phase =
+            impl_->callbacks.combat_enabled
+                ? network::GoldSrcCombatPhase::kAwaitingPlayer
+                : network::GoldSrcCombatPhase::kDisabled;
+        impl_->combat_time_bases_msec[client_slot - 1u].reset();
     }
 }
 
 void GoldSrcPmoveRuntime::ResetGameDll() noexcept
 {
+    if (impl_->callbacks.active_attack_postthink_slot != nullptr)
+    {
+        *impl_->callbacks.active_attack_postthink_slot = 0;
+    }
     impl_->diagnostics.pm_init_complete = false;
     impl_->files.clear();
     for (auto& state : impl_->command_states)
     {
         state.Reset();
+    }
+    for (std::size_t index = 0; index < impl_->combat_clients.size(); ++index)
+    {
+        impl_->combat_clients[index] = {};
+        impl_->combat_clients[index].phase = network::GoldSrcCombatPhase::kDisabled;
+        impl_->combat_time_bases_msec[index].reset();
     }
 }
 
@@ -1660,6 +2102,14 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
         || player == nullptr || world == nullptr)
     {
         result.status = GoldSrcPmoveExecutionStatus::kInvalidClient;
+        return result;
+    }
+    if (impl_->gameplay_fail_stop_latched)
+    {
+        result.status = GoldSrcPmoveExecutionStatus::kPmMoveFailed;
+        result.gameplay_failure_stage = "fail_stop_latched";
+        result.gameplay_callback_failure = true;
+        result.gameplay_fail_stop = true;
         return result;
     }
     if (!impl_->world.ready())
@@ -1718,23 +2168,90 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
 
     const network::GoldSrcCommandExecutionState state_before_execution = state;
     const entvars_t authoritative_before = player->v;
+    GoldSrcCombatClientDiagnostics& combat =
+        impl_->combat_clients[client_slot - 1u];
+    std::optional<std::uint64_t>& combat_time_base =
+        impl_->combat_time_bases_msec[client_slot - 1u];
+    const std::optional<std::uint64_t> combat_time_base_before_execution =
+        combat_time_base;
+    const std::uint64_t combat_gameplay_time_before_execution =
+        combat.gameplay_time_msec;
+    const network::GoldSrcCombatPhase combat_phase_before_execution =
+        combat.phase;
+    const auto restore_combat_execution_state = [&]() noexcept
+    {
+        combat_time_base = combat_time_base_before_execution;
+        combat.gameplay_time_msec = combat_gameplay_time_before_execution;
+        combat.phase = combat_phase_before_execution;
+    };
+    bool gameplay_callbacks_started = false;
+    if (impl_->callbacks.combat_enabled
+        && result.duplicates_suppressed > 0u)
+    {
+        for (std::size_t index = 0; index < move.command_count; ++index)
+        {
+            if ((move.commands[index].buttons & IN_ATTACK) != 0u)
+            {
+                combat.duplicate_attack_commands_suppressed +=
+                    result.duplicates_suppressed;
+                break;
+            }
+        }
+    }
     std::uint64_t pending_time_msec = state.command_time_msec();
     std::size_t local_commits = 0u;
+    const auto finish_failed_execution =
+        [&](GoldSrcPmoveExecutionStatus status) noexcept
+    {
+        result.status = status;
+        if (gameplay_callbacks_started)
+        {
+            // CmdStart and later Game-DLL callbacks can mutate private weapon
+            // data or other entities. Keep those side effects coherent, consume
+            // this packet once, and prevent every client from entering gameplay
+            // callbacks again until the Game DLL is reinitialized.
+            result.gameplay_callback_failure = true;
+            result.gameplay_fail_stop = true;
+            impl_->gameplay_fail_stop_latched = true;
+            state.CommitObservedMovePacket(packet_sequence, true);
+            result.last_observed_move_sequence =
+                state.last_observed_packet_sequence();
+            result.last_validated_move_sequence =
+                state.last_validated_move_sequence();
+            result.last_executed_move_sequence =
+                state.last_executed_move_sequence();
+            return;
+        }
+
+        result.recoverable_rollback = true;
+        restore_combat_execution_state();
+        player->v = authoritative_before;
+        impl_->diagnostics.movement_commits -= local_commits;
+        state = state_before_execution;
+        state.RecordRollback();
+        ++impl_->diagnostics.movement_rollbacks;
+    };
     for (std::size_t command_index = 0;
          command_index < plan.command_count;
          ++command_index)
     {
         const network::GoldSrcPlannedUserCommand& planned =
             plan.commands[command_index];
+        const network::GoldSrcCombatInput combat_input =
+            network::FilterGoldSrcCombatInput(
+                planned.command.buttons,
+                impl_->callbacks.combat_enabled,
+                combat.phase);
+        combat.attack_commands_received +=
+            combat_input.attack_received ? 1u : 0u;
+        combat.unsupported_gameplay_inputs_masked +=
+            combat_input.unsupported_bits_masked;
         const network::GoldSrcPmoveSplitResult split =
             network::SplitGoldSrcPmoveCommand(planned.command.msec);
         if (!split.valid)
         {
-            player->v = authoritative_before;
-            state = state_before_execution;
-            state.RecordRollback();
-            ++impl_->diagnostics.movement_rollbacks;
-            result.status = GoldSrcPmoveExecutionStatus::kContextInvalid;
+            finish_failed_execution(
+                GoldSrcPmoveExecutionStatus::kContextInvalid);
             return result;
         }
 
@@ -1743,7 +2260,12 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
              ++piece_index)
         {
             usercmd_t command =
-                ConvertCommand(planned.command, split.msec[piece_index]);
+                ConvertCommand(
+                    planned.command,
+                    split.msec[piece_index],
+                    combat_input.buttons);
+            gameplay_callbacks_started = gameplay_callbacks_started
+                || impl_->callbacks.combat_enabled;
             if (!SafeCmdStart(
                     impl_->callbacks.cmd_start,
                     player,
@@ -1751,36 +2273,111 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                     packet_sequence
                         - static_cast<std::uint32_t>(command_index)))
             {
-                player->v = authoritative_before;
-                state = state_before_execution;
-                state.RecordRollback();
-                ++impl_->diagnostics.movement_rollbacks;
-                result.status = GoldSrcPmoveExecutionStatus::kPmMoveFailed;
+                result.gameplay_failure_stage = "cmd_start";
+                finish_failed_execution(
+                    GoldSrcPmoveExecutionStatus::kPmMoveFailed);
                 return result;
             }
             ++impl_->diagnostics.cmd_start_calls;
 
             pending_time_msec += command.msec;
+            std::uint64_t movement_time_msec = pending_time_msec;
+            const bool gameplay_callbacks =
+                impl_->callbacks.combat_enabled;
+            if (gameplay_callbacks)
+            {
+                const std::uint64_t gameplay_time_floor = (std::max)(
+                    combat_time_base.value_or(0u),
+                    (std::max)(combat.gameplay_time_msec, host_time_msec));
+                const std::uint64_t command_msec = command.msec;
+                const std::uint64_t gameplay_time = gameplay_time_floor
+                        > std::numeric_limits<std::uint64_t>::max()
+                            - command_msec
+                    ? std::numeric_limits<std::uint64_t>::max()
+                    : gameplay_time_floor + command_msec;
+                combat_time_base = gameplay_time;
+                combat.gameplay_time_msec = gameplay_time;
+                movement_time_msec = gameplay_time;
+                *impl_->callbacks.global_time =
+                    static_cast<float>(gameplay_time) / 1000.0f;
+                *impl_->callbacks.global_frametime =
+                    static_cast<float>(command.msec) / 1000.0f;
+                player->v.button = command.buttons;
+                player->v.impulse = command.impulse;
+                player->v.light_level = command.lightlevel;
+                CopyVector(command.viewangles, player->v.v_angle);
+                if (combat_input.attack_enabled)
+                {
+                    combat.phase =
+                        network::GoldSrcCombatPhase::kAttackExecuting;
+                }
+                if (!SafePlayerThink(
+                        impl_->callbacks.player_pre_think,
+                        player))
+                {
+                    result.gameplay_failure_stage = "player_prethink";
+                    const bool cmd_end_ok =
+                        SafeCmdEnd(impl_->callbacks.cmd_end, player);
+                    ++impl_->diagnostics.cmd_end_calls;
+                    ++combat.callback_failures;
+                    if (!cmd_end_ok)
+                    {
+                        ++combat.callback_failures;
+                    }
+                    finish_failed_execution(
+                        GoldSrcPmoveExecutionStatus::kPmMoveFailed);
+                    return result;
+                }
+                ++combat.player_prethink_calls;
+                if (impl_->callbacks.entity_think != nullptr
+                    && player->v.nextthink > 0.0f
+                    && player->v.nextthink
+                        <= *impl_->callbacks.global_time)
+                {
+                    player->v.nextthink = 0.0f;
+                    if (!SafePlayerThink(
+                            impl_->callbacks.entity_think,
+                            player))
+                    {
+                        result.gameplay_failure_stage = "entity_think";
+                        const bool cmd_end_ok =
+                            SafeCmdEnd(impl_->callbacks.cmd_end, player);
+                        ++impl_->diagnostics.cmd_end_calls;
+                        ++combat.callback_failures;
+                        if (!cmd_end_ok)
+                        {
+                            ++combat.callback_failures;
+                        }
+                        finish_failed_execution(
+                            GoldSrcPmoveExecutionStatus::kPmMoveFailed);
+                        return result;
+                    }
+                    ++combat.entity_think_calls;
+                }
+            }
             playermove_t context{};
             if (!impl_->BuildContext(
                     player,
                     client_slot,
                     command,
-                    pending_time_msec,
+                    movement_time_msec,
                     &context))
             {
-                SafeCmdEnd(impl_->callbacks.cmd_end, player);
+                result.gameplay_failure_stage = "context_build";
+                const bool cmd_end_ok =
+                    SafeCmdEnd(impl_->callbacks.cmd_end, player);
                 ++impl_->diagnostics.cmd_end_calls;
-                player->v = authoritative_before;
-                state = state_before_execution;
-                state.RecordRollback();
-                ++impl_->diagnostics.movement_rollbacks;
-                result.status = GoldSrcPmoveExecutionStatus::kContextInvalid;
+                if (!cmd_end_ok && gameplay_callbacks)
+                {
+                    ++combat.callback_failures;
+                }
+                finish_failed_execution(
+                    GoldSrcPmoveExecutionStatus::kContextInvalid);
                 return result;
             }
             impl_->current_context = &context;
             impl_->current_time_seconds =
-                static_cast<double>(pending_time_msec) / 1000.0;
+                static_cast<double>(movement_time_msec) / 1000.0;
             bool callback_ok = false;
             {
                 Impl::ActiveScope scope(impl_.get());
@@ -1804,19 +2401,62 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                 result.grounded = context.onground != -1;
                 result.ducked = context.usehull == 1;
             }
+            bool postthink_ok = true;
+            if (output_ok && gameplay_callbacks)
+            {
+                *impl_->callbacks.active_attack_postthink_slot =
+                    combat_input.attack_enabled
+                        ? static_cast<int>(client_slot)
+                        : 0;
+                postthink_ok = SafePlayerThink(
+                    impl_->callbacks.player_post_think,
+                    player);
+                *impl_->callbacks.active_attack_postthink_slot = 0;
+                if (postthink_ok)
+                {
+                    ++combat.player_postthink_calls;
+                    combat.attack_commands_executed +=
+                        combat_input.attack_enabled ? 1u : 0u;
+                    if (combat_input.attack_enabled)
+                    {
+                        combat.phase =
+                            network::GoldSrcCombatPhase::kCombatStable;
+                    }
+                }
+                else
+                {
+                    ++combat.callback_failures;
+                }
+            }
             const bool cmd_end_ok =
                 SafeCmdEnd(impl_->callbacks.cmd_end, player);
             ++impl_->diagnostics.cmd_end_calls;
-            if (!output_ok || !cmd_end_ok)
+            if (!cmd_end_ok && gameplay_callbacks)
             {
-                player->v = authoritative_before;
-                impl_->diagnostics.movement_commits -= local_commits;
-                state = state_before_execution;
-                state.RecordRollback();
-                ++impl_->diagnostics.movement_rollbacks;
-                result.status = callback_ok
-                    ? GoldSrcPmoveExecutionStatus::kOutputInvalid
-                    : GoldSrcPmoveExecutionStatus::kPmMoveFailed;
+                ++combat.callback_failures;
+            }
+            if (!output_ok || !postthink_ok || !cmd_end_ok)
+            {
+                if (!callback_ok)
+                {
+                    result.gameplay_failure_stage = "pm_move";
+                }
+                else if (!output_ok)
+                {
+                    result.gameplay_failure_stage = "output_validation";
+                }
+                else if (!postthink_ok)
+                {
+                    result.gameplay_failure_stage = "player_postthink";
+                }
+                else
+                {
+                    result.gameplay_failure_stage = "cmd_end";
+                }
+                finish_failed_execution(
+                    callback_ok && postthink_ok && cmd_end_ok
+                        ? GoldSrcPmoveExecutionStatus::kOutputInvalid
+                        : GoldSrcPmoveExecutionStatus::kPmMoveFailed);
                 return result;
             }
             ++result.subcommands_executed;
