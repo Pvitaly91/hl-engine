@@ -151,6 +151,7 @@ struct GoldSrcCommandExecutionPlan final
     std::size_t recovered_backups = 0u;
     std::size_t replayed_last_commands = 0u;
     std::size_t duplicate_backups_suppressed = 0u;
+    bool suppressed_backup_matched_last_command = false;
     std::uint32_t total_command_msec = 0u;
     std::uint64_t host_time_msec = 0u;
     std::uint64_t host_elapsed_msec = 0u;

@@ -99,6 +99,7 @@ public:
             summary_.client_replication.size(),
             false);
         stock_test_spawn_anchors_.resize(summary_.client_replication.size());
+        stock_test_combat_poses_.resize(summary_.client_replication.size());
         stock_test_reset_transitions_.assign(
             summary_.client_replication.size(),
             std::vector<bool>(summary_.client_replication.size(), false));
@@ -2263,6 +2264,17 @@ public:
                     + ",duplicate_attack_suppressed="
                     + std::to_string(
                         summary_.duplicate_attack_commands_suppressed)
+                    + ",body_queue_copy_calls="
+                    + std::to_string(state_.goldsrc_body_queue_copy_calls)
+                    + ",body_queue_distinct_nodes="
+                    + std::to_string(
+                        state_.goldsrc_body_queue_distinct_nodes)
+                    + ",body_queue_sequence_valid="
+                    + (state_.goldsrc_body_queue_sequence_valid
+                        ? "true" : "false")
+                    + ",body_queue_completed_cycles="
+                    + std::to_string(
+                        state_.goldsrc_body_queue_copy_calls / 4u)
                     + ",trace_calls="
                     + std::to_string(summary_.combat_trace_calls)
                     + ",player_hits="
@@ -2287,6 +2299,11 @@ public:
                         combat_a != nullptr
                             ? combat_a->callback_failures
                             : 0u)
+                    + ",a_respawn_inputs_forwarded="
+                    + std::to_string(
+                        combat_a != nullptr
+                            ? combat_a->respawn_inputs_forwarded
+                            : 0u)
                     + ",a_active_weapon="
                     + std::to_string(client_a.active_weapon_id)
                     + ",a_glock_present="
@@ -2307,6 +2324,8 @@ public:
                     + std::to_string(client_a.authoritative_health)
                     + ",a_clientdata_health_after="
                     + std::to_string(client_a.clientdata_health)
+                    + ",a_deadflag="
+                    + std::to_string(client_a.authoritative_deadflag)
                     + ",a_playback_events="
                     + std::to_string(client_a.playback_event_calls)
                     + ",a_player_hits="
@@ -2335,6 +2354,11 @@ public:
                     + std::to_string(
                         combat_b != nullptr
                             ? combat_b->callback_failures
+                            : 0u)
+                    + ",b_respawn_inputs_forwarded="
+                    + std::to_string(
+                        combat_b != nullptr
+                            ? combat_b->respawn_inputs_forwarded
                             : 0u)
                     + ",b_active_weapon="
                     + std::to_string(client_b.active_weapon_id)
@@ -2697,6 +2721,13 @@ private:
         int ground_edict = 0;
     };
 
+    struct StockTestCombatPose final
+    {
+        bool valid = false;
+        std::uint64_t session_generation = 0u;
+        Vector origin = Vector(0.0f, 0.0f, 0.0f);
+    };
+
     static std::uint64_t MonotonicMilliseconds(
         std::chrono::steady_clock::time_point value) noexcept
     {
@@ -3042,6 +3073,8 @@ private:
                 anchor.session_generation =
                     binding.network_session_generation;
                 anchor.edict = binding.edict_index;
+                stock_test_combat_poses_[
+                    static_cast<std::size_t>(slot_state.slot - 1)] = {};
             }
             if (anchor.valid)
             {
@@ -3216,11 +3249,45 @@ private:
         const bool want_blocked = mode == "blocked";
         const bool want_miss = mode == "miss";
         const bool want_aim = mode == "aim";
+        const bool want_lethal = mode == "lethal";
+        const bool want_lethal_full = mode == "lethal_full";
+        const bool want_lethal_geometry = want_lethal || want_lethal_full;
         if (mode != "clear" && !want_blocked && !want_miss
-            && !want_aim)
+            && !want_aim && !want_lethal && !want_lethal_full)
         {
             *failure_reason = "invalid_mode";
             return false;
+        }
+        if (want_lethal || want_lethal_full)
+        {
+            if (!std::isfinite(shooter->v.health)
+                || shooter->v.health <= 0.0f || shooter->v.deadflag != 0
+                || !std::isfinite(target->v.health)
+                || target->v.health <= 0.0f || target->v.deadflag != 0)
+            {
+                *failure_reason = "lethal_player_not_alive";
+                return false;
+            }
+            if (target->v.takedamage == DAMAGE_NO)
+            {
+                *failure_reason = "lethal_target_not_damageable";
+                return false;
+            }
+            if (!state_.cvar_registry.SetValue("mp_forcerespawn", "0"))
+            {
+                *failure_reason = "forced_respawn_cvar_unavailable";
+                return false;
+            }
+            const std::optional<hl::game_api::CvarSnapshot>
+                forced_respawn_cvar =
+                    state_.cvar_registry.SnapshotOf("mp_forcerespawn");
+            if (!forced_respawn_cvar.has_value()
+                || !std::isfinite(forced_respawn_cvar->value)
+                || std::abs(forced_respawn_cvar->value) > 0.0001f)
+            {
+                *failure_reason = "forced_respawn_cvar_not_fixed";
+                return false;
+            }
         }
 
         constexpr std::array<float, 2> height_offsets = {{
@@ -3262,12 +3329,36 @@ private:
             -1.0f, -0.75f, -0.5f, -0.25f, 0.0f,
             0.25f, 0.5f, 0.75f, 1.0f,
         }};
+        const StockTestCombatPose& shooter_cached_pose =
+            stock_test_combat_poses_[
+                static_cast<std::size_t>(shooter_slot.slot - 1)];
+        const StockTestCombatPose& target_cached_pose =
+            stock_test_combat_poses_[
+                static_cast<std::size_t>(target_slot.slot - 1)];
+        const auto finite_origin = [](const Vector& origin)
+        {
+            return std::isfinite(origin.x)
+                && std::isfinite(origin.y)
+                && std::isfinite(origin.z);
+        };
+        const auto origin_already_present =
+            [&](const std::vector<Vector>& origins, const Vector& candidate)
+            {
+                return std::any_of(
+                    origins.begin(),
+                    origins.end(),
+                    [&](const Vector& origin)
+                    {
+                        return StockTestDistance(origin, candidate) <= 0.01;
+                    });
+            };
         std::vector<Vector> shooter_positions;
-        shooter_positions.reserve(2u);
+        shooter_positions.reserve(3u);
         const auto append_shooter_position =
             [&](const Vector& candidate)
             {
-                if (shooter_positions.size() >= 2u
+                if (!finite_origin(candidate)
+                    || origin_already_present(shooter_positions, candidate)
                     || !pmove_runtime_.IsPlayerPositionValid(candidate, 0))
                 {
                     return;
@@ -3275,11 +3366,41 @@ private:
                 shooter_positions.push_back(candidate);
             };
         append_shooter_position(shooter->v.origin);
+        if (want_lethal_geometry
+            && shooter_cached_pose.valid
+            && shooter_cached_pose.session_generation
+                == shooter_binding.network_session_generation)
+        {
+            append_shooter_position(shooter_cached_pose.origin);
+        }
         append_shooter_position(anchor.origin);
         shooter_position_count = shooter_positions.size();
-        const auto blocked_envelope_is_world_occluded =
+
+        std::vector<Vector> target_positions;
+        target_positions.reserve(3u);
+        const auto append_target_position =
+            [&](const Vector& candidate)
+            {
+                if (!finite_origin(candidate)
+                    || origin_already_present(target_positions, candidate))
+                {
+                    return;
+                }
+                target_positions.push_back(candidate);
+            };
+        append_target_position(target->v.origin);
+        if (want_lethal_geometry
+            && target_cached_pose.valid
+            && target_cached_pose.session_generation
+                == target_binding.network_session_generation)
+        {
+            append_target_position(target_cached_pose.origin);
+        }
+        append_target_position(target_anchor.origin);
+        const auto spread_envelope_matches_fixture =
             [&](const Vector& shooter_origin,
-                const Vector& target_candidate)
+                const Vector& target_candidate,
+                bool target_required)
             {
                 const Vector shot_source(
                     shooter_origin.x + shooter->v.view_ofs.x,
@@ -3401,11 +3522,24 @@ private:
                                         .network_session_generation);
                             const bool center_ray = spread_x == 0.0f
                                 && spread_y == 0.0f;
-                            if (selection.hit_type
-                                    == hl::network::GoldSrcCombatTraceHitType::kPlayer
+                            if (target_required)
+                            {
+                                if (selection.hit_type
+                                        != hl::network::
+                                            GoldSrcCombatTraceHitType::kPlayer
+                                    || selection.player_slot
+                                        != target_slot.slot)
+                                {
+                                    return false;
+                                }
+                            }
+                            else if (selection.hit_type
+                                    == hl::network::
+                                        GoldSrcCombatTraceHitType::kPlayer
                                 || (center_ray
                                     && selection.hit_type
-                                        != hl::network::GoldSrcCombatTraceHitType::kWorld))
+                                        != hl::network::
+                                            GoldSrcCombatTraceHitType::kWorld))
                             {
                                 return false;
                             }
@@ -3413,6 +3547,27 @@ private:
                     }
                 }
                 return true;
+            };
+        const auto position_is_supported =
+            [&](const Vector& origin)
+            {
+                const Vector support_end(
+                    origin.x,
+                    origin.y,
+                    origin.z - 8.0f);
+                hl::game_api::detail::GoldSrcWorldLineTrace support{};
+                if (!pmove_runtime_.TraceWorldHull(
+                        origin,
+                        support_end,
+                        0,
+                        &support))
+                {
+                    return false;
+                }
+                ++fixture_trace_count;
+                return !support.start_solid && !support.all_solid
+                    && support.fraction < 0.999f
+                    && support.plane_normal[2] >= 0.7f;
             };
         const auto try_fixture_candidate =
             [&](const Vector& shooter_origin,
@@ -3438,6 +3593,12 @@ private:
                         target_candidate,
                         0)
                     || !pmove_runtime_.IsWorldPointOpen(end))
+                {
+                    return false;
+                }
+                if (want_lethal_geometry
+                    && (!position_is_supported(shooter_origin)
+                        || !position_is_supported(target_candidate)))
                 {
                     return false;
                 }
@@ -3469,10 +3630,11 @@ private:
                 {
                     return false;
                 }
-                if (want_blocked
-                    && !blocked_envelope_is_world_occluded(
+                if ((want_blocked || want_lethal_geometry)
+                    && !spread_envelope_matches_fixture(
                         shooter_origin,
-                        target_candidate))
+                        target_candidate,
+                        want_lethal_geometry))
                 {
                     return false;
                 }
@@ -3667,8 +3829,7 @@ private:
         }};
         for (const Vector& shooter_origin : shooter_positions)
         {
-            for (const Vector& base_target :
-                 {target->v.origin, target_anchor.origin})
+            for (const Vector& base_target : target_positions)
             {
                 const float delta_x = base_target.x - shooter_origin.x;
                 const float delta_y = base_target.y - shooter_origin.y;
@@ -3920,6 +4081,22 @@ private:
             std::fmod(selected_yaw + 180.0f, 360.0f),
             target_anchor.flags,
             world);
+        if (want_lethal_geometry)
+        {
+            StockTestCombatPose& shooter_pose = stock_test_combat_poses_[
+                static_cast<std::size_t>(shooter_slot.slot - 1)];
+            shooter_pose.valid = true;
+            shooter_pose.session_generation =
+                shooter_binding.network_session_generation;
+            shooter_pose.origin = selected_shooter;
+
+            StockTestCombatPose& target_pose = stock_test_combat_poses_[
+                static_cast<std::size_t>(target_slot.slot - 1)];
+            target_pose.valid = true;
+            target_pose.session_generation =
+                target_binding.network_session_generation;
+            target_pose.origin = selected_target;
+        }
         for (const auto& [slot_state, player] :
              {std::pair<DedicatedPlayerRuntimeSlot*, edict_t*>{
                   &shooter_slot,
@@ -3943,6 +4120,14 @@ private:
             client->minimum_glock_clip = client->glock_clip;
             client->initial_glock_reserve_ammo =
                 client->glock_reserve_ammo;
+        }
+        if (want_lethal)
+        {
+            // This loopback-only fixture still requires a real stock Glock
+            // hit. Four health produces the same terminal -8 state as the
+            // ninth 12-damage body hit while bounding repeated lifecycle
+            // coverage.
+            target->v.health = 4.0f;
         }
         for (std::size_t receiver = 0u;
              receiver < stock_test_reset_transitions_.size(); ++receiver)
@@ -6170,6 +6355,16 @@ private:
                     + std::to_string(
                         combat != nullptr
                             ? combat->callback_failures
+                            : 0u)
+                    + ",combat_respawn_inputs_forwarded="
+                    + std::to_string(
+                        combat != nullptr
+                            ? combat->respawn_inputs_forwarded
+                            : 0u)
+                    + ",combat_duplicate_attack_suppressed="
+                    + std::to_string(
+                        combat != nullptr
+                            ? combat->duplicate_attack_commands_suppressed
                             : 0u)
                     + ",combat_active_weapon="
                     + std::to_string(client->active_weapon_id)
@@ -8736,6 +8931,17 @@ private:
                 client->glock_clip = glock_clip;
                 client->glock_reserve_ammo = static_cast<int>(
                     clientdata.vuser1.x);
+                // Keep the frame marker tied to the exact authoritative
+                // movement state captured into this clientdata frame.  A
+                // test-only pose reset can occur between host-frame summary
+                // refreshes, so the prior summary position is not sufficient
+                // evidence for the frame being serialized here.
+                client->authoritative_origin_x = clientdata.origin.x;
+                client->authoritative_origin_y = clientdata.origin.y;
+                client->authoritative_origin_z = clientdata.origin.z;
+                client->authoritative_velocity_x = clientdata.velocity.x;
+                client->authoritative_velocity_y = clientdata.velocity.y;
+                client->authoritative_velocity_z = clientdata.velocity.z;
                 client->authoritative_health = receiver->v.health;
                 client->clientdata_health = clientdata.health;
                 client->authoritative_deadflag = receiver->v.deadflag;
@@ -9345,12 +9551,31 @@ private:
                 : executed.gameplay_failure_stage == "cmd_end"
                     ? "cmd_end"
                     : "unknown";
+            const std::string_view last_engine_callback =
+                CurrentShimState().last_engine_callback_name;
+            const bool safe_callback_name =
+                last_engine_callback.size() >= 4u
+                && last_engine_callback.size() <= 64u
+                && last_engine_callback.substr(0u, 3u) == "pfn"
+                && std::all_of(
+                    last_engine_callback.begin(),
+                    last_engine_callback.end(),
+                    [](unsigned char character)
+                    {
+                        return std::isalnum(character) != 0
+                            || character == '_';
+                    });
+            const std::string_view reported_callback = safe_callback_name
+                ? last_engine_callback
+                : "unclassified";
             ++summary_.clc_move_rejected;
             return FailTransport(
                 "combat-gameplay-callback-failed-"
                     + std::string(reported_stage),
                 "goldsrc_combat_failed: reason=gameplay-callback,stage="
-                    + std::string(reported_stage));
+                    + std::string(reported_stage)
+                    + ",last_engine_callback="
+                    + std::string(reported_callback));
         }
         if (!executed.ok())
         {
@@ -13081,6 +13306,7 @@ private:
     bool manual_session_shutdown_logged_ = false;
     std::vector<bool> awaiting_fresh_session_after_delta_reset_;
     std::vector<StockTestSpawnAnchor> stock_test_spawn_anchors_;
+    std::vector<StockTestCombatPose> stock_test_combat_poses_;
     std::vector<std::vector<bool>> stock_test_reset_transitions_;
     std::vector<std::vector<bool>> stock_test_nointerp_clear_pending_;
 };

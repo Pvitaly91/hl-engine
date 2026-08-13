@@ -1,5 +1,7 @@
 # Two stock-client Glock damage acceptance test
 
+prompt_id=HL-ENGINE-20260809-250A-GOLDSRC-GLOCK-STOCK-ACCEPTANCE
+
 This procedure validates the opt-in `--goldsrc-combat` compatibility slice
 with two unmodified Half-Life 1.1.2.2 Steam build 15961492 clients. It is a
 loopback-only manual interoperability check on `crossfire`; it does not claim
@@ -133,7 +135,9 @@ run.
    Leave the clients running briefly and verify client A still moves and client
    B continues receiving frames. Use the normal stock respawn action in client
    B, then confirm a fresh live spawn, restored movement, visibility from both
-   clients, and continued connectivity.
+   clients, and continued connectivity. Reverse the roles: client B must kill
+   client A, client A must respawn, and both clients must still be alive,
+   movable, mutually visible, and connected after this second cycle.
 9. Separately record local shooter feedback (animation, muzzle flash,
    recoil/punch, sound and clip HUD decrement) and remote observer feedback
    (remote muzzle flash, sound and animation). For the remote muzzle flash,
@@ -209,7 +213,7 @@ next_observed_boundary=<none/stock_one_frame_muzzleflash_manual_acceptance_requi
 ```
 
 Until every required observation in this record is explicitly confirmed,
-Prompt 250 remains blocked from commit and publication.
+Prompt 250 remains incomplete and manual acceptance must not be marked passed.
 
 ## Current recorded result
 
@@ -224,21 +228,32 @@ The automated prerequisites currently recorded for this procedure are:
   autoaim cone acquired the target, both `pfnVecToAngles` and
   `pfnCrosshairAngle` were invoked, health and ammunition were unchanged, and
   both clients remained responsive.
-- Glock Proof A: pass, including one authoritative attack, 1495 `StartFrame`
-  calls, pre/post-think counts A=103/103 and B=101/101, clip 17 -> 16,
-  reserve ammunition 68 -> 68, target health 100 -> 88, 12 nonlethal damage,
-  post-shot movement for both clients, and clean shutdown.
+- Glock Proof A: pass. The mandatory aim phase passed, one authoritative
+  attack executed once, `StartFrame` calls were 2125, and pre/post-think counts
+  were A=107/107 and B=105/105. Clip changed 17 -> 16, reserve ammunition
+  stayed 68 -> 68, target health changed 100 -> 88, post-shot movement passed
+  for both clients, and shutdown was clean.
 - Glock Proof B: pass for all 13 negative/isolation gates.
-- Lethal death proof: pass. Nine player-hit attacks executed, nine rounds were
-  consumed, and 18 player-trace callbacks ran. Target health became
-  nonpositive with nonzero `deadflag`, the target Glock became absent, both
-  clients advanced for at least 32 post-death frames, callback failures stayed
-  zero, and the server remained responsive through clean shutdown.
+- Repeated lethal death proof: pass. After the nonlethal `100 -> 88` control,
+  eight one-shot lethal death/respawn cycles completed. Totals including the
+  control were nine attacks received/executed, nine rounds consumed, nine
+  player-hit shots, 18 traces (A=16, B=2), and zero world hits. The same victim
+  died seven times. Respawn inputs were A=1/B=7; all eight clicks reached the
+  lifecycle path and none was counted as a weapon attack. Both players were
+  alive after respawn eight and callback failures stayed zero.
+- Body-queue telemetry directly observed eight corpse-copy calls across four
+  distinct nodes, two completed queue rotations, and a valid sequence. The
+  server remained responsive through clean shutdown. This is automated
+  lifecycle evidence and does not replace visual corpse/death-camera checks.
 - Stock fall proof: pass, 3/3. The 400-unit landing was grounded and caused no
   damage; the 600-unit landing was grounded, caused exactly 10 damage, and
   left the player alive; gameplay callback failures remained zero and both
   clients passed authoritative and decoded-wire XY movement after landing.
 - Combat feature-off proof: pass.
+- Safe-output negative checks: direct and wrapper runs pass with fixed semantic
+  failure classifications only. Proof frame/reference history uses a bounded
+  512-frame window, the indexed capture is bounded, and exact final summary
+  validation passes without printing raw process output or private paths.
 - The stock `UpdateClientData` pre-callback byte-zero contract is restored;
   its poisoned-buffer regression passes, snapshot range validation remains
   strict, and fresh combat Proof A/B plus feature-off runs pass.
@@ -268,9 +283,9 @@ The exact-baseline observation, visible current-build two-stock-client run,
 all thirteen launcher-backed stock-client fields, detailed ramp/step checks,
 balcony-fall and post-landing connectivity checks, post-fix one-frame
 muzzle-flash lifetime, and complete local/remote fire feedback remain pending.
-Do not copy
-automated values into the manual result record. Prompt 250 remains blocked
-until those direct observations pass.
+Do not copy automated values into the manual result record. Prompt 250 remains
+incomplete until those direct observations pass; no completion claim is made
+by the automated results above.
 
 The latest pre-fix manual attempt established one additional fact: aiming near
 the other player caused a connection warning because the server entered its

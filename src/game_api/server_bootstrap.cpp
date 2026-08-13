@@ -352,6 +352,13 @@ bool EngineStringPool::OwnsIndex(string_t index) const noexcept
     return index < size_;
 }
 
+bool EngineStringPool::KnowsIndex(string_t index) const noexcept
+{
+    return index == 0
+        || OwnsIndex(index)
+        || values_by_index_.find(index) != values_by_index_.end();
+}
+
 std::string EngineStringPool::Describe(string_t index) const
 {
     const auto it = values_by_index_.find(index);
@@ -985,17 +992,21 @@ EntityStateSnapshot EdictStore::SnapshotOf(
     snapshot.in_use = edict.free == FALSE;
     snapshot.removed = state.removed;
     snapshot.classname_index = edict.v.classname;
+    const std::string resolved_classname =
+        string_pool.Describe(edict.v.classname);
     snapshot.classname_index_valid =
-        edict.v.classname == 0 || string_pool.OwnsIndex(edict.v.classname);
+        string_pool.KnowsIndex(edict.v.classname);
     snapshot.classname = !state.classname.empty()
         ? state.classname
-        : string_pool.Describe(edict.v.classname);
+        : resolved_classname;
     snapshot.targetname_index = edict.v.targetname;
+    const std::string resolved_targetname =
+        string_pool.Describe(edict.v.targetname);
     snapshot.targetname_index_valid =
-        edict.v.targetname == 0 || string_pool.OwnsIndex(edict.v.targetname);
+        string_pool.KnowsIndex(edict.v.targetname);
     snapshot.targetname = !state.targetname.empty()
         ? state.targetname
-        : string_pool.Describe(edict.v.targetname);
+        : resolved_targetname;
     snapshot.origin_string = state.origin_string;
     snapshot.origin = state.origin;
     snapshot.has_origin = state.has_origin;
@@ -1010,11 +1021,13 @@ EntityStateSnapshot EdictStore::SnapshotOf(
     snapshot.absmin = edict.v.absmin;
     snapshot.absmax = edict.v.absmax;
     snapshot.model_index_string = edict.v.model;
+    const std::string resolved_model =
+        string_pool.Describe(edict.v.model);
     snapshot.model_string_index_valid =
-        edict.v.model == 0 || string_pool.OwnsIndex(edict.v.model);
+        string_pool.KnowsIndex(edict.v.model);
     snapshot.model_string = !state.model_string.empty()
         ? state.model_string
-        : string_pool.Describe(edict.v.model);
+        : resolved_model;
     snapshot.model_index = state.model_index != 0 ? state.model_index : edict.v.modelindex;
     snapshot.spawned = state.spawned;
     snapshot.deferred = state.deferred;

@@ -1,6 +1,6 @@
-HL-ENGINE-20260808-250-GOLDSRC-GLOCK-DAMAGE-SLICE
+HL-ENGINE-20260809-250A-GOLDSRC-GLOCK-STOCK-ACCEPTANCE
 
-# Prompt 250 completion handoff — blocked
+# Prompt 250A continuation handoff — blocked
 
 status=blocked
 prompt_250_complete=no
@@ -22,19 +22,20 @@ automatic_player_input_default=disabled
 automatic_player_input_requires_explicit_opt_in=yes
 acceptance_phase_default=manual_observation
 baseline_stock_observation=pending
-source_backup_patch=%TEMP%\hl-engine-prompt250a-final-20260811-192627.patch
-source_untracked_backup=%TEMP%\hl-engine-prompt250a-final-20260811-192627-untracked
+source_backup_patch=%TEMP%\hl-engine-prompt250a-final-20260813.patch
+source_untracked_backup=not_required_no_intended_untracked_files
 sdk_head=b1b5cf5892918535619b2937bb927e46cb097ba1
 sdk_clean=yes
 
 ## Prompt 250A preservation, audit, and isolated baseline
 
 current_prompt_250_changes_preserved=yes
-changed_files=39
+changed_files=41
+changed_files_basis=baseline_to_worktree_intended_scope
 changed_files_scope=intended_task_content_only
 raw_worktree_generated_artifacts_excluded=yes
 combat_build_files=1
-combat_runtime_files=11
+combat_runtime_files=13
 combat_codec_files=4
 combat_test_files=16
 combat_launcher_files=4
@@ -95,14 +96,30 @@ mandatory_autoaim_both_clients_responsive=yes
 glock_proof_a=pass
 glock_proof_b=pass
 glock_proof_b_negative_gates=13/13
-lethal_death_proof=pass
+repeated_lethal_death_proof=pass
+nonlethal_control=pass
+nonlethal_control_health=100_to_88
+lethal_shots_total=8
+lethal_death_respawn_cycles=8/8
+lethal_attack_commands_received=9
 lethal_attack_commands_executed=9
 lethal_rounds_consumed=9
 lethal_player_hit_shots=9
 lethal_player_trace_callbacks=18
-lethal_target_health=nonpositive
-lethal_target_deadflag=nonzero
-lethal_target_glock=absent
+lethal_player_trace_callbacks_a=16
+lethal_player_trace_callbacks_b=2
+lethal_world_hits=0
+lethal_same_victim_deaths=7
+body_queue_copy_calls=8
+body_queue_distinct_nodes=4
+body_queue_completed_cycles=2
+body_queue_sequence_valid=yes
+body_queue_wraps_observed_directly_via_telemetry=yes
+respawn_inputs_forwarded_a=1
+respawn_inputs_forwarded_b=7
+respawn_clicks_forwarded=8
+respawn_clicks_counted_as_weapon_attacks=0
+both_players_alive_after_eighth_respawn=yes
 lethal_post_death_frames_a=at_least_32
 lethal_post_death_frames_b=at_least_32
 lethal_gameplay_callback_failures=0
@@ -260,12 +277,22 @@ The corrected path models alive and dead weapon sets as two phases, sends a
 full fallback when the Glock changes from present to absent, and distinguishes
 a normal stock `AddToFullPack` omission from a callback fault. Frame IDs,
 server time, snapshots, movement, PM_Move, and pre/post-think evidence remain
-monotonic after death. The dedicated lethal proof passes with nine executed
-player-hit attacks, nine consumed rounds, 18 player-trace callbacks,
-nonpositive target health, nonzero `deadflag`, an absent target Glock, at least
-32 further frames per client, zero gameplay callback failures, a responsive
-server, and clean shutdown. Fresh normal Glock Proof A and all 13 Proof B gates
-also pass. The operator subsequently confirmed normal stock death and respawn.
+monotonic after death. The dedicated repeated-lethal proof first records the
+ordinary nonlethal control at health `100 -> 88`, then completes eight one-shot
+lethal death/respawn cycles. Including the control, exactly nine attacks are
+received and executed, nine rounds are consumed, nine player-hit shots are
+recorded, and 18 player-trace callbacks run (A=16, B=2), with zero world hits.
+The same victim dies seven times. Eight respawn clicks are forwarded (A=1,
+B=7), none is counted as a weapon attack, and both players are alive after the
+eighth respawn.
+
+New body-queue telemetry directly observes eight copy calls across four
+distinct nodes, two completed queue rotations, and a valid sequence. Gameplay
+callback failures remain zero, the server stays responsive, and shutdown is
+clean. This closes the automated repeated-death regression, not the pending
+manual stock-client visual acceptance. Fresh normal Glock Proof A and all 13
+Proof B gates also pass. The operator previously confirmed normal stock death
+and respawn.
 
 The next manual observation found a separate visual defect: the remote player
 model retained its muzzle glow after the first shot. The host now keeps the
@@ -276,11 +303,12 @@ Proof B gates pass. The post-fix stock-client visual check remains pending.
 
 ## Glock Proof A evidence
 
-start_frame_call_count=1495
-player_prethink_calls_a=103
-player_postthink_calls_a=103
-player_prethink_calls_b=101
-player_postthink_calls_b=101
+mandatory_aim_phase=pass
+start_frame_call_count=2125
+player_prethink_calls_a=107
+player_postthink_calls_a=107
+player_prethink_calls_b=105
+player_postthink_calls_b=105
 attack_commands_received=1
 attack_commands_executed=1
 shooter_clip_before=17
@@ -328,17 +356,32 @@ stale_attacker_rejection=pass
 slot_reuse_clean=pass
 cross_client_weapon_state_isolation=pass
 
-## Lethal death Proof evidence
+## Repeated lethal death Proof evidence
 
-lethal_death_proof=pass
+repeated_lethal_death_proof=pass
+nonlethal_control=pass
+nonlethal_control_health=100_to_88
+lethal_shots_total=8
+death_respawn_cycles=8/8
 attack_commands_received=9
 attack_commands_executed=9
 rounds_consumed=9
 player_hit_shots=9
 player_trace_callbacks=18
-target_health_nonpositive=yes
-target_deadflag_nonzero=yes
-target_glock_absent=yes
+player_trace_callbacks_a=16
+player_trace_callbacks_b=2
+world_hits=0
+same_victim_deaths=7
+body_queue_copy_calls=8
+body_queue_distinct_nodes=4
+body_queue_completed_cycles=2
+body_queue_sequence_valid=yes
+body_queue_wraps_observed_directly_via_telemetry=yes
+respawn_inputs_forwarded_a=1
+respawn_inputs_forwarded_b=7
+respawn_clicks_forwarded=8
+respawn_clicks_counted_as_weapon_attacks=0
+both_players_alive_after_eighth_respawn=yes
 post_death_frames_a=at_least_32
 post_death_frames_b=at_least_32
 post_death_client_a_progression=pass
@@ -356,7 +399,7 @@ baseline_short_commit=dba657e
 baseline_commit=dba657e6bd5cba280f50f217e48319e021d7fc5f
 branch=codex/goldsrc-glock-damage-slice
 commit=missing
-changed_files=39
+changed_files=41
 
 sdk_head=b1b5cf5892918535619b2937bb927e46cb097ba1
 stock_client_version=Half-Life 1.1.2.2 Steam build 15961492
@@ -371,11 +414,11 @@ combat_feature_default=off
 combat_callback_order_verified=yes
 combat_callback_order=cmdstart_prethink_think_pmove_commit_postthink_cmdend
 combat_time_contract_verified=yes
-start_frame_call_count=1495
-player_prethink_calls_a=103
-player_prethink_calls_b=101
-player_postthink_calls_a=103
-player_postthink_calls_b=101
+start_frame_call_count=2125
+player_prethink_calls_a=107
+player_prethink_calls_b=105
+player_postthink_calls_a=107
+player_postthink_calls_b=105
 
 mandatory_autoaim_phase=pass
 mandatory_autoaim_buttons=0
@@ -427,15 +470,30 @@ shooter_weapondata_updated=yes
 frame_history_weapondata=yes
 snapshot_damage_replication=yes
 
-lethal_death_proof=pass
+repeated_lethal_death_proof=pass
+lethal_nonlethal_control=pass
+lethal_nonlethal_control_health=100_to_88
+lethal_shots_total=8
+lethal_death_respawn_cycles=8/8
 lethal_attack_commands_received=9
 lethal_attack_commands_executed=9
 lethal_rounds_consumed=9
 lethal_player_hit_shots=9
 lethal_player_trace_callbacks=18
-lethal_target_health_nonpositive=yes
-lethal_target_deadflag_nonzero=yes
-lethal_target_glock_absent=yes
+lethal_player_trace_callbacks_a=16
+lethal_player_trace_callbacks_b=2
+lethal_world_hits=0
+lethal_same_victim_deaths=7
+lethal_body_queue_copy_calls=8
+lethal_body_queue_distinct_nodes=4
+lethal_body_queue_completed_cycles=2
+lethal_body_queue_sequence_valid=yes
+lethal_body_queue_wraps_observed_directly_via_telemetry=yes
+lethal_respawn_inputs_forwarded_a=1
+lethal_respawn_inputs_forwarded_b=7
+lethal_respawn_clicks_forwarded=8
+lethal_respawn_clicks_counted_as_weapon_attacks=0
+lethal_both_players_alive_after_eighth_respawn=yes
 lethal_weapon_presence_transition=present_to_absent
 lethal_transition_snapshot=full_fallback
 lethal_post_death_frames_a=at_least_32
@@ -531,6 +589,16 @@ addtofullpack_callback_fault_is_fatal=yes
 death_weapon_set_transition=two_phase_present_to_absent
 death_transition_full_fallback=yes
 post_death_progression_monotonic=yes
+proof_failure_output=fixed_semantic_only
+proof_safe_output_direct_check=pass
+proof_safe_output_wrapper_check=pass
+proof_private_path_output=none
+proof_raw_process_output_printed=no
+proof_frame_reference_window=512
+proof_frame_reference_bound_self_test=pass
+proof_snapshot_marker_index_limit=8192
+proof_temporary_capture_final_validation=exact
+proof_per_line_physical_media_sync=disabled
 
 ## Outstanding completion gates
 
@@ -564,4 +632,4 @@ proprietary_files_staged=no
 push=not_attempted
 commit=missing
 
-HL-ENGINE-20260808-250-GOLDSRC-GLOCK-DAMAGE-SLICE
+HL-ENGINE-20260809-250A-GOLDSRC-GLOCK-STOCK-ACCEPTANCE

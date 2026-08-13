@@ -27,6 +27,7 @@ param(
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = "Stop"
+try {
 if ($BindAddress -cne "127.0.0.1") {
     throw "Glock damage proofs are restricted to 127.0.0.1"
 }
@@ -40,13 +41,19 @@ $selectedProofModes = @(
 if ($selectedProofModes.Count -gt 1) {
     throw "Glock damage proof modes are mutually exclusive"
 }
+$effectiveTimeoutSeconds = if ($LethalDeathProof -and
+    -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) {
+    900
+} else {
+    $TimeoutSeconds
+}
 
 $arguments = @{
     ExecutablePath = $ExecutablePath
     GameDir = $GameDir
     BindAddress = $BindAddress
     Port = $Port
-    TimeoutSeconds = $TimeoutSeconds
+    TimeoutSeconds = $effectiveTimeoutSeconds
     CombatProof = $true
 }
 if ($NegativeProof) {
@@ -64,8 +71,6 @@ if ($LethalDeathProof) {
 if ($SkipServerOutput) {
     $arguments.SkipServerOutput = $true
 }
-
-try {
     & (Join-Path $PSScriptRoot "run_goldsrc_two_client_replication_proof.ps1") `
         @arguments
     $proofExitCode = if ($null -eq $LASTEXITCODE) {

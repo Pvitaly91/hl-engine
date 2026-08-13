@@ -3986,6 +3986,10 @@ struct EngineShimState
         goldsrc_combat_weapon_range_world_hits_by_slot{};
     std::array<std::uint64_t, 32> goldsrc_combat_playback_events_by_slot{};
     std::array<int, 32> goldsrc_combat_last_trace_target_by_slot{};
+    std::uint64_t goldsrc_body_queue_copy_calls = 0u;
+    std::array<int, 4> goldsrc_body_queue_cycle_nodes{{-1, -1, -1, -1}};
+    std::size_t goldsrc_body_queue_distinct_nodes = 0u;
+    bool goldsrc_body_queue_sequence_valid = true;
     std::array<std::array<qboolean, 32>, 32> voice_listening{};
     EntityBootstrapContext entity_bootstrap;
     hl::game_api::detail::WorldspawnSpawnDiagnostics worldspawn_spawn_diagnostics;
@@ -64119,7 +64123,10 @@ bool ValidateActivationParticipant(
         issues.push_back("pContainingEntity does not point back to the edict");
     }
 
-    if (snapshot.classname.empty())
+    if (snapshot.classname.empty()
+        && !hl::game_api::detail::IsPersistentGameDllHelper(
+            snapshot,
+            state.globalvars.maxClients))
     {
         issues.push_back("classname is empty");
     }
@@ -256930,6 +256937,41 @@ void StubSetOrigin(edict_t* entity, const float* origin)
         return;
     }
 
+    const auto snapshot = state.edict_store.SnapshotOf(
+        entity,
+        state.string_pool);
+    if (EqualsIgnoreCase(snapshot.classname, "bodyque"))
+    {
+        const std::uint64_t call_index = state.goldsrc_body_queue_copy_calls;
+        const std::size_t cycle_index =
+            static_cast<std::size_t>(call_index % 4u);
+        if (call_index < 4u)
+        {
+            bool already_seen = false;
+            for (std::size_t index = 0u; index < cycle_index; ++index)
+            {
+                already_seen = already_seen
+                    || state.goldsrc_body_queue_cycle_nodes[index]
+                        == snapshot.index;
+            }
+            if (already_seen)
+            {
+                state.goldsrc_body_queue_sequence_valid = false;
+            }
+            else
+            {
+                ++state.goldsrc_body_queue_distinct_nodes;
+            }
+            state.goldsrc_body_queue_cycle_nodes[cycle_index] = snapshot.index;
+        }
+        else if (state.goldsrc_body_queue_cycle_nodes[cycle_index]
+            != snapshot.index)
+        {
+            state.goldsrc_body_queue_sequence_valid = false;
+        }
+        ++state.goldsrc_body_queue_copy_calls;
+    }
+
     state.edict_store.SetOrigin(entity, Vector(origin[0], origin[1], origin[2]), origin_text);
     ComputeFallbackAbsBox(entity->v);
 }
@@ -259277,7 +259319,10 @@ void PerformServerActivation()
             && !snapshot.removed
             && !snapshot.deferred
             && snapshot.parse_index < 0
-            && !snapshot.spawned;
+            && !snapshot.spawned
+            && !hl::game_api::detail::IsPersistentGameDllHelper(
+                snapshot,
+                state.globalvars.maxClients);
         if (!prune_helper)
         {
             continue;

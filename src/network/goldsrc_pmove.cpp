@@ -487,6 +487,7 @@ GoldSrcCommandExecutionPlan GoldSrcCommandExecutionState::Plan(
                     last_command_))
             {
                 explicit_recovery_begin = backup_index + 1u;
+                plan.suppressed_backup_matched_last_command = true;
                 break;
             }
         }

@@ -192,10 +192,113 @@ function New-ProcessOutputCapture {
         StdoutPath = $StdoutPath
         StderrPath = $StderrPath
         Encoding = $encoding
+        LatestGoldSrcProgressBySlot = @{}
+        CombatSnapshotFrameLines = @{}
+        CombatSnapshotFrameOrder = New-Object System.Collections.Queue
         StdoutTask = $Process.StandardOutput.ReadLineAsync()
         StderrTask = $Process.StandardError.ReadLineAsync()
         StdoutClosed = $false
         StderrClosed = $false
+    }
+}
+
+function Add-SharedFileText {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [Parameter(Mandatory = $true)]
+        [string]$Value,
+        [Parameter(Mandatory = $true)]
+        [System.Text.Encoding]$Encoding
+    )
+
+    $bytes = $Encoding.GetBytes($Value)
+    for ($attempt = 0; $attempt -lt 16; $attempt++) {
+        $stream = $null
+        try {
+            $stream = [System.IO.FileStream]::new(
+                $Path,
+                [System.IO.FileMode]::OpenOrCreate,
+                [System.IO.FileAccess]::Write,
+                [System.IO.FileShare]::Read)
+        }
+        catch [System.IO.IOException] {
+        }
+        catch [System.UnauthorizedAccessException] {
+        }
+        if ($null -ne $stream) {
+            break
+        }
+        Start-Sleep -Milliseconds 10
+    }
+    if ($null -eq $stream) {
+        throw "output capture append unavailable"
+    }
+    try {
+        $originalLength = $stream.Length
+        [void]$stream.Seek(0, [System.IO.SeekOrigin]::End)
+        try {
+            $stream.Write($bytes, 0, $bytes.Length)
+            # This is a temporary proof capture file, not a durable journal.
+            # Flushing through the operating-system cache keeps concurrent
+            # readers coherent without forcing a physical disk sync for every
+            # captured server line in long-running proofs.
+            $stream.Flush($false)
+        }
+        catch {
+            try {
+                $stream.SetLength($originalLength)
+                $stream.Flush($false)
+            }
+            catch {
+                throw "output capture rollback unavailable"
+            }
+            throw "output capture write unavailable"
+        }
+    }
+    finally {
+        $stream.Dispose()
+    }
+}
+
+function Get-SharedFileTailText {
+    param(
+        [string]$Path,
+        [ValidateRange(4096, 16777216)]
+        [int]$MaximumBytes = 4194304
+    )
+
+    if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+        return ""
+    }
+    $stream = $null
+    $reader = $null
+    try {
+        $stream = [System.IO.File]::Open(
+            $Path,
+            [System.IO.FileMode]::Open,
+            [System.IO.FileAccess]::Read,
+            [System.IO.FileShare]::ReadWrite)
+        $start = [Math]::Max(0L, $stream.Length - [long]$MaximumBytes)
+        [void]$stream.Seek($start, [System.IO.SeekOrigin]::Begin)
+        $reader = New-Object System.IO.StreamReader(
+            $stream,
+            [System.Text.Encoding]::UTF8,
+            $true)
+        if ($start -gt 0) {
+            [void]$reader.ReadLine()
+        }
+        return $reader.ReadToEnd()
+    }
+    catch [System.IO.IOException] {
+        return ""
+    }
+    finally {
+        if ($null -ne $reader) {
+            $reader.Dispose()
+        } elseif ($null -ne $stream) {
+            $stream.Dispose()
+        }
     }
 }
 
@@ -230,16 +333,35 @@ function Update-ProcessOutputCapture {
             $State.StdoutTask = $null
         } else {
             [void]$stdoutBuilder.AppendLine($line)
+            if ($line -match
+                    'goldsrc_client_progress:.*(?:,| )slot=(?<slot>[12])(?:,|$)') {
+                $State.LatestGoldSrcProgressBySlot[
+                    [int]$Matches['slot']] = $line
+            }
+            if ($line -match
+                    'goldsrc_combat_snapshot_frame: slot=(?<slot>[12]),frame_id=(?<frame>[0-9]+),') {
+                $frameKey = $Matches['slot'] + ':' + $Matches['frame']
+                if (-not $State.CombatSnapshotFrameLines.ContainsKey(
+                        $frameKey)) {
+                    $State.CombatSnapshotFrameOrder.Enqueue($frameKey)
+                }
+                $State.CombatSnapshotFrameLines[$frameKey] = $line
+                while ($State.CombatSnapshotFrameOrder.Count -gt 8192) {
+                    $expiredFrameKey =
+                        [string]$State.CombatSnapshotFrameOrder.Dequeue()
+                    [void]$State.CombatSnapshotFrameLines.Remove(
+                        $expiredFrameKey)
+                }
+            }
             $State.StdoutTask = $State.Process.StandardOutput.ReadLineAsync()
             $drainedLines++
         }
     }
     if ($stdoutBuilder.Length -gt 0) {
-        [System.IO.File]::AppendAllText(
-            $State.StdoutPath,
-            $stdoutBuilder.ToString(),
-            $State.Encoding
-        )
+        Add-SharedFileText `
+            -Path $State.StdoutPath `
+            -Value $stdoutBuilder.ToString() `
+            -Encoding $State.Encoding
     }
 
     $stderrLines = 0
@@ -274,11 +396,10 @@ function Update-ProcessOutputCapture {
         }
     }
     if ($stderrBuilder.Length -gt 0) {
-        [System.IO.File]::AppendAllText(
-            $State.StderrPath,
-            $stderrBuilder.ToString(),
-            $State.Encoding
-        )
+        Add-SharedFileText `
+            -Path $State.StderrPath `
+            -Value $stderrBuilder.ToString() `
+            -Encoding $State.Encoding
     }
 
     return ($drainedLines + $stderrLines)

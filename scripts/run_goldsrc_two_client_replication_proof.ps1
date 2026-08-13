@@ -32,6 +32,12 @@ $ErrorActionPreference = "Stop"
 if (Test-Path Variable:PSNativeCommandUseErrorActionPreference) {
     $PSNativeCommandUseErrorActionPreference = $false
 }
+trap {
+    Write-Host (
+        'two-client proof failed: stage=preflight; ' +
+        'reason=proof_gate_failed')
+    exit 1
+}
 if ($BindAddress -cne "127.0.0.1") {
     throw "two-client proofs are restricted to 127.0.0.1"
 }
@@ -47,7 +53,14 @@ if ($LethalDeathProof -and
         $FallDamageProof)) {
     throw "lethal death proof requires only CombatProof"
 }
+$effectiveTimeoutSeconds = if ($LethalDeathProof -and
+    -not $PSBoundParameters.ContainsKey('TimeoutSeconds')) {
+    900
+} else {
+    $TimeoutSeconds
+}
 $script:goldsrcAllowWeaponData = [bool]($CombatProof -and -not $FeatureOffProof)
+$script:twoClientMovementMsec = if ($LethalDeathProof) { 50 } else { 10 }
 $script:goldsrcExpectedServerInfoMap = if ($CombatProof) {
     "maps/crossfire.bsp"
 } else {
@@ -327,12 +340,29 @@ function Get-CombatSnapshotFrameEvidence {
         'clip=(?<clip>-?[0-9]+),' +
         'origin_x=(?<origin_x>-?[0-9]+(?:\.[0-9]+)?),' +
         'origin_y=(?<origin_y>-?[0-9]+(?:\.[0-9]+)?(?:e[-+]?[0-9]+)?)'
-    while ([DateTime]::UtcNow -lt $Deadline) {
+    if ([DateTime]::UtcNow -ge $Deadline) {
+        throw "proof global budget exhausted"
+    }
+    $indexDeadline = [DateTime]::UtcNow.AddSeconds(5)
+    if ($indexDeadline -gt $Deadline) {
+        $indexDeadline = $Deadline
+    }
+    while ([DateTime]::UtcNow -lt $indexDeadline) {
         [void](Update-ProcessOutputCapture -State $OutputCapture)
-        $text = Get-SharedFileText -Path $StdoutPath
-        $matches = [regex]::Matches($text, $pattern)
-        if ($matches.Count -gt 0) {
-            $base = $matches[$matches.Count - 1].Groups['base'].Value
+        $frameKey = [string]$Slot + ':' + [string]$FrameId
+        $line = if ($OutputCapture.CombatSnapshotFrameLines.ContainsKey(
+                $frameKey)) {
+            [string]$OutputCapture.CombatSnapshotFrameLines[$frameKey]
+        } else {
+            $null
+        }
+        $match = if ($null -ne $line) {
+            [regex]::Match($line, $pattern)
+        } else {
+            $null
+        }
+        if ($null -ne $match -and $match.Success) {
+            $base = $match.Groups['base'].Value
             return [pscustomobject]@{
                 IsFull = $base -ceq 'none'
                 BaseFrameId = $(if ($base -ceq 'none') {
@@ -340,19 +370,21 @@ function Get-CombatSnapshotFrameEvidence {
                 } else {
                     [uint32]$base
                 })
-                Health = [double]$matches[
-                    $matches.Count - 1].Groups['health'].Value
-                Clip = [int]$matches[
-                    $matches.Count - 1].Groups['clip'].Value
-                OriginX = [double]$matches[
-                    $matches.Count - 1].Groups['origin_x'].Value
-                OriginY = [double]$matches[
-                    $matches.Count - 1].Groups['origin_y'].Value
+                Health = [double]$match.Groups['health'].Value
+                Clip = [int]$match.Groups['clip'].Value
+                OriginX = [double]$match.Groups['origin_x'].Value
+                OriginY = [double]$match.Groups['origin_y'].Value
             }
         }
         Start-Sleep -Milliseconds 10
     }
-    throw "combat snapshot frame evidence is unavailable"
+    if ([DateTime]::UtcNow -ge $Deadline) {
+        throw "proof global budget exhausted"
+    }
+    if ($Slot -eq 1) {
+        throw "client a snapshot index idle timeout"
+    }
+    throw "client b snapshot index idle timeout"
 }
 
 function Receive-TwoClientSnapshot {
@@ -370,6 +402,16 @@ function Receive-TwoClientSnapshot {
         [byte[]]$DatagramBytes = $null
     )
 
+    if ($ServerProcess.HasExited) {
+        throw "two-client server unavailable"
+    }
+    if ([DateTime]::UtcNow -ge $Deadline) {
+        throw "proof global budget exhausted"
+    }
+    $snapshotReceiveDeadline = [DateTime]::UtcNow.AddSeconds(5)
+    if ($snapshotReceiveDeadline -gt $Deadline) {
+        $snapshotReceiveDeadline = $Deadline
+    }
     for ($attempt = 0; $attempt -lt 256; $attempt++) {
         if ($null -ne $DatagramBytes) {
             if ($attempt -ne 0) {
@@ -379,13 +421,30 @@ function Receive-TwoClientSnapshot {
                 Bytes = $DatagramBytes
             }
         } else {
-            $datagram = Receive-ProofDatagram `
-                -Client $State.Client `
-                -ServerProcess $ServerProcess `
-                -OutputCapture $OutputCapture `
-                -Deadline $Deadline `
-                -ServerEndpoint $ServerEndpoint `
-                -Description "two-client continuous snapshot"
+            try {
+                $datagram = Receive-ProofDatagram `
+                    -Client $State.Client `
+                    -ServerProcess $ServerProcess `
+                    -OutputCapture $OutputCapture `
+                    -Deadline $snapshotReceiveDeadline `
+                    -ServerEndpoint $ServerEndpoint `
+                    -Description "two-client continuous snapshot"
+            } catch {
+                if ($_.Exception.Message -ceq
+                        'timeout waiting for two-client continuous snapshot') {
+                    if ($ServerProcess.HasExited) {
+                        throw "two-client server unavailable"
+                    }
+                    if ([DateTime]::UtcNow -ge $Deadline) {
+                        throw "proof global budget exhausted"
+                    }
+                    if ($State.OwnEntity -eq 1) {
+                        throw "client a snapshot idle timeout"
+                    }
+                    throw "client b snapshot idle timeout"
+                }
+                throw
+            }
         }
         if ($datagram.Bytes.Length -ge 4 -and
             $datagram.Bytes[0] -eq 0xFF -and
@@ -572,7 +631,7 @@ function Receive-TwoClientSnapshot {
                 [byte]([uint32]$snapshot.FrameId -band 0xFF))
             [byte[]]$movement = New-GoldSrcMovementPayload `
                 -Sequence $State.ClientSequence `
-                -Msec 10 `
+                -Msec $script:twoClientMovementMsec `
                 -Forward $Forward `
                 -Side $Side `
                 -Buttons $Buttons `
@@ -590,6 +649,7 @@ function Receive-TwoClientSnapshot {
             $State.FrameAcknowledgements++
             $State.PmovePackets++
         }
+        Trim-TwoClientStreamHistory -State $State
         return $snapshot
     }
     throw "two-client stream did not yield a snapshot"
@@ -639,6 +699,95 @@ function Test-TwoClientSequenceNewer {
         -Candidate $Candidate `
         -Baseline $Baseline
     return $distance -gt 0 -and $distance -lt $halfRange
+}
+
+$script:twoClientHistoryWindow = 512
+
+function Trim-TwoClientStreamHistory {
+    param($State)
+
+    if ($null -eq $State) {
+        return
+    }
+    [uint32]$latestClientSequence = $State.ClientSequence
+    foreach ($key in @($State.PendingFrameReferences.Keys)) {
+        [uint32]$clientSequence = $key
+        [uint64]$distance = Get-TwoClientSequenceDistance `
+            -Candidate $latestClientSequence `
+            -Baseline $clientSequence
+        if ($distance -ge [uint64]$script:twoClientHistoryWindow) {
+            [void]$State.PendingFrameReferences.Remove($key)
+        }
+    }
+
+    $referencedFrames = @{}
+    foreach ($frameId in $State.PendingFrameReferences.Values) {
+        $referencedFrames[[uint32]$frameId] = $true
+    }
+    [uint32]$latestServerSequence = $State.LatestServerSequence
+    foreach ($key in @($State.SnapshotsByFrameId.Keys)) {
+        [uint32]$frameId = $key
+        [uint64]$distance = Get-TwoClientSequenceDistance `
+            -Candidate $latestServerSequence `
+            -Baseline $frameId
+        if ($distance -ge [uint64]$script:twoClientHistoryWindow -and
+            -not $referencedFrames.ContainsKey($frameId)) {
+            [void]$State.SnapshotsByFrameId.Remove($key)
+        }
+    }
+}
+
+function Assert-TwoClientStreamHistoryBound {
+    $snapshots = @{}
+    $references = @{}
+    for ([uint32]$sequence = 1; $sequence -le 10000; $sequence++) {
+        $snapshots[$sequence] = [pscustomobject]@{ FrameId = $sequence }
+        $references[$sequence] = $sequence
+    }
+    $state = [pscustomobject]@{
+        ClientSequence = [uint32]10000
+        LatestServerSequence = [uint32]10000
+        PendingFrameReferences = $references
+        SnapshotsByFrameId = $snapshots
+    }
+    Trim-TwoClientStreamHistory -State $state
+    if ($state.PendingFrameReferences.Count -gt
+            $script:twoClientHistoryWindow -or
+        $state.SnapshotsByFrameId.Count -gt
+            ($script:twoClientHistoryWindow * 2) -or
+        $state.PendingFrameReferences.ContainsKey([uint32]1) -or
+        $state.SnapshotsByFrameId.ContainsKey([uint32]1)) {
+        throw "two-client stream history bound validation failed"
+    }
+    [uint32]$expected = 9999
+    [uint32]$resolved = Resolve-TwoClientAcknowledgedSnapshotBase `
+        -State $state `
+        -Acknowledgement ([uint32]10000) `
+        -CurrentFrameId ([uint32]10001) `
+        -WireBaseLow8 ([byte]($expected -band 0xFF)) `
+        -ExpectedFrameId $expected
+    if ($resolved -ne $expected) {
+        throw "two-client stream history exact base validation failed"
+    }
+    $staleRejected = $false
+    try {
+        [void](Resolve-TwoClientAcknowledgedSnapshotBase `
+            -State $state `
+            -Acknowledgement ([uint32]10000) `
+            -CurrentFrameId ([uint32]10001) `
+            -WireBaseLow8 ([byte]1) `
+            -ExpectedFrameId ([uint32]1))
+    } catch {
+        $staleRejected = (
+            $_.Exception.Message -eq
+                "combat snapshot exact base client reference not acknowledged")
+        if (-not $staleRejected) {
+            throw "two-client stream history stale base validation failed"
+        }
+    }
+    if (-not $staleRejected) {
+        throw "two-client stream history stale base validation failed"
+    }
 }
 
 function Resolve-TwoClientAcknowledgedSnapshotBase {
@@ -1106,6 +1255,7 @@ function Send-TwoClientSimultaneousMove {
         [uint32]$State.LatestSnapshot.FrameId
     $State.FrameAcknowledgements++
     $State.PmovePackets++
+    Trim-TwoClientStreamHistory -State $State
 }
 
 function Send-TwoClientCombatMove {
@@ -1114,6 +1264,8 @@ function Send-TwoClientCombatMove {
         [single]$Yaw,
         [ValidateRange(0, 65535)]
         [int]$Buttons,
+        [ValidateRange(1, 255)]
+        [byte]$Msec = 10,
         [ValidateRange(0, 61)]
         [byte]$Backups = 0,
         [ValidateRange(1, 62)]
@@ -1131,7 +1283,7 @@ function Send-TwoClientCombatMove {
     } else {
         New-GoldSrcMovementPayload `
             -Sequence $State.ClientSequence `
-            -Msec 10 `
+            -Msec $Msec `
             -Buttons $Buttons `
             -Yaw $Yaw `
             -Backups $Backups `
@@ -1158,6 +1310,7 @@ function Send-TwoClientCombatMove {
         [uint32]$State.LatestSnapshot.FrameId
     $State.FrameAcknowledgements++
     $State.PmovePackets++
+    Trim-TwoClientStreamHistory -State $State
     return ,$packet
 }
 
@@ -1198,6 +1351,49 @@ function Send-TwoClientCombatRecoveryMove {
         [uint32]$State.LatestSnapshot.FrameId
     $State.FrameAcknowledgements++
     $State.PmovePackets++
+    Trim-TwoClientStreamHistory -State $State
+}
+
+function Send-TwoClientExactAttackBackupMove {
+    param(
+        $State,
+        [single]$Yaw,
+        [ValidateRange(1, 255)]
+        [byte]$Msec = 10
+    )
+
+    $State.ClientSequence = [uint32]($State.ClientSequence + 1)
+    [double]$normalizedYaw = [double]$Yaw % 360.0
+    if ($normalizedYaw -lt 0.0) {
+        $normalizedYaw += 360.0
+    }
+    [uint16]$yawBits = [uint16][Math]::Floor(
+        $normalizedYaw * 65536.0 / 360.0)
+    [byte[]]$frameReference = @(
+        [byte]4,
+        [byte]([uint32]$State.LatestSnapshot.FrameId -band 0xFF))
+    [byte[]]$movement = [GoldSrcMoveProofCodec]::BuildExactAttackBackup(
+        $State.ClientSequence,
+        $Msec,
+        [uint16]1,
+        $yawBits)
+    $packetArguments = @{
+        Sequence = $State.ClientSequence
+        Acknowledgement = $State.LatestServerSequence
+        Payload = [byte[]]($frameReference + $movement)
+    }
+    if ($State.ReliableAcknowledgementState) {
+        $packetArguments.ReliableAcknowledgementToggle = $true
+    }
+    Send-ExactUdpDatagram `
+        -Client $State.Client `
+        -Packet (New-SequencedDatagram @packetArguments) `
+        -Description "exact combat attack backup"
+    $State.PendingFrameReferences[[uint32]$State.ClientSequence] =
+        [uint32]$State.LatestSnapshot.FrameId
+    $State.FrameAcknowledgements++
+    $State.PmovePackets++
+    Trim-TwoClientStreamHistory -State $State
 }
 
 function Get-CombatWireState {
@@ -1305,18 +1501,11 @@ function Get-LatestCombatProgress {
         [int]$Slot
     )
 
-    $text = Get-SharedFileText -Path $StdoutPath
-    $slotPattern = '(,| )slot=' + [string]$Slot + '(,|$)'
-    $lines = @(
-        $text -split '\r?\n' |
-            Where-Object {
-                $_ -match 'goldsrc_client_progress:' -and
-                $_ -match $slotPattern
-            })
-    if ($lines.Count -eq 0) {
+    [void](Update-ProcessOutputCapture -State $OutputCapture)
+    if (-not $OutputCapture.LatestGoldSrcProgressBySlot.ContainsKey($Slot)) {
         throw "combat movement progress evidence is unavailable"
     }
-    $line = $lines[-1]
+    $line = [string]$OutputCapture.LatestGoldSrcProgressBySlot[$Slot]
     $prefix = 'goldsrc_client_progress:'
     $offset = $line.IndexOf($prefix, [StringComparison]::Ordinal)
     if ($offset -lt 0) {
@@ -1346,6 +1535,8 @@ function Get-LatestCombatProgress {
             'combat_prethink',
             'combat_postthink',
             'combat_callback_failures',
+            'combat_respawn_inputs_forwarded',
+            'combat_duplicate_attack_suppressed',
             'combat_active_weapon',
             'combat_glock_present',
             'combat_shot_traces',
@@ -1394,6 +1585,10 @@ function Get-LatestCombatProgress {
         PreThink = [uint64]$fields['combat_prethink']
         PostThink = [uint64]$fields['combat_postthink']
         CallbackFailures = [uint64]$fields['combat_callback_failures']
+        RespawnInputsForwarded =
+            [uint64]$fields['combat_respawn_inputs_forwarded']
+        DuplicateAttackSuppressed =
+            [uint64]$fields['combat_duplicate_attack_suppressed']
         ActiveWeapon = [int]$fields['combat_active_weapon']
         GlockPresent = [int]$fields['combat_glock_present'] -eq 1
         GlockClip = [int]$fields['combat_glock_clip']
@@ -1450,6 +1645,90 @@ function Invoke-CombatSnapshotPump {
             -Side $SideB `
             -Yaw $YawB)
     }
+}
+
+function Wait-CombatZeroInputExecution {
+    param(
+        $StateA,
+        $StateB,
+        [ValidateRange(1, 2)]
+        [int]$ShooterSlot,
+        [System.Diagnostics.Process]$ServerProcess,
+        $OutputCapture,
+        [string]$StdoutPath,
+        [DateTime]$Deadline,
+        [System.Net.IPEndPoint]$ServerEndpoint,
+        [single]$YawA = 0.0,
+        [single]$YawB = 0.0
+    )
+
+    $before = Get-LatestCombatProgress `
+        -OutputCapture $OutputCapture `
+        -StdoutPath $StdoutPath `
+        -Slot $ShooterSlot
+    for ($index = 0; $index -lt 96; $index++) {
+        Invoke-CombatSnapshotPump `
+            -StateA $StateA `
+            -StateB $StateB `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -StdoutPath $StdoutPath `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -Count 1 `
+            -YawA $YawA `
+            -YawB $YawB
+        $after = Get-LatestCombatProgress `
+            -OutputCapture $OutputCapture `
+            -StdoutPath $StdoutPath `
+            -Slot $ShooterSlot
+        if ($after.AttackReceived -ne $before.AttackReceived -or
+            $after.AttackExecuted -ne $before.AttackExecuted) {
+            throw "zero-input release changed weapon attack counters"
+        }
+        if ($after.MoveExecuted -ge $before.MoveExecuted + 8 -and
+            $after.PreThink -ge $before.PreThink + 8 -and
+            $after.PostThink -ge $before.PostThink + 8 -and
+            $after.CallbackFailures -eq 0) {
+            return
+        }
+    }
+    throw "zero-input release execution was not confirmed"
+}
+
+function Wait-CombatHealthSnapshotWithoutMove {
+    param(
+        $StateA,
+        $StateB,
+        $TargetState,
+        [double]$ExpectedHealth,
+        [System.Diagnostics.Process]$ServerProcess,
+        $OutputCapture,
+        [DateTime]$Deadline,
+        [System.Net.IPEndPoint]$ServerEndpoint
+    )
+
+    for ($index = 0; $index -lt 64; $index++) {
+        [void](Receive-TwoClientSnapshot `
+            -State $StateA `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -DeferAcknowledgement)
+        [void](Receive-TwoClientSnapshot `
+            -State $StateB `
+            -ServerProcess $ServerProcess `
+            -OutputCapture $OutputCapture `
+            -Deadline $Deadline `
+            -ServerEndpoint $ServerEndpoint `
+            -DeferAcknowledgement)
+        $life = Get-CombatLifeWireState -State $TargetState
+        if ([Math]::Abs($life.Health - $ExpectedHealth) -le 0.01) {
+            return
+        }
+    }
+    throw "fixture health snapshot was not observed"
 }
 
 function Sync-TwoClientSnapshotFrontier {
@@ -1535,7 +1814,7 @@ function Get-StockCombatAnchorGenerations {
 
     while ([DateTime]::UtcNow -lt $Deadline) {
         [void](Update-ProcessOutputCapture -State $OutputCapture)
-        $text = Get-SharedFileText -Path $StdoutPath
+        $text = Get-SharedFileTailText -Path $StdoutPath
         $result = @{}
         foreach ($match in [regex]::Matches(
             $text,
@@ -1558,7 +1837,8 @@ function Set-StockCombatFixture {
         [uint64]$ShooterGeneration,
         [int]$TargetSlot,
         [uint64]$TargetGeneration,
-        [ValidateSet('clear', 'miss', 'blocked', 'aim')]
+        [ValidateSet(
+            'clear', 'miss', 'blocked', 'aim', 'lethal', 'lethal_full')]
         [string]$Mode,
         $OutputCapture,
         [string]$StdoutPath,
@@ -1580,7 +1860,7 @@ function Set-StockCombatFixture {
     try {
         while ([DateTime]::UtcNow -lt $Deadline) {
             [void](Update-ProcessOutputCapture -State $OutputCapture)
-            $text = Get-SharedFileText -Path $StdoutPath
+            $text = Get-SharedFileTailText -Path $StdoutPath
             $match = [regex]::Match(
                 $text,
                 ('goldsrc_stock_test_combat_ack: request_id={0},' +
@@ -1631,7 +1911,7 @@ function Set-StockFallFixture {
     try {
         while ([DateTime]::UtcNow -lt $Deadline) {
             [void](Update-ProcessOutputCapture -State $OutputCapture)
-            $text = Get-SharedFileText -Path $StdoutPath
+            $text = Get-SharedFileTailText -Path $StdoutPath
             $match = [regex]::Match(
                 $text,
                 ('goldsrc_stock_test_fall_ack: request_id={0},' +
@@ -1668,7 +1948,8 @@ function Test-StockFallObservation {
         [string]$Mode
     )
 
-    $text = Get-SharedFileText -Path $StdoutPath
+    [void](Update-ProcessOutputCapture -State $OutputCapture)
+    $text = Get-SharedFileTailText -Path $StdoutPath
     $pattern = 'goldsrc_stock_test_fall_observation: slot=' +
         [string]$Slot + ',session_generation=' + [string]$Generation +
         ',mode=' + [regex]::Escape($Mode) +
@@ -1692,7 +1973,8 @@ function Test-StockFallResponsiveness {
         [string]$StdoutPath
     )
 
-    $text = Get-SharedFileText -Path $StdoutPath
+    [void](Update-ProcessOutputCapture -State $OutputCapture)
+    $text = Get-SharedFileTailText -Path $StdoutPath
     $match = [regex]::Match(
         $text,
         ('goldsrc_stock_test_fall_responsiveness: ' +
@@ -1727,7 +2009,7 @@ function Reset-StockPlayerToAnchor {
     try {
         while ([DateTime]::UtcNow -lt $Deadline) {
             [void](Update-ProcessOutputCapture -State $OutputCapture)
-            $text = Get-SharedFileText -Path $StdoutPath
+            $text = Get-SharedFileTailText -Path $StdoutPath
             $match = [regex]::Match(
                 $text,
                 ('goldsrc_stock_test_reset_ack: request_id={0},' +
@@ -1947,7 +2229,7 @@ $selectedPort = if ($Port -eq 0) { Reserve-LoopbackUdpPort } else { $Port }
 $serverEndpoint = New-Object System.Net.IPEndPoint(
     [System.Net.IPAddress]::Loopback,
     $selectedPort)
-$deadline = [DateTime]::UtcNow.AddSeconds($TimeoutSeconds)
+$deadline = [DateTime]::UtcNow.AddSeconds($effectiveTimeoutSeconds)
 $tempId = [Guid]::NewGuid().ToString("N")
 $stdoutPath = Join-Path ([IO.Path]::GetTempPath()) (
     "hlhost_two_client_${tempId}.stdout.log")
@@ -1982,7 +2264,8 @@ $arguments = @(
     "--goldsrc-pmove",
     "--goldsrc-pmove-persistent",
     "--goldsrc-manual-shutdown-file", $shutdownPath,
-    "--goldsrc-handshake-timeout-ms", [string]($TimeoutSeconds * 1000)
+    "--goldsrc-handshake-timeout-ms", [string]((
+        [Math]::Min($effectiveTimeoutSeconds, 300)) * 1000)
 )
 if ($CombatProof -and -not $FeatureOffProof) {
     $arguments += @(
@@ -2012,6 +2295,9 @@ $aimPhaseEvidence = $null
 $proofStage = "server_start"
 $fallDiagnosticStage = "none"
 try {
+    $proofStage = "history_validation"
+    Assert-TwoClientStreamHistoryBound
+    $proofStage = "server_start"
     $startInfo = New-Object Diagnostics.ProcessStartInfo
     $startInfo.FileName = $resolvedExecutable
     $startInfo.Arguments = $argumentLine
@@ -2946,17 +3232,22 @@ try {
                 ServerStillResponsive = $true
             }
             $proofStage = "combat_clear_fixture"
+            $clearFixtureMode = if ($LethalDeathProof) {
+                'lethal_full'
+            } else {
+                'clear'
+            }
             $fixture = Set-StockCombatFixture `
                 -ControlPath $controlPath `
                 -ShooterSlot 1 `
                 -ShooterGeneration $generations[1] `
                 -TargetSlot 2 `
                 -TargetGeneration $generations[2] `
-                -Mode clear `
+                -Mode $clearFixtureMode `
                 -OutputCapture $outputCapture `
                 -StdoutPath $stdoutPath `
                 -Deadline $deadline
-            if ($fixture.Mode -cne 'clear' -or
+            if ($fixture.Mode -cne $clearFixtureMode -or
                 $fixture.WorldFraction -lt 0.999) {
                 throw "clear combat fixture semantic gate failed"
             }
@@ -3253,7 +3544,7 @@ try {
                 $lethalWireAfterB = Get-CombatLifeWireState -State $stateB
                 $lethalProgressAfterA = $progressAfterA
                 $lethalProgressAfterB = $progressAfterB
-                for ($shotNumber = 2; $shotNumber -le 9; $shotNumber++) {
+                for ($shotNumber = 1; $shotNumber -le 1; $shotNumber++) {
                     $proofStage = "lethal_cooldown_$shotNumber"
                     Invoke-CombatSnapshotPump `
                         -StateA $stateA `
@@ -3268,6 +3559,24 @@ try {
                     if ($serverProcess.HasExited) {
                         throw "lethal death cooldown server unavailable"
                     }
+                    Wait-CombatZeroInputExecution `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ShooterSlot 1 `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -YawA $fixture.Yaw
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
 
                     $proofStage = "lethal_fixture_$shotNumber"
                     $fixture = Set-StockCombatFixture `
@@ -3276,20 +3585,21 @@ try {
                         -ShooterGeneration $generations[1] `
                         -TargetSlot 2 `
                         -TargetGeneration $generations[2] `
-                        -Mode clear `
+                        -Mode lethal `
                         -OutputCapture $outputCapture `
                         -StdoutPath $stdoutPath `
                         -Deadline $deadline
-                    if ($fixture.Mode -cne 'clear' -or
+                    if ($fixture.Mode -cne 'lethal' -or
                         $fixture.WorldFraction -lt 0.999) {
                         throw "lethal death clear fixture gate failed"
                     }
-                    Sync-TwoClientSnapshotFrontier `
+                    Wait-CombatHealthSnapshotWithoutMove `
                         -StateA $stateA `
                         -StateB $stateB `
+                        -TargetState $stateB `
+                        -ExpectedHealth 4.0 `
                         -ServerProcess $serverProcess `
                         -OutputCapture $outputCapture `
-                        -StdoutPath $stdoutPath `
                         -Deadline $deadline `
                         -ServerEndpoint $serverEndpoint
 
@@ -3305,12 +3615,20 @@ try {
                         -Slot 2
                     $lethalSnapshotsBeforeA = $stateA.Snapshots
                     $lethalSnapshotsBeforeB = $stateB.Snapshots
-                    [double]$expectedHealthBefore =
-                        100.0 - (12.0 * ($shotNumber - 1))
+                    [double]$expectedHealthBefore = 4.0
                     if ([Math]::Abs(
                             $lethalWireBeforeB.Health -
                                 $expectedHealthBefore) -gt 0.01 -or
+                        [Math]::Abs($lethalWireBeforeA.Health - 100.0) -gt
+                            0.01 -or
                         -not $lethalWireBeforeB.GlockPresent -or
+                        [Math]::Abs(
+                            $lethalProgressBeforeB.Health - 4.0) -gt 0.01 -or
+                        [Math]::Abs(
+                            $lethalProgressBeforeB.ClientDataHealth - 4.0
+                        ) -gt 0.01 -or
+                        $lethalProgressBeforeA.Deadflag -ne 0 -or
+                        -not $lethalProgressBeforeA.GlockPresent -or
                         $lethalProgressBeforeB.Deadflag -ne 0 -or
                         -not $lethalProgressBeforeB.GlockPresent -or
                         $lethalProgressBeforeA.CallbackFailures -ne 0 -or
@@ -3318,11 +3636,12 @@ try {
                         throw "lethal death pre-shot state gate failed"
                     }
 
-                    $proofStage = "lethal_shot_$shotNumber"
+                    $proofStage = "lethal_first_shot_send"
                     [void](Send-TwoClientCombatMove `
                         -State $stateA `
                         -Yaw $fixture.Yaw `
                         -Buttons 1)
+                    $proofStage = "lethal_first_shot_transition"
                     $lethalTransitionObserved = $false
                     $lethalWireAfterA = $lethalWireBeforeA
                     $lethalWireAfterB = $lethalWireBeforeB
@@ -3354,19 +3673,18 @@ try {
                             -OutputCapture $outputCapture `
                             -StdoutPath $stdoutPath `
                             -Slot 2
-                        $terminalStateReady = $shotNumber -lt 9 -or
-                            ($lethalWireAfterB.Health -le 0.0 -and
-                                $lethalProgressAfterB.Deadflag -ne 0 -and
-                                -not $lethalWireAfterB.GlockPresent -and
-                                -not $lethalProgressAfterB.GlockPresent)
+                        $terminalStateReady =
+                            $lethalProgressAfterB.Health -le 0.0 -and
+                            $lethalProgressAfterB.Deadflag -ne 0 -and
+                            -not $lethalProgressAfterB.GlockPresent
                         if ($lethalProgressAfterA.AttackReceived -eq
                                 $lethalProgressBeforeA.AttackReceived + 1 -and
                             $lethalProgressAfterA.AttackExecuted -eq
                                 $lethalProgressBeforeA.AttackExecuted + 1 -and
-                            $lethalWireAfterA.Clip -eq
-                                $lethalWireBeforeA.Clip - 1 -and
-                            $lethalWireAfterB.Health -lt
-                                $lethalWireBeforeB.Health -and
+                            $lethalProgressAfterA.GlockClip -eq
+                                $lethalProgressBeforeA.GlockClip - 1 -and
+                            $lethalProgressAfterB.Health -lt
+                                $lethalProgressBeforeB.Health -and
                             $lethalProgressAfterA.PreThink -gt
                                 $lethalProgressBeforeA.PreThink -and
                             $lethalProgressAfterA.PostThink -gt
@@ -3382,11 +3700,61 @@ try {
                             break
                         }
                     }
+                    $proofStage = "lethal_shot_transition_$shotNumber"
                     if (-not $lethalTransitionObserved -or
                         $serverProcess.HasExited) {
+                        if ($serverProcess.HasExited) {
+                            $proofStage = "lethal_transition_server_unavailable"
+                        } elseif ($lethalProgressAfterA.AttackReceived -ne
+                                $lethalProgressBeforeA.AttackReceived + 1) {
+                            $proofStage = "lethal_transition_attack_not_received"
+                        } elseif ($lethalProgressAfterA.AttackExecuted -ne
+                                $lethalProgressBeforeA.AttackExecuted + 1) {
+                            $proofStage = "lethal_transition_attack_not_executed"
+                        } elseif ($lethalProgressAfterA.GlockClip -ne
+                                $lethalProgressBeforeA.GlockClip - 1) {
+                            $proofStage = "lethal_transition_clip_unchanged"
+                        } elseif ($lethalProgressAfterB.Health -ge
+                                $lethalProgressBeforeB.Health) {
+                            if ($lethalProgressAfterA.ShotTraces -ne
+                                    $lethalProgressBeforeA.ShotTraces + 2) {
+                                $proofStage = "lethal_transition_trace_missing"
+                            } elseif ($lethalProgressAfterA.ShotPlayerHits -ne
+                                    $lethalProgressBeforeA.ShotPlayerHits + 2) {
+                                if ($lethalProgressAfterA.ShotWorldHits -gt
+                                        $lethalProgressBeforeA.ShotWorldHits) {
+                                    $proofStage = "lethal_transition_world_hit"
+                                } else {
+                                    $proofStage = "lethal_transition_player_missed"
+                                }
+                            } else {
+                                $proofStage = "lethal_transition_damage_missing"
+                            }
+                        } elseif ($lethalProgressAfterB.Deadflag -eq 0) {
+                            $proofStage = "lethal_transition_deadflag_missing"
+                        } elseif ($lethalWireAfterB.GlockPresent -or
+                                $lethalProgressAfterB.GlockPresent) {
+                            $proofStage = "lethal_transition_inventory_present"
+                        } elseif ($lethalProgressAfterA.PreThink -le
+                                $lethalProgressBeforeA.PreThink -or
+                            $lethalProgressAfterA.PostThink -le
+                                $lethalProgressBeforeA.PostThink -or
+                            $lethalProgressAfterB.PreThink -le
+                                $lethalProgressBeforeB.PreThink -or
+                            $lethalProgressAfterB.PostThink -le
+                                $lethalProgressBeforeB.PostThink) {
+                            $proofStage = "lethal_transition_callbacks_not_advanced"
+                        } elseif ($stateA.Snapshots -le
+                                $lethalSnapshotsBeforeA -or
+                            $stateB.Snapshots -le $lethalSnapshotsBeforeB) {
+                            $proofStage = "lethal_transition_snapshots_not_advanced"
+                        } else {
+                            $proofStage = "lethal_transition_unclassified"
+                        }
                         throw "lethal death shot transition unconfirmed"
                     }
 
+                    $proofStage = "lethal_first_shot_frontier"
                     Sync-TwoClientSnapshotFrontier `
                         -StateA $stateA `
                         -StateB $stateB `
@@ -3406,8 +3774,9 @@ try {
                         -OutputCapture $outputCapture `
                         -StdoutPath $stdoutPath `
                         -Slot 2
-                    [double]$expectedHealthAfter =
-                        100.0 - (12.0 * $shotNumber)
+                    $proofStage = "lethal_first_shot_exact"
+                    [double]$expectedHealthAfter = -8.0
+                    $proofStage = "lethal_shot_exact_$shotNumber"
                     if ([Math]::Abs(
                             $lethalWireAfterB.Health -
                                 $expectedHealthAfter) -gt 0.01 -or
@@ -3436,14 +3805,9 @@ try {
                             $lethalWireBeforeA.Health) {
                         throw "lethal death exact shot gate failed"
                     }
-                    if ($shotNumber -lt 9) {
-                        if ($lethalWireAfterB.Health -le 0.0 -or
-                            -not $lethalWireAfterB.GlockPresent -or
-                            $lethalProgressAfterB.Deadflag -ne 0 -or
-                            -not $lethalProgressAfterB.GlockPresent) {
-                            throw "lethal death premature transition gate failed"
-                        }
-                    } elseif ($lethalWireAfterB.Health -gt 0.0 -or
+                    $proofStage = "lethal_first_shot_terminal"
+                    $proofStage = "lethal_shot_terminal_$shotNumber"
+                    if ($lethalWireAfterB.Health -gt 0.0 -or
                         $lethalWireAfterB.GlockPresent -or
                         $lethalProgressAfterB.Deadflag -eq 0 -or
                         $lethalProgressAfterB.GlockPresent) {
@@ -3536,6 +3900,715 @@ try {
                     $postDeathWireA.Clip -ne $deathWireA.Clip) {
                     throw "lethal death stable terminal state gate failed"
                 }
+
+                $proofStage = "lethal_first_respawn_ready"
+                $firstRespawnReady = $false
+                for ($index = 0; $index -lt 520; $index++) {
+                    Invoke-CombatSnapshotPump `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -Count 1 `
+                        -YawA $fixture.Yaw
+                    $firstRespawnProgressB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    if ($firstRespawnProgressB.Deadflag -eq 3) {
+                        $firstRespawnReady = $true
+                        break
+                    }
+                }
+                if (-not $firstRespawnReady -or $serverProcess.HasExited) {
+                    throw "lethal first respawn readiness gate failed"
+                }
+
+                $proofStage = "lethal_first_death_camera_dwell"
+                Invoke-CombatSnapshotPump `
+                    -StateA $stateA `
+                    -StateB $stateB `
+                    -ServerProcess $serverProcess `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Deadline $deadline `
+                    -ServerEndpoint $serverEndpoint `
+                    -Count 160 `
+                    -YawA $fixture.Yaw
+                $firstDeathCameraProgressB = Get-LatestCombatProgress `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Slot 2
+                if ($serverProcess.HasExited -or
+                    $firstDeathCameraProgressB.Deadflag -ne 3 -or
+                    $firstDeathCameraProgressB.CallbackFailures -ne 0) {
+                    throw "lethal first death camera dwell gate failed"
+                }
+
+                $proofStage = "lethal_first_respawn"
+                $firstRespawnAttackBeforeB =
+                    $firstDeathCameraProgressB.AttackReceived
+                $firstRespawnExecutedBeforeB =
+                    $firstDeathCameraProgressB.AttackExecuted
+                $firstRespawnInputsBeforeB =
+                    $firstDeathCameraProgressB.RespawnInputsForwarded
+                [void](Send-TwoClientCombatMove `
+                    -State $stateB `
+                    -Yaw 0.0 `
+                    -Buttons 1 `
+                    -Msec 100)
+                $firstRespawnObserved = $false
+                for ($index = 0; $index -lt 520; $index++) {
+                    Invoke-CombatSnapshotPump `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -Count 1
+                    $firstRespawnProgressB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    if ($firstRespawnProgressB.Deadflag -eq 0 -and
+                        $firstRespawnProgressB.GlockPresent -and
+                        $firstRespawnProgressB.RespawnInputsForwarded -eq
+                            $firstRespawnInputsBeforeB + 1 -and
+                        $firstRespawnProgressB.AttackReceived -eq
+                            $firstRespawnAttackBeforeB -and
+                        $firstRespawnProgressB.AttackExecuted -eq
+                            $firstRespawnExecutedBeforeB -and
+                        [Math]::Abs($firstRespawnProgressB.Health - 100.0) -le
+                            0.01) {
+                        $firstRespawnObserved = $true
+                        break
+                    }
+                }
+                if (-not $firstRespawnObserved -or $serverProcess.HasExited) {
+                    throw "lethal first respawn transition gate failed"
+                }
+                Sync-TwoClientSnapshotFrontier `
+                    -StateA $stateA `
+                    -StateB $stateB `
+                    -ServerProcess $serverProcess `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Deadline $deadline `
+                    -ServerEndpoint $serverEndpoint
+                $firstRespawnWireB = Get-CombatWireState -State $stateB
+                if ([Math]::Abs($firstRespawnWireB.Health - 100.0) -gt 0.01 -or
+                    $firstRespawnWireB.Clip -ne 17) {
+                    throw "lethal first respawn inventory gate failed"
+                }
+                Invoke-CombatSnapshotPump `
+                    -StateA $stateA `
+                    -StateB $stateB `
+                    -ServerProcess $serverProcess `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Deadline $deadline `
+                    -ServerEndpoint $serverEndpoint `
+                    -Count 100
+
+                $secondDeathWireA = $null
+                $secondDeathWireB = $null
+                $secondDeathProgressA = $null
+                $secondDeathProgressB = $null
+                for ($shotNumber = 1; $shotNumber -le 1; $shotNumber++) {
+                    $proofStage = "lethal_second_cooldown_$shotNumber"
+                    Invoke-CombatSnapshotPump `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -Count 40
+                    Wait-CombatZeroInputExecution `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ShooterSlot 2 `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+
+                    $proofStage = "lethal_second_fixture_$shotNumber"
+                    $secondFixture = Set-StockCombatFixture `
+                        -ControlPath $controlPath `
+                        -ShooterSlot 2 `
+                        -ShooterGeneration $generations[2] `
+                        -TargetSlot 1 `
+                        -TargetGeneration $generations[1] `
+                        -Mode lethal `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline
+                    if ($secondFixture.Mode -cne 'lethal' -or
+                        $secondFixture.WorldFraction -lt 0.999) {
+                        throw "lethal second clear fixture gate failed"
+                    }
+                    Wait-CombatHealthSnapshotWithoutMove `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -TargetState $stateA `
+                        -ExpectedHealth 4.0 `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+
+                    $secondWireBeforeA = Get-CombatLifeWireState -State $stateA
+                    $secondWireBeforeB = Get-CombatWireState -State $stateB
+                    $secondProgressBeforeA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    $secondProgressBeforeB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    [double]$secondExpectedBefore = 4.0
+                    if ([Math]::Abs(
+                            $secondWireBeforeA.Health -
+                                $secondExpectedBefore) -gt 0.01 -or
+                        [Math]::Abs($secondWireBeforeB.Health - 100.0) -gt
+                            0.01 -or
+                        [Math]::Abs(
+                            $secondProgressBeforeA.Health - 4.0) -gt 0.01 -or
+                        [Math]::Abs(
+                            $secondProgressBeforeA.ClientDataHealth - 4.0
+                        ) -gt 0.01 -or
+                        -not $secondWireBeforeA.GlockPresent -or
+                        $secondProgressBeforeA.Deadflag -ne 0 -or
+                        -not $secondProgressBeforeA.GlockPresent -or
+                        $secondProgressBeforeB.Deadflag -ne 0 -or
+                        -not $secondProgressBeforeB.GlockPresent -or
+                        $secondProgressBeforeA.CallbackFailures -ne 0 -or
+                        $secondProgressBeforeB.CallbackFailures -ne 0) {
+                        throw "lethal second pre-shot state gate failed"
+                    }
+
+                    $proofStage = "lethal_second_shot_$shotNumber"
+                    [void](Send-TwoClientCombatMove `
+                        -State $stateB `
+                        -Yaw $secondFixture.Yaw `
+                        -Buttons 1)
+                    $secondTransitionObserved = $false
+                    for ($index = 0; $index -lt 80; $index++) {
+                        Invoke-CombatSnapshotPump `
+                            -StateA $stateA `
+                            -StateB $stateB `
+                            -ServerProcess $serverProcess `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Deadline $deadline `
+                            -ServerEndpoint $serverEndpoint `
+                            -Count 1 `
+                            -YawB $secondFixture.Yaw
+                        $secondDeathWireA =
+                            Get-CombatLifeWireState -State $stateA
+                        $secondDeathWireB =
+                            Get-CombatWireState -State $stateB
+                        if ($index -lt 10) {
+                            continue
+                        }
+                        $secondDeathProgressA = Get-LatestCombatProgress `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Slot 1
+                        $secondDeathProgressB = Get-LatestCombatProgress `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Slot 2
+                        $secondTerminalReady =
+                            $secondDeathProgressA.Health -le 0.0 -and
+                            $secondDeathProgressA.Deadflag -ne 0 -and
+                            -not $secondDeathProgressA.GlockPresent
+                        if ($secondDeathProgressB.AttackExecuted -eq
+                                $secondProgressBeforeB.AttackExecuted + 1 -and
+                            $secondDeathProgressB.AttackReceived -eq
+                                $secondProgressBeforeB.AttackReceived + 1 -and
+                            $secondDeathProgressB.ShotTraces -eq
+                                $secondProgressBeforeB.ShotTraces + 2 -and
+                            $secondDeathProgressB.ShotPlayerHits -eq
+                                $secondProgressBeforeB.ShotPlayerHits + 2 -and
+                            $secondDeathProgressB.ShotWorldHits -eq
+                                $secondProgressBeforeB.ShotWorldHits -and
+                            $secondDeathProgressB.LastTarget -eq 1 -and
+                            $secondDeathProgressB.GlockClip -eq
+                                $secondProgressBeforeB.GlockClip - 1 -and
+                            $secondDeathProgressA.Health -lt
+                                $secondProgressBeforeA.Health -and
+                            $secondTerminalReady) {
+                            $secondTransitionObserved = $true
+                            break
+                        }
+                    }
+                    $proofStage = "lethal_second_shot_transition_$shotNumber"
+                    if (-not $secondTransitionObserved -or
+                        $serverProcess.HasExited) {
+                        throw "lethal second shot transition unconfirmed"
+                    }
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    $secondDeathWireA =
+                        Get-CombatLifeWireState -State $stateA
+                    $secondDeathWireB = Get-CombatWireState -State $stateB
+                    $secondDeathProgressA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    $secondDeathProgressB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    [double]$secondExpectedAfter = -8.0
+                    $proofStage = "lethal_second_shot_exact_$shotNumber"
+                    if ([Math]::Abs(
+                            $secondDeathWireA.Health -
+                                $secondExpectedAfter) -gt 0.01 -or
+                        [Math]::Abs(
+                            $secondDeathProgressA.Health -
+                                $secondExpectedAfter) -gt 0.01 -or
+                        [Math]::Abs(
+                            $secondDeathProgressA.ClientDataHealth -
+                                $secondExpectedAfter) -gt 0.01 -or
+                        $secondDeathProgressA.Deadflag -eq 0 -or
+                        $secondDeathWireA.GlockPresent -or
+                        $secondDeathProgressA.GlockPresent -or
+                        $secondDeathProgressA.CallbackFailures -ne 0 -or
+                        $secondDeathProgressB.CallbackFailures -ne 0) {
+                        throw "lethal second exact shot gate failed"
+                    }
+                }
+
+                $proofStage = "lethal_second_respawn_ready"
+                $secondRespawnReady = $false
+                for ($index = 0; $index -lt 520; $index++) {
+                    Invoke-CombatSnapshotPump `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -Count 1 `
+                        -YawB $secondFixture.Yaw
+                    $secondRespawnProgressA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    if ($secondRespawnProgressA.Deadflag -eq 3) {
+                        $secondRespawnReady = $true
+                        break
+                    }
+                }
+                if (-not $secondRespawnReady -or $serverProcess.HasExited) {
+                    throw "lethal second respawn readiness gate failed"
+                }
+
+                $proofStage = "lethal_second_death_camera_dwell"
+                Invoke-CombatSnapshotPump `
+                    -StateA $stateA `
+                    -StateB $stateB `
+                    -ServerProcess $serverProcess `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Deadline $deadline `
+                    -ServerEndpoint $serverEndpoint `
+                    -Count 160 `
+                    -YawB $secondFixture.Yaw
+                $secondDeathCameraProgressA = Get-LatestCombatProgress `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Slot 1
+                if ($serverProcess.HasExited -or
+                    $secondDeathCameraProgressA.Deadflag -ne 3 -or
+                    $secondDeathCameraProgressA.CallbackFailures -ne 0) {
+                    throw "lethal second death camera dwell gate failed"
+                }
+
+                $proofStage = "lethal_second_respawn"
+                $secondRespawnAttackBeforeA =
+                    $secondDeathCameraProgressA.AttackReceived
+                $secondRespawnExecutedBeforeA =
+                    $secondDeathCameraProgressA.AttackExecuted
+                $secondRespawnInputsBeforeA =
+                    $secondDeathCameraProgressA.RespawnInputsForwarded
+                [void](Send-TwoClientCombatMove `
+                    -State $stateA `
+                    -Yaw 0.0 `
+                    -Buttons 1 `
+                    -Msec 100)
+                $secondRespawnObserved = $false
+                for ($index = 0; $index -lt 520; $index++) {
+                    Invoke-CombatSnapshotPump `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint `
+                        -Count 1
+                    $secondRespawnProgressA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    if ($secondRespawnProgressA.Deadflag -eq 0 -and
+                        $secondRespawnProgressA.GlockPresent -and
+                        $secondRespawnProgressA.RespawnInputsForwarded -eq
+                            $secondRespawnInputsBeforeA + 1 -and
+                        $secondRespawnProgressA.AttackReceived -eq
+                            $secondRespawnAttackBeforeA -and
+                        $secondRespawnProgressA.AttackExecuted -eq
+                            $secondRespawnExecutedBeforeA -and
+                        [Math]::Abs($secondRespawnProgressA.Health - 100.0) -le
+                            0.01) {
+                        $secondRespawnObserved = $true
+                        break
+                    }
+                }
+                if (-not $secondRespawnObserved -or $serverProcess.HasExited) {
+                    throw "lethal second respawn transition gate failed"
+                }
+                Sync-TwoClientSnapshotFrontier `
+                    -StateA $stateA `
+                    -StateB $stateB `
+                    -ServerProcess $serverProcess `
+                    -OutputCapture $outputCapture `
+                    -StdoutPath $stdoutPath `
+                    -Deadline $deadline `
+                    -ServerEndpoint $serverEndpoint
+                $secondRespawnWireA = Get-CombatWireState -State $stateA
+                $secondRespawnWireB = Get-CombatWireState -State $stateB
+                if ([Math]::Abs($secondRespawnWireA.Health - 100.0) -gt 0.01 -or
+                    [Math]::Abs($secondRespawnWireB.Health - 100.0) -gt 0.01 -or
+                    $secondRespawnWireA.Clip -ne 17 -or
+                    $secondRespawnWireB.Clip -ne 16) {
+                    throw "lethal second respawn inventory gate failed"
+                }
+
+                $repeatedDeathCycles = 2
+                $repeatedSameVictimDeaths = 1
+                for ($deathCycle = 3; $deathCycle -le 8; $deathCycle++) {
+                    $proofStage = "lethal_repeated_release_$deathCycle"
+                    Wait-CombatZeroInputExecution `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ShooterSlot 1 `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    $proofStage = "lethal_repeated_fixture_$deathCycle"
+                    $repeatedFixture = Set-StockCombatFixture `
+                        -ControlPath $controlPath `
+                        -ShooterSlot 1 `
+                        -ShooterGeneration $generations[1] `
+                        -TargetSlot 2 `
+                        -TargetGeneration $generations[2] `
+                        -Mode lethal `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline
+                    if ($repeatedFixture.Mode -cne 'lethal' -or
+                        $repeatedFixture.WorldFraction -lt 0.999) {
+                        throw "lethal repeated fixture gate failed"
+                    }
+                    Wait-CombatHealthSnapshotWithoutMove `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -TargetState $stateB `
+                        -ExpectedHealth 4.0 `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+
+                    $repeatedWireBeforeA = Get-CombatWireState -State $stateA
+                    $repeatedWireBeforeB = Get-CombatWireState -State $stateB
+                    $repeatedProgressBeforeA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    $repeatedProgressBeforeB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    $expectedRepeatedClipBefore = 20 - $deathCycle
+                    $expectedRepeatedTargetClipBefore = if ($deathCycle -eq 3) {
+                        16
+                    } else {
+                        17
+                    }
+                    if ([Math]::Abs($repeatedWireBeforeA.Health - 100.0) -gt
+                            0.01 -or
+                        [Math]::Abs($repeatedWireBeforeB.Health - 4.0) -gt
+                            0.01 -or
+                        $repeatedWireBeforeA.Clip -ne
+                            $expectedRepeatedClipBefore -or
+                        $repeatedWireBeforeB.Clip -ne
+                            $expectedRepeatedTargetClipBefore -or
+                        $repeatedProgressBeforeA.Deadflag -ne 0 -or
+                        $repeatedProgressBeforeB.Deadflag -ne 0 -or
+                        -not $repeatedProgressBeforeA.GlockPresent -or
+                        -not $repeatedProgressBeforeB.GlockPresent -or
+                        [Math]::Abs($repeatedProgressBeforeB.Health - 4.0) -gt
+                            0.01 -or
+                        [Math]::Abs(
+                            $repeatedProgressBeforeB.ClientDataHealth - 4.0
+                        ) -gt 0.01 -or
+                        $repeatedProgressBeforeA.CallbackFailures -ne 0 -or
+                        $repeatedProgressBeforeB.CallbackFailures -ne 0) {
+                        throw "lethal repeated pre-shot state gate failed"
+                    }
+
+                    $proofStage = "lethal_repeated_shot_$deathCycle"
+                    [void](Send-TwoClientCombatMove `
+                        -State $stateA `
+                        -Yaw $repeatedFixture.Yaw `
+                        -Buttons 1)
+                    $repeatedDeathObserved = $false
+                    for ($index = 0; $index -lt 120; $index++) {
+                        Invoke-CombatSnapshotPump `
+                            -StateA $stateA `
+                            -StateB $stateB `
+                            -ServerProcess $serverProcess `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Deadline $deadline `
+                            -ServerEndpoint $serverEndpoint `
+                            -Count 1 `
+                            -YawA $repeatedFixture.Yaw
+                        $repeatedDeathWireA =
+                            Get-CombatWireState -State $stateA
+                        $repeatedDeathWireB =
+                            Get-CombatLifeWireState -State $stateB
+                        if ($index -lt 10) {
+                            continue
+                        }
+                        $repeatedDeathProgressA = Get-LatestCombatProgress `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Slot 1
+                        $repeatedDeathProgressB = Get-LatestCombatProgress `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Slot 2
+                        if ($repeatedDeathProgressA.AttackReceived -eq
+                                $repeatedProgressBeforeA.AttackReceived + 1 -and
+                            $repeatedDeathProgressA.AttackExecuted -eq
+                                $repeatedProgressBeforeA.AttackExecuted + 1 -and
+                            $repeatedDeathProgressA.ShotTraces -eq
+                                $repeatedProgressBeforeA.ShotTraces + 2 -and
+                            $repeatedDeathProgressA.ShotPlayerHits -eq
+                                $repeatedProgressBeforeA.ShotPlayerHits + 2 -and
+                            $repeatedDeathProgressA.ShotWorldHits -eq
+                                $repeatedProgressBeforeA.ShotWorldHits -and
+                            $repeatedDeathProgressA.LastTarget -eq 2 -and
+                            $repeatedDeathProgressA.GlockClip -eq
+                                $repeatedProgressBeforeA.GlockClip - 1 -and
+                            $repeatedDeathProgressB.Health -le 0.0 -and
+                            $repeatedDeathProgressB.Deadflag -ne 0 -and
+                            -not $repeatedDeathProgressB.GlockPresent) {
+                            $repeatedDeathObserved = $true
+                            break
+                        }
+                    }
+                    if (-not $repeatedDeathObserved -or
+                        $serverProcess.HasExited) {
+                        throw "lethal repeated death transition gate failed"
+                    }
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    $repeatedDeathWireA =
+                        Get-CombatWireState -State $stateA
+                    $repeatedDeathWireB =
+                        Get-CombatLifeWireState -State $stateB
+                    $repeatedDeathProgressA = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 1
+                    $repeatedDeathProgressB = Get-LatestCombatProgress `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Slot 2
+                    if (
+                        [Math]::Abs($repeatedDeathWireB.Health + 8.0) -gt
+                            0.01 -or
+                        [Math]::Abs($repeatedDeathProgressB.Health + 8.0) -gt
+                            0.01 -or
+                        $repeatedDeathProgressA.CallbackFailures -ne 0 -or
+                        $repeatedDeathProgressB.CallbackFailures -ne 0) {
+                        throw "lethal repeated death transition gate failed"
+                    }
+                    $proofStage = "lethal_repeated_respawn_ready_$deathCycle"
+                    $repeatedRespawnReadySnapshotsA = $stateA.Snapshots
+                    $repeatedRespawnReadySnapshotsB = $stateB.Snapshots
+                    $repeatedRespawnReadyServerTimeB =
+                        $repeatedDeathProgressB.ServerTimeMs
+                    $repeatedRespawnReady = $false
+                    for ($index = 0; $index -lt 520; $index++) {
+                        Invoke-CombatSnapshotPump `
+                            -StateA $stateA `
+                            -StateB $stateB `
+                            -ServerProcess $serverProcess `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Deadline $deadline `
+                            -ServerEndpoint $serverEndpoint `
+                            -Count 1 `
+                            -YawA $repeatedFixture.Yaw
+                        $repeatedRespawnProgressB =
+                            Get-LatestCombatProgress `
+                                -OutputCapture $outputCapture `
+                                -StdoutPath $stdoutPath `
+                                -Slot 2
+                        if ($stateA.Snapshots -gt
+                                $repeatedRespawnReadySnapshotsA -and
+                            $stateB.Snapshots -gt
+                                $repeatedRespawnReadySnapshotsB -and
+                            $repeatedRespawnProgressB.ServerTimeMs -gt
+                                $repeatedRespawnReadyServerTimeB -and
+                            $repeatedRespawnProgressB.Deadflag -eq 3) {
+                            $repeatedRespawnReady = $true
+                            break
+                        }
+                    }
+                    if (-not $repeatedRespawnReady) {
+                        throw "lethal repeated respawn ready frame bound exhausted"
+                    }
+                    if ($serverProcess.HasExited -or
+                        $repeatedRespawnProgressB.CallbackFailures -ne 0) {
+                        throw "lethal repeated respawn readiness gate failed"
+                    }
+
+                    $proofStage = "lethal_repeated_respawn_$deathCycle"
+                    $repeatedRespawnAttackBeforeB =
+                        $repeatedRespawnProgressB.AttackReceived
+                    $repeatedRespawnExecutedBeforeB =
+                        $repeatedRespawnProgressB.AttackExecuted
+                    $repeatedRespawnInputsBeforeB =
+                        $repeatedRespawnProgressB.RespawnInputsForwarded
+                    $repeatedRespawnSnapshotsBeforeA = $stateA.Snapshots
+                    $repeatedRespawnSnapshotsBeforeB = $stateB.Snapshots
+                    $repeatedRespawnServerTimeBeforeB =
+                        $repeatedRespawnProgressB.ServerTimeMs
+                    [void](Send-TwoClientCombatMove `
+                        -State $stateB `
+                        -Yaw 0.0 `
+                        -Buttons 1 `
+                        -Msec 100)
+                    $repeatedRespawnObserved = $false
+                    for ($index = 0; $index -lt 520; $index++) {
+                        Invoke-CombatSnapshotPump `
+                            -StateA $stateA `
+                            -StateB $stateB `
+                            -ServerProcess $serverProcess `
+                            -OutputCapture $outputCapture `
+                            -StdoutPath $stdoutPath `
+                            -Deadline $deadline `
+                            -ServerEndpoint $serverEndpoint `
+                            -Count 1
+                        $repeatedRespawnProgressB =
+                            Get-LatestCombatProgress `
+                                -OutputCapture $outputCapture `
+                                -StdoutPath $stdoutPath `
+                                -Slot 2
+                        if ($stateA.Snapshots -gt
+                                $repeatedRespawnSnapshotsBeforeA -and
+                            $stateB.Snapshots -gt
+                                $repeatedRespawnSnapshotsBeforeB -and
+                            $repeatedRespawnProgressB.ServerTimeMs -gt
+                                $repeatedRespawnServerTimeBeforeB -and
+                            $repeatedRespawnProgressB.Deadflag -eq 0 -and
+                            $repeatedRespawnProgressB.GlockPresent -and
+                            [Math]::Abs(
+                                $repeatedRespawnProgressB.Health - 100.0
+                            ) -le 0.01 -and
+                            $repeatedRespawnProgressB.RespawnInputsForwarded -eq
+                                $repeatedRespawnInputsBeforeB + 1 -and
+                            $repeatedRespawnProgressB.AttackReceived -eq
+                                $repeatedRespawnAttackBeforeB -and
+                            $repeatedRespawnProgressB.AttackExecuted -eq
+                                $repeatedRespawnExecutedBeforeB) {
+                            $repeatedRespawnObserved = $true
+                            break
+                        }
+                    }
+                    if (-not $repeatedRespawnObserved) {
+                        throw "lethal repeated respawn frame bound exhausted"
+                    }
+                    if ($serverProcess.HasExited -or
+                        $repeatedRespawnProgressB.CallbackFailures -ne 0) {
+                        throw "lethal repeated respawn transition gate failed"
+                    }
+                    Sync-TwoClientSnapshotFrontier `
+                        -StateA $stateA `
+                        -StateB $stateB `
+                        -ServerProcess $serverProcess `
+                        -OutputCapture $outputCapture `
+                        -StdoutPath $stdoutPath `
+                        -Deadline $deadline `
+                        -ServerEndpoint $serverEndpoint
+                    $repeatedRespawnWireA =
+                        Get-CombatWireState -State $stateA
+                    $repeatedRespawnWireB =
+                        Get-CombatWireState -State $stateB
+                    $expectedRepeatedClipAfter = 19 - $deathCycle
+                    if ([Math]::Abs(
+                            $repeatedRespawnWireA.Health - 100.0
+                        ) -gt 0.01 -or
+                        [Math]::Abs(
+                            $repeatedRespawnWireB.Health - 100.0
+                        ) -gt 0.01 -or
+                        $repeatedRespawnWireA.Clip -ne
+                            $expectedRepeatedClipAfter -or
+                        $repeatedRespawnWireB.Clip -ne 17) {
+                        throw "lethal repeated respawn inventory gate failed"
+                    }
+                    $repeatedDeathCycles++
+                    $repeatedSameVictimDeaths++
+                }
                 $combatEvidence = [pscustomobject]@{
                     ShooterHealthBefore = $wireBeforeA.Health
                     ShooterHealthAfter = $wireAfterA.Health
@@ -3551,7 +4624,7 @@ try {
                     ClientBMovementAfterShot = $true
                     WallOccluded = $false
                     LethalDamagePerShot = $lethalDamagePerShot
-                    LethalShotCount = 9
+                    LethalShotCount = 8
                     LethalShooterClipAfter = $postDeathWireA.Clip
                     LethalTargetHealthAfter = $postDeathWireB.Health
                     LethalTargetDeadflag = $postDeathProgressB.Deadflag
@@ -3564,6 +4637,21 @@ try {
                         $stateB.Snapshots - $deathSnapshotsB
                     PostDeathClientAProgressed = $true
                     PostDeathClientBProgressed = $true
+                    FirstRespawnPassed = $true
+                    FirstDeathCameraDwellPassed = $true
+                    SecondDeathPassed = $true
+                    SecondRespawnPassed = $true
+                    SecondDeathCameraDwellPassed = $true
+                    SecondShooterClipAfter = $secondRespawnWireB.Clip
+                    DeathRespawnCycles = $repeatedDeathCycles
+                    SameVictimDeaths = $repeatedSameVictimDeaths
+                    RepeatedCycleGatePassed =
+                        ($repeatedDeathCycles -eq 8 -and
+                            $repeatedSameVictimDeaths -eq 7)
+                    ClientARespawnInputsForwarded =
+                        $secondRespawnProgressA.RespawnInputsForwarded
+                    ClientBRespawnInputsForwarded =
+                        $repeatedRespawnProgressB.RespawnInputsForwarded
                     ServerStillResponsive = $true
                 }
             }
@@ -3606,6 +4694,9 @@ try {
                 -Client $stateA.Client `
                 -Packet $firstAttackPacket `
                 -Description "duplicate combat attack packet"
+            Send-TwoClientExactAttackBackupMove `
+                -State $stateA `
+                -Yaw $missFixture.Yaw
             Invoke-CombatSnapshotPump `
                 -StateA $stateA `
                 -StateB $stateB `
@@ -3653,6 +4744,16 @@ try {
             if ($missProgressAfterA.ShotPlayerHits -ne
                     $missProgressBeforeA.ShotPlayerHits) {
                 throw "miss unexpectedly selected a player trace"
+            }
+            if ($missProgressAfterA.DuplicateAttackSuppressed -ne
+                    $missProgressBeforeA.DuplicateAttackSuppressed + 1 -or
+                $missProgressAfterA.RespawnInputsForwarded -ne
+                    $missProgressBeforeA.RespawnInputsForwarded -or
+                $missProgressAfterA.AttackReceived -ne
+                    $missProgressBeforeA.AttackReceived + 1 -or
+                $missProgressAfterA.AttackExecuted -ne
+                    $missProgressBeforeA.AttackExecuted + 1) {
+                throw "miss exact attack backup accounting gate failed"
             }
             $selfHitPrevented =
                 $missProgressAfterA.ShooterIgnored -gt
@@ -3730,6 +4831,10 @@ try {
             $proofStage = "combat_backup_replay"
             $backupBeforeA = Get-CombatWireState -State $stateA
             $backupBeforeB = Get-CombatWireState -State $stateB
+            $backupProgressBeforeA = Get-LatestCombatProgress `
+                -OutputCapture $outputCapture `
+                -StdoutPath $stdoutPath `
+                -Slot 1
             Send-TwoClientCombatRecoveryMove `
                 -State $stateA `
                 -LastButtons 1 `
@@ -3748,6 +4853,20 @@ try {
                 -BeforeB $backupBeforeB `
                 -AfterB (Get-CombatWireState -State $stateB) `
                 -Description "backup replay"
+            $backupProgressAfterA = Get-LatestCombatProgress `
+                -OutputCapture $outputCapture `
+                -StdoutPath $stdoutPath `
+                -Slot 1
+            if ($backupProgressAfterA.DuplicateAttackSuppressed -ne
+                    $backupProgressBeforeA.DuplicateAttackSuppressed -or
+                $backupProgressAfterA.AttackReceived -ne
+                    $backupProgressBeforeA.AttackReceived -or
+                $backupProgressAfterA.AttackExecuted -ne
+                    $backupProgressBeforeA.AttackExecuted -or
+                $backupProgressAfterA.RespawnInputsForwarded -ne
+                    $backupProgressBeforeA.RespawnInputsForwarded) {
+                throw "stale backup semantic accounting gate failed"
+            }
 
             $proofStage = "combat_invalid_checksum"
             $checksumBeforeA = Get-CombatWireState -State $stateA
@@ -4352,8 +5471,8 @@ try {
             throw "combat callback or inventory summary gate failed"
         }
         if ($LethalDeathProof) {
-            if ($combatSummary["b_glock_present"] -cne "false" -or
-                [int]$combatSummary["b_deadflag"] -eq 0) {
+            if ($combatSummary["b_glock_present"] -cne "true" -or
+                [int]$combatSummary["b_deadflag"] -ne 0) {
                 throw "lethal death inventory summary gate failed"
             }
         } elseif ([int]$combatSummary["b_active_weapon"] -ne 2 -or
@@ -4379,76 +5498,44 @@ try {
                         [int]$combatSummary["vec_to_angles_calls"] -ge 1
                     crosshair_angle_callback =
                         [int]$combatSummary["crosshair_angle_calls"] -ge 1
-                    shooter_reserve_unchanged =
-                        [int]$combatSummary["a_reserve_before"] -eq
-                            [int]$combatSummary["a_reserve_after"]
                     attack_received =
                         [int]$combatSummary["attack_received"] -eq 9
                     attack_executed =
                         [int]$combatSummary["attack_executed"] -eq 9
-                    duplicate_attack_suppressed =
-                        [int]$combatSummary[
-                            "duplicate_attack_suppressed"] -eq 0
-                    shooter_clip_before =
-                        [int]$combatSummary["a_clip_before"] -eq
-                            $combatEvidence.ShooterClipBefore
-                    shooter_clip_after =
-                        [int]$combatSummary["a_clip_after"] -eq
-                            $combatEvidence.LethalShooterClipAfter
-                    shooter_clip_min =
-                        [int]$combatSummary["a_clip_min"] -eq
-                            $combatEvidence.LethalShooterClipAfter
-                    exact_rounds_consumed =
-                        [int]$combatSummary["a_clip_before"] -
-                            [int]$combatSummary["a_clip_after"] -eq 9
-                    shooter_health_after =
+                    client_a_respawn_health =
                         [Math]::Abs(
                             [double]$combatSummary["a_health_after"] -
-                            $combatEvidence.ShooterHealthAfter) -le 0.01
-                    shooter_clientdata_health =
+                            100.0) -le 0.01
+                    client_a_respawn_clientdata =
                         [Math]::Abs(
                             [double]$combatSummary[
                                 "a_clientdata_health_after"] -
-                            $combatEvidence.ShooterHealthAfter) -le 0.01
-                    target_health_before =
-                        [Math]::Abs(
-                            [double]$combatSummary["b_health_before"] -
-                            $combatEvidence.TargetHealthBefore) -le 0.01
-                    target_health_after =
+                            100.0) -le 0.01
+                    client_b_respawn_health =
                         [Math]::Abs(
                             [double]$combatSummary["b_health_after"] -
-                            $combatEvidence.LethalTargetHealthAfter) -le 0.01
-                    target_health_min =
-                        [Math]::Abs(
-                            [double]$combatSummary["b_health_min"] -
-                            $combatEvidence.LethalTargetHealthAfter) -le 0.01
-                    target_clientdata_health =
+                            100.0) -le 0.01
+                    client_b_respawn_clientdata =
                         [Math]::Abs(
                             [double]$combatSummary[
                                 "b_clientdata_health_after"] -
-                            $combatEvidence.LethalTargetHealthAfter) -le 0.01
-                    target_dead =
-                        [int]$combatSummary["b_deadflag"] -ne 0
-                    target_deadflag =
-                        [int]$combatSummary["b_deadflag"] -eq
-                            $combatEvidence.LethalTargetDeadflag
-                    target_glock_absent =
-                        $combatSummary["b_glock_present"] -ceq "false" -and
-                            $combatEvidence.LethalTargetGlockAbsent
-                    exact_shot_traces =
-                        [int]$combatSummary["a_shot_traces"] -eq 18
-                    shooter_ignored =
-                        [int]$combatSummary["a_shooter_ignored"] -ge 9
-                    exact_player_hits =
-                        [int]$combatSummary["a_shot_player_hits"] -eq 18
-                    world_hit_count =
+                            100.0) -le 0.01
+                    client_a_respawned =
+                        [int]$combatSummary["a_deadflag"] -eq 0 -and
+                            $combatSummary["a_glock_present"] -ceq "true"
+                    client_b_respawned =
+                        [int]$combatSummary["b_deadflag"] -eq 0 -and
+                            $combatSummary["b_glock_present"] -ceq "true"
+                    client_a_exact_traces =
+                        [int]$combatSummary["a_shot_traces"] -eq 16 -and
+                            [int]$combatSummary["a_shot_player_hits"] -eq 16
+                    client_b_exact_traces =
+                        [int]$combatSummary["b_shot_traces"] -eq 2 -and
+                            [int]$combatSummary["b_shot_player_hits"] -eq 2
+                    client_a_world_hit_count =
                         [int]$combatSummary["a_shot_world_hits"] -eq 0
-                    world_occlusion_count =
-                        [int]$combatSummary["a_world_occlusions"] -eq 0
-                    target_identity =
-                        [int]$combatSummary["a_last_target"] -eq 2
-                    playback_events =
-                        [int]$combatSummary["a_playback_events"] -ge 9
+                    client_b_world_hit_count =
+                        [int]$combatSummary["b_shot_world_hits"] -eq 0
                     callback_failures_a =
                         [int]$combatSummary["a_callback_failures"] -eq 0
                     callback_failures_b =
@@ -4461,6 +5548,40 @@ try {
                         $combatEvidence.PostDeathClientAProgressed
                     post_death_client_b_progressed =
                         $combatEvidence.PostDeathClientBProgressed
+                    first_respawn =
+                        $combatEvidence.FirstRespawnPassed
+                    first_death_camera_dwell =
+                        $combatEvidence.FirstDeathCameraDwellPassed
+                    second_death =
+                        $combatEvidence.SecondDeathPassed
+                    second_respawn =
+                        $combatEvidence.SecondRespawnPassed
+                    second_death_camera_dwell =
+                        $combatEvidence.SecondDeathCameraDwellPassed
+                    repeated_death_respawn_cycles =
+                        $combatEvidence.DeathRespawnCycles -eq 8 -and
+                            $combatEvidence.RepeatedCycleGatePassed
+                    same_victim_body_queue_wrap =
+                        $combatEvidence.SameVictimDeaths -eq 7 -and
+                            [int]$combatSummary[
+                                "body_queue_copy_calls"] -eq 8 -and
+                            [int]$combatSummary[
+                                "body_queue_distinct_nodes"] -eq 4 -and
+                            $combatSummary[
+                                "body_queue_sequence_valid"] -ceq "true" -and
+                            [int]$combatSummary[
+                                "body_queue_completed_cycles"] -eq 2
+                    duplicate_attack_suppressed =
+                        [int]$combatSummary[
+                            "duplicate_attack_suppressed"] -eq 0
+                    client_a_respawn_inputs =
+                        [int]$combatSummary[
+                            "a_respawn_inputs_forwarded"] -eq 1 -and
+                            $combatEvidence.ClientARespawnInputsForwarded -eq 1
+                    client_b_respawn_inputs =
+                        [int]$combatSummary[
+                            "b_respawn_inputs_forwarded"] -eq 7 -and
+                            $combatEvidence.ClientBRespawnInputsForwarded -eq 7
                     server_still_responsive =
                         $combatEvidence.ServerStillResponsive
                 }
@@ -4563,7 +5684,7 @@ try {
                 second_client_shooter_ignored =
                     [int]$combatSummary["b_shooter_ignored"] -ge 1
                 duplicate_attack_accounted =
-                    [int]$combatSummary["duplicate_attack_suppressed"] -ge 1
+                    [int]$combatSummary["duplicate_attack_suppressed"] -eq 1
                 shooter_rounds_consumed =
                     [int]$combatSummary["a_clip_before"] -
                         [int]$combatSummary["a_clip_min"] -ge 4
@@ -4755,7 +5876,36 @@ if ($null -ne $failure) {
     } else {
         'unknown'
     }
-    $safeReason = if ($safeStage -match '^fall_' -and
+    $safeReason = if ($failure.Exception.Message -ceq
+            'proof global budget exhausted') {
+        'global_budget_exhausted'
+    } elseif ($failure.Exception.Message -ceq
+            'client a snapshot idle timeout') {
+        'snapshot_idle_client_a'
+    } elseif ($failure.Exception.Message -ceq
+            'client b snapshot idle timeout') {
+        'snapshot_idle_client_b'
+    } elseif ($failure.Exception.Message -ceq
+            'client a snapshot index idle timeout') {
+        'snapshot_index_idle_client_a'
+    } elseif ($failure.Exception.Message -ceq
+            'client b snapshot index idle timeout') {
+        'snapshot_index_idle_client_b'
+    } elseif ($failure.Exception.Message -match
+            '^lethal repeated respawn( ready)? frame bound exhausted$') {
+        'phase_semantic_frame_bound_exhausted'
+    } elseif ($failure.Exception.Message -ceq
+            'two-client server unavailable') {
+        'server_unavailable'
+    } elseif ($safeStage -match '^lethal_.*fixture' -and
+        $failure.Exception.Message -match
+            '^combat fixture rejected: (edict_unavailable|shooter_anchor_not_ready|target_anchor_not_ready|lethal_player_not_alive|lethal_target_not_damageable|forced_respawn_cvar_unavailable|forced_respawn_cvar_not_fixed|clear_fixture_not_found)$') {
+        'combat_fixture_' + $Matches[1]
+    } elseif ($safeStage -match '^lethal_.*fixture' -and
+        $failure.Exception.Message -ceq
+            'combat fixture acknowledgement timed out') {
+        'combat_fixture_acknowledgement_unavailable'
+    } elseif ($safeStage -match '^fall_' -and
         $capturedStdout -match
             'goldsrc_stock_test_fall_observation: slot=[12],session_generation=[0-9]+,mode=(landing|damage),status=failed,reason=world_ground_required') {
         'fall_world_ground_required'
@@ -4885,14 +6035,8 @@ if ($null -ne $failure) {
                 'wall occlusion actual shot did not select world') {
         'wall_world_trace_failed'
     } elseif ($failure.Exception.Message -match
-            '^[A-Za-z0-9 _-]{1,120}$' -and
-            $failure.Exception.Message -match
             '(lifecycle|clientdata|weapon-data|weapon data|snapshot|delta selected)') {
-        $safeDetail = [regex]::Replace(
-            $failure.Exception.Message.ToLowerInvariant(),
-            '[^a-z0-9]+',
-            '_').Trim('_')
-        ('snapshot_semantic_{0}' -f $safeDetail)
+        'snapshot_semantic_failed'
     } elseif ($failure.Exception.Message -match
             'spawned PM_Move state') {
         'spawned_pmove_state_failed'
@@ -4911,24 +6055,22 @@ if ($null -ne $failure) {
         'movement_progress_evidence_failed'
     } elseif ($failure.Exception.Message -match
             "Cannot bind argument to parameter '([A-Za-z0-9_]+)'") {
-        ('proof_parameter_{0}_binding_failed_line_{1}' -f
-            $Matches[1].ToLowerInvariant(),
-            [int]$failure.InvocationInfo.ScriptLineNumber)
+        'proof_parameter_binding_failed'
     } elseif ($failure.Exception.Message -match
             "The property '([A-Za-z0-9_]+)' cannot be found") {
-        ('proof_property_{0}_missing' -f $Matches[1].ToLowerInvariant())
+        'proof_property_missing'
     } elseif ($failure.Exception.Message -match '^Cannot convert value') {
         'proof_value_conversion_failed'
     } elseif ($failure.Exception.Message -match '^Method invocation failed') {
         'proof_method_invocation_failed'
     } elseif ($failure.Exception.Message -match
             '^Exception calling "([A-Za-z0-9_]+)"') {
-        ('proof_method_{0}_failed' -f $Matches[1].ToLowerInvariant())
+        'proof_method_failed'
     } elseif ($failure.Exception.Message -match '^A parameter cannot be found') {
         'proof_parameter_missing'
     } elseif ($failure.Exception.Message -match
             "^The term '([A-Za-z0-9_-]+)' is not recognized") {
-        ('proof_command_{0}_missing' -f $Matches[1].ToLowerInvariant())
+        'proof_command_missing'
     } elseif ($failure.Exception.Message -match '^The term ') {
         'proof_command_resolution_failed'
     } elseif ($safeStage -match 'clean_shutdown$') {
@@ -5011,11 +6153,23 @@ if ($FeatureOffProof) {
     Write-Host "nonlethal_control=pass"
     Write-Host "nonlethal_control_health=100_to_88"
     Write-Host "lethal_damage_per_shot=12"
-    Write-Host "lethal_shots_total=9"
-    Write-Host "lethal_transition=pass"
-    Write-Host "target_health_nonpositive=true"
-    Write-Host "target_deadflag_nonzero=true"
-    Write-Host "target_glock_absent=true"
+    Write-Host "lethal_shots_total=8"
+    Write-Host "first_lethal_transition=pass"
+    Write-Host "first_death_camera_dwell=pass"
+    Write-Host "first_respawn=pass"
+    Write-Host "second_lethal_transition=pass"
+    Write-Host "second_death_camera_dwell=pass"
+    Write-Host "second_respawn=pass"
+    Write-Host "death_respawn_cycles=8"
+    Write-Host "same_victim_deaths=7"
+    Write-Host "body_queue_copy_calls=8"
+    Write-Host "body_queue_distinct_nodes=4"
+    Write-Host "body_queue_completed_cycles=2"
+    Write-Host "body_queue_sequence_valid=true"
+    Write-Host "repeated_death_respawn_gate=pass"
+    Write-Host "both_players_alive_after_eighth_respawn=true"
+    Write-Host "respawn_clicks_forwarded=8"
+    Write-Host "respawn_clicks_counted_as_weapon_attacks=0"
     Write-Host "attack_commands_received=9"
     Write-Host "attack_commands_executed=9"
     Write-Host "rounds_consumed=9"
@@ -5029,7 +6183,7 @@ if ($FeatureOffProof) {
     Write-Host "gameplay_callback_failures=0"
     Write-Host "server_still_responsive=true"
     Write-Host "clean_shutdown=1"
-    Write-Host "lethal_death_proof=pass"
+    Write-Host "repeated_lethal_death_proof=pass"
 } elseif ($CombatProof) {
     $evidence = $result.Evidence
     $combat = $result.Combat

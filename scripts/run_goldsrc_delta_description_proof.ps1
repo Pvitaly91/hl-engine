@@ -121,6 +121,26 @@ function Get-GoldsrcDeltaSafeFailureLine {
             '(?i)resource|manifest') {
         "resource_gate_failed"
     } elseif ($message -match
+            '(?i)bootstrap tail expected svc_newmovevars') {
+        "bootstrap_movevars_opcode_mismatch"
+    } elseif ($message -match '(?i)bootstrap tail footsteps mismatch') {
+        "bootstrap_footsteps_mismatch"
+    } elseif ($message -match '(?i)bootstrap tail view entity mismatch') {
+        "bootstrap_view_entity_mismatch"
+    } elseif ($message -match '(?i)bootstrap tail has .*trailing bytes') {
+        "bootstrap_trailing_bytes"
+    } elseif ($message -match
+            '(?i)(runtime and wire combined bootstrap byte counts differ|' +
+            'runtime and wire bootstrap-tail byte counts differ)') {
+        "bootstrap_byte_count_mismatch"
+    } elseif ($message -match
+            '(?i)(combined bootstrap contains no|' +
+            'combined bootstrap is missing)') {
+        "bootstrap_component_missing"
+    } elseif ($message -match
+            '(?i)first combined-bootstrap opcode mismatch') {
+        "bootstrap_first_opcode_mismatch"
+    } elseif ($message -match
             '(?i)snapshot|clientdata|weapon.?data|entity|frame') {
         "snapshot_gate_failed"
     } elseif ($message -match
@@ -540,6 +560,39 @@ public static class GoldSrcMoveProofCodec
                 ref bitPosition,
                 (uint)((ushort)side[command] & 0x0FFFu),
                 12);
+            cursor = (bitPosition + 7) / 8;
+        }
+        var compact = new byte[cursor];
+        Buffer.BlockCopy(body, 0, compact, 0, cursor);
+        return Build(sequence, compact);
+    }
+
+    public static byte[] BuildExactAttackBackup(
+        uint sequence,
+        byte msec,
+        ushort buttons,
+        ushort yaw)
+    {
+        if (msec == 0 || buttons == 0)
+            throw new ArgumentOutOfRangeException("attack backup");
+        var body = new byte[255];
+        body[0] = 0;
+        body[1] = 1;
+        body[2] = 1;
+        int cursor = 3;
+        for (int command = 0; command < 2; ++command)
+        {
+            int bitPosition = cursor * 8;
+            uint mask = 0x02u | 0x04u | 0x10u;
+            WriteBits(body, ref bitPosition, 1u, 3);
+            WriteBits(body, ref bitPosition, mask, 8);
+            WriteBits(body, ref bitPosition, msec, 8);
+            WriteBits(body, ref bitPosition, yaw, 16);
+            WriteBits(
+                body,
+                ref bitPosition,
+                command == 0 ? buttons : 0u,
+                16);
             cursor = (bitPosition + 7) / 8;
         }
         var compact = new byte[cursor];

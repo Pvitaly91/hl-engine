@@ -81,6 +81,7 @@ float* g_combat_global_frametime = nullptr;
 int* g_combat_active_attack_slot = nullptr;
 bool g_combat_emit_invalid_output = false;
 bool g_combat_fail_cmd_end = false;
+bool g_combat_respawn_in_prethink = false;
 edict_t* g_combat_side_effect_target = nullptr;
 int* g_combat_private_weapon_state = nullptr;
 
@@ -140,6 +141,15 @@ void MockCombatPlayerPreThink(edict_t* player)
     ObserveCombatCallback(
         CombatCallbackEvent::kPlayerPreThink,
         static_cast<std::uint16_t>(player->v.button));
+    if (g_combat_respawn_in_prethink
+        && player->v.deadflag != DEAD_NO
+        && (player->v.button & IN_ATTACK) != 0)
+    {
+        player->v.button = 0;
+        player->v.deadflag = DEAD_NO;
+        player->v.health = 100.0f;
+        player->v.movetype = MOVETYPE_WALK;
+    }
 }
 
 void MockCombatPlayerPostThink(edict_t* player)
@@ -284,6 +294,59 @@ hl::network::GoldSrcDecodedMoveCommand Move(
     move.new_command_count = fresh;
     move.command_count = static_cast<std::size_t>(backups + fresh);
     return move;
+}
+
+void TestPersistentGameDllHelperClassification()
+{
+    using hl::game_api::detail::EntityStateSnapshot;
+    using hl::game_api::detail::EngineStringPool;
+    using hl::game_api::detail::IsPersistentGameDllHelper;
+
+    EngineStringPool strings;
+    strings.Reset();
+    assert(strings.KnowsIndex(0));
+    const string_t owned = strings.Alloc("owned");
+    assert(strings.KnowsIndex(owned));
+    const char external[] = "external_bodyque";
+    const string_t external_index = static_cast<string_t>(
+        static_cast<std::uint32_t>(
+            reinterpret_cast<std::uintptr_t>(external)
+            - reinterpret_cast<std::uintptr_t>(strings.Base())));
+    assert(!strings.KnowsIndex(external_index));
+    assert(strings.Describe(external_index) == external);
+    assert(strings.KnowsIndex(external_index));
+
+    EntityStateSnapshot helper;
+    helper.index = 3;
+    helper.free_flag = false;
+    helper.in_use = true;
+    helper.removed = false;
+    helper.parse_index = -1;
+    helper.private_data_present = true;
+    helper.private_data_owned = true;
+    assert(IsPersistentGameDllHelper(helper, 2));
+
+    helper.classname = "bodyque";
+    assert(IsPersistentGameDllHelper(helper, 2));
+
+    EntityStateSnapshot candidate = helper;
+    candidate.index = 2;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
+    candidate = helper;
+    candidate.in_use = false;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
+    candidate = helper;
+    candidate.removed = true;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
+    candidate = helper;
+    candidate.parse_index = 0;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
+    candidate = helper;
+    candidate.private_data_present = false;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
+    candidate = helper;
+    candidate.private_data_owned = false;
+    assert(!IsPersistentGameDllHelper(candidate, 2));
 }
 
 void TestEdictPrivateDataRetirementAndReuseBarrier()
@@ -654,6 +717,365 @@ void TestCombatCallbackOrderReadinessAndSplitTime()
     g_combat_active_attack_slot = nullptr;
 }
 
+void TestRepeatedDeadPlayerClickRespawn()
+{
+    using namespace hl::game_api::detail;
+    using namespace hl::network;
+
+    const auto initialize_runtime = [](
+        GoldSrcPmoveRuntime& runtime,
+        float* global_time,
+        float* global_frametime,
+        int* active_attack_slot)
+    {
+        assert(runtime.InitializeWorld(CollisionFixture()));
+        GoldSrcPmoveGameDllCallbacks callbacks;
+        callbacks.pm_init = &MockCombatPmInit;
+        callbacks.pm_move = &MockCombatPmMove;
+        callbacks.cmd_start = &MockCombatCmdStart;
+        callbacks.cmd_end = &MockCombatCmdEnd;
+        callbacks.player_pre_think = &MockCombatPlayerPreThink;
+        callbacks.player_post_think = &MockCombatPlayerPostThink;
+        callbacks.global_time = global_time;
+        callbacks.global_frametime = global_frametime;
+        callbacks.active_attack_postthink_slot = active_attack_slot;
+        callbacks.combat_enabled = true;
+        GoldSrcMovevarsConfig movevars;
+        movevars.maximum_velocity = 2000.0f;
+        assert(runtime.InitializeGameDll(callbacks, ".", movevars));
+    };
+    const auto initialize_player = [](edict_t& player)
+    {
+        std::memset(&player, 0, sizeof(player));
+        player.free = FALSE;
+        player.v.movetype = MOVETYPE_WALK;
+        player.v.health = 100.0f;
+        player.v.gravity = 1.0f;
+        player.v.friction = 1.0f;
+        player.v.maxspeed = 320.0f;
+        player.v.flags = FL_ONGROUND;
+        player.v.view_ofs = Vector(0.0f, 0.0f, 28.0f);
+    };
+    const auto mark_respawnable = [](edict_t& player)
+    {
+        player.v.deadflag = DEAD_RESPAWNABLE;
+        player.v.health = -8.0f;
+        player.v.movetype = MOVETYPE_NONE;
+        player.v.button = 0;
+        player.v.nextthink = 0.0f;
+    };
+
+    float global_time = 0.0f;
+    float global_frametime = 0.0f;
+    int active_attack_slot = 0;
+    g_combat_global_time = &global_time;
+    g_combat_global_frametime = &global_frametime;
+    g_combat_active_attack_slot = &active_attack_slot;
+    g_combat_respawn_in_prethink = true;
+
+    GoldSrcPmoveRuntime runtime;
+    initialize_runtime(
+        runtime,
+        &global_time,
+        &global_frametime,
+        &active_attack_slot);
+    edict_t world{};
+    world.free = FALSE;
+    edict_t player{};
+    initialize_player(player);
+
+    // Establish the command clock before exercising the maximum legal msec
+    // value; an initial 255 ms command is intentionally beyond the 250 ms
+    // first-packet lead allowance.
+    auto clock_seed = Move(0u, 1u);
+    clock_seed.commands[0] = Command(10u, 0.0f, 0.0f, 0u);
+    assert(runtime.Execute(
+        1u,
+        clock_seed,
+        1u,
+        1000u,
+        &player,
+        &world).ok());
+
+    constexpr std::uint32_t kRespawnCycles = 32u;
+    for (std::uint32_t cycle = 0u; cycle < kRespawnCycles; ++cycle)
+    {
+        mark_respawnable(player);
+        if (cycle == 0u)
+        {
+            // A peer can kill this player before the readiness snapshot is
+            // refreshed.  Even in that stale-ready state, the click is a
+            // lifecycle input and IN_ATTACK2 remains the only masked bit.
+            runtime.SetCombatPlayerReady(
+                1u,
+                true,
+                kGoldSrcStockGlockWeaponId,
+                true);
+            assert(runtime.CombatDiagnostics(1u)->phase
+                == GoldSrcCombatPhase::kCombatReady);
+        }
+        else
+        {
+            runtime.SetCombatPlayerReady(1u, true, 0, false);
+            assert(runtime.CombatDiagnostics(1u)->phase
+                == GoldSrcCombatPhase::kAwaitingWeaponState);
+        }
+        g_combat_observation_count = 0u;
+        auto click = Move(0u, 1u);
+        const std::uint16_t click_buttons = cycle == 0u
+            ? static_cast<std::uint16_t>(IN_ATTACK | IN_ATTACK2)
+            : static_cast<std::uint16_t>(IN_ATTACK);
+        click.commands[0] = Command(
+            255u,
+            0.0f,
+            0.0f,
+            click_buttons);
+        const GoldSrcPmoveSplitResult split =
+            SplitGoldSrcPmoveCommand(click.commands[0].msec);
+        assert(split.valid && split.count > 1u);
+        const GoldSrcPmoveExecutionResult result = runtime.Execute(
+            1u,
+            click,
+            cycle + 2u,
+            1300u + static_cast<std::uint64_t>(cycle) * 300u,
+            &player,
+            &world);
+        assert(result.ok());
+        assert(result.subcommands_executed == split.count);
+        assert(!result.gameplay_callback_failure);
+        assert(player.v.deadflag == DEAD_NO);
+        assert(player.v.health == 100.0f);
+        assert((player.v.oldbuttons & IN_ATTACK) == 0);
+        assert(runtime.CombatDiagnostics(1u)->phase
+            == GoldSrcCombatPhase::kAwaitingWeaponState);
+        assert(g_combat_observation_count == split.count * 5u);
+        assert((g_combat_observations[0].buttons & IN_ATTACK) != 0u);
+        assert((g_combat_observations[1].buttons & IN_ATTACK) != 0u);
+        for (std::size_t piece = 0u; piece < split.count; ++piece)
+        {
+            const std::size_t base = piece * 5u;
+            for (std::size_t event = 0u; event < 5u; ++event)
+            {
+                assert((g_combat_observations[base + event].buttons
+                        & IN_ATTACK2) == 0u);
+            }
+            assert((g_combat_observations[base + 2u].buttons
+                    & IN_ATTACK) == 0u);
+            assert((g_combat_observations[base + 3u].buttons
+                    & IN_ATTACK) == 0u);
+            assert((g_combat_observations[base + 4u].buttons
+                    & IN_ATTACK) == 0u);
+            assert(g_combat_observations[base + 3u]
+                .active_attack_slot == 0);
+            if (piece > 0u)
+            {
+                assert((g_combat_observations[base].buttons
+                        & IN_ATTACK) == 0u);
+                assert((g_combat_observations[base + 1u].buttons
+                        & IN_ATTACK) == 0u);
+            }
+        }
+        assert(active_attack_slot == 0);
+    }
+    const GoldSrcCombatClientDiagnostics* forwarded =
+        runtime.CombatDiagnostics(1u);
+    assert(forwarded != nullptr);
+    assert(forwarded->respawn_inputs_forwarded == kRespawnCycles);
+    assert(forwarded->attack_commands_received == 0u);
+    assert(forwarded->attack_commands_executed == 0u);
+    assert(forwarded->duplicate_attack_commands_suppressed == 0u);
+    assert(forwarded->unsupported_gameplay_inputs_masked == 1u);
+    assert(forwarded->callback_failures == 0u);
+
+    // The next packet repeats the raw respawn click as a backup.  It is
+    // suppressed by command history and must not be reclassified as a
+    // duplicate weapon attack now that the player is alive.
+    auto release = Move(1u, 1u);
+    release.commands[0] = Command(255u, 0.0f, 0.0f, IN_ATTACK);
+    release.commands[1] = Command(10u, 0.0f, 0.0f, 0u);
+    assert(runtime.Execute(
+        1u,
+        release,
+        kRespawnCycles + 2u,
+        11000u,
+        &player,
+        &world).ok());
+    assert(runtime.CombatDiagnostics(1u)
+        ->duplicate_attack_commands_suppressed == 0u);
+
+    runtime.SetCombatPlayerReady(
+        1u,
+        true,
+        kGoldSrcStockGlockWeaponId,
+        true);
+    assert(runtime.CombatDiagnostics(1u)->phase
+        == GoldSrcCombatPhase::kCombatReady);
+    edict_t target{};
+    target.free = FALSE;
+    target.v.health = 100.0f;
+    int clip = 17;
+    g_combat_side_effect_target = &target;
+    g_combat_private_weapon_state = &clip;
+    g_combat_observation_count = 0u;
+    auto live_attack = Move(0u, 1u);
+    live_attack.commands[0] = Command(10u, 0.0f, 0.0f, IN_ATTACK);
+    const GoldSrcPmoveExecutionResult live_result = runtime.Execute(
+        1u,
+        live_attack,
+        kRespawnCycles + 3u,
+        11010u,
+        &player,
+        &world);
+    assert(live_result.ok());
+    assert(g_combat_observation_count == 5u);
+    for (std::size_t index = 0u;
+         index < g_combat_observation_count;
+         ++index)
+    {
+        assert((g_combat_observations[index].buttons & IN_ATTACK) != 0u);
+    }
+    assert(g_combat_observations[3].active_attack_slot == 1);
+    assert(target.v.health == 90.0f);
+    assert(clip == 16);
+    const GoldSrcCombatClientDiagnostics* live =
+        runtime.CombatDiagnostics(1u);
+    assert(live != nullptr);
+    assert(live->respawn_inputs_forwarded == kRespawnCycles);
+    assert(live->attack_commands_received == 1u);
+    assert(live->attack_commands_executed == 1u);
+    assert(live->phase == GoldSrcCombatPhase::kCombatStable);
+    assert(live->callback_failures == 0u);
+    assert(active_attack_slot == 0);
+
+    g_combat_side_effect_target = nullptr;
+    g_combat_private_weapon_state = nullptr;
+    auto live_backup = Move(1u, 1u);
+    live_backup.commands[0] = Command(
+        10u,
+        0.0f,
+        0.0f,
+        IN_ATTACK);
+    live_backup.commands[1] = Command(10u, 0.0f, 0.0f, 0u);
+    const GoldSrcPmoveExecutionResult live_backup_result = runtime.Execute(
+        1u,
+        live_backup,
+        kRespawnCycles + 4u,
+        11020u,
+        &player,
+        &world);
+    assert(live_backup_result.ok());
+    assert(live_backup_result.duplicates_suppressed == 1u);
+    const GoldSrcCombatClientDiagnostics* after_live_backup =
+        runtime.CombatDiagnostics(1u);
+    assert(after_live_backup != nullptr);
+    assert(after_live_backup->duplicate_attack_commands_suppressed == 1u);
+    assert(after_live_backup->attack_commands_received == 1u);
+    assert(after_live_backup->attack_commands_executed == 1u);
+    assert(target.v.health == 90.0f);
+    assert(clip == 16);
+
+    // A stale raw packet is rejected before duplicate combat accounting.
+    auto second_live_attack = Move(0u, 1u);
+    second_live_attack.commands[0] = Command(
+        10u,
+        0.0f,
+        0.0f,
+        IN_ATTACK);
+    const std::uint32_t second_attack_sequence =
+        kRespawnCycles + 5u;
+    assert(runtime.Execute(
+        1u,
+        second_live_attack,
+        second_attack_sequence,
+        11030u,
+        &player,
+        &world).ok());
+    const GoldSrcPmoveExecutionResult stale_attack = runtime.Execute(
+        1u,
+        second_live_attack,
+        second_attack_sequence,
+        11030u,
+        &player,
+        &world);
+    assert(!stale_attack.ok());
+    assert(stale_attack.command_status
+        == GoldSrcCommandPlanStatus::kStalePacket);
+    assert(runtime.CombatDiagnostics(1u)
+        ->duplicate_attack_commands_suppressed == 1u);
+
+    // Multiple suppressed backups contain only one exact copy of the last
+    // semantic attack, so combat accounting advances by exactly one.
+    auto multiple_live_backups = Move(2u, 1u);
+    multiple_live_backups.commands[0] = Command(
+        10u,
+        25.0f,
+        0.0f,
+        0u);
+    multiple_live_backups.commands[1] =
+        second_live_attack.commands[0];
+    multiple_live_backups.commands[2] = Command(
+        10u,
+        0.0f,
+        0.0f,
+        0u);
+    const GoldSrcPmoveExecutionResult multiple_backup_result =
+        runtime.Execute(
+            1u,
+            multiple_live_backups,
+            kRespawnCycles + 6u,
+            11040u,
+            &player,
+            &world);
+    assert(multiple_backup_result.ok());
+    assert(multiple_backup_result.duplicates_suppressed == 2u);
+    assert(runtime.CombatDiagnostics(1u)
+        ->duplicate_attack_commands_suppressed == 2u);
+
+    // A raw backup that carries IN_ATTACK but does not exactly equal the
+    // last executed attack is discarded without changing the metric.
+    auto third_live_attack = Move(0u, 1u);
+    third_live_attack.commands[0] = Command(
+        10u,
+        0.0f,
+        0.0f,
+        IN_ATTACK);
+    assert(runtime.Execute(
+        1u,
+        third_live_attack,
+        kRespawnCycles + 7u,
+        11050u,
+        &player,
+        &world).ok());
+    auto nonmatching_attack_backup = Move(1u, 1u);
+    nonmatching_attack_backup.commands[0] = Command(
+        10u,
+        1.0f,
+        0.0f,
+        IN_ATTACK);
+    nonmatching_attack_backup.commands[1] = Command(
+        10u,
+        0.0f,
+        0.0f,
+        0u);
+    const GoldSrcPmoveExecutionResult nonmatching_backup_result =
+        runtime.Execute(
+            1u,
+            nonmatching_attack_backup,
+            kRespawnCycles + 8u,
+            11060u,
+            &player,
+            &world);
+    assert(nonmatching_backup_result.ok());
+    assert(nonmatching_backup_result.duplicates_suppressed == 1u);
+    assert(runtime.CombatDiagnostics(1u)
+        ->duplicate_attack_commands_suppressed == 2u);
+
+    g_combat_respawn_in_prethink = false;
+    g_combat_global_time = nullptr;
+    g_combat_global_frametime = nullptr;
+    g_combat_active_attack_slot = nullptr;
+}
+
 #if defined(_MSC_VER)
 void TestCombatCmdEndFailureFailStopsRuntime()
 {
@@ -817,6 +1239,7 @@ int main()
 {
     TestClientDataCallbackBufferContract();
     using namespace hl::network;
+    TestPersistentGameDllHelperClassification();
     TestEdictPrivateDataRetirementAndReuseBarrier();
     using namespace hl::game_api::detail;
 
@@ -941,6 +1364,7 @@ int main()
         assert(plan.command_count == 1u);
         assert(plan.commands[0].command.forwardmove == 100.0f);
         assert(plan.duplicate_backups_suppressed == 2u);
+        assert(!plan.suppressed_backup_matched_last_command);
         assert(!state.initialized());
         state.CommitObservedMovePacket(10u, true);
         state.CommitExecutedBatch(plan, 10u, 1000u);
@@ -958,6 +1382,7 @@ int main()
         assert(recovery.ok());
         assert(recovery.recovered_backups == 1u);
         assert(recovery.duplicate_backups_suppressed == 1u);
+        assert(recovery.suppressed_backup_matched_last_command);
         assert(recovery.commands[0].recovered_backup);
         assert(!recovery.commands[1].recovered_backup);
         assert(recovery.commands[0].command.forwardmove == 110.0f);
@@ -973,12 +1398,36 @@ int main()
         assert(
             state.Plan(invalid, 13u, 1000u).status
             == GoldSrcCommandPlanStatus::kInvalidCommandMsec);
-        assert(
-            state.Plan(recovered, 12u, 1000u).status
-            == GoldSrcCommandPlanStatus::kStalePacket);
+        const auto stale = state.Plan(recovered, 12u, 1000u);
+        assert(stale.status == GoldSrcCommandPlanStatus::kStalePacket);
+        assert(!stale.suppressed_backup_matched_last_command);
         assert(
             state.Plan(recovered, 11u, 1000u).status
             == GoldSrcCommandPlanStatus::kOutOfOrderPacket);
+
+        auto nonmatching = Move(1u, 1u);
+        nonmatching.commands[0] = Command(20u, 777.0f);
+        nonmatching.commands[1] = Command(20u, 130.0f);
+        const auto nonmatching_plan = state.Plan(
+            nonmatching,
+            13u,
+            1040u);
+        assert(nonmatching_plan.ok());
+        assert(nonmatching_plan.duplicate_backups_suppressed == 1u);
+        assert(!nonmatching_plan.suppressed_backup_matched_last_command);
+
+        auto multiple_suppressed = Move(2u, 1u);
+        multiple_suppressed.commands[0] = Command(20u, 777.0f);
+        multiple_suppressed.commands[1] = Command(20u, 120.0f);
+        multiple_suppressed.commands[2] = Command(20u, 130.0f);
+        const auto multiple_suppressed_plan = state.Plan(
+            multiple_suppressed,
+            13u,
+            1040u);
+        assert(multiple_suppressed_plan.ok());
+        assert(multiple_suppressed_plan.duplicate_backups_suppressed == 2u);
+        assert(multiple_suppressed_plan
+            .suppressed_backup_matched_last_command);
     }
 
     {
@@ -1347,6 +1796,7 @@ int main()
     assert(runtime.diagnostics().movement_rollbacks == 1u);
     assert(runtime.implemented_service_callback_count() == 25u);
     TestCombatCallbackOrderReadinessAndSplitTime();
+    TestRepeatedDeadPlayerClickRespawn();
 #if defined(_MSC_VER)
     TestCombatCmdEndFailureFailStopsRuntime();
 #endif

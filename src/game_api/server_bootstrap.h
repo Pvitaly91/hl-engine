@@ -57,6 +57,23 @@ struct EntityStateSnapshot
     int parse_index = -1;
 };
 
+inline bool IsPersistentGameDllHelper(
+    const EntityStateSnapshot& snapshot,
+    int max_clients) noexcept
+{
+    // Stock world initialization creates private Game-DLL objects such as
+    // CSoundEnt and the four-node body queue before ServerActivate.  They are
+    // not BSP parse records and may have no classname, but the DLL retains raw
+    // references to them for the whole map.  Their lifetime therefore ends
+    // only through an explicit remove/FL_KILLME path or map teardown.
+    return snapshot.index > max_clients
+        && snapshot.in_use
+        && !snapshot.removed
+        && snapshot.parse_index < 0
+        && snapshot.private_data_present
+        && snapshot.private_data_owned;
+}
+
 struct ServerState
 {
     std::filesystem::path game_directory;
@@ -100,6 +117,7 @@ public:
     const char* Base() const noexcept;
     const char* SzFromIndex(string_t index) const noexcept;
     bool OwnsIndex(string_t index) const noexcept;
+    bool KnowsIndex(string_t index) const noexcept;
     std::string Describe(string_t index) const;
 
 private:

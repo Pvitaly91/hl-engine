@@ -69,6 +69,7 @@ struct GoldSrcCombatClientDiagnostics final
     std::uint64_t player_prethink_calls = 0u;
     std::uint64_t player_postthink_calls = 0u;
     std::uint64_t entity_think_calls = 0u;
+    std::uint64_t respawn_inputs_forwarded = 0u;
     std::uint64_t callback_failures = 0u;
     std::uint64_t gameplay_time_msec = 0u;
 };

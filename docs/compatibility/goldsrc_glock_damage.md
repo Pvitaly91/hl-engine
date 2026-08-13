@@ -1,5 +1,7 @@
 # Stock GoldSrc Glock damage compatibility slice
 
+prompt_id=HL-ENGINE-20260809-250A-GOLDSRC-GLOCK-STOCK-ACCEPTANCE
+
 This document records the boundary and verified contracts for the opt-in
 `--goldsrc-combat` compatibility slice. The feature is disabled by default and
 does not change the movement-only `--goldsrc-pmove` path.
@@ -189,6 +191,15 @@ output. Once gameplay callbacks have begun, the command is consumed once, the
 global gameplay fail-stop is latched, later combat callbacks are refused, and
 the transport terminates fail-closed.
 
+The external proof harness follows the same safe-output rule. Direct and
+wrapper negative checks confirm that only fixed semantic failure classes are
+reported; raw process output, exception details, and private installation
+paths are not printed. Per-client frame/reference retention uses a 512-frame
+window and rejects an expired exact base. The indexed snapshot capture is
+also bounded, while the temporary text capture remains exact for final
+summary validation without forcing a physical-media synchronization for every
+captured line.
+
 ### Stock Glock autoaim callback boundary
 
 The first manual current-build attempt after the launcher lifetime correction
@@ -226,14 +237,22 @@ needed to diagnose it.
 The corrected snapshot path treats life and death as two explicit weapon-set
 phases, emits a full fallback at the presence-to-absence boundary, and accepts
 stock `AddToFullPack` omission separately from a callback fault. The dedicated
-lethal proof applies nine authoritative Glock shots/rounds, observes
-nonpositive health and nonzero `deadflag`, decodes the target Glock as absent,
-then requires at least 32 further frames for each client with advancing time,
-movement, PM_Move, pre/post-think, and snapshot evidence. Both callback-failure
-counters remain zero and the server remains responsive through clean shutdown.
-The operator subsequently confirmed that stock death completes and the player
-respawns normally. That direct observation closes the narrow death/respawn
-continuity item, but it does not complete the remaining manual combat record.
+lethal proof first records the ordinary nonlethal control at health `100 ->
+88`, then executes eight one-shot lethal death/respawn cycles. Across the
+control and lethal phases, exactly nine attacks execute, nine rounds are
+consumed, nine player-hit shots are recorded, and 18 player-trace callbacks
+run: 16 for client A and two for client B, with zero world hits.
+
+All eight death/respawn cycles complete. The same victim dies seven times,
+both players are alive after the eighth respawn, eight respawn clicks reach
+the lifecycle path (A=1, B=7), and none is counted as a weapon attack. New
+body-queue telemetry directly observes eight corpse-copy calls across four
+distinct queue nodes, two completed queue rotations, and a valid sequence.
+Both callback-failure counters remain zero and the server remains responsive
+through clean shutdown. This automated body-queue evidence does not claim
+complete corpse or death-camera visual parity. The operator's earlier direct
+observation confirms that stock death and respawn work, but the remaining
+manual combat record is still pending.
 
 ### One-frame muzzle-flash boundary
 
@@ -299,10 +318,15 @@ masked and no combat callbacks, weapondata, or damage are emitted. The fall
 proof independently gates a 400-unit landing without damage, a grounded
 600-unit landing with exactly 10 points of nonlethal stock fall damage, zero
 gameplay callback failures, and post-landing authoritative and decoded-wire XY
-movement for both clients. The lethal proof preserves the ordinary nonlethal
-control, then requires nine accepted player-hit shots, nine consumed rounds,
-18 player-trace callbacks, the stock death transition, target Glock absence,
-and at least 32 post-death frames for each still-responsive client.
+movement for both clients. The repeated-lethal proof preserves the ordinary
+nonlethal `100 -> 88` control and then requires eight one-shot lethal
+death/respawn cycles. Including the control, it requires exactly nine attacks,
+nine executed attacks, nine consumed rounds, nine player-hit shots, 18 trace
+callbacks split A=16/B=2, and zero world hits. It also requires all eight
+respawn clicks to reach the lifecycle path without becoming weapon attacks,
+both players alive after the eighth respawn, a valid two-rotation four-node
+body-queue sequence observed directly through telemetry, zero callback
+failures, continued responsiveness, and clean shutdown.
 
 The complete regression matrix also includes the full CTest suite, every
 earlier protocol proof, PM_Move Proof A/B, continuous-snapshot low-eight-bit
@@ -324,12 +348,12 @@ direct stock-client observations in the manual procedure.
 | CTest | 15/15 passed. |
 | One-frame muzzle-flash cleanup | Focused regression passed: the shot-frame bit remains available through two modeled receiver reads, is cleared after the send sweep, can be re-armed by a later shot, and does not clear persistent effects or the world edict. |
 | Mandatory autoaim phase | Pass: attack buttons stayed zero, the direct ray missed while the autoaim cone acquired the target, `pfnVecToAngles` and `pfnCrosshairAngle` were both called, health and ammunition were unchanged, and both clients remained responsive. |
-| Glock Proof A | Pass: one attack was received and executed once; `StartFrame` calls = 1495; client A pre/post-think calls = 103/103; client B pre/post-think calls = 101/101. |
+| Glock Proof A | Pass: the mandatory aim phase passed and one attack was received and executed once; `StartFrame` calls = 2125; client A pre/post-think calls = 107/107; client B pre/post-think calls = 105/105. |
 | Proof A weapon state | Glock clip 17 -> 16; reserve ammunition 68 -> 68; exactly one round consumed. |
 | Proof A damage state | Target health 100 -> 88; 12 points of nonlethal damage; target remained alive. |
 | Proof A continuity | Post-shot movement passed for clients A and B; clean shutdown passed. |
 | Glock Proof B | Pass: all 13 negative/isolation gates passed. |
-| Lethal death Proof | Pass: nine player-hit attacks executed, nine rounds consumed, and 18 player-trace callbacks ran; health became nonpositive with nonzero `deadflag`; the target Glock became absent; both clients advanced for at least 32 post-death frames; callback failures remained zero; responsiveness and clean shutdown passed. |
+| Repeated lethal death Proof | Pass: nonlethal control `100 -> 88`, then 8/8 one-shot lethal death/respawn cycles. Totals including control are 9 attacks received/executed, 9 rounds, 9 player-hit shots, 18 traces (A=16, B=2), and 0 world hits. Same-victim deaths = 7; respawn inputs A=1/B=7; 8 clicks were forwarded and 0 became weapon attacks. Direct body-queue telemetry reports 8 copy calls, 4 distinct nodes, 2 completed rotations, and a valid sequence. Both players were alive after respawn eight; callback failures = 0; responsiveness and clean shutdown passed. |
 | Stock fall Proof | Pass, 3/3: the 400-unit landing was grounded with no damage; the 600-unit landing was grounded with exactly 10 points of damage and the player alive; zero gameplay callback failures and post-landing authoritative plus decoded-wire XY movement passed for both clients. |
 | Combat feature-off proof | Pass. |
 | Noncombat two-client Probe A/B | Pass/pass. |

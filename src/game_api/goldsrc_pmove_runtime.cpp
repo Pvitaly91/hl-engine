@@ -723,6 +723,33 @@ private:
     mutable int last_trace_backoff_steps_ = 0;
 };
 
+bool SafeWorldTrace(
+    BspCollisionWorld* world,
+    const float* start,
+    const float* end,
+    int use_hull,
+    pmtrace_t* output) noexcept
+{
+    if (world == nullptr || output == nullptr)
+    {
+        return false;
+    }
+#if defined(_MSC_VER)
+    __try
+    {
+        *output = world->Trace(start, end, use_hull);
+        return true;
+    }
+    __except (EXCEPTION_EXECUTE_HANDLER)
+    {
+        return false;
+    }
+#else
+    *output = world->Trace(start, end, use_hull);
+    return true;
+#endif
+}
+
 bool SafePmInit(
     GoldSrcPmInitCallback callback,
     playermove_t* context) noexcept
@@ -1087,6 +1114,7 @@ struct GoldSrcPmoveRuntime::Impl
                 ? network::GoldSrcCombatPhase::kAwaitingPlayer
                 : network::GoldSrcCombatPhase::kDisabled;
         }
+        last_command_was_weapon_attack.fill(false);
         if (diagnostics.callback_table_complete)
         {
             gameplay_fail_stop_latched = false;
@@ -1876,6 +1904,8 @@ struct GoldSrcPmoveRuntime::Impl
         combat_clients{};
     std::array<std::optional<std::uint64_t>, kMaximumClients>
         combat_time_bases_msec{};
+    std::array<bool, kMaximumClients>
+        last_command_was_weapon_attack{};
     bool gameplay_fail_stop_latched = false;
     GoldSrcPmoveDiagnostics diagnostics{};
     std::unordered_map<void*, std::unique_ptr<byte[]>> files;
@@ -1998,7 +2028,19 @@ bool GoldSrcPmoveRuntime::TraceWorldHull(
     {
         return false;
     }
-    const pmtrace_t trace = impl_->world.Trace(start, end, use_hull);
+    pmtrace_t trace{};
+    if (!SafeWorldTrace(
+            &impl_->world,
+            start,
+            end,
+            use_hull,
+            &trace))
+    {
+        *output = {};
+        output->fraction = 1.0f;
+        CopyVector(end, output->end_position);
+        return false;
+    }
     *output = {};
     output->fraction = (std::max)(
         0.0f,
@@ -2065,6 +2107,7 @@ void GoldSrcPmoveRuntime::ResetClient(
                 ? network::GoldSrcCombatPhase::kAwaitingPlayer
                 : network::GoldSrcCombatPhase::kDisabled;
         impl_->combat_time_bases_msec[client_slot - 1u].reset();
+        impl_->last_command_was_weapon_attack[client_slot - 1u] = false;
     }
 }
 
@@ -2085,6 +2128,7 @@ void GoldSrcPmoveRuntime::ResetGameDll() noexcept
         impl_->combat_clients[index] = {};
         impl_->combat_clients[index].phase = network::GoldSrcCombatPhase::kDisabled;
         impl_->combat_time_bases_msec[index].reset();
+        impl_->last_command_was_weapon_attack[index] = false;
     }
 }
 
@@ -2186,20 +2230,14 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
     };
     bool gameplay_callbacks_started = false;
     if (impl_->callbacks.combat_enabled
-        && result.duplicates_suppressed > 0u)
+        && impl_->last_command_was_weapon_attack[client_slot - 1u]
+        && plan.suppressed_backup_matched_last_command)
     {
-        for (std::size_t index = 0; index < move.command_count; ++index)
-        {
-            if ((move.commands[index].buttons & IN_ATTACK) != 0u)
-            {
-                combat.duplicate_attack_commands_suppressed +=
-                    result.duplicates_suppressed;
-                break;
-            }
-        }
+        ++combat.duplicate_attack_commands_suppressed;
     }
     std::uint64_t pending_time_msec = state.command_time_msec();
     std::size_t local_commits = 0u;
+    bool last_planned_command_was_weapon_attack = false;
     const auto finish_failed_execution =
         [&](GoldSrcPmoveExecutionStatus status) noexcept
     {
@@ -2237,15 +2275,37 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
     {
         const network::GoldSrcPlannedUserCommand& planned =
             plan.commands[command_index];
-        const network::GoldSrcCombatInput combat_input =
+        network::GoldSrcCombatInput initial_combat_input =
             network::FilterGoldSrcCombatInput(
                 planned.command.buttons,
                 impl_->callbacks.combat_enabled,
                 combat.phase);
+        const bool initial_respawn_input =
+            impl_->callbacks.combat_enabled
+            && player->v.deadflag != DEAD_NO
+            && (planned.command.buttons & IN_ATTACK) != 0u;
+        if (initial_respawn_input)
+        {
+            // IN_ATTACK is also the stock multiplayer respawn command.  A
+            // dead player has no active Glock, so the combat-readiness filter
+            // would otherwise mask the click forever.  Forward the button to
+            // PlayerDeathThink without treating it as a weapon attack.
+            const bool attack_was_masked =
+                (initial_combat_input.buttons & IN_ATTACK) == 0u;
+            initial_combat_input.buttons |= IN_ATTACK;
+            initial_combat_input.attack_received = false;
+            initial_combat_input.attack_enabled = false;
+            if (attack_was_masked
+                && initial_combat_input.unsupported_bits_masked > 0u)
+            {
+                --initial_combat_input.unsupported_bits_masked;
+            }
+            ++combat.respawn_inputs_forwarded;
+        }
         combat.attack_commands_received +=
-            combat_input.attack_received ? 1u : 0u;
+            initial_combat_input.attack_received ? 1u : 0u;
         combat.unsupported_gameplay_inputs_masked +=
-            combat_input.unsupported_bits_masked;
+            initial_combat_input.unsupported_bits_masked;
         const network::GoldSrcPmoveSplitResult split =
             network::SplitGoldSrcPmoveCommand(planned.command.msec);
         if (!split.valid)
@@ -2255,15 +2315,43 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
             return result;
         }
 
+        bool respawn_command_consumed = false;
+        bool command_was_weapon_attack = false;
         for (std::size_t piece_index = 0;
              piece_index < split.count;
              ++piece_index)
         {
+            network::GoldSrcCombatInput piece_combat_input =
+                network::FilterGoldSrcCombatInput(
+                    planned.command.buttons,
+                    impl_->callbacks.combat_enabled,
+                    combat.phase);
+            const bool piece_respawn_input =
+                impl_->callbacks.combat_enabled
+                && player->v.deadflag != DEAD_NO
+                && !respawn_command_consumed
+                && (planned.command.buttons & IN_ATTACK) != 0u;
+            if (piece_respawn_input)
+            {
+                piece_combat_input.buttons |= IN_ATTACK;
+                piece_combat_input.attack_received = false;
+                piece_combat_input.attack_enabled = false;
+            }
+            else if (respawn_command_consumed)
+            {
+                piece_combat_input.buttons = static_cast<std::uint16_t>(
+                    piece_combat_input.buttons & ~IN_ATTACK);
+                piece_combat_input.attack_received = false;
+                piece_combat_input.attack_enabled = false;
+            }
             usercmd_t command =
                 ConvertCommand(
                     planned.command,
                     split.msec[piece_index],
-                    combat_input.buttons);
+                    piece_combat_input.buttons);
+            const bool player_was_dead =
+                impl_->callbacks.combat_enabled
+                && player->v.deadflag != DEAD_NO;
             gameplay_callbacks_started = gameplay_callbacks_started
                 || impl_->callbacks.combat_enabled;
             if (!SafeCmdStart(
@@ -2306,7 +2394,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                 player->v.impulse = command.impulse;
                 player->v.light_level = command.lightlevel;
                 CopyVector(command.viewangles, player->v.v_angle);
-                if (combat_input.attack_enabled)
+                if (piece_combat_input.attack_enabled)
                 {
                     combat.phase =
                         network::GoldSrcCombatPhase::kAttackExecuting;
@@ -2353,6 +2441,32 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                         return result;
                     }
                     ++combat.entity_think_calls;
+                }
+                if (player_was_dead && player->v.deadflag == DEAD_NO)
+                {
+                    // PlayerDeathThink consumed this lifecycle click.  Do
+                    // not let the same held IN_ATTACK bit become a Glock
+                    // shot later in this split command after Spawn().
+                    respawn_command_consumed = true;
+                    command.buttons = static_cast<unsigned short>(
+                        command.buttons & ~IN_ATTACK);
+                    player->v.button &= ~IN_ATTACK;
+                    combat.phase =
+                        network::GoldSrcCombatPhase::kAwaitingWeaponState;
+                }
+                else if (!player_was_dead
+                    && player->v.deadflag != DEAD_NO)
+                {
+                    // If PreThink/Think changes the lifecycle state, the
+                    // command is no longer a live weapon execution.  Consume
+                    // the bit before PM_Move and wait for fresh inventory.
+                    respawn_command_consumed = true;
+                    command.buttons = static_cast<unsigned short>(
+                        command.buttons & ~IN_ATTACK);
+                    player->v.button &= ~IN_ATTACK;
+                    piece_combat_input.attack_enabled = false;
+                    combat.phase =
+                        network::GoldSrcCombatPhase::kAwaitingWeaponState;
                 }
             }
             playermove_t context{};
@@ -2405,7 +2519,7 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
             if (output_ok && gameplay_callbacks)
             {
                 *impl_->callbacks.active_attack_postthink_slot =
-                    combat_input.attack_enabled
+                    piece_combat_input.attack_enabled
                         ? static_cast<int>(client_slot)
                         : 0;
                 postthink_ok = SafePlayerThink(
@@ -2416,8 +2530,11 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                 {
                     ++combat.player_postthink_calls;
                     combat.attack_commands_executed +=
-                        combat_input.attack_enabled ? 1u : 0u;
-                    if (combat_input.attack_enabled)
+                        piece_combat_input.attack_enabled ? 1u : 0u;
+                    command_was_weapon_attack =
+                        command_was_weapon_attack
+                        || piece_combat_input.attack_enabled;
+                    if (piece_combat_input.attack_enabled)
                     {
                         combat.phase =
                             network::GoldSrcCombatPhase::kCombatStable;
@@ -2459,14 +2576,32 @@ GoldSrcPmoveExecutionResult GoldSrcPmoveRuntime::Execute(
                         : GoldSrcPmoveExecutionStatus::kPmMoveFailed);
                 return result;
             }
+            if (gameplay_callbacks
+                && !player_was_dead
+                && player->v.deadflag != DEAD_NO)
+            {
+                // A live attack can become lethal during a split command.
+                // Never reinterpret its remaining held pieces as an
+                // immediate respawn click or another weapon execution.
+                respawn_command_consumed = true;
+                combat.phase =
+                    network::GoldSrcCombatPhase::kAwaitingWeaponState;
+            }
             ++result.subcommands_executed;
         }
+        last_planned_command_was_weapon_attack =
+            command_was_weapon_attack;
     }
 
     state.CommitObservedMovePacket(packet_sequence, true);
     const std::uint64_t recoveries_before =
         state.diagnostics().command_clock_recoveries;
     state.CommitExecutedBatch(plan, packet_sequence, host_time_msec);
+    if (plan.command_count > 0u)
+    {
+        impl_->last_command_was_weapon_attack[client_slot - 1u] =
+            last_planned_command_was_weapon_attack;
+    }
     result.commands_executed = plan.command_count;
     result.backups_replayed = plan.recovered_backups;
     result.last_observed_move_sequence =
